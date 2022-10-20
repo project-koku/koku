@@ -286,6 +286,129 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                         },
+                        "aggregates_forecast": {
+                            "sup_total": Sum(
+                                (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                        },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
                             "sup_raw": Value(0, output_field=DecimalField()),
@@ -528,6 +651,11 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "cost_total": Sum(
                                 (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
                                     Coalesce(
                                         KeyDecimalTransform("cpu", "supplementary_usage_cost"),
                                         Value(0, output_field=DecimalField()),
@@ -540,7 +668,6 @@ class OCPProviderMap(ProviderMap):
                                         KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
@@ -553,7 +680,6 @@ class OCPProviderMap(ProviderMap):
                                         KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
                                         Value(0, output_field=DecimalField()),
@@ -586,6 +712,11 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "ranking_cost_total_exchanged": Sum(
                             (
+                                Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                            + (
                                 Coalesce(
                                     KeyDecimalTransform("cpu", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
@@ -598,7 +729,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
@@ -611,7 +741,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
                                     Value(0, output_field=DecimalField()),
@@ -883,6 +1012,137 @@ class OCPProviderMap(ProviderMap):
                                 )
                             ),
                         },
+                        "aggregates_forecast": {
+                            "sup_total": Sum(
+                                (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(
+                                        F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField())
+                                    )
+                                    + Coalesce(
+                                        F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
+                                    )
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(
+                                        F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField())
+                                    )
+                                    + Coalesce(
+                                        F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
+                                    )
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                        },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
                             "sup_raw": Value(0, output_field=DecimalField()),
@@ -1134,6 +1394,15 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": Sum(
                                 (
                                     Coalesce(
+                                        F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField())
+                                    )
+                                    + Coalesce(
+                                        F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
+                                    )
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
                                         KeyDecimalTransform("cpu", "supplementary_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
@@ -1146,9 +1415,6 @@ class OCPProviderMap(ProviderMap):
                                         Value(0, output_field=DecimalField()),
                                     )
                                     + Coalesce(
-                                        F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField())
-                                    )
-                                    + Coalesce(
                                         KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
@@ -1159,9 +1425,6 @@ class OCPProviderMap(ProviderMap):
                                     + Coalesce(
                                         KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
-                                    )
-                                    + Coalesce(
-                                        F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                     )
                                     + Coalesce(
                                         KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
@@ -1195,6 +1458,13 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "ranking_cost_total_exchanged": Sum(
                             (
+                                Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
+                                )
+                            )
+                            * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                            + (
                                 Coalesce(
                                     KeyDecimalTransform("cpu", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
@@ -1207,7 +1477,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
@@ -1219,9 +1488,6 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
-                                )
-                                + Coalesce(
-                                    F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                 )
                                 + Coalesce(
                                     KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
@@ -1358,6 +1624,65 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
                         },
+                        "aggregates_forecast": {
+                            "sup_total": Sum(
+                                (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                        },
                         "capacity_aggregate": {"capacity": Max("cluster_capacity_cpu_core_hours")},
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
@@ -1477,16 +1802,19 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "cost_total": Sum(
                                 (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
                                     Coalesce(
                                         KeyDecimalTransform("cpu", "supplementary_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
                             ),
@@ -1601,6 +1929,65 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
+                        },
+                        "aggregates_forecast": {
+                            "sup_total": Sum(
+                                (
+                                    Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
                         },
                         "capacity_aggregate": {"capacity": Max("cluster_capacity_memory_gigabyte_hours")},
                         "default_ordering": {"usage": "desc"},
@@ -1721,16 +2108,19 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "cost_total": Sum(
                                 (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
                                     Coalesce(
                                         KeyDecimalTransform("memory", "supplementary_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("memory", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
                                         Value(0, output_field=DecimalField()),
@@ -1854,6 +2244,65 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                         },
+                        "aggregates_forecast": {
+                            "sup_total": Sum(
+                                (
+                                    Coalesce(
+                                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
+                                    Coalesce(
+                                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
+                            ),
+                        },
                         "capacity_aggregate": {"capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months")},
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
@@ -1972,16 +2421,19 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "cost_total": Sum(
                                 (
+                                    Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("infra_exchange_rate", Value(1.0, output_field=DecimalField()))
+                                + (
                                     Coalesce(
                                         KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                         Value(0, output_field=DecimalField()),
                                     )
-                                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(
                                         KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
                                         Value(0, output_field=DecimalField()),

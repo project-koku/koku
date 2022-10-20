@@ -83,7 +83,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
-    def build_source_to_currency_map(self):
+    @cached_property
+    def source_to_currency_map(self):
         """
         OCP sources do not have costs associated, so we need to
         grab the base currency from the cost model, and create
@@ -91,35 +92,28 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         returns:
             dict: {source_uuid: currency}
-
-        Short Hand: cm
         """
-        source_to_currency = {}
+        source_map = defaultdict(lambda: "USD")
         cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
-        cm_to_currency = {}
-        for row in cost_models:
-            cm_to_currency[row["uuid"]] = row["currency"]
-
+        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
         mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
-        source_to_currency = {}
-        for row in mapping:
-            source_to_currency[row["provider_uuid"]] = cm_to_currency[row["cost_model_id"]]
-
-        return source_to_currency
+        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+        return source_map
 
     @cached_property
     def exchange_rate_expression(self):
         whens = [
+            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            for uuid, cur in self.source_to_currency_map.items()
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def exchange_rate_expression_infra_raw(self):
+        whens = [
             When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
             for k, v in self.exchange_rates.items()
         ]
-        currencies = self.build_source_to_currency_map()
-        whens.extend(
-            [
-                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-                for uuid, cur in currencies.items()
-            ]
-        )
         return Case(*whens, default=1, output_field=DecimalField())
 
     @property
@@ -143,6 +137,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations["project"] = F("namespace")
 
         return annotations
+
+    @property
+    def extra_annotations(self):
+        return {"infra_exchange_rate": self.exchange_rate_expression_infra_raw}
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -171,43 +169,37 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Returns
             (DataFrame): A DataFrame of converted values
         """
-        source_mapping = self.build_source_to_currency_map()
         df = pd.DataFrame(query_data)
         columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
-        for column in columns:
-            if column == "infra_raw":
-                # infra_raw's currency comes from the cloud provider if one exists.
-                # all of the other costs use the currency defined in the cost model.
-                continue
-            df[column] = df.apply(
-                lambda row: row[column]
-                * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
-                    self.currency, Decimal(1.0)
-                ),
-                axis=1,
-            )
-        df["infra_raw"] = df.apply(
-            lambda row: row["infra_raw"]
-            * self.exchange_rates.get(
-                # fallback to source_mapping in case row[self._mapper.cost_units_key] is None
-                row[self._mapper.cost_units_key]
-                or source_mapping.get(row[source_column], "USD")
-                or {}
-            ).get(self.currency, Decimal(1.0)),
-            axis=1,
-        )
-        df["infra_total"] = df.apply(
-            lambda row: row["infra_raw"] + row["infra_usage"] + row["infra_distributed"] + row["infra_markup"],
-            axis=1,
+        cost_cols = {col for col in columns if col.startswith("cost_")}
+
+        currencies = set(df[self._mapper.cost_units_key].unique()).union(self.source_to_currency_map.values())
+        dict_curr_rates = {
+            df_currency: self.exchange_rates.get(df_currency, {}).get(self.currency, Decimal(1.0))
+            for df_currency in currencies
+        }
+
+        # if `cost_units_key` is None, fall back to the cost model currency
+        df[self._mapper.cost_units_key].fillna(value=df[source_column].map(self.source_to_currency_map), inplace=True)
+
+        # `infra_raw` and `infra_markup` currencies come from cloud providers
+        df.loc[:, ["infra_raw", "infra_markup"]] = df.loc[:, ["infra_raw", "infra_markup"]].multiply(
+            # infra currency -> exchange rate to target currency
+            df[self._mapper.cost_units_key].map(dict_curr_rates),
+            axis=0,
         )
 
-        # All of the cost columns need to be recalculated since the provider map ignores currencies
-        for col in [col for col in columns if col.startswith("cost_")]:
+        columns -= {"infra_raw", "infra_markup", "infra_total"} | cost_cols
+        df.loc[:, columns] = df.loc[:, columns].multiply(
+            # source-uuid -> currency -> exchange rate to target currency
+            df[source_column].map(self.source_to_currency_map).map(dict_curr_rates),
+            axis=0,
+        )
+
+        df["infra_total"] = df["infra_raw"] + df["infra_usage"] + df["infra_distributed"] + df["infra_markup"]
+        for col in cost_cols:
             ending = col.split("_")[1]
-            df[col] = df.apply(
-                lambda row: row[f"infra_{ending}"] + row[f"sup_{ending}"],
-                axis=1,
-            )
+            df[col] = df[f"infra_{ending}"] + df[f"sup_{ending}"]
 
         df["cost_units"] = self.currency
         return df
@@ -228,17 +220,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
             return query_data
 
         df = self.convert_currencies(query_data, source_column)
-        skip_columns = []
-        annotations = list(self.report_annotations.keys())
+        skip_columns = set()
+        annotations = set(self.report_annotations.keys())
+        if "count" not in df.columns:
+            skip_columns |= {"count", "count_units"}
         if self.query_table == OCPUsageLineItemDailySummary:
             # we previously removed source_uuid from the annotations
             # but we need to add it back so that it shows up in the data
             # and we need to change source uuid to an array
             df["source_uuid"] = df["source_uuid"].apply(lambda x: [x])
-            annotations.append("source_uuid")
-        if "count" not in df.columns:
-            skip_columns.extend(["count", "count_units"])
-        aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+            annotations.add("source_uuid")
+        aggs_cols = annotations - skip_columns
+        aggs = {col: ["max"] if "units" in col else ["sum"] for col in aggs_cols}
 
         grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
         columns = grouped_df.columns.droplevel(1)
@@ -260,12 +253,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Returns
             (dictionary): A dictionary of query data"""
         df = self.convert_currencies(query_sum_data, source_column)
-        skip_columns = ["source_uuid", "clusters"]
+        skip_columns = {"source_uuid", "clusters"}
+        annotations = self.report_annotations.keys()
         if "count" not in df.columns:
-            skip_columns.extend(["count", "count_units"])
-        aggs = {
-            col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
-        }
+            skip_columns |= {"count", "count_units"}
+        aggs_cols = annotations - skip_columns
+        aggs = {col: ["max"] if "units" in col else ["sum"] for col in aggs_cols}
 
         grouped_df = df.groupby([source_column]).agg(aggs, axis=1)
         columns = grouped_df.columns.droplevel(1)
@@ -316,7 +309,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = self.pandas_agg_for_currency(query_group_by, query_data, source_column)
 
             if self._limit and query_data:
-                query_data = self._group_by_ranks(query, query_data)
+                query_data = self._group_by_ranks(query, query_data, self.extra_annotations)
                 if not self.parameters.get("order_by"):
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
@@ -465,8 +458,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         if "__" in self._delta:
             return self.add_current_month_deltas(query_data, query_sum)
-        else:
-            return super().add_deltas(query_data, query_sum)
+        return super().add_deltas(query_data, query_sum, self.extra_annotations)
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""

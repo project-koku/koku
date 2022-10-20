@@ -201,7 +201,7 @@ class AWSForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -251,7 +251,7 @@ class AWSForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -293,7 +293,7 @@ class AWSForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -333,7 +333,7 @@ class AWSForecastTest(IamTestCase):
                 mock_qset = MockQuerySet(expected)
 
                 mocked_table = Mock()
-                mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+                mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
                     mock_qset.data
                 )
                 mocked_table.len = mock_qset.len
@@ -634,7 +634,7 @@ class AzureForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -686,7 +686,7 @@ class GCPForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -765,7 +765,7 @@ class OCIForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -826,7 +826,7 @@ class OCPForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -910,7 +910,7 @@ class OCPAllForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -962,7 +962,7 @@ class OCPAWSForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
         mocked_table.len = mock_qset.len
@@ -1014,7 +1014,7 @@ class OCPAzureForecastTest(IamTestCase):
         mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value.annotate.return_value = (  # noqa: E501
             mock_qset.data
         )
 

@@ -694,8 +694,44 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def pandas_agg_for_currency(  # noqa: C901
-        self, query_group_by, query_data, skip_columns, annotations, og_query, remove_columns=[]
+    def convert_currencies(self, df, currencies, remove_columns):
+        """"""
+        aggregates = self._mapper.report_type_map.get("aggregates")
+        columns = aggregates.keys() - remove_columns
+        dict_curr_rates = {
+            df_currency: self.exchange_rates.get(df_currency, {}).get(self.currency, Decimal(1.0))
+            for df_currency in currencies
+        }
+        df.loc[:, columns] = df.loc[:, columns].multiply(df[self._mapper.cost_units_key].map(dict_curr_rates), axis=0)
+        df["cost_units"] = self.currency
+        return df
+
+    def bypass_func(self, og_query, **kwargs):
+        query_group_by = kwargs.get("query_group_by")
+        LOG.debug("Bypassing the pandas data function because all currencies are the same.")
+        if self.provider == Provider.PROVIDER_AWS or Provider.OCP_AWS:
+            annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
+            if not self.parameters.parameters.get("compute_count"):
+                # Query parameter indicates count should be removed from DB queries
+                annotations.pop("count", None)
+                annotations.pop("count_units", None)
+        query_data = og_query.values(*query_group_by).annotate(**annotations)
+        if self.provider == Provider.PROVIDER_AWS and "account" in query_group_by:
+            query_data = query_data.annotate(
+                account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
+            )
+        return query_data
+
+    def bypass_total_func(self, og_query, **kwargs):
+        aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
+        if self.provider == Provider.PROVIDER_AWS and not self.parameters.parameters.get("compute_count"):
+            # Query parameter indicates count should be removed from DB queries
+            aggregates.pop("count", None)
+        LOG.debug("Bypassing the pandas total function because all currencies are the same.")
+        return og_query.aggregate(**aggregates)
+
+    def pandas_agg_for_currency(
+        self, query_group_by, query_data, skip_columns, annotations, og_query, remove_columns=None
     ):
         """
         Applies the exhange rates to different base currencies for the data section
@@ -715,56 +751,34 @@ class ReportQueryHandler(QueryHandler):
 
         Returns
             (dictionary): A dictionary of query data"""
-        if query_data:
-            df = pd.DataFrame(query_data)
-            currencies = df[self._mapper.cost_units_key].unique()
-            aggregates = self._mapper.report_type_map.get("aggregates")
-            if len(currencies) == 1 and currencies[0] == self.currency:
-                LOG.debug("Bypassing the pandas data function because all currencies are the same.")
-                if self.provider == Provider.PROVIDER_AWS or Provider.OCP_AWS:
-                    annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
-                    if not self.parameters.parameters.get("compute_count"):
-                        # Query parameter indicates count should be removed from DB queries
-                        annotations.pop("count", None)
-                        annotations.pop("count_units", None)
-                query_data = og_query.values(*query_group_by).annotate(**annotations)
-                if self.provider == Provider.PROVIDER_AWS:
-                    if "account" in query_group_by:
-                        query_data = query_data.annotate(
-                            account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
-                        )
-                return query_data
+        if not query_data:
+            return query_data
+        if remove_columns is None:
+            remove_columns = []
 
-            columns = list(aggregates.keys())
-            for col in remove_columns:
-                if col in columns:
-                    columns.remove(col)
+        df = pd.DataFrame(query_data)
+        currencies = df[self._mapper.cost_units_key].unique()
+        if len(currencies) == 1 and currencies[0] == self.currency:
+            return self.bypass_func(og_query, query_group_by=query_group_by)
 
-            for column in columns:
-                df[column] = df.apply(
-                    lambda row: row[column]
-                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
-                    axis=1,
-                )
-                df["cost_units"] = self.currency
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
-            aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+        df = self.convert_currencies(df, currencies, remove_columns)
 
-            grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            grouped_df = grouped_df.replace({np.nan: None})
-            query_data = grouped_df.to_dict("records")
-            if query_data and isinstance(query_data[0].get("count"), list):
-                for data in query_data:
-                    data["count"] = len(set(data["count"]))
+        if "count" not in df.columns:
+            skip_columns.extend(["count", "count_units"])
+        aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+
+        grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
+        columns = grouped_df.columns.droplevel(1)
+        grouped_df.columns = columns
+        grouped_df.reset_index(inplace=True)
+        grouped_df = grouped_df.replace({np.nan: None})
+        query_data = grouped_df.to_dict("records")
+        if query_data and isinstance(query_data[0].get("count"), list):
+            for data in query_data:
+                data["count"] = len(set(data["count"]))
         return query_data
 
-    def pandas_agg_for_total(  # noqa: C901
-        self, query_data, skip_columns, annotations, og_query, remove_columns=[], units=None
-    ):
+    def pandas_agg_for_total(self, query_data, skip_columns, annotations, og_query, remove_columns=None, units=None):
         """
         Applies the exhange rates to different base currencies for the total section
         of the api response.
@@ -778,48 +792,34 @@ class ReportQueryHandler(QueryHandler):
 
         Returns
             (dictionary): A dictionary of query sum data"""
-        if query_data:
-            df = pd.DataFrame(query_data)
-            currencies = df[self._mapper.cost_units_key].unique()
-            aggregates = self._mapper.report_type_map.get("aggregates")
-            if len(currencies) == 1 and currencies[0] == self.currency:
-                if self.provider == Provider.PROVIDER_AWS and not self.parameters.parameters.get("compute_count"):
-                    # Query parameter indicates count should be removed from DB queries
-                    aggregates.pop("count", None)
-                LOG.debug("Bypassing the pandas total function because all currencies are the same.")
-                query_data = og_query.aggregate(**aggregates)
-                return query_data
+        if not query_data:
+            return query_data
+        if remove_columns is None:
+            remove_columns = []
 
-            columns = list(aggregates.keys())
-            for col in remove_columns:
-                if col in columns:
-                    columns.remove(col)
+        df = pd.DataFrame(query_data)
+        currencies = df[self._mapper.cost_units_key].unique()
+        if len(currencies) == 1 and currencies[0] == self.currency:
+            return self.bypass_total_func(og_query)
 
-            for column in columns:
-                df[column] = df.apply(
-                    lambda row: row[column]
-                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
-                    axis=1,
-                )
-                df["cost_units"] = self.currency
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
-            if units and "usage" in df.columns:
-                df["usage_units"] = units.get("usage_units")
-            aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            replace_count = False
-            if "instance_type" in self._report_type and "count" in df.columns:
-                # get all of the unique instances from the whole df
-                instance_types = list(df["count"].apply(pd.Series).stack().unique())
-                replace_count = True
-            grouped_df = df.groupby(["cost_units"]).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            total_query = grouped_df.to_dict("records")[0]
-            if replace_count:
-                total_query["count"] = instance_types
-        else:
-            total_query = query_data.aggregate(**aggregates)
+        df = self.convert_currencies(df, currencies, remove_columns)
+
+        if "count" not in df.columns:
+            skip_columns.extend(["count", "count_units"])
+        if units and "usage" in df.columns:
+            df["usage_units"] = units.get("usage_units")
+        aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+        replace_count = False
+        if "instance_type" in self._report_type and "count" in df.columns:
+            # get all of the unique instances from the whole df
+            instance_types = list(df["count"].apply(pd.Series).stack().unique())
+            replace_count = True
+        grouped_df = df.groupby(["cost_units"]).agg(aggs, axis=1)
+        columns = grouped_df.columns.droplevel(1)
+        grouped_df.columns = columns
+        total_query = grouped_df.to_dict("records")[0]
+        if replace_count:
+            total_query["count"] = instance_types
         return total_query
 
     def _transform_data(self, groups, group_index, data):
@@ -945,8 +945,10 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def _group_by_ranks(self, query, data):  # noqa: C901
+    def _group_by_ranks(self, query, data, extra_annotations=None):  # noqa: C901
         """Handle grouping data by filter limit."""
+        if extra_annotations is None:
+            extra_annotations = {}
         group_by_value = self._get_group_by()
         gb = copy.copy(group_by_value) if group_by_value else ["date"]
         tag_column = self._mapper.tag_column
@@ -984,7 +986,7 @@ class ReportQueryHandler(QueryHandler):
 
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
-            query.annotate(exchange_rate=self.exchange_rate_expression, **self.annotations)
+            query.annotate(exchange_rate=self.exchange_rate_expression, **extra_annotations, **self.annotations)
             .values(*group_by_value)
             .annotate(**rank_annotations)
             .values(*gb)
@@ -1203,7 +1205,7 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
-    def add_deltas(self, query_data, query_sum):
+    def add_deltas(self, query_data, query_sum, extra_annotations=None):
         """Calculate and add cost deltas to a result set.
 
         Args:
@@ -1214,10 +1216,13 @@ class ReportQueryHandler(QueryHandler):
             (dict) query data with new with keys "value" and "percent"
 
         """
+        if extra_annotations is None:
+            extra_annotations = {}
+
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
-        previous_query = previous_query.annotate(exchange_rate=self.exchange_rate_expression)
+        previous_query = previous_query.annotate(exchange_rate=self.exchange_rate_expression, **extra_annotations)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

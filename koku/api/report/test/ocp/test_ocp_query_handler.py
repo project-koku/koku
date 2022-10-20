@@ -914,7 +914,7 @@ class OCPReportQueryTestCurrency(IamTestCase):
         self.neg_ten = self.dh.n_days_ago(self.dh.today, 10)
         self.currencies = ["USD", "CAD", "AUD"]
         self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
-        self.source_mapping = {}
+        self.source_mapping = defaultdict(lambda: "USD")
         with tenant_context(self.tenant):
             for table in self.tables:
                 self.source_uuids = list(
@@ -931,16 +931,14 @@ class OCPReportQueryTestCurrency(IamTestCase):
             "CAD": {"USD": Decimal(0.33), "AUD": Decimal(1.5), "CAD": Decimal(1.0)},
         }
 
-    @patch("api.report.ocp.query_handler.OCPReportQueryHandler.build_source_to_currency_map")
     @patch("api.report.queries.ExchangeRateDictionary")
-    def test_total_cost(self, mock_exchange, mock_map):
+    def test_total_cost(self, mock_exchange):
         """Test overall cost"""
         for desired_currency in self.currencies:
             with self.subTest(desired_currency=desired_currency):
                 expected_total = []
                 url = f"?currency={desired_currency}"
                 mock_exchange.objects.first().currency_exchange_dictionary = self.exchange_dictionary
-                mock_map.return_value = self.source_mapping
                 query_params = self.mocked_query_params(url, OCPCostView)
                 handler = OCPReportQueryHandler(query_params)
                 with tenant_context(self.tenant):
@@ -954,6 +952,7 @@ class OCPReportQueryTestCurrency(IamTestCase):
                         querysets = OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
                         rate = self.exchange_dictionary[self.source_mapping.get(source)][desired_currency]
                         expected_total.append(rate * querysets["cost_total"])
+                handler.source_to_currency_map = self.source_mapping
                 query_output = handler.execute_query()
                 total = query_output.get("total")
                 total_value = total.get("cost").get("total").get("value")
