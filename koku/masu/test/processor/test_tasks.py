@@ -14,6 +14,7 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest import skip
 from unittest.mock import ANY
+from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -21,6 +22,7 @@ from uuid import uuid4
 import faker
 from cachetools import TTLCache
 from dateutil import relativedelta
+from django.conf import settings
 from django.core.cache import caches
 from django.db.utils import IntegrityError
 from django.test.utils import override_settings
@@ -54,6 +56,7 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
+from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
@@ -540,6 +543,37 @@ class TestProcessorTasks(MasuTestCase):
 
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process")
+    @patch("masu.processor.tasks.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.processor.tasks.execute_trino_query")
+    def test_process_openshift_on_cloud(self, mock_trino, mock_s3_delete, mock_process):
+        """Test the process_openshift_on_cloud task."""
+        tracing_id = uuid4()
+        month_start = DateHelper().this_month_start
+        year = month_start.strftime("%Y")
+        month = month_start.strftime("%m")
+        mock_trino.return_value = ([[1000]], ["column_name"])
+        process_openshift_on_cloud(self.schema, self.aws_provider_uuid, month_start, tracing_id=tracing_id)
+
+        expected_count_sql = (
+            "SELECT count(*) FROM aws_line_items_daily "
+            f"WHERE source='{self.aws_provider_uuid}' AND year='{year}'"
+            f" AND month='{month}'"
+        )
+
+        expected_fetch_sql = (
+            "SELECT * FROM aws_line_items_daily "
+            f"WHERE source='{self.aws_provider_uuid}' AND year='{year}'"
+            f" AND month='{month}' OFFSET 0 LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+        )
+        expected_calls = [
+            call(self.schema, expected_count_sql),
+            call(self.schema, expected_fetch_sql),
+        ]
+        mock_trino.assert_has_calls(expected_calls, any_order=True)
+        mock_s3_delete.assert_called()
+        mock_process.assert_called()
 
 
 class TestRemoveExpiredDataTasks(MasuTestCase):

@@ -3,6 +3,7 @@ import logging
 import os
 
 import trino
+from trino.exceptions import TrinoExternalError
 
 logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
@@ -35,11 +36,19 @@ def get_schemas():
 
 
 def run_trino_sql(sql, conn_params):
-    with trino.dbapi.connect(**conn_params) as conn:
-        cur = conn.cursor()
-        cur.execute(sql)
-        result = cur.fetchall()
-    return result
+    retries = 5
+    for i in range(retries):
+        try:
+            with trino.dbapi.connect(**conn_params) as conn:
+                cur = conn.cursor()
+                cur.execute(sql)
+                result = cur.fetchall()
+                return result
+        except TrinoExternalError as err:
+            if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                continue
+            else:
+                raise err
 
 
 def drop_tables(tables, conn_params):
@@ -79,7 +88,7 @@ def drop_columns_from_table(columns, table, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for cost model effective cost")
+    logging.info("Running the hive migration for OCP/GCP ocp_matched drop")
 
     logging.info("fetching schemas")
     schemas = get_schemas()
@@ -92,7 +101,7 @@ def main():
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** dropping tables for schema {schema} ***")
+        logging.info(f"*** Dropping tables for schema {schema} ***")
         drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 
