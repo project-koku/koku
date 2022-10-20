@@ -40,7 +40,6 @@ class ProviderMap:
         },
         "cost": {"keys": ["monthly_cost"], "units": "cost_units"},
         "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
-        "count": {"keys": ["count"], "units": "count_units"},
     }
 
     def provider_data(self, provider):

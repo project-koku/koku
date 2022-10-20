@@ -574,8 +574,6 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "count": Count("resource_id", distinct=True),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -597,7 +595,6 @@ class OCPAzureProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
-                        "count_units_fallback": "instances",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
                         "default_ordering": {"usage": "desc"},
                     },
@@ -690,8 +687,6 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "count": Count("resource_id", distinct=True),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -713,7 +708,6 @@ class OCPAzureProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
-                        "count_units_fallback": "instances",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
                         "default_ordering": {"usage": "desc"},
                     },

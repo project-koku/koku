@@ -255,8 +255,6 @@ class AWSProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "count": Max("resource_count"),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "source_uuid": ArrayAgg(
@@ -270,7 +268,6 @@ class AWSProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
-                        "count_units_fallback": "instances",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total", "count"],
                         "default_ordering": {"usage": "desc"},
                     },

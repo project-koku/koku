@@ -1356,9 +1356,6 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryComputeCount"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryStartDate"
                     },
                     {
@@ -1501,9 +1498,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/QueryComputeCount"
                     },
                     {
                         "$ref": "#/components/parameters/QueryStartDate"
@@ -5239,16 +5233,6 @@
                 "description": "String to indicate org unit id",
                 "schema": {
                   "$ref": "#/components/schemas/OrganizationFilter"
-                }
-            },
-            "QueryComputeCount": {
-                "name": "compute_count",
-                "required": false,
-                "in": "query",
-                "description": "Toggle to include count values in report.",
-                "schema": {
-                    "type": "boolean",
-                    "default": false
                 }
             },
             "QueryDelta": {

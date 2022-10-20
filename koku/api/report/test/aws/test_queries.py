@@ -5,7 +5,6 @@
 """Test the Report Queries."""
 import logging
 import operator
-from collections import defaultdict
 from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
@@ -19,7 +18,6 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import Func
 from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
@@ -36,7 +34,6 @@ from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
 from api.report.queries import strip_tag_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
-from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -513,85 +510,6 @@ class AWSReportQueryTest(IamTestCase):
                 account = month_item.get("account")
                 self.assertIn(account, self.accounts)
                 self.assertIsInstance(month_item.get("services"), list)
-
-    def test_execute_query_with_counts(self):
-        """Test execute_query with counts of unique resources."""
-        url = "?compute_count=true&filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("count"))
-
-        annotations = {
-            "date": F("usage_start"),
-            "type": F("instance_type"),
-            "resource_id": Func(F("resource_ids"), function="unnest"),
-        }
-
-        with tenant_context(self.tenant):
-            expected_counts = (
-                AWSCostEntryLineItemDailySummary.objects.filter(
-                    instance_type__isnull=False, usage_start__gte=self.dh.this_month_start
-                )
-                .values(**annotations)
-                .distinct()
-            )
-
-            total_count = (
-                AWSCostEntryLineItemDailySummary.objects.filter(
-                    instance_type__isnull=False, usage_start__gte=self.dh.this_month_start
-                )
-                .values(**{"resource_id": Func(F("resource_ids"), function="unnest")})
-                .distinct()
-                .count()
-            )
-
-            count_dict = defaultdict(dict)
-            for item in expected_counts:
-                if "i-" in item["resource_id"]:
-                    if item["type"] in count_dict[str(item["date"])]:
-                        count_dict[str(item["date"])][item["type"]] += 1
-                    else:
-                        count_dict[str(item["date"])][item["type"]] = 1
-
-        for data_item in data:
-            instance_types = data_item.get("instance_types")
-            for it in instance_types:
-                expected_count = count_dict.get(data_item.get("date")).get(it["instance_type"])
-                actual_count = it["values"][0].get("count", {}).get("value", 0)
-                self.assertEqual(actual_count, expected_count)
-        self.assertEqual(total.get("count", {}).get("value"), total_count)
-
-    def test_execute_query_without_counts(self):
-        """Test execute_query without counts of unique resources."""
-        instances = AWS_CONSTANTS.get("instance_types")
-        self.assertIsNotNone(instances)
-        import random
-
-        instance_type = random.choice(instances)
-
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-
-        total = query_output.get("total")
-        self.assertIsNone(total.get("count"))
-
-        for data_item in data:
-            instance_types = data_item.get("instance_types")
-            for it in instance_types:
-                if it["instance_type"] == instance_type:
-                    actual_count = it["values"][0].get("count")
-                    self.assertIsNone(actual_count)
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""

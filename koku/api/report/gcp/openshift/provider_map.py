@@ -449,7 +449,6 @@ class OCPGCPProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
-                        "count_units_fallback": "instances",
                     },
                     "instance_type_by_project": {
                         "tables": {
@@ -568,8 +567,6 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Count("resource_id", distinct=True),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
@@ -588,7 +585,6 @@ class OCPGCPProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
-                        "count_units_fallback": "instances",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
                         "default_ordering": {"usage": "desc"},
                     },
