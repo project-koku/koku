@@ -18,6 +18,7 @@ from django_filters import CharFilter
 from django_filters import FilterSet
 from django_filters import UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import serializers
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import APIException
@@ -25,6 +26,7 @@ from rest_framework.filters import OrderingFilter
 
 from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from api.currency.currencies import VALID_CURRENCIES
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
@@ -44,11 +46,12 @@ class CostModelsFilter(FilterSet):
 
     def currency_filter(self, qs, name, values):
         """Filter currency if a valid currency is passed in"""
-        serializer = CostModelSerializer(qs)
-        if serializer.validate_currency(values[0]):
-            lookup = "__".join([name, "iexact"])
-            queries = [Q(**{lookup: val}) for val in values]
-            return qs.filter(reduce(and_, queries))
+        if values and values[0].upper() not in VALID_CURRENCIES:
+            error = {"currency": f'"{values[0]}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        lookup = "__".join([name, "iexact"])
+        queries = [Q(**{lookup: val}) for val in values]
+        return qs.filter(reduce(and_, queries))
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
