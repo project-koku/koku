@@ -219,7 +219,7 @@ parameters:
 - description: Koku Sentry Env
   displayName: Koku Sentry Env
   name: KOKU_SENTRY_ENV
-  value: "dev"
+  value: "development"
 - description: Enable API Sentry
   displayName: Enable API Sentry
   name: ENABLE_API_SENTRY
