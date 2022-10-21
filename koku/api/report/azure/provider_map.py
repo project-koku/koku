@@ -185,7 +185,6 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_quantity"),
                         },
                         "aggregate_key": "usage_quantity",
@@ -247,7 +246,7 @@ class AzureProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {

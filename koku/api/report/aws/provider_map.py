@@ -212,7 +212,6 @@ class AWSProviderMap(ProviderMap):
                                 Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
@@ -268,7 +267,7 @@ class AWSProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
-                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {

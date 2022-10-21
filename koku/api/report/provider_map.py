@@ -67,11 +67,6 @@ class ProviderMap:
             self._mapping = [{}]
 
     @property
-    def count(self):
-        """Return the count property."""
-        return self._report_type_map.get("count")
-
-    @property
     def provider_map(self):
         """Return the provider map property."""
         return self._provider_map

@@ -5,7 +5,6 @@
 """Provider Mapper for OCP on All Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
-from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -153,7 +152,6 @@ class OCPAllProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
@@ -261,7 +259,6 @@ class OCPAllProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {
                             "cost_total": Sum(
                                 (
@@ -371,7 +368,6 @@ class OCPAllProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "GB-Mo"}],
                         "or_filter": [
@@ -485,7 +481,6 @@ class OCPAllProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
                         "or_filter": [
@@ -545,7 +540,6 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -596,7 +590,6 @@ class OCPAllProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
@@ -612,7 +605,6 @@ class OCPAllProviderMap(ProviderMap):
                             "infra_raw",
                             "infra_markup",
                             "infra_usage",
-                            "count",
                         ],
                         "default_ordering": {"usage": "desc"},
                     },
@@ -659,7 +651,6 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -710,7 +701,6 @@ class OCPAllProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
@@ -726,7 +716,6 @@ class OCPAllProviderMap(ProviderMap):
                             "infra_raw",
                             "infra_markup",
                             "infra_usage",
-                            "count",
                         ],
                         "default_ordering": {"usage": "desc"},
                     },

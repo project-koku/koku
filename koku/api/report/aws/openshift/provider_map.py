@@ -5,7 +5,6 @@
 """Provider Mapper for OCP on AWS Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
-from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -159,7 +158,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {
                             "cost_total": Sum(
                                 (
@@ -262,7 +260,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {
                             "cost_total": Sum(
                                 (
@@ -359,7 +356,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
                             {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
@@ -463,7 +459,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "product_family", "operation": "icontains", "parameter": "Storage"}],
                         "cost_units_key": "currency_code",
@@ -511,7 +506,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -562,7 +556,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
@@ -570,7 +563,7 @@ class OCPAWSProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "instance_type_by_project": {
@@ -615,7 +608,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -666,7 +658,6 @@ class OCPAWSProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
@@ -674,7 +665,7 @@ class OCPAWSProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
