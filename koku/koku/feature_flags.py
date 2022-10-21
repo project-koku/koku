@@ -24,6 +24,10 @@ def fallback_true(feature_name: str, context: dict) -> bool:
     return True
 
 
+def fallback_development_true(feature_name: str, context: dict) -> bool:
+    return context.get("environment") == "development"
+
+
 class KokuUnleashClient(UnleashClient):
     """Koku Unleash Client."""
 
