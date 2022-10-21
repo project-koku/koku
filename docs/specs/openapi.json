@@ -8807,10 +8807,6 @@
                                                 "usage": {
                                                     "value": 24,
                                                     "units": "Hrs"
-                                                },
-                                                "count": {
-                                                    "value": 1,
-                                                    "units": "instances"
                                                 }
                                             }]
                                         }]

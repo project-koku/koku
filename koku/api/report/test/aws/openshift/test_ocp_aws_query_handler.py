@@ -70,10 +70,6 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         self.assertIsInstance(total.get("usage"), dict)
         self.assertNotEqual(total.get("usage").get("value"), 0)
         self.assertEqual(total.get("usage").get("units"), "Hrs")
-        self.assertIsNotNone(total.get("count"))
-        self.assertIsInstance(total.get("count"), dict)
-        self.assertNotEqual(total.get("count").get("value"), 0)
-        self.assertEqual(total.get("count").get("units"), "instances")
 
 
 class OCPAWSQueryHandlerTest(IamTestCase):
