@@ -14,7 +14,6 @@ import pytz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
-from pint.errors import UndefinedUnitError
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
@@ -499,13 +498,9 @@ class UnitConverter:
         """
         try:
             getattr(self.unit_registry, str(unit))
-        except (AttributeError, UndefinedUnitError):
-            try:
-                getattr(self.unit_registry, str(unit.lower()))
-            except (AttributeError, UndefinedUnitError) as err:
-                raise err
-            else:
-                return unit.lower()
+        except Exception:
+            getattr(self.unit_registry, str(unit.lower()))
+            return unit.lower()
 
         return str(unit)
 

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Serializers."""
+from tokenize import TokenError
+
 from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
@@ -232,9 +234,9 @@ class QueryParamSerializer(ParamSerializer):
         unit_converter = UnitConverter()
         try:
             unit_converter.validate_unit(value)
-        except (AttributeError, UndefinedUnitError):
+        except (AttributeError, TokenError, UndefinedUnitError) as e:
             error = {"units": f"{value} is not a supported unit"}
-            raise serializers.ValidationError(error)
+            raise serializers.ValidationError(error) from e
 
         return value
 
