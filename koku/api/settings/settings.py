@@ -6,7 +6,6 @@
 import logging
 import re
 
-from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -39,6 +38,7 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
@@ -154,7 +154,7 @@ class Settings:
         tag_key_text_name = f"{SETTINGS_PREFIX}.tag_management.form-text"
 
         sub_form_fields = []
-        if UNLEASH_CLIENT.is_enabled("cost-management.ui.currency", self.unleash_context):
+        if UNLEASH_CLIENT.is_enabled("cost-management.ui.currency", self.unleash_context, fallback_development_true):
             currency_select_name = "api.settings.currency"
             currency_text_context = "Select the preferred currency view for your organization."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
