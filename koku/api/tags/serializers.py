@@ -6,10 +6,10 @@
 from rest_framework import serializers
 
 from api.report.serializers import add_operator_specified_fields
+from api.report.serializers import BaseSerializer
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import handle_invalid_fields
-from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
@@ -244,8 +244,11 @@ class OCIExcludeSerializer(ExcludeSerializer):
         add_operator_specified_fields(self.fields, OCI_FILTER_OP_FIELDS)
 
 
-class TagsQueryParamSerializer(ParamSerializer):
+class TagsQueryParamSerializer(BaseSerializer):
     """Serializer for handling query parameters."""
+
+    EXCLUDE_SERIALIZER = ExcludeSerializer
+    FILTER_SERIALIZER = FilterSerializer
 
     exclude = ExcludeSerializer(required=False)
     filter = FilterSerializer(required=False)
@@ -273,12 +276,19 @@ class TagsQueryParamSerializer(ParamSerializer):
 
         return data
 
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
 
-class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
-    """Serializer for handling OCP tag query parameters."""
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
 
-    exclude = OCPExcludeSerializer(required=False)
-    filter = OCPFilterSerializer(required=False)
+        """
+        validate_field(self, "exclude", self.EXCLUDE_SERIALIZER, value)
+        return value
 
     def validate_filter(self, value):
         """Validate incoming filter data.
@@ -291,57 +301,28 @@ class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
             (ValidationError): if filter field inputs are invalid
 
         """
-        validate_field(self, "filter", OCPFilterSerializer, value)
+        validate_field(self, "filter", self.FILTER_SERIALIZER, value)
         return value
 
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
 
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
+class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling OCP tag query parameters."""
 
-        """
-        validate_field(self, "exclude", OCPExcludeSerializer, value)
-        return value
+    EXCLUDE_SERIALIZER = OCPExcludeSerializer
+    FILTER_SERIALIZER = OCPFilterSerializer
+
+    exclude = OCPExcludeSerializer(required=False)
+    filter = OCPFilterSerializer(required=False)
 
 
 class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
     """Serializer for handling AWS tag query parameters."""
 
+    EXCLUDE_SERIALIZER = AWSExcludeSerializer
+    FILTER_SERIALIZER = AWSFilterSerializer
+
     exclude = AWSExcludeSerializer(required=False)
     filter = AWSFilterSerializer(required=False)
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", AWSFilterSerializer, value)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", AWSExcludeSerializer, value)
-        return value
 
 
 class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer):
@@ -361,36 +342,11 @@ class OCPAllTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryPa
 class AzureTagsQueryParamSerializer(TagsQueryParamSerializer):
     """Serializer for handling Azure tag query parameters."""
 
+    EXCLUDE_SERIALIZER = AzureExcludeSerializer
+    FILTER_SERIALIZER = AzureFilterSerializer
+
     exclude = AzureExcludeSerializer(required=False)
     filter = AzureFilterSerializer(required=False)
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", AzureFilterSerializer, value)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", AzureExcludeSerializer, value)
-        return value
 
 
 class OCPAzureTagsQueryParamSerializer(AzureTagsQueryParamSerializer, OCPTagsQueryParamSerializer):
@@ -403,36 +359,11 @@ class OCPAzureTagsQueryParamSerializer(AzureTagsQueryParamSerializer, OCPTagsQue
 class GCPTagsQueryParamSerializer(TagsQueryParamSerializer):
     """Serializer for handling GCP tag query parameters."""
 
+    EXCLUDE_SERIALIZER = GCPExcludeSerializer
+    FILTER_SERIALIZER = GCPFilterSerializer
+
     exclude = GCPExcludeSerializer(required=False)
     filter = GCPFilterSerializer(required=False)
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", GCPFilterSerializer, value)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", GCPExcludeSerializer, value)
-        return value
 
 
 class OCPGCPTagsQueryParamSerializer(GCPTagsQueryParamSerializer, OCPTagsQueryParamSerializer):
@@ -445,33 +376,8 @@ class OCPGCPTagsQueryParamSerializer(GCPTagsQueryParamSerializer, OCPTagsQueryPa
 class OCITagsQueryParamSerializer(TagsQueryParamSerializer):
     """Serializer for handling OCI tag query parameters."""
 
+    EXCLUDE_SERIALIZER = OCIExcludeSerializer
+    FILTER_SERIALIZER = OCIFilterSerializer
+
     exclude = OCIExcludeSerializer(required=False)
     filter = OCIFilterSerializer(required=False)
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", OCIFilterSerializer, value)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", OCIExcludeSerializer, value)
-        return value

@@ -543,14 +543,14 @@ class QueryParamSerializerTest(IamTestCase):
         query_params = {"cost_type": "invalid_cost"}
         serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
-            serializer.validate_cost_type("invalid_cost")
+            serializer.is_valid(raise_exception=True)
 
     def test_valid_cost_type_no_exception(self):
         """Test that a valid cost type doesn't raise an exception."""
         query_params = {"cost_type": "blended_cost"}
         req = Mock(path="/api/cost-management/v1/reports/aws/costs/")
         serializer = QueryParamSerializer(data=query_params, context={"request": req})
-        serializer.validate_cost_type("blended_cost")
+        serializer.is_valid(raise_exception=True)
 
     def test_multiple_group_by(self):
         """Test parse of query params with multiple group_bys."""
