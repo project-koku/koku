@@ -92,9 +92,10 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
+
             query_group_by = ["date"] + group_by_value
-            query_order_by = ["-date"]
-            query_order_by.extend(self.order)  # add implicit ordering
+            query_order_by = ["-date", self.order]
+
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query.values(*query_group_by).annotate(**annotations)
             if self._limit and query_data:

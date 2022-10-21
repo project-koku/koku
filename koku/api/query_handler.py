@@ -143,7 +143,7 @@ class QueryHandler:
 
         """
         order_map = {"asc": "", "desc": "-"}
-        return [f"{order_map[self.order_direction]}{self.order_field}"]
+        return f"{order_map[self.order_direction]}{self.order_field}"
 
     @property
     def order_field(self):
