@@ -4,7 +4,6 @@
 #
 """Forecast serializers unit tests."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from rest_framework import serializers
 
@@ -34,8 +33,11 @@ class AWSCostForecastParamSerializerTest(TestCase):
     def test_valid_cost_type_no_exception(self):
         """Test that a valid cost type doesn't raise an exception."""
         query_params = {"cost_type": "blended_cost"}
-        req = Mock(path="/api/cost-management/v1/forecasts/aws/costs/")
-        serializer = AWSCostForecastParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/forecasts/aws/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AWSCostForecastParamSerializer(data=query_params, context=ctx)
         serializer.is_valid(raise_exception=True)
 
 
