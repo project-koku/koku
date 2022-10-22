@@ -15,7 +15,7 @@ from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 
 
-class GroupBySerializer(GroupSerializer):
+class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = ("project", "cluster", "node")
@@ -25,7 +25,7 @@ class GroupBySerializer(GroupSerializer):
     node = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OrderBySerializer(OrderSerializer):
+class OCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
     _opfields = ("project", "cluster", "node", "date")
@@ -36,17 +36,17 @@ class OrderBySerializer(OrderSerializer):
     date = serializers.DateField(required=False)
 
 
-class InventoryOrderBySerializer(OrderBySerializer):
+class InventoryOrderBySerializer(OCPOrderBySerializer):
     """Order By Serializer for CPU and Memory endpoints."""
 
     _opfields = ("project", "cluster", "node", "usage", "request", "limit")
 
-    usage = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
-    request = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
-    limit = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
+    usage = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    request = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    limit = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
 
 
-class FilterSerializer(BaseFilterSerializer):
+class OCPFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
@@ -78,7 +78,7 @@ class FilterSerializer(BaseFilterSerializer):
         return data
 
 
-class ExcludeSerializer(BaseExcludeSerializer):
+class OCPExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
@@ -113,12 +113,11 @@ class ExcludeSerializer(BaseExcludeSerializer):
 class OCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
-    GROUP_BY_SERIALIZER = GroupBySerializer
-    ORDER_BY_SERIALIZER = OrderBySerializer
-    FILTER_SERIALIZER = FilterSerializer
-    EXCLUDE_SERIALIZER = ExcludeSerializer
+    GROUP_BY_SERIALIZER = OCPGroupBySerializer
+    ORDER_BY_SERIALIZER = OCPOrderBySerializer
+    FILTER_SERIALIZER = OCPFilterSerializer
+    EXCLUDE_SERIALIZER = OCPExcludeSerializer
 
-    # Tuples are (key, display_name)
     units = serializers.CharField(required=False)
 
     def validate(self, data):

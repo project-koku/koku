@@ -20,7 +20,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import ExcludeSerializer
+from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
@@ -756,7 +756,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")  # Tested separately
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
@@ -872,7 +872,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501

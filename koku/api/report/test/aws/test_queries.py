@@ -30,7 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.aws.serializers import ExcludeSerializer
+from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
@@ -3219,7 +3219,7 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(AWSExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
         exclude_opts.remove("org_unit_id")
         for exclude_opt in exclude_opts:
@@ -3299,7 +3299,7 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(AWSExcludeSerializer._opfields)
         exclude_opts.remove("org_unit_id")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501

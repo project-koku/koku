@@ -10,19 +10,19 @@ import api.report.ocp.serializers as ocpser
 from api.report.serializers import StringOrListField
 
 
-class OCPGCPGroupBySerializer(gcpser.GCPGroupBySerializer, ocpser.GroupBySerializer):
+class OCPGCPGroupBySerializer(gcpser.GCPGroupBySerializer, ocpser.OCPGroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = ("account", "region", "service", "project", "instance_type", "cluster", "node", "gcp_project")
 
 
-class OCPGCPOrderBySerializer(gcpser.GCPOrderBySerializer, ocpser.OrderBySerializer):
+class OCPGCPOrderBySerializer(gcpser.GCPOrderBySerializer, ocpser.OCPOrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
     pass
 
 
-class OCPGCPFilterSerializer(gcpser.GCPFilterSerializer, ocpser.FilterSerializer):
+class OCPGCPFilterSerializer(gcpser.GCPFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("account", "region", "service", "project", "instance_type", "cluster", "node", "gcp_project")
@@ -30,7 +30,7 @@ class OCPGCPFilterSerializer(gcpser.GCPFilterSerializer, ocpser.FilterSerializer
     instance_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OCPGCPExcludeSerializer(gcpser.GCPExcludeSerializer, ocpser.ExcludeSerializer):
+class OCPGCPExcludeSerializer(gcpser.GCPExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("account", "region", "service", "project", "instance_type", "cluster", "node", "gcp_project")

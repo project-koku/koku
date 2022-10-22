@@ -10,7 +10,7 @@ import api.report.ocp.serializers as ocpser
 from api.report.serializers import validate_field
 
 
-class OCPAWSGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer):
+class OCPAWSGroupBySerializer(awsser.AWSGroupBySerializer, ocpser.OCPGroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = (
@@ -27,25 +27,25 @@ class OCPAWSGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer
     )
 
 
-class OCPAWSOrderBySerializer(awsser.OrderBySerializer, ocpser.OrderBySerializer):
+class OCPAWSOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
     pass
 
 
-class OCPAWSFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
+class OCPAWSFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     pass
 
 
-class OCPAWSExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer):
+class OCPAWSExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
     pass
 
 
-class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
+class OCPAWSQueryParamSerializer(awsser.AWSQueryParamSerializer):
     """Serializer for handling query parameters."""
 
     GROUP_BY_SERIALIZER = OCPAWSGroupBySerializer

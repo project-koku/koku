@@ -7,7 +7,7 @@ import api.report.azure.serializers as azureser
 import api.report.ocp.serializers as ocpser
 
 
-class OCPAzureGroupBySerializer(azureser.AzureGroupBySerializer, ocpser.GroupBySerializer):
+class OCPAzureGroupBySerializer(azureser.AzureGroupBySerializer, ocpser.OCPGroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = (
@@ -21,19 +21,19 @@ class OCPAzureGroupBySerializer(azureser.AzureGroupBySerializer, ocpser.GroupByS
     )
 
 
-class OCPAzureOrderBySerializer(azureser.AzureOrderBySerializer, ocpser.OrderBySerializer):
+class OCPAzureOrderBySerializer(azureser.AzureOrderBySerializer, ocpser.OCPOrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
     pass
 
 
-class OCPAzureFilterSerializer(azureser.AzureFilterSerializer, ocpser.FilterSerializer):
+class OCPAzureFilterSerializer(azureser.AzureFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     pass
 
 
-class OCPAzureExcludeSerializer(azureser.AzureExcludeSerializer, ocpser.ExcludeSerializer):
+class OCPAzureExcludeSerializer(azureser.AzureExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
     pass

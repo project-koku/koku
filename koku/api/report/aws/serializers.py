@@ -16,7 +16,7 @@ from api.report.serializers import validate_field
 from api.utils import get_cost_type
 
 
-class GroupBySerializer(GroupSerializer):
+class AWSGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = (
@@ -41,7 +41,7 @@ class GroupBySerializer(GroupSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OrderBySerializer(OrderSerializer):
+class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
     _opfields = ("usage", "account_alias", "region", "service", "product_family", "date")
@@ -56,7 +56,7 @@ class OrderBySerializer(OrderSerializer):
     date = serializers.DateField(required=False)
 
 
-class FilterSerializer(BaseFilterSerializer):
+class AWSFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
@@ -69,7 +69,7 @@ class FilterSerializer(BaseFilterSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class ExcludeSerializer(BaseExcludeSerializer):
+class AWSExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
@@ -82,13 +82,13 @@ class ExcludeSerializer(BaseExcludeSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class QueryParamSerializer(ParamSerializer):
+class AWSQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
-    GROUP_BY_SERIALIZER = GroupBySerializer
-    ORDER_BY_SERIALIZER = OrderBySerializer
-    FILTER_SERIALIZER = FilterSerializer
-    EXCLUDE_SERIALIZER = ExcludeSerializer
+    GROUP_BY_SERIALIZER = AWSGroupBySerializer
+    ORDER_BY_SERIALIZER = AWSOrderBySerializer
+    FILTER_SERIALIZER = AWSFilterSerializer
+    EXCLUDE_SERIALIZER = AWSExcludeSerializer
 
     # Tuples are (key, display_name)
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
@@ -103,13 +103,6 @@ class QueryParamSerializer(ParamSerializer):
     units = serializers.CharField(required=False)
     compute_count = serializers.NullBooleanField(required=False, default=False)
     check_tags = serializers.BooleanField(required=False, default=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the AWS query param serializer."""
-        super().__init__(*args, **kwargs)
-        self._init_tagged_fields(
-            filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer, exclude=ExcludeSerializer
-        )
 
     def validate(self, data):
         """Validate incoming data.

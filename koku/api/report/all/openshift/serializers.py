@@ -11,7 +11,7 @@ from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
 
-class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer):
+class OCPAllGroupBySerializer(awsser.AWSGroupBySerializer, ocpser.OCPGroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = (
@@ -29,13 +29,13 @@ class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer
     )
 
 
-class OCPAllOrderBySerializer(awsser.OrderBySerializer, ocpser.OrderBySerializer):
+class OCPAllOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
     pass
 
 
-class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
+class OCPAllFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("source_type",)
@@ -43,7 +43,7 @@ class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OCPAllExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer):
+class OCPAllExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("source_type",)
@@ -51,7 +51,7 @@ class OCPAllExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
+class OCPAllQueryParamSerializer(awsser.AWSQueryParamSerializer):
     """Serializer for handling query parameters."""
 
     GROUP_BY_SERIALIZER = OCPAllGroupBySerializer
