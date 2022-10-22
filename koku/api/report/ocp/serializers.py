@@ -118,8 +118,6 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
     FILTER_SERIALIZER = OCPFilterSerializer
     EXCLUDE_SERIALIZER = OCPExcludeSerializer
 
-    units = serializers.CharField(required=False)
-
     def validate(self, data):
         """Validate incoming data.
 

@@ -70,4 +70,3 @@ class AzureQueryParamSerializer(ReportQueryParamSerializer):
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    units = serializers.CharField(required=False)

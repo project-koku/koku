@@ -17,6 +17,7 @@ from api.report.aws.serializers import AWSGroupBySerializer
 from api.report.aws.serializers import AWSOrderBySerializer
 from api.report.aws.serializers import AWSQueryParamSerializer
 from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
@@ -786,3 +787,29 @@ class ParamSerializerTest(IamTestCase):
                     serializer = ParamSerializer(data=param, context=ctx)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
+
+
+class ReportQueryParamSerializerTest(IamTestCase):
+    def test_validate_units(self):
+        """Test units validation."""
+        params_list = [
+            {"valid": False, "params": {"units": "%2F%2F8028544394501274830.owasp.org"}},
+            {"valid": False, "params": {"units": "%253CscrIpt%253Ealert%25281%2529%253B%253C%252FscRipt%253E"}},
+            {"valid": False, "params": {"units": "units%3Bget-help"}},
+            {"valid": False, "params": {"units": "units%27%7Ctimeout+%2FT+15"}},
+            {"valid": False, "params": {"units": "%5D%5D>"}},
+            {"valid": True, "params": {"units": "Hrs"}},
+        ]
+        path = "/api/cost-management/v1/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        for param in params_list:
+            with self.subTest(param=param):
+                serializer = ReportQueryParamSerializer(data=param["params"], context=ctx)
+                if param["valid"]:
+                    self.assertTrue(serializer.is_valid(raise_exception=True))
+                else:
+                    with self.assertRaises(ValidationError):
+                        self.assertFalse(serializer.is_valid())
+                        serializer.is_valid(raise_exception=True)

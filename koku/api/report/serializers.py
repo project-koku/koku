@@ -502,26 +502,6 @@ class ParamSerializer(BaseSerializer):
         error = f"Parameter end_date must be from {start} to {end}"
         raise serializers.ValidationError(error)
 
-    def validate_units(self, value):
-        """Validate incoming units data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if units field inputs are invalid
-
-        """
-        unit_converter = UnitConverter()
-        try:
-            unit_converter.validate_unit(value)
-        except (AttributeError, DefinitionSyntaxError, TokenError, TypeError, UndefinedUnitError, ValueError) as e:
-            error = {"units": f"{value} is not a supported unit"}
-            raise serializers.ValidationError(error) from e
-
-        return value
-
 
 class ReportQueryParamSerializer(ParamSerializer):
 
@@ -529,6 +509,8 @@ class ReportQueryParamSerializer(ParamSerializer):
     FILTER_SERIALIZER = FilterSerializer
     GROUP_BY_SERIALIZER = GroupSerializer
     ORDER_BY_SERIALIZER = OrderSerializer
+
+    units = serializers.CharField(required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -564,3 +546,23 @@ class ReportQueryParamSerializer(ParamSerializer):
             inst = val(required=False, tag_keys=self.tag_keys, data=data)
             setattr(self, key, inst)
             self.fields[key] = inst
+
+    def validate_units(self, value):
+        """Validate incoming units data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if units field inputs are invalid
+
+        """
+        unit_converter = UnitConverter()
+        try:
+            unit_converter.validate_unit(value)
+        except (AttributeError, DefinitionSyntaxError, TokenError, TypeError, UndefinedUnitError, ValueError) as e:
+            error = {"units": f"{value} is not a supported unit"}
+            raise serializers.ValidationError(error) from e
+
+        return value
