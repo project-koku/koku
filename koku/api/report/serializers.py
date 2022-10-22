@@ -367,19 +367,6 @@ class ParamSerializer(BaseSerializer):
 
         return data
 
-    def validate_delta(self, value):
-        """Validate incoming delta value based on path."""
-        valid_delta = "usage"
-        request = self.context.get("request")
-        if request and "costs" in request.path:
-            valid_delta = "cost_total"
-            if value == "cost":
-                return valid_delta
-        if value != valid_delta:
-            error = {"delta": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
-        return value
-
     def validate_exclude(self, value):
         """Validate incoming exclude data.
 
@@ -512,6 +499,10 @@ class ReportQueryParamSerializer(ParamSerializer):
 
     units = serializers.CharField(required=False)
 
+    @property
+    def delta(self):
+        raise NotImplementedError
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
@@ -546,6 +537,19 @@ class ReportQueryParamSerializer(ParamSerializer):
             inst = val(required=False, tag_keys=self.tag_keys, data=data)
             setattr(self, key, inst)
             self.fields[key] = inst
+
+    def validate_delta(self, value):
+        """Validate incoming delta value based on path."""
+        valid_delta = "usage"
+        request = self.context.get("request")
+        if request and "costs" in request.path:
+            valid_delta = "cost_total"
+            if value == "cost":
+                return valid_delta
+        if value != valid_delta:
+            error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
 
     def validate_units(self, value):
         """Validate incoming units data.

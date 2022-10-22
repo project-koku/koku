@@ -790,8 +790,19 @@ class ParamSerializerTest(IamTestCase):
 
 
 class ReportQueryParamSerializerTest(IamTestCase):
+    def test_validate_delta(self):
+        """Test `delta` on base ReportQueryParamSerializer is invalid."""
+        path = "/api/cost-management/v1/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = ReportQueryParamSerializer(data={"delta": "cost"}, context=ctx)
+        with self.assertRaises(ValidationError):
+            self.assertFalse(serializer.is_valid())
+            serializer.is_valid(raise_exception=True)
+
     def test_validate_units(self):
-        """Test units validation."""
+        """Test `units` validation."""
         params_list = [
             {"valid": False, "params": {"units": "%2F%2F8028544394501274830.owasp.org"}},
             {"valid": False, "params": {"units": "%253CscrIpt%253Ealert%25281%2529%253B%253C%252FscRipt%253E"}},
