@@ -2789,7 +2789,7 @@ class AWSReportQueryTest(IamTestCase):
         }
         for group_by, table in group_bys.items():
             with self.subTest(test=group_by):
-                url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"
+                url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"  # noqa: E501
                 query_params = self.mocked_query_params(url, AWSCostView)
                 handler = AWSReportQueryHandler(query_params)
                 query_output = handler.execute_query()
@@ -2808,10 +2808,13 @@ class AWSReportQueryTest(IamTestCase):
                 if correctlst and None in correctlst:
                     ind = correctlst.index(None)
                     correctlst[ind] = "no-" + group_by
+                tested = False
                 for element in data:
                     lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
                     if lst and correctlst:
                         self.assertEqual(correctlst, lst)
+                        tested = True
+                self.assertTrue(tested)
 
     def test_aws_date_incorrect_date(self):
         wrong_date = "200BC"
