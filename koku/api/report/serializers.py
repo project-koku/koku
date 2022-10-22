@@ -96,14 +96,9 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 
 def add_operator_specified_fields(fields, field_list):
     """Add the specified and: and or: fields to the serialzer."""
-    and_fields = {
-        "and:" + field: StringOrListField(child=serializers.CharField(), required=False) for field in field_list
-    }
-    or_fields = {
-        "or:" + field: StringOrListField(child=serializers.CharField(), required=False) for field in field_list
-    }
-    fields.update(and_fields)
-    fields.update(or_fields)
+    for field in field_list:
+        fields[f"and:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
+        fields[f"or:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
     return fields
 
 
@@ -163,7 +158,6 @@ class BaseSerializer(serializers.Serializer):
 
         """
         handle_invalid_fields(self, data)
-        self._validate_start_end_dates(data)
         return data
 
     def _init_tag_keys(self, field, fargs=None, fkwargs=None):
@@ -193,56 +187,6 @@ class BaseSerializer(serializers.Serializer):
         for key, val in tag_fields.items():
             setattr(self, key, val)
             self.fields.update({key: val})
-
-    def validate_start_date(self, value):
-        """Validate that the start_date is within the expected range."""
-        dh = DateHelper()
-        start = materialized_view_month_start(dh).date()
-        end = dh.tomorrow.date()
-        if value >= start and value <= end:
-            return value
-
-        error = f"Parameter start_date must be from {start} to {end}"
-        raise serializers.ValidationError(error)
-
-    def validate_end_date(self, value):
-        """Validate that the end_date is within the expected range."""
-        dh = DateHelper()
-        start = materialized_view_month_start(dh).date()
-        end = dh.tomorrow.date()
-        if value >= start and value <= end:
-            return value
-        error = f"Parameter end_date must be from {start} to {end}"
-        raise serializers.ValidationError(error)
-
-    def _validate_start_end_dates(self, data):
-        start_date = data.get("start_date")
-        end_date = data.get("end_date")
-        time_scope_value = data.get("filter", {}).get("time_scope_value")
-        time_scope_units = data.get("filter", {}).get("time_scope_units")
-
-        delta = data.get("delta")
-
-        if (start_date or end_date) and (time_scope_value or time_scope_units):
-            error = {
-                "error": (
-                    "The parameters [start_date, end_date] may not be ",
-                    "used with the filters [time_scope_value, time_scope_units]",
-                )
-            }
-            raise serializers.ValidationError(error)
-
-        if (start_date and not end_date) or (end_date and not start_date):
-            error = {"error": "The parameters [start_date, end_date] must both be defined."}
-            raise serializers.ValidationError(error)
-
-        if start_date and start_date > end_date:
-            error = {"error": "start_date must be a date that is before end_date."}
-            raise serializers.ValidationError(error)
-
-        if delta and (start_date or end_date):
-            error = {"error": "Delta calculation is not supported with start_date and end_date parameters."}
-            raise serializers.ValidationError(error)
 
 
 class FilterSerializer(BaseSerializer):
@@ -348,10 +292,10 @@ class OrderSerializer(BaseSerializer):
 class ParamSerializer(BaseSerializer):
     """A base serializer for query parameter operations."""
 
-    EXCLUDE_SERIALIZER = ExcludeSerializer
-    FILTER_SERIALIZER = FilterSerializer
-    GROUP_BY_SERIALIZER = GroupSerializer
-    ORDER_BY_SERIALIZER = OrderSerializer
+    EXCLUDE_SERIALIZER = None
+    FILTER_SERIALIZER = None
+    GROUP_BY_SERIALIZER = None
+    ORDER_BY_SERIALIZER = None
 
     _tagkey_support = True
 
@@ -368,41 +312,6 @@ class ParamSerializer(BaseSerializer):
 
     order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._init_tagged_fields(
-            exclude=self.EXCLUDE_SERIALIZER,
-            filter=self.FILTER_SERIALIZER,
-            group_by=self.GROUP_BY_SERIALIZER,
-            order_by=self.ORDER_BY_SERIALIZER,
-        )
-
-    def _init_tagged_fields(self, **kwargs):
-        """Initialize serializer fields that support tagging.
-
-        This method is used by sub-classed __init__() functions for instantiating Filter,
-        Order, and Group classes. This enables us to pass our tag keys into the
-        serializer.
-
-        Args:
-            kwargs (dict) {field_name: FieldObject}
-
-        """
-        for key, val in kwargs.items():
-            data = {}
-            if issubclass(val, FilterSerializer):
-                data = self.initial_data.get("filter")
-            elif issubclass(val, OrderSerializer):
-                data = self.initial_data.get("order_by")
-            elif issubclass(val, GroupSerializer):
-                data = self.initial_data.get("group_by")
-            elif issubclass(val, ExcludeSerializer):
-                data = self.initial_data.get("exclude")
-
-            inst = val(required=False, tag_keys=self.tag_keys, data=data)
-            setattr(self, key, inst)
-            self.fields[key] = inst
-
     def validate(self, data):
         """Validate incoming data.
 
@@ -415,8 +324,35 @@ class ParamSerializer(BaseSerializer):
 
         """
         super().validate(data)
+
         if not data.get("currency"):
             data["currency"] = get_currency(self.context.get("request"))
+
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        time_scope_value = data.get("filter", {}).get("time_scope_value")
+        time_scope_units = data.get("filter", {}).get("time_scope_units")
+
+        if (start_date or end_date) and (time_scope_value or time_scope_units):
+            error = {
+                "error": (
+                    "The parameters [start_date, end_date] may not be ",
+                    "used with the filters [time_scope_value, time_scope_units]",
+                )
+            }
+            raise serializers.ValidationError(error)
+
+        if (start_date and not end_date) or (end_date and not start_date):
+            error = {"error": "The parameters [start_date, end_date] must both be defined."}
+            raise serializers.ValidationError(error)
+
+        if start_date and start_date > end_date:
+            error = {"error": "start_date must be a date that is before end_date."}
+            raise serializers.ValidationError(error)
+
+        if data.get("delta") and (start_date or end_date):
+            error = {"error": "Delta calculation is not supported with start_date and end_date parameters."}
+            raise serializers.ValidationError(error)
 
         filter_limit = data.get("filter", {}).get("limit")
         filter_offset = data.get("filter", {}).get("offset")
@@ -545,6 +481,27 @@ class ParamSerializer(BaseSerializer):
         validate_field(self, "order_by", self.ORDER_BY_SERIALIZER, value)
         return value
 
+    def validate_start_date(self, value):
+        """Validate that the start_date is within the expected range."""
+        dh = DateHelper()
+        start = materialized_view_month_start(dh).date()
+        end = dh.tomorrow.date()
+        if value >= start and value <= end:
+            return value
+
+        error = f"Parameter start_date must be from {start} to {end}"
+        raise serializers.ValidationError(error)
+
+    def validate_end_date(self, value):
+        """Validate that the end_date is within the expected range."""
+        dh = DateHelper()
+        start = materialized_view_month_start(dh).date()
+        end = dh.tomorrow.date()
+        if value >= start and value <= end:
+            return value
+        error = f"Parameter end_date must be from {start} to {end}"
+        raise serializers.ValidationError(error)
+
     def validate_units(self, value):
         """Validate incoming units data.
 
@@ -564,3 +521,46 @@ class ParamSerializer(BaseSerializer):
             raise serializers.ValidationError(error) from e
 
         return value
+
+
+class ReportQueryParamSerializer(ParamSerializer):
+
+    EXCLUDE_SERIALIZER = ExcludeSerializer
+    FILTER_SERIALIZER = FilterSerializer
+    GROUP_BY_SERIALIZER = GroupSerializer
+    ORDER_BY_SERIALIZER = OrderSerializer
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._init_tagged_fields(
+            exclude=self.EXCLUDE_SERIALIZER,
+            filter=self.FILTER_SERIALIZER,
+            group_by=self.GROUP_BY_SERIALIZER,
+            order_by=self.ORDER_BY_SERIALIZER,
+        )
+
+    def _init_tagged_fields(self, **kwargs):
+        """Initialize serializer fields that support tagging.
+
+        This method is used by sub-classed __init__() functions for instantiating Filter,
+        Order, and Group classes. This enables us to pass our tag keys into the
+        serializer.
+
+        Args:
+            kwargs (dict) {field_name: FieldObject}
+
+        """
+        for key, val in kwargs.items():
+            data = {}
+            if issubclass(val, FilterSerializer):
+                data = self.initial_data.get("filter")
+            elif issubclass(val, OrderSerializer):
+                data = self.initial_data.get("order_by")
+            elif issubclass(val, GroupSerializer):
+                data = self.initial_data.get("group_by")
+            elif issubclass(val, ExcludeSerializer):
+                data = self.initial_data.get("exclude")
+
+            inst = val(required=False, tag_keys=self.tag_keys, data=data)
+            setattr(self, key, inst)
+            self.fields[key] = inst

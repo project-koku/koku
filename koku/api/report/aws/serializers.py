@@ -10,7 +10,7 @@ from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import get_cost_type
@@ -82,7 +82,7 @@ class AWSExcludeSerializer(BaseExcludeSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class AWSQueryParamSerializer(ParamSerializer):
+class AWSQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
 
     GROUP_BY_SERIALIZER = AWSGroupBySerializer

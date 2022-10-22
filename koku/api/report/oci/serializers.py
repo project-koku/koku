@@ -10,7 +10,7 @@ from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 from api.utils import get_cost_type
 
@@ -66,7 +66,7 @@ class OCIExcludeSerializer(BaseExcludeSerializer):
     region = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OCIQueryParamSerializer(ParamSerializer):
+class OCIQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
 
     GROUP_BY_SERIALIZER = OCIGroupBySerializer

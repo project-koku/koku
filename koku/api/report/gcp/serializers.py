@@ -11,7 +11,7 @@ from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 
 LOG = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class GCPExcludeSerializer(BaseExcludeSerializer):
     gcp_project = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class GCPQueryParamSerializer(ParamSerializer):
+class GCPQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling GCP query parameters."""
 
     GROUP_BY_SERIALIZER = GCPGroupBySerializer

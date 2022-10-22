@@ -11,7 +11,7 @@ from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 
 
@@ -110,7 +110,7 @@ class OCPExcludeSerializer(BaseExcludeSerializer):
         return data
 
 
-class OCPQueryParamSerializer(ParamSerializer):
+class OCPQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
 
     GROUP_BY_SERIALIZER = OCPGroupBySerializer

@@ -9,7 +9,7 @@ from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 
 
@@ -58,7 +58,7 @@ class AzureExcludeSerializer(BaseExcludeSerializer):
     service_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class AzureQueryParamSerializer(ParamSerializer):
+class AzureQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
 
     GROUP_BY_SERIALIZER = AzureGroupBySerializer
