@@ -398,6 +398,59 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON pds.usage_account_id = aa.account_id
 ;
 
+-- Unallocated Capacity Calculations
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
+    aws_uuid,
+    product_code,
+    resource_id,
+    cluster_id,
+    cluster_alias,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    pod_cost,
+    usage_account_id,
+    account_alias_id,
+    aws_source,
+    ocp_source,
+    year,
+    month,
+    day
+)
+SELECT
+    max(pds.aws_uuid),
+    max(pds.product_code),
+    max(pds.resource_id),
+    max(pds.cluster_id),
+    max(pds.cluster_alias),
+    max(pds.usage_start),
+    max(pds.usage_end),
+    CASE max(nodes.node_role)
+        WHEN 'master' THEN 'Platform Unallocated Capacity'
+        WHEN 'infra' THEN 'Platform Unallocated Capacity'
+        WHEN 'worker' THEN 'Workers Unallocated Capacity'
+    END as namespace,
+    pds.node,
+    (SUM(unblended_cost) - SUM(pod_cost)) as pod_cost,
+    max(usage_account_id) as usage_account_id,
+    max(account_alias_id) as account_alias_id,
+    '{{aws_source_uuid | sqlsafe}}' as aws_source,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
+    cast(year(pds.usage_start) as varchar) as year,
+    cast(month(pds.usage_start) as varchar) as month,
+    cast(day(pds.usage_start) as varchar) as day
+FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary as pds
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
+    ON pds.node = nodes.node
+WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
+    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+    AND pds.year = {{year}}
+    AND lpad(pds.month, 2, '0') = {{month}}
+    AND pds.node IS NOT NULL
+GROUP BY pds.node, pds.usage_start
+;
+
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
     uuid,
     report_period_id,
