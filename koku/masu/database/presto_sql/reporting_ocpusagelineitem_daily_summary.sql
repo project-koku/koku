@@ -404,6 +404,10 @@ FROM (
  * ====================================
  *        UNALLOCATED CAPACITY
  * ====================================
+Developer Note: Add these to make it easier to verify
+What was selected from unallocated capacity.
+AND lids.namespace != 'Platform Unallocated Capacity'
+AND lids.namespace != 'Workers Unallocated Capacity'
  */
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -449,7 +453,7 @@ SELECT NULL as uuid,
     cast(year(lids.usage_start) as varchar) as year,
     cast(month(lids.usage_start) as varchar) as month,
     cast(day(lids.usage_start) as varchar) as day
-FROM reporting_ocpusagelineitem_daily_summary as lids
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
     ON lids.node = nodes.node
 WHERE lids.source = {{source}}
