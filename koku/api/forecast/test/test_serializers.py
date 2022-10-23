@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecast serializers unit tests."""
-from unittest import TestCase
-
 from rest_framework import serializers
 
 from api.forecast.serializers import AWSCostForecastParamSerializer
+from api.iam.test.iam_test_case import IamTestCase
 
 # from api.forecast.serializers import AzureCostForecastParamSerializer
 # from api.forecast.serializers import OCPAllCostForecastParamSerializer
@@ -16,11 +15,11 @@ from api.forecast.serializers import AWSCostForecastParamSerializer
 # from api.forecast.serializers import OCPCostForecastParamSerializer
 
 
-class ForecastParamSerializerTest(TestCase):
+class ForecastParamSerializerTest(IamTestCase):
     """Tests the ForecastParamSerializer."""
 
 
-class AWSCostForecastParamSerializerTest(TestCase):
+class AWSCostForecastParamSerializerTest(IamTestCase):
     """Tests the AWSCostForecastParamSerializer."""
 
     def test_invalid_cost_type(self):
@@ -41,21 +40,21 @@ class AWSCostForecastParamSerializerTest(TestCase):
         serializer.is_valid(raise_exception=True)
 
 
-class AzureCostForecastParamSerializerTest(TestCase):
+class AzureCostForecastParamSerializerTest(IamTestCase):
     """Tests the AzureCostForecastParamSerializer."""
 
 
-class OCPCostForecastParamSerializerTest(TestCase):
+class OCPCostForecastParamSerializerTest(IamTestCase):
     """Tests the OCPCostForecastParamSerializer."""
 
 
-class OCPAWSCostForecastParamSerializerTest(TestCase):
+class OCPAWSCostForecastParamSerializerTest(IamTestCase):
     """Tests the OCPAWSCostForecastParamSerializer."""
 
 
-class OCPAzureCostForecastParamSerializerTest(TestCase):
+class OCPAzureCostForecastParamSerializerTest(IamTestCase):
     """Tests the OCPAzureCostForecastParamSerializer."""
 
 
-class OCPAllCostForecastParamSerializerTest(TestCase):
+class OCPAllCostForecastParamSerializerTest(IamTestCase):
     """Tests the OCAllPCostForecastParamSerializer."""
