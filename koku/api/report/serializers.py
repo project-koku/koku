@@ -4,11 +4,8 @@
 #
 """Common serializer logic."""
 import copy
-from tokenize import TokenError
 
 from django.utils.translation import ugettext as _
-from pint.errors import DefinitionSyntaxError
-from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
@@ -16,7 +13,6 @@ from api.currency.currencies import CURRENCY_CHOICES
 from api.utils import DateHelper
 from api.utils import get_currency
 from api.utils import materialized_view_month_start
-from api.utils import UnitConverter
 
 
 def handle_invalid_fields(this, data):
@@ -497,8 +493,6 @@ class ReportQueryParamSerializer(ParamSerializer):
     GROUP_BY_SERIALIZER = GroupSerializer
     ORDER_BY_SERIALIZER = OrderSerializer
 
-    units = serializers.CharField(required=False)
-
     @property
     def delta(self):
         raise NotImplementedError
@@ -549,24 +543,4 @@ class ReportQueryParamSerializer(ParamSerializer):
         if value != valid_delta:
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
-        return value
-
-    def validate_units(self, value):
-        """Validate incoming units data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if units field inputs are invalid
-
-        """
-        unit_converter = UnitConverter()
-        try:
-            unit_converter.validate_unit(value)
-        except (AttributeError, DefinitionSyntaxError, TokenError, TypeError, UndefinedUnitError, ValueError) as e:
-            error = {"units": f"{value} is not a supported unit"}
-            raise serializers.ValidationError(error) from e
-
         return value

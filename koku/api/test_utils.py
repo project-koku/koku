@@ -4,16 +4,13 @@
 #
 """Test the API utils module."""
 import datetime
-import random
 import unittest
 
-import pint
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.utils import timezone
-from pint.errors import UndefinedUnitError
 from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -24,7 +21,6 @@ from api.utils import get_cost_type
 from api.utils import get_currency
 from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
-from api.utils import UnitConverter
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
@@ -227,53 +223,6 @@ class DateHelperTest(TestCase):
         bill_date_str = "2022-08-01"
         result_invoice_month = self.date_helper.invoice_month_from_bill_date(bill_date_str)
         self.assertEqual(str(result_invoice_month), "202208")
-
-
-class APIUtilsUnitConverterTest(TestCase):
-    """Tests against the API utils."""
-
-    @classmethod
-    def setUpClass(cls):
-        """Set up for test class."""
-        super().setUpClass()
-        cls.converter = UnitConverter()
-
-    def test_initializer(self):
-        """Test that the UnitConverter starts properly."""
-        self.assertIsInstance(self.converter.unit_registry, pint.registry.UnitRegistry)
-
-        self.assertTrue(hasattr(self.converter.Quantity, "units"))
-        self.assertTrue(hasattr(self.converter.Quantity, "magnitude"))
-
-    def test_validate_unit_success(self):
-        """Test that unit validation succeeds with known units."""
-        unit = "GB"
-        result = self.converter.validate_unit(unit)
-        self.assertEqual(unit, result)
-
-        unit = "Hrs"
-        result = self.converter.validate_unit(unit)
-        self.assertEqual(unit.lower(), result)
-
-    def test_validate_unit_failure(self):
-        """Test that an exception is thrown with an invalid unit."""
-        unit = "Gigglebots"
-
-        with self.assertRaises(UndefinedUnitError):
-            self.converter.validate_unit(unit)
-
-    def test_unit_converter(self):
-        """Test that unit conversion succeeds."""
-        value = random.randint(1, 9)
-        from_unit = "gigabyte"
-        to_unit = "byte"
-
-        expected_value = value * 1e9
-
-        result = self.converter.convert_quantity(value, from_unit, to_unit)
-
-        self.assertEqual(result.units, to_unit)
-        self.assertEqual(result.magnitude, expected_value)
 
 
 class GeneralUtilsTest(IamTestCase):
