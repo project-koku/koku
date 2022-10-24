@@ -4,11 +4,11 @@
 #
 """Test GCP Serializer."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.gcp.serializers import GCPExcludeSerializer
 from api.report.gcp.serializers import GCPFilterSerializer
 from api.report.gcp.serializers import GCPGroupBySerializer
@@ -228,7 +228,7 @@ class GCPOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class GCPQueryParamSerializerTest(TestCase):
+class GCPQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -242,8 +242,11 @@ class GCPQueryParamSerializerTest(TestCase):
                 "account": [FAKE.uuid4()],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -258,8 +261,11 @@ class GCPQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -274,8 +280,11 @@ class GCPQueryParamSerializerTest(TestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -283,16 +292,22 @@ class GCPQueryParamSerializerTest(TestCase):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
 
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
 
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -300,16 +315,22 @@ class GCPQueryParamSerializerTest(TestCase):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -321,11 +342,14 @@ class GCPQueryParamSerializerTest(TestCase):
             "/api/cost-management/v1/reports/gcp/storage/": ["usage"],
         }
         for url, delta_list in valid_delta_map.items():
-            req = Mock(path=url)
             for valid_delta in delta_list:
-                query_params = {"delta": valid_delta}
-                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
-                self.assertTrue(serializer.is_valid())
+                with self.subTest(path_delta=(url, valid_delta)):
+                    ctx = self._create_request_context(
+                        self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=url
+                    )
+                    query_params = {"delta": valid_delta}
+                    serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+                    self.assertTrue(serializer.is_valid())
 
     def test_invalid_deltas(self):
         """Test failure while handling invalid delta for gcp endpoints."""
@@ -334,26 +358,34 @@ class GCPQueryParamSerializerTest(TestCase):
             "/api/cost-management/v1/reports/gcp/instance-types/": ["cost", "cost_total", "bad_delta"],
             "/api/cost-management/v1/reports/gcp/storage/": ["cost", "cost_total", "bad_delta"],
         }
-        for url, delta_list in bad_delta_map.items():
-            req = Mock(path=url)
+        for path, delta_list in bad_delta_map.items():
+            ctx = self._create_request_context(
+                self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+            )
             for bad_delta in delta_list:
                 query_params = {"delta": bad_delta}
-                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+                serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
                 with self.assertRaises(serializers.ValidationError):
                     serializer.is_valid(raise_exception=True)
 
     def test_order_by_service_with_groupby(self):
         """Test that order_by[service] works with a matching group-by."""
         query_params = {"group_by": {"service": "asc"}, "order_by": {"service": "asc"}}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -366,8 +398,11 @@ class GCPQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -380,8 +415,11 @@ class GCPQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -392,11 +430,14 @@ class GCPQueryParamSerializerTest(TestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = GCPQueryParamSerializer(data=param, context={"request": req})
+                    serializer = GCPQueryParamSerializer(data=param, context=ctx)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
 
@@ -407,8 +448,11 @@ class GCPQueryParamSerializerTest(TestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/gcp/instance-types/")
+        path = "/api/cost-management/v1/reports/gcp/instance-types/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
         for param in param_list:
             with self.subTest(param=param):
-                serializer = GCPQueryParamSerializer(data=param, context={"request": req})
+                serializer = GCPQueryParamSerializer(data=param, context=ctx)
                 self.assertTrue(serializer.is_valid())
