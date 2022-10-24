@@ -257,14 +257,16 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if initial_ingest:
                 # Reduce initial ingest download footprint by only downloading files within the ingest window
                 if report.time_created.date() > ingest_month.date():
+                    # split files into monthly files
                     if _report_date in monthly_files_dict.keys():
                         monthly_files_dict[_report_date].append(report.name)
                     else:
                         monthly_files_dict[_report_date] = [report.name]
             else:
-                monthly_files_dict.update({_report_date: [report.name]})
-        for _files_date, _files in monthly_files_dict.items():
-            file_names.append({"date": _files_date, "files": _files})
+                monthly_files_dict.update({_report_date: monthly_files_dict[_report_date].append(report.name)})
+        for _report_month, _report_files in monthly_files_dict.items():
+            file_names.append({"date": _report_month, "files": _report_files})
+        LOG.info(f"monthly reports names: {file_names}")
         return file_names
 
     def get_manifest_context_for_date(self, date):
@@ -292,13 +294,12 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dh = DateHelper()
         report_dict_list = []
         for month_files in manifest_dict["file_names"]:
-            _assembly_id = ":".join([manifest_dict["assembly_id"], str(month_files["date"])])
+            assembly_id = ":".join([manifest_dict["assembly_id"], str(month_files["date"])])
             manifest_id = self._process_manifest_db_record(
-                _assembly_id, month_files["date"], len(month_files["files"]), dh._now
+                assembly_id, month_files["date"], len(month_files["files"]), dh._now
             )
-
+            report_dict["assembly_id"] = assembly_id
             report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest_dict.get("assembly_id")
             report_dict["compression"] = manifest_dict.get("compression")
             files_list = [
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_files.get("files", [])
