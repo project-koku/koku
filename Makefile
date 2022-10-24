@@ -128,7 +128,6 @@ help:
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
 	@echo "  docker-trino-down-all               Tear down Trino and Koku containers"
-	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
 	@echo "  docker-reinitdb-with-sources-lite    drop and recreate the database with fake sources without restarting everything"
@@ -298,9 +297,6 @@ docker-logs:
 
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
-
-docker-rabbit:
-	$(DOCKER_COMPOSE) up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
