@@ -4,8 +4,8 @@
 #
 """Data Driven Component Generation for Tag Management Settings."""
 import logging
+import re
 
-from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -38,6 +38,8 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.feature_flags import fallback_development_true
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
@@ -105,6 +107,8 @@ class Settings:
         self.factory = RequestFactory()
         self.schema = request.user.customer.schema_name
 
+        self.unleash_context = {"userId": re.sub(r"\D+", "", self.schema)}
+
     def _get_tag_management_prefix(self, providerName):
         return f"{SETTINGS_PREFIX}.tag-management.{providerName}"
 
@@ -148,6 +152,21 @@ class Settings:
         Generate cost management form component
         """
         tag_key_text_name = f"{SETTINGS_PREFIX}.tag_management.form-text"
+
+        sub_form_fields = []
+        if UNLEASH_CLIENT.is_enabled("cost-management.ui.currency", self.unleash_context, fallback_development_true):
+            currency_select_name = "api.settings.currency"
+            currency_text_context = "Select the preferred currency view for your organization."
+            currency_title = create_plain_text(currency_select_name, "Currency", "h2")
+            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
+            currency_options = {
+                "options": get_currency_options(),
+                "initialValue": get_selected_currency_or_setup(self.schema),
+                "FormGroupProps": {"style": {"width": "400px"}},
+            }
+            currency = create_select(currency_select_name, **currency_options)
+            sub_form_fields = [currency_title, currency_select_text, currency]
+
         enable_tags_title = create_plain_text(tag_key_text_name, "Enable tags and labels", "h2")
         tag_key_text_context = (
             "Enable your data source labels to be used as tag keys for report grouping and filtering."
@@ -160,7 +179,6 @@ class Settings:
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
 
-        sub_form_fields = []
         avail_objs = []
         enabled_objs = []
         for providerName in obtainTagKeysProvidersParams:
@@ -189,29 +207,10 @@ class Settings:
             "clearedValue": [],
         }
 
-        dual_list_name = f'{"api.settings.tag-management.enabled"}'
+        dual_list_name = "api.settings.tag-management.enabled"
         tags_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
 
-        for field in enable_tags_title, tag_key_text, tags_and_labels:
-            sub_form_fields.append(field)
-
-        # currency settings TODO: only show in dev mode right now
-        if settings.DEVELOPMENT:
-            currency_select_name = f'{"api.settings.currency"}'
-            currency_text_context = "Select the preferred currency view for your organization."
-            currency_title = create_plain_text(currency_select_name, "Currency", "h2")
-            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
-            currency_options = {
-                "options": get_currency_options(),
-                "initialValue": get_selected_currency_or_setup(self.schema),
-                "FormGroupProps": {"style": {"width": "400px"}},
-            }
-            currency = create_select(currency_select_name, **currency_options)
-
-            idx = 0
-            for field in currency_title, currency_select_text, currency:
-                sub_form_fields.insert(idx, field)
-                idx += 1
+        sub_form_fields.extend([enable_tags_title, tag_key_text, tags_and_labels])
 
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
@@ -219,7 +218,7 @@ class Settings:
 
         # cost_type plan settings
         if has_aws_providers:
-            cost_type_select_name = f'{"api.settings.cost_type"}'
+            cost_type_select_name = "api.settings.cost_type"
             cost_type_text_context = (
                 "Select the preferred way of calculating upfront costs, either through savings "
                 "plans or subscription fees. This feature is available for Amazon Web Services cost only."
@@ -232,15 +231,11 @@ class Settings:
                 "FormGroupProps": {"style": {"width": "400px"}},
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
-
-            for field in cost_type_title, cost_type_select_text, cost_type:
-                sub_form_fields.append(field)
+            sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
-        sub_form = create_subform(sub_form_name, sub_form_title, sub_form_fields)
-
-        return sub_form
+        return create_subform(sub_form_name, sub_form_title, sub_form_fields)
 
     def _tag_key_handler(self, settings):
         tag_delimiter = "-"

@@ -3,6 +3,7 @@ import logging
 import os
 
 import trino
+from trino.exceptions import TrinoExternalError
 
 logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
@@ -35,11 +36,19 @@ def get_schemas():
 
 
 def run_trino_sql(sql, conn_params):
-    with trino.dbapi.connect(**conn_params) as conn:
-        cur = conn.cursor()
-        cur.execute(sql)
-        result = cur.fetchall()
-    return result
+    retries = 5
+    for i in range(retries):
+        try:
+            with trino.dbapi.connect(**conn_params) as conn:
+                cur = conn.cursor()
+                cur.execute(sql)
+                result = cur.fetchall()
+                return result
+        except TrinoExternalError as err:
+            if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                continue
+            else:
+                raise err
 
 
 def drop_tables(tables, conn_params):
@@ -79,21 +88,22 @@ def drop_columns_from_table(columns, table, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for cost model effective cost")
+    logging.info("Running the hive migration for OCP/GCP ocp_matched")
 
     logging.info("fetching schemas")
     schemas = get_schemas()
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["gcp_openshift_daily"]
-    # columns_to_add = []
+    # tables_to_drop = ["gcp_openshift_daily"]
+    columns_to_add = ["ocp_matched"]
     # columns_to_drop = []
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** dropping tables for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        logging.info(f"*** Adding column to tables for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
