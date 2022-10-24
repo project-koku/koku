@@ -480,7 +480,6 @@ class QueryParamSerializerTest(IamTestCase):
                 "time_scope_units": "day",
                 "resource_scope": [],
             },
-            "units": "byte",
         }
         serializer = AWSQueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -514,13 +513,6 @@ class QueryParamSerializerTest(IamTestCase):
                 "resource_scope": [],
             },
         }
-        serializer = AWSQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-    def test_parse_units_failure(self):
-        """Test failure while parsing units query params."""
-        query_params = {"units": "bites"}
         serializer = AWSQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

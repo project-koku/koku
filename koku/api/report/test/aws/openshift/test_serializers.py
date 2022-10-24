@@ -179,7 +179,6 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
                 "time_scope_units": "day",
                 "resource_scope": [],
             },
-            "units": "byte",
         }
         serializer = OCPAWSQueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
