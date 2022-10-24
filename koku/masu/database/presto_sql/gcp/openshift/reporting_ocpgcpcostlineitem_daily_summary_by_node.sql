@@ -452,6 +452,7 @@ JOIN cte_rankings as r
 
 -- Unallocated Capacity Calculations
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
+    gcp_uuid,
     cluster_id,
     cluster_alias,
     usage_start,
@@ -459,14 +460,20 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     namespace,
     node,
     pod_cost,
+    project_name,
+    project_id,
+    account_id,
+    service_alias,
     gcp_source,
     ocp_source,
     year,
     month,
     day
 )
-SELECT {{cluster_id}} as cluster_id,
-    {{cluster_alias}} as cluster_alias,
+SELECT
+    max(pds.gcp_uuid),
+    max(pds.cluster_id),
+    max(pds.cluster_alias),
     max(pds.usage_start),
     max(pds.usage_end),
     CASE max(nodes.node_role)
@@ -476,8 +483,12 @@ SELECT {{cluster_id}} as cluster_id,
     END as namespace,
     pds.node,
     (SUM(unblended_cost) - SUM(pod_cost)) as pod_cost,
-    '{{gcp_source_uuid | sqlsafe }}' as gcp_source,
-    '{{ocp_source_uuid | sqlsafe }}' as ocp_source,
+    max(project_name) as project_name,
+    max(project_id) as project_id,
+    max(account_id) as account_id,
+    max(service_alias) as service_alias,
+    '{{gcp_source_uuid | sqlsafe}}' as gcp_source,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     cast(year(pds.usage_start) as varchar) as year,
     cast(month(pds.usage_start) as varchar) as month,
     cast(day(pds.usage_start) as varchar) as day
@@ -488,9 +499,8 @@ WHERE gcp_source = '{{gcp_source_uuid | sqlsafe}}'
     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND pds.year = {{year}}
     AND lpad(pds.month, 2, '0') = {{month}}
-    AND pds.usage_start >= TIMESTAMP {{start_date}}
     AND pds.node IS NOT NULL
-GROUP BY pds.node, pds.usage_start, pds.gcp_source
+GROUP BY pds.node, pds.usage_start
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (

@@ -405,6 +405,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     resource_id,
     cluster_id,
     cluster_alias,
+    currency_code,
     usage_start,
     usage_end,
     namespace,
@@ -424,6 +425,7 @@ SELECT
     max(pds.resource_id),
     max(pds.cluster_id),
     max(pds.cluster_alias),
+    max(pds.currency_code),
     max(pds.usage_start),
     max(pds.usage_end),
     CASE max(nodes.node_role)

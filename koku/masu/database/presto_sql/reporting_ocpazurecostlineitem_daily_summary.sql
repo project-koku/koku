@@ -400,6 +400,8 @@ JOIN cte_rankings as r
 
 -- Unallocated Capacity Calculations
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+    azure_uuid,
+    resource_id,
     cluster_id,
     cluster_alias,
     usage_start,
@@ -407,14 +409,19 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     namespace,
     node,
     pod_cost,
+    subscription_guid,
+    service_name,
     azure_source,
     ocp_source,
     year,
     month,
     day
 )
-SELECT {{cluster_id}} as cluster_id,
-    {{cluster_alias}} as cluster_alias,
+SELECT
+    max(pds.azure_uuid),
+    max(pds.resource_id),
+    max(pds.cluster_id),
+    max(pds.cluster_alias),
     max(pds.usage_start),
     max(pds.usage_end),
     CASE max(nodes.node_role)
@@ -423,7 +430,9 @@ SELECT {{cluster_id}} as cluster_id,
         WHEN 'worker' THEN 'Workers Unallocated Capacity'
     END as namespace,
     pds.node,
-    (SUM(unblended_cost) - SUM(pod_cost)) as pod_cost,
+    (SUM(pretax_cost) - SUM(pod_cost)) as pod_cost,
+    max(subscription_guid) as subscription_guid,
+    max(service_name) as service_name,
     '{{azure_source_uuid | sqlsafe}}' as azure_source,
     '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     cast(year(pds.usage_start) as varchar) as year,
@@ -436,9 +445,8 @@ WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND pds.year = {{year}}
     AND lpad(pds.month, 2, '0') = {{month}}
-    AND pds.usage_start >= TIMESTAMP {{start_date}}
     AND pds.node IS NOT NULL
-GROUP BY pds.node, pds.usage_start, pds.azure_source
+GROUP BY pds.node, pds.usage_start
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
