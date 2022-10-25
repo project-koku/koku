@@ -85,7 +85,7 @@ help:
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
 	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'dev/scripts/aws_org_tree.yml'."
-	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
@@ -239,7 +239,7 @@ serve:
 shell:
 	$(DJANGO_MANAGE) shell
 
-shell-schema: schema := acct10001
+shell-schema: schema := org1234567
 shell-schema:
 	$(DJANGO_MANAGE) tenant_command shell --schema=$(schema)
 
