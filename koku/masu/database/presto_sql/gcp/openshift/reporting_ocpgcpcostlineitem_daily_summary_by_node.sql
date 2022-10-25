@@ -145,7 +145,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     pod_request_memory_gigabyte_hours,
     pod_effective_usage_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours,
+    cluster_capacity_memory_gigabyte_hours,zzz
     volume_labels,
     tags
 )
