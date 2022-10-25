@@ -75,7 +75,6 @@ SELECT uuid() as uuid,
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
         date(lineitem_usagestartdate) as usage_end,
-        -- nullif(lineitem_productcode, '') as product_code,
         CASE
             WHEN bill_billingentity='AWS Marketplace' THEN coalesce(nullif(product_productname, ''), nullif(lineitem_productcode, ''))
             ELSE nullif(lineitem_productcode, '')

@@ -31,7 +31,6 @@
             AND aws.lineitem_resourceid != ''
             AND ocp.resource_id IS NOT NULL
             AND ocp.resource_id != ''
-            -- AND ocp.resource_id = aws.lineitem_resourceid
             AND strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
     WHERE aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
