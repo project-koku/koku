@@ -98,5 +98,3 @@ CURRENCIES = [
     },
 ]
 # fmt: on
-VALID_CURRENCIES = [currency["code"] for currency in CURRENCIES]
-CURRENCY_CHOICES = tuple((currency, currency) for currency in VALID_CURRENCIES)

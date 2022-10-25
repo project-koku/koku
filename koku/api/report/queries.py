@@ -22,19 +22,14 @@ import ciso8601
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import Case
-from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
-from django.db.models import Value
-from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -104,8 +99,6 @@ class ReportQueryHandler(QueryHandler):
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
-
-        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
     @cached_property
     def query_table_access_keys(self):
@@ -505,23 +498,6 @@ class ReportQueryHandler(QueryHandler):
                 group_pos = self.parameters.url_data.index(tag)
                 group_by.append((tag_db_name, group_pos))
         return group_by
-
-    @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
-    def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
     @property
     def annotations(self):
@@ -1028,9 +1004,10 @@ class ReportQueryHandler(QueryHandler):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
+        previous_sums = previous_query.annotate(**self.annotations)
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         delta_annotation = {self._delta: delta_field}
-        previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
+        previous_sums = previous_sums.values(*query_group_by).annotate(**delta_annotation)
         previous_dict = OrderedDict()
         for row in previous_sums:
             date = self.string_to_date(row["date"])
@@ -1082,7 +1059,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
+        previous_query = self.query_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

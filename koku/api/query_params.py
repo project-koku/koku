@@ -10,7 +10,6 @@ from collections import OrderedDict
 from functools import reduce
 from pprint import pformat
 
-from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.utils.translation import ugettext as _
@@ -451,11 +450,6 @@ class QueryParameters:
     def access(self):
         """Return access property."""
         return self.request.user.access
-
-    @property
-    def currency(self):
-        """Get currency."""
-        return self.get("currency", settings.KOKU_DEFAULT_CURRENCY)
 
     @property
     def delta(self):

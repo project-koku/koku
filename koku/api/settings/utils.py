@@ -5,7 +5,6 @@
 from tenant_schemas.utils import schema_context
 
 from api.currency.currencies import CURRENCIES
-from api.currency.currencies import VALID_CURRENCIES
 from api.settings.default_settings import DEFAULT_USER_SETTINGS
 from api.user_settings.settings import COST_TYPES
 from koku.settings import KOKU_DEFAULT_COST_TYPE
@@ -170,9 +169,10 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
     """
     with schema_context(schema):
         account_currency_setting = UserSettings.objects.all().first()
+        supported_currency_codes = [code.get("code") for code in CURRENCIES]
 
-        if currency_code not in VALID_CURRENCIES:
-            raise ValueError(f"{currency_code} is not a supported currency")
+        if currency_code not in supported_currency_codes:
+            raise ValueError(currency_code + " is not a supported currency")
 
         if not account_currency_setting:
             set_default_user_settings()
