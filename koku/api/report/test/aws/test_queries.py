@@ -2799,7 +2799,7 @@ class AWSReportQueryTest(IamTestCase):
                 group_by_annotations = handler.annotations.get(group_by)
                 cost_annotations = handler.report_annotations.get("cost_total")
                 with tenant_context(self.tenant):
-                    query = table.objects.filter(usage_start=str(yesterday))
+                    query = table.objects.filter(usage_start=str(yesterday)).annotate(**handler.annotations)
                     if group_by_annotations:
                         gb = "gb"
                         query = query.annotate(gb=group_by_annotations)
