@@ -6,6 +6,7 @@
 import copy
 import logging
 
+from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Concat
@@ -53,7 +54,12 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {"date": self.date_trunc("usage_start")}
+        annotations = {
+            "date": self.date_trunc("usage_start"),
+            # this currency is used by the provider map to populate the correct currency value
+            "currency_annotation": Value(self.currency, output_field=CharField()),
+            **self.exchange_rate_annotation_dict,
+        }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
@@ -85,13 +91,13 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
@@ -105,8 +111,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -137,17 +141,15 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
-                cost_units_value = query_data[0].get("cost_units")
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                     count_units_value = query_data[0].get("count_units")
 
-            if is_csv_output:
+            if self.is_csv_output:
                 data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
@@ -156,7 +158,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        query_sum["cost_units"] = cost_units_value
+        query_sum["cost_units"] = self.currency
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
