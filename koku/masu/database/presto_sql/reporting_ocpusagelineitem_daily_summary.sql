@@ -456,11 +456,13 @@ SELECT NULL as uuid,
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
     ON lids.node = nodes.node
+    ON lids.resource_id = nodes.resource_id
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lpad(lids.month, 2, '0') = {{month}}
     AND lids.usage_start >= TIMESTAMP {{start_date}}
     AND lids.node IS NOT NULL
+    AND lids.data_source = 'Pod'
 GROUP BY lids.node, lids.usage_start, lids.source_uuid
 ;
 
