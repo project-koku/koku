@@ -181,7 +181,7 @@ SELECT aws.uuid as aws_uuid,
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
-            AND aws.lineitem_resourceid = ocp.resource_id
+            AND strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
