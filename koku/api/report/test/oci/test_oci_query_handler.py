@@ -1537,7 +1537,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
                         # TODO: figure out why this sometimes returns none
                         continue
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
-                    opt_value = opt_dict.get(exclude_opt)
+                    opt_value = opt_dict.get(exclude_opt, "")
                     if "no-" in opt_value:
                         # Hanlde cases where "no-instance-type" is returned
                         continue
