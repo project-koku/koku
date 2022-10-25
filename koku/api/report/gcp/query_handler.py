@@ -6,7 +6,6 @@
 import copy
 import logging
 
-from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -59,6 +58,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
         self.group_by_alias = {"service": "service_alias", "gcp_project": "project_name"}
 
         # We need to overwrite the pack keys here to include the credit
@@ -95,11 +95,10 @@ class GCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
+        units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            # this currency is used by the provider map to populate the correct currency value
-            "currency_annotation": Value(self.currency, output_field=CharField()),
-            **self.exchange_rate_annotation_dict,
+            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -135,18 +134,17 @@ class GCPReportQueryHandler(ReportQueryHandler):
         sum_units = {}
         query_sum = self.initialize_totals()
 
+        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
-            sum_annotations = {
-                "cost_units": Coalesce(self._mapper.cost_units_key, Value(self._mapper.cost_units_fallback))
-            }
+            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations).order_by()
 
-            units_value = self.currency
+            units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
             sum_units = {"cost_units": units_value}
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
@@ -154,7 +152,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = self.currency
+            sum_units["cost_units"] = cost_units_fallback
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -174,7 +172,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query = query.annotate(**self.annotations)
+            query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -184,7 +182,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             for alias_key, alias_value in self.group_by_alias.items():
                 if alias_key in query_group_by:
                     annotations[f"{alias_key}_alias"] = F(alias_value)
-            query_data = query.values(*query_group_by).annotate(**annotations)
+            query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
             if self._limit:
@@ -195,6 +193,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
+
+            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -225,7 +225,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                 # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
-            if self.is_csv_output:
+            if is_csv_output:
                 data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
@@ -251,10 +251,12 @@ class GCPReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
+        query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
-        query = query.annotate(**self.annotations)
+        query_data = query.annotate(**self.annotations)
+        query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         total_query = query.aggregate(**aggregates)

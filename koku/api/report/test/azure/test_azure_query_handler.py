@@ -63,16 +63,19 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.services = AzureCostEntryLineItemDailySummary.objects.values("service_name").distinct()
             self.services = [entry.get("service_name") for entry in self.services]
 
-    def get_totals_costs_by_time_scope(self, handler, filters=None):
+    def get_totals_by_time_scope(self, aggregates, filters=None):
+        """Return the total aggregates for a time period."""
+        if filters is None:
+            filters = self.ten_day_filter
+        with tenant_context(self.tenant):
+            return AzureCostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+
+    def get_totals_costs_by_time_scope(self, aggregates, filters=None):
+        """Return the total costs aggregates for a time period."""
         if filters is None:
             filters = self.this_month_filter
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            result = (
-                AzureCostEntryLineItemDailySummary.objects.filter(**filters)
-                .annotate(**handler.annotations)
-                .aggregate(**aggregates)
-            )
+            result = AzureCostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
             for key in result:
                 if result[key] is None:
                     result[key] = Decimal(0)
@@ -84,11 +87,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, AzureInstanceTypeView)
         handler = AzureReportQueryHandler(query_params)
 
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = self.ten_day_filter
         for filt in handler._mapper.report_type_map.get("filter"):
             qf = QueryFilter(**filt)
             filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -107,7 +111,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         url = "?"
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -137,7 +142,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -153,7 +159,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -175,7 +182,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -209,12 +217,13 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_name__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -248,12 +257,13 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_name__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -281,7 +291,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -311,7 +322,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -344,8 +356,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "instance_type__isnull": False}
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -369,7 +382,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -397,7 +411,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -430,7 +445,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -472,7 +488,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -507,10 +524,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
         filters["resource_location__icontains"] = location
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         # check total cost
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -548,8 +566,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -577,12 +596,13 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_name__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -612,9 +632,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
         filters["resource_location__icontains"] = location
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -659,9 +680,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
         filters["resource_location__icontains"] = location
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -688,7 +710,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -827,7 +850,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{"cost_units": expected_units})
 
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
         cost_total = result.get("cost", {}).get("total")
         self.assertIsNotNone(cost_total)
         self.assertEqual(cost_total.get("value"), current_totals.get("cost_total"))
@@ -1574,8 +1598,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -1600,12 +1625,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
             if element.get("date") == str(yesterday):
                 correctlst = [service.get("service_name") for service in element.get("service_names", [])]
 
-        exch_annotation = handler.annotations.get("exchange_rate")
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 AzureCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
-                .annotate(exchange_rate=exch_annotation)
                 .values("service_name")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")

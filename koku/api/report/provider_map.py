@@ -107,11 +107,6 @@ class ProviderMap:
         return self._report_type_map.get("cost_units_key")
 
     @property
-    def cost_units_fallback(self):
-        """Return the usage_units_key property."""
-        return self._report_type_map.get("cost_units_fallback")
-
-    @property
     def usage_units_key(self):
         """Return the usage_units_key property."""
         return self._report_type_map.get("usage_units_key")

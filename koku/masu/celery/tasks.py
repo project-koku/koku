@@ -16,7 +16,7 @@ from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
 
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import CURRENCIES
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.dataexport.models import DataExportRequest
@@ -366,7 +366,11 @@ def clean_volume():
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
     """Task to get latest daily conversion rates."""
+    # Create list of supported currencies
+    supported_currencies = []
     rate_metrics = {}
+    for curr_object in CURRENCIES:
+        supported_currencies.append(curr_object.get("code"))
 
     url = settings.CURRENCY_URL
     # Retrieve conversion rates from URL
@@ -379,7 +383,7 @@ def get_daily_currency_rates():
     rates = data["rates"]
     # Update conversion rates in database
     for curr_type in rates.keys():
-        if curr_type.upper() in VALID_CURRENCIES:
+        if curr_type.upper() in supported_currencies:
             value = rates[curr_type]
             try:
                 exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())

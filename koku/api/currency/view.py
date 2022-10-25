@@ -39,10 +39,5 @@ def get_currency(request):
 @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
 def get_exchange_rates(request):
     """Get the currency exchange rates between all currencies"""
-    exchange_rates = ExchangeRateDictionary.objects.all().first()
-    if not exchange_rates:
-        from masu.celery.tasks import get_daily_currency_rates
-
-        get_daily_currency_rates()
-        exchange_rates = ExchangeRateDictionary.objects.all().first()
-    return Response(exchange_rates.currency_exchange_dictionary)
+    exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+    return Response(exchange_rates)
