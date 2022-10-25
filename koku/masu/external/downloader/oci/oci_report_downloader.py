@@ -208,38 +208,41 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         return report_list
 
-    def _prepare_monthly_files(self, start_month, end_month):
+    def _prepare_monthly_files(self, start_date, end_date):
         """
         Prepare a dictionary of monthly files
 
-        Returns:
-            dictionary of monthly files
+        Args:
+            start_date (datetime): start date
+            end_date (datetime): end date
 
-            Example:
-                monthly_files_dict = {
-                    "2022-09-01": [],
-                    "2022-10-01": [],
-                }
+        Returns:
+            monthly_files_dict: dictionary of monthly files
+                Example: monthly_files_dict = {
+                            "2022-09-01": [],
+                            "2022-10-01": [],
+                         }
         """
-        month_dates = pd.date_range(start=start_month, end=end_month, freq="MS")
         monthly_files_dict = {}
-        for month in month_dates:
-            monthly_files_dict.update({month.date(): []})
+
+        if start_date.strftime("%Y%m") == end_date.strftime("%Y%m"):
+            monthly_files_dict.update({start_date.date(): []})
+        else:
+            date_range_list = list(pd.date_range(start=start_date, end=end_date, freq="MS"))
+            for month in date_range_list:
+                monthly_files_dict.update({month.date(): []})
+        LOG.info(f"Prepared Monthly files dictionary: {monthly_files_dict}")
         return monthly_files_dict
 
-    def _extract_names(self, assembly_id, start_date):
+    def _extract_names(self, assembly_id, ingest_month):
         """
         Get list of file names for manifest/downloading.
 
         Returns:
-            list of files for download
+            file_names: list of monthly files for download
 
         """
-        # Grabbing ingest delta for initial ingest
-        months_delta = Config.INITIAL_INGEST_NUM_MONTHS
-        ingest_month = start_date + relativedelta(months=-months_delta)
-        ingest_month = ingest_month.replace(day=1)
-        # Pulling a dict of last downloaded files from manifest
+
         last_reports = self.get_last_reports(assembly_id)
         initial_ingest = True if last_reports == {"cost": "", "usage": ""} else False
         usage_report = last_reports["usage"] if "usage" in last_reports else ""
@@ -248,25 +251,17 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         usage_reports = self._collect_reports(prefix="reports/usage-csv", last_report=usage_report)
         cost_reports = self._collect_reports(prefix="reports/cost-csv", last_report=cost_report)
         reports = usage_reports.data.objects + cost_reports.data.objects
-        # create monthly files pseudo dictionary
-        monthly_files_dict = self._prepare_monthly_files(ingest_month, start_date)
-        # Create list of filenames for downloading
+        # create a list of monthly files for downloading
         file_names = []
         for report in reports:
-            _report_date = report.time_created.replace(microsecond=0, second=0, minute=0, hour=0, day=1).date()
             if initial_ingest:
-                # Reduce initial ingest download footprint by only downloading files within the ingest window
-                if report.time_created.date() > ingest_month.date():
-                    # split files into monthly files
-                    if _report_date in monthly_files_dict.keys():
-                        monthly_files_dict[_report_date].append(report.name)
-                    else:
-                        monthly_files_dict[_report_date] = [report.name]
-            else:
-                monthly_files_dict.update({_report_date: monthly_files_dict[_report_date].append(report.name)})
-        for _report_month, _report_files in monthly_files_dict.items():
-            file_names.append({"date": _report_month, "files": _report_files})
-        LOG.info(f"monthly reports names: {file_names}")
+                # Reduce initial ingest download footprint
+                # by only downloading files created within the ingest month
+                if report.time_created.strftime("%Y%m") == ingest_month.strftime("%Y%m"):
+                    file_names.append(report.name)
+            # else:
+            #     file_names.append(report.name)
+        LOG.info(f"{str(ingest_month)} filenames: {file_names}")
         return file_names
 
     def get_manifest_context_for_date(self, date):
@@ -277,11 +272,13 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             date (Date): The starting datetime object
 
         Returns:
-            ({}) Dictionary containing the following keys:
+            [{}] List of dictionary of monthly reports using the following keys:
                 manifest_id - (String): Manifest ID for ReportManifestDBAccessor
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+
+
 
         """
         manifest_dict = {}
@@ -291,22 +288,28 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not manifest_dict:
             return report_dict
 
+        months_delta = Config.INITIAL_INGEST_NUM_MONTHS
+        ingest_month = date + relativedelta(months=-months_delta)
+        ingest_month = ingest_month.replace(day=1)
+        # get monthly report-filenames template
+        monthly_report_files = self._prepare_monthly_files(ingest_month, date)
+
         dh = DateHelper()
-        report_dict_list = []
-        for month_files in manifest_dict["file_names"]:
-            assembly_id = ":".join([manifest_dict["assembly_id"], str(month_files["date"])])
-            manifest_id = self._process_manifest_db_record(
-                assembly_id, month_files["date"], len(month_files["files"]), dh._now
-            )
-            report_dict["assembly_id"] = assembly_id
-            report_dict["manifest_id"] = manifest_id
-            report_dict["compression"] = manifest_dict.get("compression")
-            files_list = [
-                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_files.get("files", [])
-            ]
-            report_dict["files"] = files_list
-            report_dict_list.append(report_dict)
-        return report_dict_list
+        report_manifests_list = []
+        for month in monthly_report_files.keys():
+            monthly_report = {}
+            invoice_month = month.strftime("%Y%m")
+            assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
+            month_file_names = self._extract_names(assembly_id, month)
+            manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(month_file_names), dh._now)
+            monthly_report["manifest_id"] = manifest_id
+            monthly_report["assembly_id"] = assembly_id
+            monthly_report["compression"] = manifest_dict.get("compression")
+            files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_file_names]
+            monthly_report["files"] = files_list
+            report_manifests_list.append(monthly_report)
+        LOG.info(f"Report Manifests List: {str(report_manifests_list)}")
+        return report_manifests_list
 
     def _generate_monthly_pseudo_manifest(self, start_date):
         """
@@ -320,19 +323,20 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date (datetime.datetime): when to start gathering reporting data
 
         Returns:
-            Manifest-like dict with list of relevant found files.
+            Manifest-like dict with keys and value placeholders
+                assembly_id - (String): empty string
+                compression - (String): Report compression format
+                start_date - (Datetime): billing period start date
+                file_names - (list): empty list to hold reports' filenames.
 
         """
 
-        assembly_id_prefix = str(self._provider_uuid)
-        bill_date = start_date
-        file_names = self._extract_names(assembly_id_prefix, start_date)
-
+        # bill_date = start_date
         manifest_data = {
-            "assembly_id": assembly_id_prefix,
+            "assembly_id": "",
             "compression": UNCOMPRESSED,
-            "start_date": bill_date,
-            "file_names": file_names,
+            "start_date": start_date,
+            "file_names": [],
         }
         LOG.info(f"Manifest Data: {str(manifest_data)}")
         return manifest_data
