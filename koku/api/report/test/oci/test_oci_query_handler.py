@@ -1518,7 +1518,10 @@ class OCIReportQueryHandlerTest(IamTestCase):
                         # TODO: figure out why this sometimes returns none
                         continue
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
-                    opt_value = opt_dict.get(exclude_opt)
+                    opt_value = opt_dict.get(exclude_opt, "")
+                    if opt_value.startswith("no-"):
+                        # Hanlde cases where "no-instance-type" is returned
+                        continue
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
@@ -1597,11 +1600,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    _exclude_option = exclude_option.get(ex_opt, "")
+                    if not _exclude_option.startswith("no-"):
                         if not exclude_one:
-                            exclude_one = exclude_option.get(ex_opt)
+                            exclude_one = _exclude_option
                         elif not exclude_two:
-                            exclude_two = exclude_option.get(ex_opt)
+                            exclude_two = _exclude_option
                         else:
                             continue
                 if not exclude_one or not exclude_two:
