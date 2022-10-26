@@ -592,9 +592,11 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Default to cpu distribution
         pod_column = "pod_effective_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
+        node_column = "node_capacity_cpu_core_hours"
         if distribution == "memory":
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
+            node_column = "node_capacity_memory_gigabyte_hours"
 
         if resource_level:
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
@@ -619,6 +621,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value,
             "pod_column": pod_column,
             "cluster_column": cluster_column,
+            "node_column": node_column,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
             "matching_type": matching_type,
