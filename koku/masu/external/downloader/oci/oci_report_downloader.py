@@ -259,8 +259,8 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # by only downloading files created within the ingest month
                 if report.time_created.strftime("%Y%m") == ingest_month.strftime("%Y%m"):
                     file_names.append(report.name)
-            # else:
-            #     file_names.append(report.name)
+            else:
+                file_names.append(report.name)
         LOG.info(f"{str(ingest_month)} filenames: {file_names}")
         return file_names
 
