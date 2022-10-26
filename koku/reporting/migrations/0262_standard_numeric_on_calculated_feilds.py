@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0260_productcode_textfields"),
+        ("reporting", "0261_ocpgcpcostlineitemprojectdailysummaryp_pod_credit"),
     ]
 
     operations = [
