@@ -1600,7 +1600,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    _exclude_option = exclude_option.get(ex_opt)
+                    _exclude_option = exclude_option.get(ex_opt, "")
                     if not _exclude_option.startswith("no-"):
                         if not exclude_one:
                             exclude_one = _exclude_option
