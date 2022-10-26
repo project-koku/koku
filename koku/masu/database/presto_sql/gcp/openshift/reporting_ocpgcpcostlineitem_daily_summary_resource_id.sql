@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     pod_effective_usage_memory_gigabyte_hours double,
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabyte_hours double,
     volume_labels varchar,
     tags varchar,
     project_rank integer,
@@ -92,6 +94,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     pod_request_memory_gigabyte_hours double,
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabyte_hours double,
     volume_labels varchar,
     tags varchar,
     project_rank integer,
@@ -150,6 +154,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     pod_effective_usage_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
     ocp_matched
@@ -195,6 +201,8 @@ SELECT gcp.uuid as gcp_uuid,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     NULL as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
     max(gcp.ocp_matched) as ocp_matched
@@ -262,6 +270,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     pod_effective_usage_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
     ocp_matched
@@ -307,6 +317,8 @@ SELECT gcp.uuid as gcp_uuid,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(ocp.volume_labels) as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
     max(gcp.ocp_matched) as ocp_matched
@@ -379,6 +391,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     pod_request_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
     gcp_source,
@@ -434,15 +448,15 @@ SELECT pds.gcp_uuid,
     unblended_cost / r.gcp_uuid_count as unblended_cost,
     markup_cost / r.gcp_uuid_count as markup_cost,
     CASE WHEN ocp_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / r.gcp_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / r.gcp_uuid_count
     END as pod_cost,
     CASE WHEN ocp_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * credit_amount
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * credit_amount
         ELSE credit_amount / r.gcp_uuid_count
     END as pod_credit,
     pod_usage_cpu_core_hours,
@@ -452,6 +466,8 @@ SELECT pds.gcp_uuid,
     pod_request_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
     '{{gcp_source_uuid | sqlsafe }}' as gcp_source,

@@ -63,10 +63,11 @@ def drop_tables(tables, conn_params):
             logging.info(e)
 
 
-def add_columns_to_table(columns, table, conn_params):
-    for column in columns:
-        logging.info(f"adding column {column} to table {table}")
-        sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} double"
+def add_columns_to_table(column_map, table, conn_params):
+    """Given a map of column name: type, add columns to table."""
+    for column, type in column_map.items():
+        logging.info(f"adding column {column} of type {type} to table {table}")
+        sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {type}"
         try:
             result = run_trino_sql(sql, conn_params)
             logging.info("ALTER TABLE result: ")
@@ -76,6 +77,7 @@ def add_columns_to_table(columns, table, conn_params):
 
 
 def drop_columns_from_table(columns, table, conn_params):
+    """Given a list of columns, drop from table."""
     for column in columns:
         logging.info(f"Dropping column {column} from table {table}")
         sql = f"ALTER TABLE IF EXISTS {table} DROP COLUMN IF EXISTS {column}"
@@ -88,21 +90,22 @@ def drop_columns_from_table(columns, table, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for OCP/GCP ocp_matched drop")
+    logging.info("Running the hive migration for OCP/GCP node columns")
 
     logging.info("fetching schemas")
     schemas = get_schemas()
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["gcp_openshift_daily"]
-    # columns_to_add = []
-    # columns_to_drop = []
+    # tables_to_drop = ["gcp_openshift_daily"]
+    # columns_to_drop = ["ocp_matched"]
+    columns_to_add = {"node_capacity_cpu_core_hours": "double", "node_capacity_memory_gigabyte_hours": "double"}
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** Dropping tables for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        logging.info(f"*** Adding column to tables for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
