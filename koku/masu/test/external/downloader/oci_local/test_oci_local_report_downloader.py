@@ -83,6 +83,8 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         """Test the OCI-Local initializer."""
         self.assertIsNotNone(self.report_downloader)
 
+    @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
     def test_download_file(self, *args):
         """Test OCI-Local report download."""
 

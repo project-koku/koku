@@ -1547,7 +1547,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
                     self.assertNotEqual(overall_total, excluded_total)
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, *args):
+    def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
         url = "?"
         query_params = self.mocked_query_params(url, OCITagView)
