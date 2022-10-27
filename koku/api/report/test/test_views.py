@@ -13,8 +13,6 @@ from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from api.report.view import _fill_in_missing_units
-from api.report.view import _find_unit
 from api.report.view import get_paginator
 
 
@@ -94,60 +92,6 @@ class ReportViewTest(IamTestCase):
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.accepted_media_type, "text/csv")
                 self.assertIsInstance(response.accepted_renderer, CSVRenderer)
-
-    def test_find_unit_list(self):
-        """Test that the correct unit is returned."""
-        expected_unit = "Hrs"
-        data = [
-            {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0},
-            {"date": "2018-07-22", "units": expected_unit, "instance_type": "t2.small", "total": 17.0, "count": 0},
-            {"date": "2018-07-22", "units": expected_unit, "instance_type": "t2.micro", "total": 1.0, "count": 0},
-        ]
-        result_unit = _find_unit()(data)
-        self.assertEqual(expected_unit, result_unit)
-
-    def test_find_unit_dict(self):
-        """Test that the correct unit is returned for a dictionary."""
-        data = {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0}
-        result_unit = _find_unit()(data)
-        self.assertIsNone(result_unit)
-
-    def test_fill_in_missing_units_dict(self):
-        """Test that missing units are filled in for a dictionary."""
-        expected_unit = "Hrs"
-        data = {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0}
-        result = _fill_in_missing_units(expected_unit)(data)
-        self.assertEqual(result.get("units"), expected_unit)
-
-    def test_fill_in_missing_units_list(self):
-        """Test that missing units are filled in."""
-        expected_unit = "Hrs"
-        data = [
-            # AWS
-            {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0},
-            {"date": "2018-07-22", "units": expected_unit, "instance_type": "t2.small", "total": 17.0, "count": 0},
-            {"date": "2018-07-22", "units": expected_unit, "instance_type": "t2.micro", "total": 1.0, "count": 0},
-            # Azure
-            {"date": "2018-07-22", "units": "", "instance_type": "Standard_A1_v2", "total": 30.0, "count": 0},
-            {
-                "date": "2018-07-22",
-                "units": expected_unit,
-                "instance_type": "Standard_A2m_v2",
-                "total": 17.0,
-                "count": 0,
-            },  # noqa: E501
-            {
-                "date": "2018-07-22",
-                "units": expected_unit,
-                "instance_type": "Standard_A1_v2",
-                "total": 1.0,
-                "count": 0,
-            },
-        ]
-        unit = _find_unit()(data)
-        result = _fill_in_missing_units(unit)(data)
-        for entry in result:
-            self.assertEqual(entry.get("units"), expected_unit)
 
     def test_get_paginator_default(self):
         """Test that the standard report paginator is returned."""

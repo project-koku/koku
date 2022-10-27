@@ -5,7 +5,7 @@
 """View for AWS tags."""
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.tags.aws.queries import AWSTagQueryHandler
-from api.tags.serializers import AWSTagsQueryParamSerializer
+from api.tags.aws.serializers import AWSTagsQueryParamSerializer
 from api.tags.view import TagView
 from reporting.provider.aws.models import AWSTagsSummary
 

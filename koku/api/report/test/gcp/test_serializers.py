@@ -288,29 +288,6 @@ class GCPQueryParamSerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
-    def test_parse_units(self):
-        """Test pass while parsing units query params."""
-        query_params = {"units": "bytes"}
-
-        path = "/api/cost-management/v1/reports/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
-        self.assertTrue(serializer.is_valid())
-
-    def test_parse_units_failure(self):
-        """Test failure while parsing units query params."""
-        query_params = {"units": "bites"}
-
-        path = "/api/cost-management/v1/reports/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
     def test_tag_keys_dynamic_field_validation_success(self):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]

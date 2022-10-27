@@ -6,7 +6,7 @@
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
-from api.tags.serializers import OCPAWSTagsQueryParamSerializer
+from api.tags.aws.openshift.serializers import OCPAWSTagsQueryParamSerializer
 from api.tags.view import TagView
 from reporting.provider.aws.models import AWSTagsSummary
 
