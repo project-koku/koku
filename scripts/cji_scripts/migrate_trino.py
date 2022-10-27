@@ -90,7 +90,7 @@ def drop_columns_from_table(columns, table, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for OCP/GCP ocp_matched")
+    logging.info("Running the hive migration for OCP/GCP node columns")
 
     logging.info("fetching schemas")
     schemas = get_schemas()
@@ -98,16 +98,12 @@ def main():
     logging.info(schemas)
 
     # tables_to_drop = ["gcp_openshift_daily"]
-    columns_to_drop = ["ocp_matched"]
-    columns_to_add = {"ocp_matched": "boolean"}
+    # columns_to_drop = ["ocp_matched"]
+    columns_to_add = {"node_capacity_cpu_core_hours": "double", "node_capacity_memory_gigabyte_hours": "double"}
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
         logging.info(f"*** Adding column to tables for schema {schema} ***")
-        drop_columns_from_table(columns_to_drop, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
-        drop_columns_from_table(
-            columns_to_drop, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS
-        )
         add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
         add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
 
