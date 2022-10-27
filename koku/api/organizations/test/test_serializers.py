@@ -10,7 +10,7 @@ from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.serializers import AWSOrgFilterSerializer
-from api.organizations.serializers import OrgQueryParamSerializer
+from api.organizations.serializers import AWSOrgQueryParamSerializer
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
@@ -72,7 +72,7 @@ class AWSOrgExcludeSerializerTest(TestCase):
             self.assertFalse(serializer.is_valid())
 
 
-class OrgQueryParamSerializerTest(IamTestCase):
+class AWSOrgQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -86,7 +86,7 @@ class OrgQueryParamSerializerTest(IamTestCase):
         ctx = self._create_request_context(
             self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
         )
-        serializer = OrgQueryParamSerializer(data=query_params, context=ctx)
+        serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_params_filter_with_org_unit_id_success(self):
@@ -105,8 +105,8 @@ class OrgQueryParamSerializerTest(IamTestCase):
         ctx = self._create_request_context(
             self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
         )
-        serializer = OrgQueryParamSerializer(data=query_params, context=ctx)
-        self.assertTrue(serializer.is_valid())
+        serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
+        self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_query_params_exclude_with_org_unit_id_success(self):
         """Test parse of a query params successfully."""
@@ -120,8 +120,8 @@ class OrgQueryParamSerializerTest(IamTestCase):
         ctx = self._create_request_context(
             self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
         )
-        serializer = OrgQueryParamSerializer(data=query_params, context=ctx)
-        self.assertTrue(serializer.is_valid())
+        serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
+        self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
@@ -130,7 +130,7 @@ class OrgQueryParamSerializerTest(IamTestCase):
         ctx = self._create_request_context(
             self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
         )
-        serializer = OrgQueryParamSerializer(data=query_params, context=ctx)
+        serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -159,7 +159,7 @@ class OrgQueryParamSerializerTest(IamTestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params, context=ctx)
+                serializer = AWSOrgQueryParamSerializer(data=params, context=ctx)
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid(self):
@@ -200,5 +200,5 @@ class OrgQueryParamSerializerTest(IamTestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params, context=ctx)
+                serializer = AWSOrgQueryParamSerializer(data=params, context=ctx)
                 self.assertFalse(serializer.is_valid())

@@ -9,14 +9,14 @@ from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.tags.serializers import AWSExcludeSerializer
-from api.tags.serializers import AWSFilterSerializer
-from api.tags.serializers import AWSTagsQueryParamSerializer
-from api.tags.serializers import ExcludeSerializer
+from api.tags.aws.serializers import AWSExcludeSerializer
+from api.tags.aws.serializers import AWSFilterSerializer
+from api.tags.aws.serializers import AWSTagsQueryParamSerializer
+from api.tags.aws.serializers import ExcludeSerializer
+from api.tags.ocp.serializers import OCPExcludeSerializer
+from api.tags.ocp.serializers import OCPFilterSerializer
+from api.tags.ocp.serializers import OCPTagsQueryParamSerializer
 from api.tags.serializers import FilterSerializer
-from api.tags.serializers import OCPExcludeSerializer
-from api.tags.serializers import OCPFilterSerializer
-from api.tags.serializers import OCPTagsQueryParamSerializer
 from api.tags.serializers import TagsQueryParamSerializer
 from api.utils import DateHelper
 

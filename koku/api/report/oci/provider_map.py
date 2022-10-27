@@ -49,7 +49,7 @@ class OCIProviderMap(ProviderMap):
                     "region": {"field": "region", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["product_service", "payer_tenant_id", "region"],
+                "group_by_options": ["product_service", "payer_tenant_id", "region", "instance_type"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {

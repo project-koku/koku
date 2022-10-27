@@ -1474,7 +1474,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_gcp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1491,10 +1491,13 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("service") for service in expected]
+        tested = False
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertCountEqual(correctlst, lst)
+                tested = True
+        self.assertTrue(tested)
 
     def test_gcp_date_incorrect_date(self):
         wrong_date = "200BC"
