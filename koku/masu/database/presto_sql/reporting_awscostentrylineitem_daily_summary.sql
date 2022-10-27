@@ -41,7 +41,7 @@ SELECT uuid() as uuid,
     usage_start,
     usage_end,
     cast(usage_account_id AS varchar(50)),
-    cast(product_code AS varchar(50)),
+    cast(product_code AS varchar),
     product_family,
     cast(availability_zone AS varchar(50)),
     region,
@@ -75,7 +75,10 @@ SELECT uuid() as uuid,
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
         date(lineitem_usagestartdate) as usage_end,
-        nullif(lineitem_productcode, '') as product_code,
+        CASE
+            WHEN bill_billingentity='AWS Marketplace' THEN coalesce(nullif(product_productname, ''), nullif(lineitem_productcode, ''))
+            ELSE nullif(lineitem_productcode, '')
+        END as product_code,
         nullif(product_productfamily, '') as product_family,
         lineitem_usageaccountid as usage_account_id,
         nullif(lineitem_availabilityzone, '') as availability_zone,
@@ -103,7 +106,9 @@ FROM (
         AND lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     GROUP BY date(lineitem_usagestartdate),
+        bill_billingentity,
         lineitem_productcode,
+        product_productname,
         lineitem_usageaccountid,
         lineitem_availabilityzone,
         product_productfamily,
