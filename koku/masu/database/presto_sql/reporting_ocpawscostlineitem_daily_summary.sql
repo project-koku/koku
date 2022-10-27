@@ -145,7 +145,12 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(
+            CASE
+                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+                ELSE nullif(aws.lineitem_productcode, '')
+            END
+        ) as product_code,
         max(nullif(aws.product_productfamily, '')) as product_family,
         max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
@@ -176,9 +181,9 @@ SELECT aws.uuid as aws_uuid,
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
-            AND aws.lineitem_resourceid = ocp.resource_id
-        AND ocp.namespace != 'Workers Unallocated Capacity'
-        AND ocp.namespace != 'Platform Unallocated Capacity'
+            AND strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
+            AND ocp.namespace != 'Workers Unallocated Capacity'
+            AND ocp.namespace != 'Platform Unallocated Capacity'
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
@@ -248,7 +253,12 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(
+            CASE
+                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+                ELSE nullif(aws.lineitem_productcode, '')
+            END
+        ) as product_code,
         max(nullif(aws.product_productfamily, '')) as product_family,
         max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
