@@ -423,7 +423,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_ocp_aws_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()

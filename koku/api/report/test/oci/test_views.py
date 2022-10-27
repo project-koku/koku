@@ -3,19 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCI Report views."""
-from unittest.mock import patch
-
-from django.http import HttpRequest
-from django.http import QueryDict
 from faker import Faker
-from rest_framework.request import Request
-from rest_framework.response import Response
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import User
-from api.report.oci.view import OCICostView
-from api.report.view import _convert_units
-from api.utils import UnitConverter
 
 FAKE = Faker()
 
@@ -99,56 +89,3 @@ class OCIReportViewTest(IamTestCase):
             ],
             "total": {"value": 5475.922451027388, "units": "GB-Mo"},
         }
-
-    def test_convert_units_success(self):
-        """Test unit conversion succeeds."""
-        converter = UnitConverter()
-        to_unit = "byte"
-        expected_unit = f"{to_unit}-Mo"
-        report_total = self.report.get("total", {}).get("value")
-
-        result = _convert_units(converter, self.report, to_unit)
-        result_unit = result.get("total", {}).get("units")
-        result_total = result.get("total", {}).get("value")
-
-        self.assertEqual(expected_unit, result_unit)
-        self.assertEqual(report_total * 1e9, result_total)
-
-    def test_convert_units_list(self):
-        """Test that the list check is hit."""
-        converter = UnitConverter()
-        to_unit = "byte"
-        expected_unit = f"{to_unit}-Mo"
-        report_total = self.report.get("total", {}).get("value")
-
-        report = [self.report]
-        result = _convert_units(converter, report, to_unit)
-        result_unit = result[0].get("total", {}).get("units")
-        result_total = result[0].get("total", {}).get("value")
-
-        self.assertEqual(expected_unit, result_unit)
-        self.assertEqual(report_total * 1e9, result_total)
-
-    @patch("api.report.oci.query_handler.OCIReportQueryHandler")
-    def test_costview_with_units_success(self, mock_handler):
-        """Test unit conversion succeeds in OCICostView."""
-        mock_handler.return_value.execute_query.return_value = self.report
-        params = {
-            "group_by[payer_tenant_id]": "*",
-            "filter[resolution]": "monthly",
-            "filter[time_scope_value]": "-1",
-            "filter[time_scope_units]": "month",
-            "units": "byte",
-            "SERVER_NAME": "",
-        }
-        user = User.objects.get(username=self.user_data["username"])
-
-        django_request = HttpRequest()
-        qd = QueryDict(mutable=True)
-        qd.update(params)
-        django_request.GET = qd
-        request = Request(django_request)
-        request.user = user
-
-        response = OCICostView().get(request)
-        self.assertIsInstance(response, Response)
