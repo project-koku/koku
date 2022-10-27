@@ -506,11 +506,11 @@ def aws_generate_daily_data(data_frame):
 
 def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
-    resource_ids = cluster_topology.get("resource_ids", [])
+    resource_ids = tuple(cluster_topology.get("resource_ids", []))
     resource_id_df = data_frame["lineitem_resourceid"]
 
     LOG.info("Matching OpenShift on AWS by resource ID.")
-    resource_id_matched = resource_id_df.isin(resource_ids)
+    resource_id_matched = resource_id_df.str.endswith(resource_ids)
     data_frame["resource_id_matched"] = resource_id_matched
 
     tags = data_frame["resourcetags"]
