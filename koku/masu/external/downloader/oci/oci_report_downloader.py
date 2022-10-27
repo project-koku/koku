@@ -288,6 +288,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not manifest_dict:
             return report_dict
 
+        # Grabbing ingest delta for initial ingest
         months_delta = Config.INITIAL_INGEST_NUM_MONTHS
         ingest_month = date + relativedelta(months=-months_delta)
         ingest_month = ingest_month.replace(day=1)
