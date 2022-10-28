@@ -206,4 +206,13 @@ elif [[ $exit_code < 0 ]]; then
     exit_code=0
 fi
 
+echo "==================> artifacts:"
+ls -lrt "${WORKSPACE}/artifacts"
+echo "================== :"
+ls -lrt ${WORKSPACE}/artifacts/*
+echo "================== :"
+for file in ${WORKSPACE}/artifacts/*; do
+    echo "file: $file"
+    cat "$file"
+done
 exit $exit_code
