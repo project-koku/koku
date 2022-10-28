@@ -4,7 +4,6 @@
 #
 """OCP Report Serializers."""
 from django.utils.translation import ugettext as _
-from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
 from api.models import Provider
@@ -12,13 +11,11 @@ from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
-from api.report.serializers import validate_field
-from api.utils import UnitConverter
 
 
-class GroupBySerializer(GroupSerializer):
+class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = ("project", "cluster", "node")
@@ -28,7 +25,7 @@ class GroupBySerializer(GroupSerializer):
     node = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OrderBySerializer(OrderSerializer):
+class OCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
     _opfields = ("project", "cluster", "node", "date")
@@ -39,17 +36,17 @@ class OrderBySerializer(OrderSerializer):
     date = serializers.DateField(required=False)
 
 
-class InventoryOrderBySerializer(OrderBySerializer):
+class InventoryOrderBySerializer(OCPOrderBySerializer):
     """Order By Serializer for CPU and Memory endpoints."""
 
     _opfields = ("project", "cluster", "node", "usage", "request", "limit")
 
-    usage = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
-    request = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
-    limit = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
+    usage = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    request = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    limit = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
 
 
-class FilterSerializer(BaseFilterSerializer):
+class OCPFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
@@ -81,7 +78,7 @@ class FilterSerializer(BaseFilterSerializer):
         return data
 
 
-class ExcludeSerializer(BaseExcludeSerializer):
+class OCPExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
@@ -113,18 +110,13 @@ class ExcludeSerializer(BaseExcludeSerializer):
         return data
 
 
-class OCPQueryParamSerializer(ParamSerializer):
+class OCPQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
 
-    # Tuples are (key, display_name)
-    units = serializers.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the OCP query param serializer."""
-        super().__init__(*args, **kwargs)
-        self._init_tagged_fields(
-            filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer, exclude=ExcludeSerializer
-        )
+    GROUP_BY_SERIALIZER = OCPGroupBySerializer
+    ORDER_BY_SERIALIZER = OCPOrderBySerializer
+    FILTER_SERIALIZER = OCPFilterSerializer
+    EXCLUDE_SERIALIZER = OCPExcludeSerializer
 
     def validate(self, data):
         """Validate incoming data.
@@ -144,102 +136,17 @@ class OCPQueryParamSerializer(ParamSerializer):
             raise serializers.ValidationError(error)
         return data
 
-    def validate_group_by(self, value):
-        """Validate incoming group_by data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if group_by field inputs are invalid
-
-        """
-        validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", FilterSerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", ExcludeSerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_units(self, value):
-        """Validate incoming units data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if units field inputs are invalid
-
-        """
-        unit_converter = UnitConverter()
-        try:
-            unit_converter.validate_unit(value)
-        except (AttributeError, UndefinedUnitError):
-            error = {"units": f"{value} is not a supported unit"}
-            raise serializers.ValidationError(error)
-
-        return value
-
 
 class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling inventory query parameters."""
+
+    ORDER_BY_SERIALIZER = InventoryOrderBySerializer
 
     delta_choices = ("cost", "usage", "request", "cost_total")
 
     delta_fields = ("usage", "request", "limit", "capacity")
 
     delta = serializers.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the OCP query param serializer."""
-        super().__init__(*args, **kwargs)
-        self._init_tagged_fields(
-            filter=FilterSerializer,
-            group_by=GroupBySerializer,
-            order_by=InventoryOrderBySerializer,
-            exclude=ExcludeSerializer,
-        )
-
-    def validate_order_by(self, value):
-        """Validate incoming order_by data.
-
-        Args:
-            value    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if order_by field inputs are invalid
-
-        """
-        super().validate_order_by(value)
-        validate_field(self, "order_by", InventoryOrderBySerializer, value)
-        return value
 
     def validate_delta(self, value):
         """Validate delta is valid."""
@@ -268,31 +175,3 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-
-    def validate_order_by(self, value):
-        """Validate incoming order_by data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if order_by field inputs are invalid
-
-        """
-        super().validate_order_by(value)
-        validate_field(self, "order_by", OrderBySerializer, value)
-        return value
-
-    def validate_delta(self, value):
-        """Validate incoming delta value based on path."""
-        valid_delta = "usage"
-        request = self.context.get("request")
-        if request and "costs" in request.path:
-            valid_delta = "cost_total"
-            if value == "cost":
-                return valid_delta
-        if value != valid_delta:
-            error = {"delta": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
-        return value

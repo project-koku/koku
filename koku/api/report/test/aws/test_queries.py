@@ -30,7 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.aws.serializers import ExcludeSerializer
+from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
@@ -2797,7 +2797,7 @@ class AWSReportQueryTest(IamTestCase):
         }
         for group_by, table in group_bys.items():
             with self.subTest(test=group_by):
-                url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"
+                url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"  # noqa: E501
                 query_params = self.mocked_query_params(url, AWSCostView)
                 handler = AWSReportQueryHandler(query_params)
                 query_output = handler.execute_query()
@@ -2816,10 +2816,13 @@ class AWSReportQueryTest(IamTestCase):
                 if correctlst and None in correctlst:
                     ind = correctlst.index(None)
                     correctlst[ind] = "no-" + group_by
+                tested = False
                 for element in data:
                     lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
                     if lst and correctlst:
                         self.assertEqual(correctlst, lst)
+                        tested = True
+                self.assertTrue(tested)
 
     def test_aws_date_incorrect_date(self):
         wrong_date = "200BC"
@@ -3227,7 +3230,7 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(AWSExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
         exclude_opts.remove("org_unit_id")
         for exclude_opt in exclude_opts:
@@ -3307,7 +3310,7 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(AWSExcludeSerializer._opfields)
         exclude_opts.remove("org_unit_id")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501

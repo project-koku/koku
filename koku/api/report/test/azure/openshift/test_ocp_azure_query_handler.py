@@ -1352,7 +1352,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_ocp_azure_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1368,10 +1368,13 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("service_name") for service in expected]
+        tested = False
         for element in data:
             lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
+                tested = True
+        self.assertTrue(tested)
 
     def test_ocp_azure_date_incorrect_date(self):
         wrong_date = "200BC"

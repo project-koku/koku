@@ -5,7 +5,7 @@
 """View for GCP tags."""
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.tags.gcp.queries import GCPTagQueryHandler
-from api.tags.serializers import GCPTagsQueryParamSerializer
+from api.tags.gcp.serializers import GCPTagsQueryParamSerializer
 from api.tags.view import TagView
 from reporting.provider.gcp.models import GCPTagsSummary
 

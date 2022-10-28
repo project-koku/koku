@@ -477,15 +477,21 @@ class QueryParameters:
             if isinstance(param_value, dict):
                 new_param_value = copy.deepcopy(param_value)
                 for first, second in param_value.items():
-                    if "supplementary" == first:
+                    if first == "supplementary":
                         new_param_value["sup_total"] = second
                         del new_param_value["supplementary"]
-                    elif "infrastructure" == first:
+                    elif first == "infrastructure":
                         new_param_value["infra_total"] = second
                         del new_param_value["infrastructure"]
-                    elif "cost" == first:
+                    elif first == "cost":
                         new_param_value["cost_total"] = second
                         del new_param_value["cost"]
+                    # super special case for cost-explorer order-by date:
+                    elif first == "date" and param == "order_by":
+                        new_value_dict = OrderedDict()
+                        new_value_dict["date"] = second
+                        modified_param_dict["cost_explorer_order_by"] = new_value_dict
+                        del new_param_value["date"]
                 modified_param_dict[param] = new_param_value
 
         self._parameters = modified_param_dict
