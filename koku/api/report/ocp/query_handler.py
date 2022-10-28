@@ -126,11 +126,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def exchange_rate_annotation_dict(self):
         """Get the exchange rate annotation based on the exchange_rates property."""
         exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            When(
+                **{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, Decimal(1)))}
+            )
             for uuid, cur in self.source_to_currency_map.items()
         ]
         infra_exchange_rate_whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency, Decimal(1)))})
             for k, v in self.exchange_rates.items()
         ]
         return {

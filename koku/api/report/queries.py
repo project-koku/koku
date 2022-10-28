@@ -40,6 +40,7 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from koku.feature_flags import UNLEASH_CLIENT
 
 LOG = logging.getLogger(__name__)
 
@@ -509,6 +510,10 @@ class ReportQueryHandler(QueryHandler):
 
     @cached_property
     def exchange_rates(self):
+        unleash_context = {"schema": self.parameters._tenant.schema_name}
+        if UNLEASH_CLIENT.is_enabled("cost-management.backend.currency", unleash_context):
+            # This is an inverted feature flag, used as a kill-switch for converting currencies
+            return {}
         try:
             return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
         except AttributeError as err:
@@ -519,7 +524,7 @@ class ReportQueryHandler(QueryHandler):
     def exchange_rate_annotation_dict(self):
         """Get the exchange rate annotation based on the exchange_rates property."""
         whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency, Decimal(1)))})
             for k, v in self.exchange_rates.items()
         ]
         return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
