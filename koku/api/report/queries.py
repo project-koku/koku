@@ -510,7 +510,7 @@ class ReportQueryHandler(QueryHandler):
 
     @cached_property
     def exchange_rates(self):
-        unleash_context = {"schema": self.parameters._tenant.schema_name}
+        unleash_context = {"schema": self.parameters.tenant.schema_name}
         if UNLEASH_CLIENT.is_enabled("cost-management.backend.currency", unleash_context):
             # This is an inverted feature flag, used as a kill-switch for converting currencies
             return {}
