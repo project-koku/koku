@@ -505,6 +505,7 @@ def out_of_order_source_delete_async(source_id):
         LOG.warning(
             f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
         )
+        return
     if source.account_id in settings.DEMO_ACCOUNTS:
         LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
         return
@@ -518,6 +519,7 @@ def missing_source_delete_async(source_id):
         source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
+        return
     if source.account_id in settings.DEMO_ACCOUNTS:
         LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
         return
