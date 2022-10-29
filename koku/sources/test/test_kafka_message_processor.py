@@ -230,7 +230,7 @@ class KafkaMessageProcessorTest(IamTestCase):
                     ("event_type", bytes(event, encoding="utf-8")),
                     ("x-rh-identity", bytes(Config.SOURCES_FAKE_HEADER, encoding="utf-8")),
                 ),
-                "expected": {"account_number": "12345", "auth_header": Config.SOURCES_FAKE_HEADER},
+                "expected": {"account_number": "10001", "auth_header": Config.SOURCES_FAKE_HEADER},
             },
         ]
         for test in table:
