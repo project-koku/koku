@@ -32,10 +32,10 @@ class Config:
     SOURCES_FAKE_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_HEADER",
         default=(
-            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjMzMzM"
-            "zMzMiLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdX"
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTAwMDEiLCAib3JnX2lkIjogIjEyMzQ"
+            "1NjciLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdX"
             "JjZXMiLCAiZW1haWwiOiAic291cmNlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX"
-            "2lkIjogIjMzMzMzMzMifX19"
+            "2lkIjogIjEyMzQ1NjcifX19Cg=="
         ),
     )
     SOURCES_FAKE_CLUSTER_HEADER = ENVIRONMENT.get_value(
