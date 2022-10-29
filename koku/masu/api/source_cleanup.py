@@ -69,8 +69,6 @@ def cleanup(request):
             request, _missing_sources(source_uuid, params["limit"], params["offset"])
         )
 
-    return Response({"Error": "missing query parameters"}, status=status.HTTP_400_BAD_REQUEST)
-
 
 def handle_providers_without_sources_response(request, dataset):
     if request.method == "DELETE":
