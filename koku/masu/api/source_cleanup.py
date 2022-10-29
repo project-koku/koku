@@ -36,7 +36,9 @@ LOG = logging.getLogger(__name__)
 def cleanup(request):
     """Return download file async task ID."""
     params = request.query_params
-    if not params:
+    if not params or all(
+        x not in params for x in ["providers_without_sources", "out_of_order_deletes", "missing_sources"]
+    ):
         errmsg = "Parameter missing. Options: providers_without_sources, out_of_order_deletes, or missing_sources"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -66,6 +68,8 @@ def cleanup(request):
         return handle_missing_sources_response(
             request, _missing_sources(source_uuid, params["limit"], params["offset"])
         )
+
+    return Response({"Error": "missing query parameters"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def handle_providers_without_sources_response(request, dataset):
