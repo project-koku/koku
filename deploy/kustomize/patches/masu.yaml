@@ -43,6 +43,8 @@
               fieldPath: metadata.name
         - name: API_PATH_PREFIX
           value: ${API_PATH_PREFIX}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
