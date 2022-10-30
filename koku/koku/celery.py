@@ -265,12 +265,6 @@ def init_worker(**kwargs):
         f"{(datetime.utcnow() - unleash_init_start).total_seconds()} seconds."
     )
 
-    import debugpy
-
-    debugpy.listen(("0.0.0.0", 5678))
-    LOG.warning("Waiting for attach....")
-    debugpy.wait_for_client()
-
 
 @worker_process_shutdown.connect
 def shutdown_worker(**kwargs):
