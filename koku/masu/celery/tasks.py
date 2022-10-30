@@ -509,7 +509,7 @@ def out_of_order_source_delete_async(source_id):
     if source.account_id in settings.DEMO_ACCOUNTS:
         LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
         return
-    delete_source(source.source_id, source.auth_header, source.koku_uuid)
+    delete_source_helper(source)
 
 
 @celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
@@ -523,7 +523,17 @@ def missing_source_delete_async(source_id):
     if source.account_id in settings.DEMO_ACCOUNTS:
         LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
         return
-    delete_source(source.source_id, source.auth_header, source.koku_uuid)
+    delete_source_helper(source)
+
+
+def delete_source_helper(source):
+    if source.koku_uuid:
+        # if there is a koku-uuid, a Provider also exists.
+        # Go thru delete_source to remove the Provider and the Source
+        delete_source(source.source_id, source.auth_header, source.koku_uuid)
+    else:
+        # here, no Provider exists, so just delete the Source
+        source.delete()
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
