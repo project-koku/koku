@@ -45,6 +45,12 @@
           value: ${API_PATH_PREFIX}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
