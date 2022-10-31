@@ -11,7 +11,7 @@ from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
 
-class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer):
+class OCPAllGroupBySerializer(awsser.AWSGroupBySerializer, ocpser.OCPGroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = (
@@ -29,13 +29,13 @@ class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer
     )
 
 
-class OCPAllOrderBySerializer(awsser.OrderBySerializer, ocpser.OrderBySerializer):
+class OCPAllOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
     pass
 
 
-class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
+class OCPAllFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("source_type",)
@@ -43,7 +43,7 @@ class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OCPAllExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer):
+class OCPAllExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("source_type",)
@@ -51,18 +51,13 @@ class OCPAllExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
+class OCPAllQueryParamSerializer(awsser.AWSQueryParamSerializer):
     """Serializer for handling query parameters."""
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the OCP query param serializer."""
-        super().__init__(*args, **kwargs)
-        self._init_tagged_fields(
-            filter=OCPAllFilterSerializer,
-            group_by=OCPAllGroupBySerializer,
-            order_by=OCPAllOrderBySerializer,
-            exclude=OCPAllExcludeSerializer,
-        )
+    GROUP_BY_SERIALIZER = OCPAllGroupBySerializer
+    ORDER_BY_SERIALIZER = OCPAllOrderBySerializer
+    FILTER_SERIALIZER = OCPAllFilterSerializer
+    EXCLUDE_SERIALIZER = OCPAllExcludeSerializer
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.
@@ -75,61 +70,5 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        validate_field(self, "group_by", OCPAllGroupBySerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_order_by(self, value):
-        """Validate incoming order_by data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if order_by field inputs are invalid
-
-        """
-        super().validate_order_by(value)
-        validate_field(self, "order_by", OCPAllOrderBySerializer, value)
-        return value
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", OCPAllFilterSerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", OCPAllExcludeSerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_delta(self, value):
-        """Validate incoming delta value based on path."""
-        valid_delta = "usage"
-        request = self.context.get("request")
-        if request and "costs" in request.path:
-            valid_delta = "cost_total"
-            if value == "cost":
-                return valid_delta
-        if value != valid_delta:
-            error = {"delta": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
+        validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value

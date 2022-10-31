@@ -33,10 +33,9 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
                 "time_scope_units": "day",
                 "resource_scope": [],
             },
-            "units": "byte",
         }
         serializer = OCPAllQueryParamSerializer(data=query_params, context=self.alt_request_context)
-        self.assertTrue(serializer.is_valid())
+        self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_query_params_invalid_delta(self):
         """Test parse of delta charge query params for invalid fields."""
