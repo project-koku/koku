@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Source cleanup."""
+import contextlib
 import logging
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.common.pagination import ListPaginator
 from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.celery.tasks import delete_provider_async
@@ -34,9 +36,16 @@ LOG = logging.getLogger(__name__)
 def cleanup(request):
     """Return download file async task ID."""
     params = request.query_params
-    if not params:
+    if not params or all(
+        x not in params for x in ["providers_without_sources", "out_of_order_deletes", "missing_sources"]
+    ):
         errmsg = "Parameter missing. Options: providers_without_sources, out_of_order_deletes, or missing_sources"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+    params._mutable = True
+    params["limit"] = int(params.get("limit") or 10)
+    params["offset"] = int(params.get("offset") or 0)
+    params._mutable = False
 
     source_uuid = params.get("uuid")
     if source_uuid:
@@ -48,77 +57,62 @@ def cleanup(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     LOG.info(f"Source Cleanup for UUID: {source_uuid}")
-    response = {}
+
     if "providers_without_sources" in params.keys():
-        response["providers_without_sources"] = _providers_without_sources(source_uuid)
-        return handle_providers_without_sources_response(request, response)
+        return handle_providers_without_sources_response(request, _providers_without_sources(source_uuid))
 
     if "out_of_order_deletes" in params.keys():
-        response["out_of_order_deletes"] = _sources_out_of_order_deletes()
-        return handle_out_of_order_deletes_response(request, response)
+        return handle_out_of_order_deletes_response(request, _sources_out_of_order_deletes())
 
     if "missing_sources" in params.keys():
-        response["missing_sources"] = _missing_sources(source_uuid)
-        return handle_missing_sources_response(request, response)
+        return handle_missing_sources_response(
+            request, _missing_sources(source_uuid, params["limit"], params["offset"])
+        )
 
 
-def handle_providers_without_sources_response(request, response):
+def handle_providers_without_sources_response(request, dataset):
     if request.method == "DELETE":
-        cleanup_provider_without_source(response)
+        cleanup_provider_without_source(dataset)
         return Response({"job_queued": "providers_without_sources"})
     else:
-        providers_without_sources = [
-            f"{provider.name} ({provider.uuid})" for provider in response["providers_without_sources"]
-        ]
-        response["providers_without_sources"] = providers_without_sources
-        return Response(response)
+        providers_without_sources = [f"{provider.name} ({provider.uuid})" for provider in dataset]
+        return ListPaginator(providers_without_sources, request).paginated_response
 
 
-def handle_out_of_order_deletes_response(request, response):
+def handle_out_of_order_deletes_response(request, dataset):
     if request.method == "DELETE":
-        cleanup_out_of_order_deletes(response)
+        cleanup_out_of_order_deletes(dataset)
         return Response({"job_queued": "out_of_order_deletes"})
     else:
-        out_of_order_delete = [f"Source ID: {source.source_id}" for source in response["out_of_order_deletes"]]
-        response["out_of_order_deletes"] = out_of_order_delete
-        return Response(response)
+        out_of_order_delete = [f"Source ID: {source.source_id}" for source in dataset]
+        return ListPaginator(out_of_order_delete, request).paginated_response
 
 
-def handle_missing_sources_response(request, response):
+def handle_missing_sources_response(request, dataset):
     if request.method == "DELETE":
-        cleanup_missing_sources(response)
+        cleanup_missing_sources(dataset)
         return Response({"job_queued": "missing_sources"})
     else:
-        missing_sources = [
-            f"Source ID: {source.source_id} Source UUID: {source.source_uuid}"
-            for source in response["missing_sources"]
-        ]
-        response["missing_sources"] = missing_sources
-        return Response(response)
+        missing_sources = [f"Source ID: {source.source_id} Source UUID: {source.source_uuid}" for source in dataset]
+        return ListPaginator(missing_sources, request).paginated_response
 
 
 def cleanup_provider_without_source(cleaning_list):
-    provider_without_source = cleaning_list.get("providers_without_sources")
-    if provider_without_source:
-        for provider in provider_without_source:
-            async_id = delete_provider_async.delay(provider.name, provider.uuid, provider.customer.schema_name)
-            LOG.info(f"Queuing delete for {str(provider.name)}: {str(provider.uuid)}.  Async ID: {str(async_id)}")
+    for provider in cleaning_list:
+        async_id = delete_provider_async.delay(provider.name, provider.uuid, provider.customer.schema_name)
+        LOG.info(f"Queuing delete for {str(provider.name)}: {str(provider.uuid)}.  Async ID: {str(async_id)}")
 
 
 def cleanup_out_of_order_deletes(cleaning_list):
-    out_of_order_deletes = cleaning_list.get("out_of_order_deletes")
-    if out_of_order_deletes:
-        for source in out_of_order_deletes:
-            async_id = out_of_order_source_delete_async.delay(source.source_id)
-            LOG.info(f"Queuing delete for out-of-order Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
+    for source in cleaning_list:
+        async_id = out_of_order_source_delete_async.delay(source.source_id)
+        LOG.info(f"Queuing delete for out-of-order Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
 def cleanup_missing_sources(cleaning_list):
-    missing_sources = cleaning_list.get("missing_sources")
-    if missing_sources:
-        for source in missing_sources:
-            async_id = missing_source_delete_async.delay(source.source_id)
-            LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
+    for source in cleaning_list:
+        async_id = missing_source_delete_async.delay(source.source_id)
+        LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
 def _providers_without_sources(provider_uuid=None):
@@ -138,24 +132,20 @@ def _providers_without_sources(provider_uuid=None):
 
 
 def _sources_out_of_order_deletes():
-    sources_out_of_order_delete = []
-    try:
-        sources_out_of_order_delete = list(Sources.objects.filter(out_of_order_delete=True, koku_uuid=None).all())
-        for source in sources_out_of_order_delete:
-            LOG.debug(f"Out of order source: {str(source)}")
-    except Sources.DoesNotExist:
-        pass
-    return sources_out_of_order_delete
+    with contextlib.suppress(Sources.DoesNotExist):
+        return list(Sources.objects.filter(out_of_order_delete=True, koku_uuid=None).all())
 
 
-def _missing_sources(source_uuid=None):
+def _missing_sources(source_uuid=None, limit=10, offset=0):
     if source_uuid:
         sources = Sources.objects.filter(source_uuid=source_uuid)
     else:
         sources = Sources.objects.all()
 
     missing_sources = []
-    for source in sources:
+    # the request to sources-api is a "slow" process.
+    # Use limits and offsets to prevent too many requests from causing a gateway timeout.
+    for source in sources[offset : offset + limit]:  # noqa: E203
         try:
             sources_client = SourcesHTTPClient(source.auth_header, source.source_id, source.account_id)
             _ = sources_client.get_source_details()
