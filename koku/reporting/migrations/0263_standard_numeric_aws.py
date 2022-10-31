@@ -575,7 +575,5 @@ class Migration(migrations.Migration):
                     field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
             ],
-        )
+        ),
     ]
-
-
