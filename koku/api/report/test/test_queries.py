@@ -5,6 +5,8 @@
 """Test the Report Queries."""
 from collections import OrderedDict
 from unittest.mock import Mock
+from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from django.test import TestCase
 from faker import Faker
@@ -222,14 +224,18 @@ class ReportQueryHandlerTest(IamTestCase):
     def test_init(self):
         """Test that we can instantiate a minimal ReportQueryHandler."""
         params = self.mocked_query_params("", self.mock_view)
-        rqh = create_test_handler(params)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params)
         self.assertIsInstance(rqh, ReportQueryHandler)
 
     def test_init_w_dates(self):
         """Test that we can instantiate a ReportQueryHandler using start_date and end_date parameters."""
         dh = DateHelper()
         params = self.mocked_query_params(f"?start_date={dh.this_month_start}&end_date={dh.today}", self.mock_view)
-        rqh = create_test_handler(params)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params)
         self.assertIsInstance(rqh, ReportQueryHandler)
 
         expected_start = dh.this_month_start
@@ -251,7 +257,9 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
 
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
-        rqh = create_test_handler(params, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params, mapper=mapper)
         output = rqh._set_operator_specified_filters(operator)
         self.assertIsNotNone(output)
 
@@ -276,7 +284,9 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
 
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
-        rqh = create_test_handler(params, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params, mapper=mapper)
         output = rqh._set_operator_specified_filters(operator)
         self.assertIsNotNone(output)
 
@@ -307,7 +317,9 @@ class ReportQueryHandlerTest(IamTestCase):
 
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
-        rqh = create_test_handler(params, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params, mapper=mapper)
         output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
 
         self.assertIsNotNone(output)
@@ -341,7 +353,9 @@ class ReportQueryHandlerTest(IamTestCase):
         )
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
-        rqh = create_test_handler(params, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params, mapper=mapper)
         output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
         self.assertIsNotNone(output)
 
@@ -364,7 +378,9 @@ class ReportQueryHandlerTest(IamTestCase):
         operation = "icontains"
         params = self.mocked_query_params("", self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
-        rqh = create_test_handler(params, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params, mapper=mapper)
         # set filters and access to be used in function
         filters = QueryFilterCollection()
         access = ["589173575009"]
@@ -392,7 +408,9 @@ class ReportQueryHandlerTest(IamTestCase):
         operation = "icontains"
         params = self.mocked_query_params("", self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
-        rqh = create_test_handler(params, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params, mapper=mapper)
         # set filters and access to be used in function
         filters = QueryFilterCollection()
         access = ["589173575009"]
@@ -409,7 +427,9 @@ class ReportQueryHandlerTest(IamTestCase):
     def test_percent_delta(self):
         """Test the percent delta method"""
         params = self.mocked_query_params("", self.mock_view)
-        rqh = create_test_handler(params)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params)
         pd = rqh._percent_delta(10, 1)
         self.assertEqual(pd, 900)
 
@@ -419,14 +439,18 @@ class ReportQueryHandlerTest(IamTestCase):
         test_values = {0.0049: None, 0.0049999999999: None, 0.005: 3900}
         for k, v in test_values.items():
             with self.subTest():
-                rqh = create_test_handler(params)
-                pd = rqh._percent_delta(0.2, k)
-                self.assertEqual(pd, v)
+                with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+                    mock.return_value = GCPCostEntryLineItemDailySummary
+                    rqh = create_test_handler(params)
+                    pd = rqh._percent_delta(0.2, k)
+                    self.assertEqual(pd, v)
 
     def test_percent_delta_zero_division(self):
         """Test the percent delta method with a b value of zero"""
         params = self.mocked_query_params("", self.mock_view)
-        rqh = create_test_handler(params)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params)
         pd = rqh._percent_delta(10, 0)
         self.assertEqual(pd, None)
 
@@ -457,7 +481,9 @@ class ReportQueryHandlerTest(IamTestCase):
         mocked_parameters.parameters["exclude"] = OrderedDict([("gcp_project", [exclude_project])])
         filters_dict = GCPProviderMap("GCP", "cost")._mapping[0].get("filters")
         mapper = {"filter": [{}], "filters": filters_dict}
-        rqh = create_test_handler(params=mocked_parameters, mapper=mapper)
+        with patch("api.report.queries.ReportQueryHandler.query_table", new=PropertyMock) as mock:
+            mock.return_value = GCPCostEntryLineItemDailySummary
+            rqh = create_test_handler(params=mocked_parameters, mapper=mapper)
         with tenant_context(self.tenant):
             result = (
                 GCPCostEntryLineItemDailySummary.objects.values_list("project_name", flat=True)
