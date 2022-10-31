@@ -101,3 +101,15 @@ def summarize_ocp_on_gcp_by_node(account):
     LOG.info(f"    Summarize by Node for OCP on GCP {'enabled' if res else 'disabled'} {account}")
 
     return res
+
+
+def is_large_customer(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context))
+    LOG.info(f"    {account} is flagged as a large customer.")
+
+    return res
