@@ -108,8 +108,6 @@ def is_large_customer(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context))
-    LOG.info(f"    {account} is flagged as a large customer.")
 
     return res
