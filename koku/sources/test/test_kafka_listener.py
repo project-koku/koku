@@ -58,6 +58,7 @@ from sources.test.test_kafka_message_processor import msg_generator
 from sources.test.test_kafka_message_processor import SOURCE_TYPE_IDS
 from sources.test.test_kafka_message_processor import SOURCE_TYPE_IDS_MAP
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
+from sources.test.test_sources_http_client import MOCK_PREFIX
 from sources.test.test_sources_http_client import MOCK_URL
 
 
@@ -207,27 +208,27 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         self.mock_create_requests = {
             Provider.PROVIDER_AWS: [
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"not": "empty"}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"extra": {"bucket": "test_bucket"}}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {
                         "name": "Provider AWS",
@@ -238,17 +239,17 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             ],
             Provider.PROVIDER_OCP: [
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"not": "empty"}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_OCP]]}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
                     "status": 200,
                     "json": {
                         "name": "Provider OCP",
@@ -262,27 +263,27 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         self.mock_update_requests = {
             Provider.PROVIDER_AWS: [
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"not": "empty"}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"extra": {"bucket": "test_bucket_2"}}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN2}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {
                         "name": "Provider AWS - PATCHED",
@@ -293,17 +294,17 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             ],
             Provider.PROVIDER_OCP: [
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"not": "empty"}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_OCP]]}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
                     "status": 200,
                     "json": {
                         "name": "Provider OCP - PATCHED",
@@ -548,7 +549,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        url=f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
+                        url=f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
                         status_code=200,
                         json={"data": []},
                     )
@@ -572,7 +573,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        url=f"{MOCK_URL}/api/sources/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
+                        url=f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
                         status_code=404,
                         json={},
                     )
