@@ -23,7 +23,7 @@ class Config:
     SOURCES_API_HOST = CONFIGURATOR.get_endpoint_host("sources-api", "svc", "localhost")
     SOURCES_API_PORT = CONFIGURATOR.get_endpoint_port("sources-api", "svc", "3000")
     SOURCES_API_URL = f"http://{SOURCES_API_HOST}:{SOURCES_API_PORT}"
-    SOURCES_API_PREFIX = ENVIRONMENT.get_value("SOURCES_API_PREFIX", default="/api/v1.0")
+    SOURCES_API_PREFIX = ENVIRONMENT.get_value("SOURCES_API_PREFIX", default="/api/sources/v1.0")
     SOURCES_INTERNAL_API_PREFIX = ENVIRONMENT.get_value("SOURCES_INTERNAL_API_PREFIX", default="/internal/v1.0")
     SOURCES_PROBE_HEADER = ENVIRONMENT.get_value(
         "SOURCES_PROBE_HEADER",
@@ -32,10 +32,10 @@ class Config:
     SOURCES_FAKE_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_HEADER",
         default=(
-            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjMzMzM"
-            "zMzMiLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdX"
-            "JjZXMiLCAiZW1haWwiOiAic291cmNlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX"
-            "2lkIjogIjMzMzMzMzMifX19"
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTAwMDEiLCAib3JnX2lkIjogIjEyMzQ"
+            "1NjciLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogZmFsc2UsICJ1c2VybmFtZSI6ICJzb3VyY2"
+            "VzIiwgImVtYWlsIjogInNvdXJjZXNAc291cmNlcy5pbyJ9LCAiaW50ZXJuYWwiOiB7Im9yZ19pZ"
+            "CI6ICIxMjM0NTY3In19fQo="
         ),
     )
     SOURCES_FAKE_CLUSTER_HEADER = ENVIRONMENT.get_value(
