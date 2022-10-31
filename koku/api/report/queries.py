@@ -320,25 +320,18 @@ class ReportQueryHandler(QueryHandler):
 
     def _provider_map_conditional_exclusions(self):
         """
-        Uses the provider_map conditional_filter to exclude from a query in certain scenarios.
+        Uses the provider_map conditionals to exclude from a query in certain scenarios.
 
         Such as when we fall back to the daily summary table but don't want Unallocated projects
         included for OCP compute/memory endpoints.
         """
 
         exclusions = QueryFilterCollection()
-        conditional_filter = self._mapper.report_type_map.get("conditional_filter")
-        if (
-            conditional_filter
-            and conditional_filter.get("exclude")
-            and self.query_table == conditional_filter.get("if_table")
-        ):
-            to_exclude = conditional_filter.get("exclude")
-            if isinstance(to_exclude, list):
-                for exclusion in to_exclude:
-                    exclusions.add(**exclusion)
-            else:
-                exclusions.add(**to_exclude)
+        exclude_list = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
+        )
+        for exclusion in exclude_list:
+            exclusions.add(**exclusion)
         return exclusions.compose()
 
     def _set_or_filters(self):
