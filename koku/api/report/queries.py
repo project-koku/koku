@@ -296,6 +296,9 @@ class ReportQueryHandler(QueryHandler):
                 self.set_access_filters(access, access_filt, access_filters)
 
         self.query_exclusions = self._check_for_operator_specific_filters(exclusions, True)
+        provider_map_exclusions = self._provider_map_conditional_exclusions()
+        if provider_map_exclusions:
+            self.query_exclusions = self.query_exclusions & provider_map_exclusions
         composed_filters = self._check_for_operator_specific_filters(filters)
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
@@ -313,6 +316,25 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f"_get_search_filter: {composed_filters}")
         LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
+
+    def _provider_map_conditional_exclusions(self):
+        """
+        Uses the provider_map conditional_filter to exclude from a query in certain scenarios.
+
+        Such as when we fall back to the daily summary table but don't want Unallocated projects
+        included for OCP compute/memory endpoints.
+        """
+
+        exclusions = QueryFilterCollection()
+        conditional_filter = self._mapper.report_type_map.get("conditional_filter")
+        if conditional_filter and self.query_table == conditional_filter.get("if_table"):
+            to_exclude = conditional_filter.get("exclude")
+            if isinstance(to_exclude, list):
+                for exclusion in to_exclude:
+                    exclusions.add(**exclusion)
+            else:
+                exclusions.add(**to_exclude)
+        return exclusions.compose()
 
     def _set_or_filters(self):
         """Create a composed filter collection of ORed filters.
