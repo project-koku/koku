@@ -12,3 +12,5 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL("""select 1;"""),
     ]
+
+# This migration was taking too long so it was split up into 0263 through 0267

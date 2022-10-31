@@ -5,7 +5,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0262_standard_numeric_no_op"),
+        ("reporting", "0262_standard_numeric_on_calculated_feilds"),
     ]
 
     operations = [
