@@ -44,6 +44,7 @@ from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
 from masu.util.ocp.common import REPORT_TYPES
+from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
@@ -499,20 +500,40 @@ def delete_provider_async(name, provider_uuid, schema_name):
 def out_of_order_source_delete_async(source_id):
     LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
     try:
-        Sources.objects.get(source_id=source_id).delete()
+        source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.warning(
             f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
         )
+        return
+    if source.account_id in settings.DEMO_ACCOUNTS:
+        LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
+        return
+    delete_source_helper(source)
 
 
 @celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
 def missing_source_delete_async(source_id):
     LOG.info(f"Removing missing Source: {str(source_id)}")
     try:
-        Sources.objects.get(source_id=source_id).delete()
+        source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
+        return
+    if source.account_id in settings.DEMO_ACCOUNTS:
+        LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
+        return
+    delete_source_helper(source)
+
+
+def delete_source_helper(source):
+    if source.koku_uuid:
+        # if there is a koku-uuid, a Provider also exists.
+        # Go thru delete_source to remove the Provider and the Source
+        delete_source(source.source_id, source.auth_header, source.koku_uuid)
+    else:
+        # here, no Provider exists, so just delete the Source
+        source.delete()
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
