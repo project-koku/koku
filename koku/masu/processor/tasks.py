@@ -40,6 +40,7 @@ from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_ocp_on_cloud_summary
 from masu.processor import disable_summary_processing
 from masu.processor import enable_trino_processing
+from masu.processor import is_large_customer
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -50,6 +51,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
+from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
@@ -410,9 +412,14 @@ def update_summary_tables(  # noqa: C901
 
     if not synchronous:
         worker_cache = WorkerCache()
-        if worker_cache.single_task_is_running(task_name, cache_args):
+        timeout = settings.WORKER_CACHE_TIMEOUT
+        rate_limited = False
+        if is_large_customer(schema_name):
+            rate_limited = rate_limit_tasks(task_name, schema_name)
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if worker_cache.single_task_is_running(task_name, cache_args) or rate_limited:
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(log_json(tracing_id, msg))
+            LOG.debug(log_json(tracing_id, msg))
             update_summary_tables.s(
                 schema_name,
                 provider,
@@ -426,7 +433,7 @@ def update_summary_tables(  # noqa: C901
                 ocp_on_cloud=ocp_on_cloud,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     stmt = (
         f"update_summary_tables called with args: "
@@ -570,9 +577,14 @@ def update_openshift_on_cloud(
     cache_args = [schema_name, infrastructure_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
-        if worker_cache.single_task_is_running(task_name, cache_args):
+        timeout = settings.WORKER_CACHE_TIMEOUT
+        rate_limited = False
+        if is_large_customer(schema_name):
+            rate_limited = rate_limit_tasks(task_name, schema_name)
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if worker_cache.single_task_is_running(task_name, cache_args) or rate_limited:
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(log_json(tracing_id, msg))
+            LOG.debug(log_json(tracing_id, msg))
             update_openshift_on_cloud.s(
                 schema_name,
                 openshift_provider_uuid,
@@ -586,7 +598,7 @@ def update_openshift_on_cloud(
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
     stmt = (
         f"update_openshift_on_cloud called with args: "
         f" schema_name: {schema_name}, "
@@ -686,7 +698,7 @@ def update_cost_model_costs(
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(log_json(tracing_id, msg))
+            LOG.debug(log_json(tracing_id, msg))
             update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
