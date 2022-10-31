@@ -327,7 +327,11 @@ class ReportQueryHandler(QueryHandler):
 
         exclusions = QueryFilterCollection()
         conditional_filter = self._mapper.report_type_map.get("conditional_filter")
-        if conditional_filter and self.query_table == conditional_filter.get("if_table"):
+        if (
+            conditional_filter
+            and conditional_filter.get("exclude")
+            and self.query_table == conditional_filter.get("if_table")
+        ):
             to_exclude = conditional_filter.get("exclude")
             if isinstance(to_exclude, list):
                 for exclusion in to_exclude:
