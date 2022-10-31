@@ -299,7 +299,7 @@ class ReportQueryHandler(QueryHandler):
         self.query_exclusions = self._check_for_operator_specific_filters(exclusions, True)
         provider_map_exclusions = self._provider_map_conditional_exclusions()
         if provider_map_exclusions:
-            self.query_exclusions = self.query_exclusions & provider_map_exclusions
+            self.query_exclusions = self.query_exclusions | provider_map_exclusions
         composed_filters = self._check_for_operator_specific_filters(filters)
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
