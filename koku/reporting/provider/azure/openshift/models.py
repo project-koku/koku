@@ -431,16 +431,16 @@ class OCPAzureCostLineItemDailySummaryP(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the Azure pretax_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(pretax_cost) - sum(project_cost)
-    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.TextField(null=True)
 
@@ -521,19 +521,19 @@ class OCPAzureCostLineItemProjectDailySummaryP(models.Model):
 
     resource_location = models.TextField(null=True)
 
-    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit_of_measure = models.TextField(null=True)
 
     currency = models.TextField(null=True)
 
-    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
+    pod_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     tags = JSONField(null=True)
 
