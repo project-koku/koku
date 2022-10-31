@@ -111,7 +111,7 @@ class SourcesHTTPClient:
         except RequestException as error:
             raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
 
-        if resp.status_code == 404:
+        if resp.status_code == 404 and "source not found" in resp.text.lower():
             raise SourceNotFoundError(f"Status Code: {resp.status_code}. Response: {resp.text}")
         elif resp.status_code != 200:
             raise SourcesHTTPClientError(f"Status Code: {resp.status_code}. Response: {resp.text}")
