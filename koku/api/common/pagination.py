@@ -99,8 +99,7 @@ class ListPaginator(StandardResultsSetPagination):
     @property
     def paginated_data_set(self):
         """Paginate the list."""
-        if self.limit > len(self.data_set):
-            self.limit = len(self.data_set)
+        self.limit = min(self.limit, len(self.data_set))
         try:
             data = self.data_set[self.offset : self.offset + self.limit]  # noqa E203
         except IndexError:
