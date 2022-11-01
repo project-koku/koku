@@ -10,6 +10,8 @@ jobs:
   setup:
     name: Setup
     runs-on: ubuntu-20.04
+    outputs:
+      run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3.1.0
@@ -31,17 +33,17 @@ jobs:
       - id: check-files-or-fork
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
-            echo "RUN_TESTS=true" >> $GITHUB_ENV
+            echo "RUN_TESTS=true" >> $GITHUB_OUTPUT
           fi
 
-      - run: echo ${{ env.RUN_TESTS }}
+      - run: echo ${{ needs.setup.outputs.RUN_TESTS }}
       - run: echo ${{ github.event.pull_request.head.repo.full_name }}
 
 
   unit-tests:
     name: Units-${{ matrix.python-version }}
     needs: setup
-    if: ${{ env.RUN_TESTS == 'true' }}
+    if: ${{ needs.setup.outputs.RUN_TESTS == 'true' }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
