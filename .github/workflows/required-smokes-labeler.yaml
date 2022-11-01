@@ -39,12 +39,12 @@ jobs:
         id: check-files
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
-            echo "run-tests=true" >> $GITHUB_ENV
+            echo "RUN_TESTS=true" >> $GITHUB_ENV
           fi
 
       - name: "Setting smokes-required label"
         uses: actions/github-script@v6
-        if: ${{ env.run-tests == 'true' }}
+        if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -64,7 +64,7 @@ jobs:
 
       - name: "Remove smokes-required label"
         uses: actions/github-script@v6
-        if: ${{ env.run-tests != 'true' }}
+        if: ${{ env.RUN_TESTS != 'true' }}
         continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
