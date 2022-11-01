@@ -30,7 +30,7 @@ jobs:
               MINOR_VERSION=0
               ;;
           esac
-          echo "::set-output name=TAG_VERSION::r.$DATE.$MINOR_VERSION"
+          echo "TAG_VERSION=r.$DATE.$MINOR_VERSION" >> $GITHUB_OUTPUT
     - name: set the release commit
       run: echo "RELEASE_COMMIT=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
     - name: Create release body file
