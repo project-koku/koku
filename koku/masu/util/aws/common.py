@@ -470,6 +470,7 @@ def aws_generate_daily_data(data_frame):
             "bill_payeraccountid",
             "lineitem_usageaccountid",
             "lineitem_legalentity",
+            "lineitem_lineitemdescription",
             "bill_billingentity",
             "lineitem_productcode",
             "lineitem_availabilityzone",
