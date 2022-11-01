@@ -545,28 +545,35 @@ class ProviderSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
-    def test_create_same_provider_different_customers(self):
+    @patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True)
+    def test_create_same_provider_different_customers(self, *args):
         """Test that the same provider can not be created for 2 different customers."""
+        test_cases = [
+            {"provider": Provider.PROVIDER_AWS, "dup_allowed": True},
+            {"provider": Provider.PROVIDER_AZURE, "dup_allowed": True},
+            {"provider": Provider.PROVIDER_OCP, "dup_allowed": False},
+        ]
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
             self.create_mock_customer_data(), user_data, create_tenant=True
         )
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            serializer = ProviderSerializer(
-                data=self.generic_providers[Provider.PROVIDER_AZURE], context=self.request_context
-            )
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-
-        with self.assertRaises(ValidationError) as excCtx:
-            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                serializer = ProviderSerializer(
-                    data=self.generic_providers[Provider.PROVIDER_AZURE], context=alt_request_context
-                )
+        for test in test_cases:
+            with self.subTest(test=test):
+                data = self.generic_providers[test["provider"]]
+                serializer = ProviderSerializer(data=data, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
-        validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
-        self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
+
+                serializer = ProviderSerializer(data=data, context=alt_request_context)
+                if test["dup_allowed"]:
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save()
+                else:
+                    with self.assertRaises(ValidationError) as excCtx:
+                        serializer.is_valid(raise_exception=True)
+                        serializer.save()
+                    validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
+                    self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
 
     def test_create_provider_for_demo_account(self):
         """Test creating a provider for a demo account."""

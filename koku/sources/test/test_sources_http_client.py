@@ -33,6 +33,7 @@ from sources.sources_http_client import SourcesHTTPClientError
 faker = Faker()
 COST_MGMT_APP_TYPE_ID = 2
 MOCK_URL = "http://mock.url"
+MOCK_PREFIX = "api/sources/v1.0"
 
 
 class HeaderConverterTest(TestCase):
@@ -111,11 +112,15 @@ class SourcesHTTPClientTest(TestCase):
     def test_get_network_response_status_exception(self):
         """Test get network response with invalid status responses."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        table = [{"status": 404, "expected": SourceNotFoundError}, {"status": 403, "expected": SourcesHTTPClientError}]
+        table = [
+            {"status": 404, "text": "source not found", "expected": SourceNotFoundError},
+            {"status": 404, "text": "endpoint not found", "expected": SourcesHTTPClientError},
+            {"status": 403, "text": "some error", "expected": SourcesHTTPClientError},
+        ]
         for test in table:
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
-                    m.get(url=MOCK_URL, status_code=test.get("status"), exc=test.get("exc"))
+                    m.get(url=MOCK_URL, status_code=test["status"], text=test["text"])
                     with self.assertRaises(test.get("expected")):
                         client._get_network_response(MOCK_URL, "test error")
 
@@ -126,7 +131,9 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"name": self.name}
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_id}",
+                status_code=200,
+                json={"name": self.name},
             )
             response = client.get_source_details()
             self.assertEqual(response.get("name"), self.name)
@@ -136,7 +143,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management",
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management",  # noqa: E501
                 status_code=200,
                 json={"data": [{"id": self.application_type}]},
             )
@@ -151,7 +158,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management",  # noqa: E501
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management",  # noqa: E501
                         json={"data": test},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
@@ -173,7 +180,7 @@ class SourcesHTTPClientTest(TestCase):
                 with patch.object(SourcesHTTPClient, "get_cost_management_application_type_id", return_value=2):
                     with requests_mock.mock() as m:
                         m.get(
-                            f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_id}",  # noqa: E501
+                            f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_id}",  # noqa: E501
                             json={"data": test.get("data")},
                         )
                         result = client.get_application_type_is_cost_management(test.get("cost-id"))
@@ -186,7 +193,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={source_type_id}",
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCE_TYPES}?filter[id]={source_type_id}",
                 status_code=200,
                 json={"data": [{"name": mock_source_name}]},
             )
@@ -202,7 +209,8 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={source_type_id}", json={"data": test}
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCE_TYPES}?filter[id]={source_type_id}",
+                        json={"data": test},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
                         client.get_source_type_name(source_type_id)
@@ -247,7 +255,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [test.get("json")]},
@@ -264,7 +272,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
@@ -281,7 +289,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
@@ -300,7 +308,9 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"source_ref": uuid}
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_id}",
+                status_code=200,
+                json={"source_ref": uuid},
             )
             creds = client._get_ocp_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("cluster_id"), uuid)
@@ -310,7 +320,9 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"source_ref": None}
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_id}",
+                status_code=200,
+                json={"source_ref": None},
             )
             with self.assertRaises(SourcesHTTPClientError):
                 client._get_ocp_credentials(COST_MGMT_APP_TYPE_ID)
@@ -322,7 +334,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
@@ -337,7 +349,7 @@ class SourcesHTTPClientTest(TestCase):
         responses = [
             {
                 "url": (
-                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                    f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?"
                     f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}"
                 ),
                 "status": 200,
@@ -367,7 +379,7 @@ class SourcesHTTPClientTest(TestCase):
             for test in json_data:
                 with self.subTest(test=test):
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}",
                         status_code=200,
                         json={"data": test},
@@ -377,7 +389,7 @@ class SourcesHTTPClientTest(TestCase):
 
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -399,7 +411,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
@@ -415,7 +427,7 @@ class SourcesHTTPClientTest(TestCase):
             for test in json_data:
                 with self.subTest(test=test):
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}",
                         status_code=200,
                         json={"data": test},
@@ -449,13 +461,13 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                 f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                 status_code=200,
                 json={"data": [applications_reponse]},
             )
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [authentications_response]},
             )
@@ -556,13 +568,13 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(app, auth, internal)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [app.get("json")]},
                     )
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?"
                         f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}",
                         status_code=200,
                         json={"data": [auth.get("json")]},
@@ -608,7 +620,7 @@ class SourcesHTTPClientTest(TestCase):
             application_id = 3
             m.get(
                 (
-                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                    f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                     f"filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}"
                 ),
                 status_code=200,
@@ -617,7 +629,7 @@ class SourcesHTTPClientTest(TestCase):
             status = "unavailable"
             error_msg = "my error"
             m.patch(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}/{application_id}",
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}/{application_id}",
                 status_code=204,
                 json={"availability_status": status, "availability_status_error": str(error_msg)},
             )
@@ -636,7 +648,7 @@ class SourcesHTTPClientTest(TestCase):
             application_id = 3
             m.get(
                 (
-                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                    f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                     f"filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}"
                 ),
                 status_code=200,
@@ -645,7 +657,7 @@ class SourcesHTTPClientTest(TestCase):
             status = "unavailable"
             error_msg = "my error"
             m.patch(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}/{application_id}",
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}/{application_id}",
                 status_code=204,
                 json={"availability_status": status, "availability_status_error": str(error_msg)},
             )
@@ -663,7 +675,7 @@ class SourcesHTTPClientTest(TestCase):
             application_type_id = 2
             m.get(
                 (
-                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                    f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                     f"filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}"
                 ),
                 status_code=200,
@@ -685,7 +697,7 @@ class SourcesHTTPClientTest(TestCase):
             application_id = 3
             m.get(
                 (
-                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                    f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                     f"filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}"
                 ),
                 status_code=200,
@@ -694,7 +706,7 @@ class SourcesHTTPClientTest(TestCase):
             status = "unavailable"
             error_msg = "my error"
             m.patch(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}/{application_id}",
+                f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}/{application_id}",
                 status_code=400,
                 json={"availability_status": status, "availability_status_error": str(error_msg)},
             )
@@ -713,13 +725,13 @@ class SourcesHTTPClientTest(TestCase):
             application_id = 3
             m.get(
                 (
-                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                    f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}?"
                     f"filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}"
                 ),
                 status_code=200,
                 json={"data": [{"id": application_id}]},
             )
-            m.patch(f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}/{application_id}", status_code=404)
+            m.patch(f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_APPLICATIONS}/{application_id}", status_code=404)
             with self.assertLogs("sources.sources_http_client", "INFO") as captured_logs:
                 error_msg = "my error"
                 client.set_source_status(error_msg, application_type_id)
