@@ -99,12 +99,16 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             "usage_end__lte": self.dh.last_month_end,
         }
 
-    def get_totals_by_time_scope(self, aggregates, filters=None):
-        """Return the total aggregates for a time period."""
+    def get_totals_by_time_scope(self, handler, filters=None):
         if filters is None:
             filters = self.ten_day_filter
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            return OCPGCPCostLineItemDailySummaryP.objects.filter(**filters).aggregate(**aggregates)
+            return (
+                OCPGCPCostLineItemDailySummaryP.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
 
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
@@ -119,7 +123,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
         self.assertIsNone(delta.get("percent", 0))
-        self.assertEqual(delta.get("value", 0), total_cost)
+        self.assertAlmostEqual(delta.get("value", 0), total_cost, 6)
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
@@ -802,24 +806,29 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_ocp_gcp_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        exch_annotation = handler.annotations.get("exchange_rate")
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 OCPGCPCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
+                .annotate(exchange_rate=exch_annotation)
                 .values("service_alias")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
         correctlst = [service.get("service_alias") for service in expected]
+        tested = False
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
+                tested = True
+        self.assertTrue(tested)
 
     def test_ocp_gcp_date_incorrect_date(self):
         wrong_date = "200BC"
@@ -851,13 +860,12 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "cluster_id__icontains": cluster}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters[qf.composed_query_string()] = qf.parameter
-        current_totals = self.get_totals_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -888,13 +896,12 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(data)
         self.assertIsNotNone(total)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_alias__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters[qf.composed_query_string()] = qf.parameter
-        current_totals = self.get_totals_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -923,13 +930,12 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_alias__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters[qf.composed_query_string()] = qf.parameter
-        current_totals = self.get_totals_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -952,9 +958,8 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "account_id": account}
-        current_totals = self.get_totals_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -1084,9 +1089,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         expected_units = "USD"
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{"cost_units": expected_units})
-
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(result.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
         self.assertEqual(result.get("cost", {}).get("total", {}).get("units", "not-USD"), expected_units)
 
@@ -1100,8 +1103,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertAlmostEqual(
             total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
@@ -1130,8 +1132,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(current_totals)
         self.assertAlmostEqual(
             total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
@@ -1153,8 +1154,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -1184,8 +1184,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -1238,8 +1237,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -1266,8 +1264,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -1289,8 +1286,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -1315,9 +1311,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
-
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_sum_query_instance_types_2(self):
@@ -1328,10 +1322,8 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
-
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.ten_day_filter, "instance_type__isnull": False}
-        current_totals = self.get_totals_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_by_time_scope(handler, filters)
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 

@@ -29,9 +29,8 @@ HCS_ACCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
-    # COST-2460, disabling GCP HCS while we determine what data we are looking for
-    # Provider.PROVIDER_GCP,
-    # Provider.PROVIDER_GCP_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL,
 )
 
 # any additional queues should be added to this list

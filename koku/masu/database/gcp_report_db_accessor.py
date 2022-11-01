@@ -592,9 +592,11 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Default to cpu distribution
         pod_column = "pod_effective_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
+        node_column = "node_capacity_cpu_core_hours"
         if distribution == "memory":
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
+            node_column = "node_capacity_memory_gigabyte_hours"
 
         if resource_level:
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
@@ -619,6 +621,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value,
             "pod_column": pod_column,
             "cluster_column": cluster_column,
+            "node_column": node_column,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
             "matching_type": matching_type,
@@ -680,10 +683,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         else:
                             raise err
 
-    def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
+    def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
-        sql_params = {"bill_id": gcp_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
+        sql_params = {"bill_id": gcp_bill_id, "schema": self.schema}
         sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
@@ -693,7 +696,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return [json.loads(result[0]) for result in results]
 
     def get_openshift_on_cloud_matched_tags_trino(
-        self, gcp_source_uuid, ocp_source_uuid, start_date, end_date, invoice_month_date
+        self, gcp_source_uuid, ocp_source_uuids, start_date, end_date, invoice_month_date
     ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
@@ -701,13 +704,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         days = DateHelper().list_days(start_date, end_date)
         days_str = "','".join([str(day.day) for day in days])
+        ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
 
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "gcp_source_uuid": gcp_source_uuid,
-            "ocp_source_uuid": ocp_source_uuid,
+            "ocp_source_uuids": ocp_uuids,
             "year": invoice_month_date.strftime("%Y"),
             "month": invoice_month_date.strftime("%m"),
             "days": days_str,

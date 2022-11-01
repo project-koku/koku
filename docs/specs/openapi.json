@@ -1347,9 +1347,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -1422,9 +1419,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -1492,9 +1486,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1569,9 +1560,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -1639,9 +1627,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1713,9 +1698,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -1785,9 +1767,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -1855,9 +1834,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -2208,9 +2184,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -2278,9 +2251,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -2424,9 +2394,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -2494,9 +2461,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -2640,9 +2604,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -2710,9 +2671,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -2856,9 +2814,6 @@
                         "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -2926,9 +2881,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryOrderBy"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -5344,15 +5296,6 @@
                     "default": 100,
                     "minimum": 0,
                     "maximum": 1000
-                }
-            },
-            "ReportQueryUnits": {
-                "required": false,
-                "name": "units",
-                "in": "query",
-                "description": "The units used to report data.",
-                "schema": {
-                    "type": "string"
                 }
             },
             "QueryKeyOnly": {

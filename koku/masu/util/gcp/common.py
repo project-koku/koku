@@ -199,8 +199,8 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     tags = data_frame["labels"]
     tags = tags.str.lower()
 
-    cluster_id = cluster_topology.get("cluster_id")
-    cluster_alias = cluster_topology.get("cluster_alias")
+    cluster_ids = cluster_topology.get("clusters", [])
+    cluster_aliases = cluster_topology.get("cluster_aliases", [])
     nodes = cluster_topology.get("nodes", [])
     volumes = cluster_topology.get("persistent_volumes", [])
     matchable_resources = nodes + volumes
@@ -211,16 +211,17 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
         ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
     else:
         LOG.info("Matching OpenShift on GCP by labels.")
-        ocp_matched = tags.str.contains(f"kubernetes-io-cluster-{cluster_id}|kubernetes-io-cluster-{cluster_alias}")
+        cluster_strings = [
+            f"kubernetes-io-cluster-{cluster_identifier}" for cluster_identifier in (cluster_ids + cluster_aliases)
+        ]
+        ocp_matched = tags.str.contains("|".join(cluster_strings))
 
     data_frame["ocp_matched"] = ocp_matched
-    data_frame["cluster_id"] = cluster_id
 
     special_case_tag_matched = tags.str.contains(
         "|".join(
             [
-                f"openshift_cluster.*{cluster_id}",
-                f"openshift_cluster.*{cluster_alias}",
+                "openshift_cluster",
                 "openshift_project",
                 "openshift_node",
             ]
@@ -261,7 +262,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
     openshift_matched_data_frame = openshift_matched_data_frame.drop(
-        columns=["special_case_tag_matched", "tag_matched", "ocp_matched"]
+        columns=["special_case_tag_matched", "tag_matched"]
     )
 
     return openshift_matched_data_frame

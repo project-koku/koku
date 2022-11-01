@@ -22,14 +22,20 @@ import ciso8601
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
+from pandas.api.types import CategoricalDtype
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -99,6 +105,8 @@ class ReportQueryHandler(QueryHandler):
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
+
+        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
     @cached_property
     def query_table_access_keys(self):
@@ -499,6 +507,23 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((tag_db_name, group_pos))
         return group_by
 
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+
     @property
     def annotations(self):
         """Create dictionary for query annotations.
@@ -703,7 +728,29 @@ class ReportQueryHandler(QueryHandler):
 
         return out_data
 
-    def order_by(self, data, order_fields):
+    def order_by(self, query_data, query_order_by):
+        """Order a list of dictionaries by dictionary keys.
+
+        Args:
+            data (list): Query data that has been converted from QuerySet to list.
+            order_fields (list): The list of dictionary keys to order by.
+
+        Returns
+            (list): The sorted/ordered list
+
+        """
+        if not (order_date := self.parameters.get("cost_explorer_order_by", {}).get("date")):
+            return self._order_by(query_data, query_order_by)
+        sort_term = self._get_group_by()[0]
+        filtered_query_data = filter(lambda x: x["date"] == order_date, query_data)
+        ordered_data = self._order_by(filtered_query_data, query_order_by)
+        order_of_interest = CategoricalDtype([entry.get(sort_term) for entry in ordered_data], ordered=True)
+        df = pd.DataFrame(query_data)
+        df[sort_term] = df[sort_term].astype(order_of_interest)
+        df.sort_values(by=["date", sort_term], inplace=True)
+        return df.to_dict("records")
+
+    def _order_by(self, data, order_fields):
         """Order a list of dictionaries by dictionary keys.
 
         Args:
@@ -1004,10 +1051,9 @@ class ReportQueryHandler(QueryHandler):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
-        previous_sums = previous_query.annotate(**self.annotations)
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         delta_annotation = {self._delta: delta_field}
-        previous_sums = previous_sums.values(*query_group_by).annotate(**delta_annotation)
+        previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
         previous_dict = OrderedDict()
         for row in previous_sums:
             date = self.string_to_date(row["date"])
@@ -1059,7 +1105,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        previous_query = self.query_table.objects.filter(delta_filter)
+        previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

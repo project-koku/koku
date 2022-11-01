@@ -22,6 +22,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
@@ -102,7 +103,7 @@ class SourceStatus:
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
-        except SourcesHTTPClientError as error:
+        except (SourcesHTTPClientError, SourceNotFoundError) as error:
             err_msg = f"Unable to push source status. Reason: {str(error)}"
             LOG.warning(err_msg)
 

@@ -40,8 +40,9 @@ class FakePrestoCur(trino.dbapi.Cursor):
     def fetchall(self):
         return [["eek"]]
 
+    @property
     def description(self):
-        pass
+        return []
 
 
 class FakePrestoConn(trino.dbapi.Connection):
@@ -106,7 +107,8 @@ class IamTestCase(TestCase):
             "openshift.project": {"read": ["*"]},
             "openshift.node": {"read": ["*"]},
         }
-        return {"username": cls.fake.user_name(), "email": cls.fake.email(), "access": access}
+        profile = cls.fake.simple_profile()
+        return {"username": profile["username"], "email": profile["mail"], "access": access}
 
     @classmethod
     def _create_customer(cls, account, org_id, create_tenant=False):
@@ -165,7 +167,9 @@ class IamTestCase(TestCase):
         request = Mock(path=path)
         request.META = {RH_IDENTITY_HEADER: mock_header}
         if create_user:
-            tempUser = User(username=user_data["username"], email=user_data["email"], customer=cls.customer)
+            tempUser = User.objects.get_or_create(
+                username=user_data["username"], email=user_data["email"], customer=cls.customer
+            )[0]
             tempUser.save()
             request.user = tempUser
         else:

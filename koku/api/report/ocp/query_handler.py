@@ -10,15 +10,22 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from functools import cached_property
 
+from django.db.models import Case
+from django.db.models import CharField
+from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Value
+from django.db.models import When
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
-from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from cost_models.models import CostModel
+from cost_models.models import CostModelMap
 
 LOG = logging.getLogger(__name__)
 
@@ -80,7 +87,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {"date": self.date_trunc("usage_start")}
+        annotations = {
+            "date": self.date_trunc("usage_start"),
+            # this currency is used by the provider map to populate the correct currency value
+            "currency_annotation": Value(self.currency, output_field=CharField()),
+            **self.exchange_rate_annotation_dict,
+        }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
@@ -93,6 +105,38 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations["project"] = F("namespace")
 
         return annotations
+
+    @cached_property
+    def source_to_currency_map(self):
+        """
+        OCP sources do not have costs associated, so we need to
+        grab the base currency from the cost model, and create
+        a mapping of source_uuid to currency.
+        returns:
+            dict: {source_uuid: currency}
+        """
+        source_map = defaultdict(lambda: self._mapper.cost_units_fallback)
+        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
+        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
+        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
+        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+        return source_map
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        exchange_rate_whens = [
+            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            for uuid, cur in self.source_to_currency_map.items()
+        ]
+        infra_exchange_rate_whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {
+            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
+            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+        }
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -126,14 +170,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
-            query_order_by = ["-date"]
-            query_order_by.extend(self.order)  # add implicit ordering
+            query_order_by = ["-date", self.order]
 
-            query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+            query_data = query.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
@@ -153,38 +196,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
-            order_date = None
-            for i, param in enumerate(query_order_by):
-                if check_if_valid_date_str(param):
-                    # Checks to see if the date is in the query_data
-                    if any(d["date"] == param for d in query_data):
-                        # Set order_date to a valid date
-                        order_date = param
-                        break
-            # Remove the date order by as it is not actually used for ordering
-            if order_date:
-                sort_term = self._get_group_by()[0]
-                query_order_by.pop(i)
-                filtered_query_data = []
-                for index in query_data:
-                    for key, value in index.items():
-                        if (key == "date") and (value == order_date):
-                            filtered_query_data.append(index)
-                ordered_data = self.order_by(filtered_query_data, query_order_by)
-                order_of_interest = []
-                for entry in ordered_data:
-                    order_of_interest.append(entry.get(sort_term))
-                # write a special order by function that iterates through the
-                # rest of the days in query_data and puts them in the same order
-                # return_query_data = []
-                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
-                query_data = self.order_by(sorted_data, ["-date"])
-            else:
-                query_data = self.order_by(query_data, query_order_by)
+            query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
+            if self.is_csv_output:
                 data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
@@ -194,7 +209,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        sum_init = {"cost_units": self._mapper.cost_units_key}
+        sum_init = {"cost_units": self.currency}
         if self._mapper.usage_units_key:
             sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
@@ -295,20 +310,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
         delta_field_one, delta_field_two = self._delta.split("__")
 
         for row in query_data:
-            delta_value = Decimal(row.get(delta_field_one, 0)) - Decimal(row.get(delta_field_two, 0))  # noqa: W504
+            delta_value = Decimal(row.get(delta_field_one) or 0) - Decimal(row.get(delta_field_two) or 0)
 
             row["delta_value"] = delta_value
             try:
-                row["delta_percent"] = row.get(delta_field_one, 0) / row.get(delta_field_two, 0) * 100  # noqa: W504
+                row["delta_percent"] = (
+                    Decimal(row.get(delta_field_one) or 0) / Decimal(row.get(delta_field_two) or 0) * Decimal(100)
+                )
             except (DivisionByZero, ZeroDivisionError, InvalidOperation):
                 row["delta_percent"] = None
 
-        total_delta = Decimal(query_sum.get(delta_field_one, 0)) - Decimal(  # noqa: W504
-            query_sum.get(delta_field_two, 0)
-        )
+        total_delta = Decimal(query_sum.get(delta_field_one) or 0) - Decimal(query_sum.get(delta_field_two) or 0)
         try:
             total_delta_percent = (
-                query_sum.get(delta_field_one, 0) / query_sum.get(delta_field_two, 0) * 100  # noqa: W504
+                Decimal(query_sum.get(delta_field_one) or 0)
+                / Decimal(query_sum.get(delta_field_two) or 0)
+                * Decimal(100)
             )
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             total_delta_percent = None

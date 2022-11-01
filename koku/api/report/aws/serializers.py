@@ -4,21 +4,19 @@
 #
 """AWS Report Serializers."""
 from django.utils.translation import ugettext as _
-from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
-from api.report.serializers import ParamSerializer
+from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import get_cost_type
-from api.utils import UnitConverter
 
 
-class GroupBySerializer(GroupSerializer):
+class AWSGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
     _opfields = (
@@ -43,7 +41,7 @@ class GroupBySerializer(GroupSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class OrderBySerializer(OrderSerializer):
+class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
     _opfields = ("usage", "account_alias", "region", "service", "product_family", "date")
@@ -58,7 +56,7 @@ class OrderBySerializer(OrderSerializer):
     date = serializers.DateField(required=False)
 
 
-class FilterSerializer(BaseFilterSerializer):
+class AWSFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
@@ -71,7 +69,7 @@ class FilterSerializer(BaseFilterSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class ExcludeSerializer(BaseExcludeSerializer):
+class AWSExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
@@ -84,8 +82,13 @@ class ExcludeSerializer(BaseExcludeSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
-class QueryParamSerializer(ParamSerializer):
+class AWSQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
+
+    GROUP_BY_SERIALIZER = AWSGroupBySerializer
+    ORDER_BY_SERIALIZER = AWSOrderBySerializer
+    FILTER_SERIALIZER = AWSFilterSerializer
+    EXCLUDE_SERIALIZER = AWSExcludeSerializer
 
     # Tuples are (key, display_name)
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
@@ -97,16 +100,8 @@ class QueryParamSerializer(ParamSerializer):
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
-    units = serializers.CharField(required=False)
     compute_count = serializers.NullBooleanField(required=False, default=False)
     check_tags = serializers.BooleanField(required=False, default=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the AWS query param serializer."""
-        super().__init__(*args, **kwargs)
-        self._init_tagged_fields(
-            filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer, exclude=ExcludeSerializer
-        )
 
     def validate(self, data):
         """Validate incoming data.
@@ -139,7 +134,7 @@ class QueryParamSerializer(ParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
+        validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         # Org unit id validation
         group_by_params = self.initial_data.get("group_by", {})
         org_unit_group_keys = ["org_unit_id", "or:org_unit_id"]
@@ -173,89 +168,4 @@ class QueryParamSerializer(ParamSerializer):
                         # because no child nodes would ever intersect due to the tree structure.
                         error = {"or_unit_id": _("Multiple org_unit_id must be represented with the or: prefix.")}
                         raise serializers.ValidationError(error)
-        return value
-
-    def validate_order_by(self, value):
-        """Validate incoming order_by data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if order_by field inputs are invalid
-
-        """
-        super().validate_order_by(value)
-        validate_field(self, "order_by", OrderBySerializer, value)
-        return value
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", FilterSerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_exclude(self, value):
-        """Validate incoming exclude data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if exclude field inputs are invalid
-
-        """
-        validate_field(self, "exclude", ExcludeSerializer, value, tag_keys=self.tag_keys)
-        return value
-
-    def validate_units(self, value):
-        """Validate incoming units data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if units field inputs are invalid
-
-        """
-        unit_converter = UnitConverter()
-        try:
-            unit_converter.validate_unit(value)
-        except (AttributeError, UndefinedUnitError):
-            error = {"units": f"{value} is not a supported unit"}
-            raise serializers.ValidationError(error)
-
-        return value
-
-    def validate_delta(self, value):
-        """Validate incoming delta value based on path."""
-        valid_delta = "usage"
-        request = self.context.get("request")
-        if request and "costs" in request.path:
-            valid_delta = "cost_total"
-            if value == "cost":
-                return valid_delta
-        if value != valid_delta:
-            error = {"delta": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
-        return value
-
-    def validate_cost_type(self, value):
-        """Validate incoming cost_type value based on path."""
-
-        valid_cost_type = [choice[0] for choice in self.COST_TYPE_CHOICE]
-        if value not in valid_cost_type:
-            error = {"cost_type": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
         return value

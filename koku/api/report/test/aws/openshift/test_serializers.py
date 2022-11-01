@@ -4,7 +4,6 @@
 #
 """Test the OCP on AWS Report serializers."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from rest_framework import serializers
 
@@ -180,7 +179,6 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
                 "time_scope_units": "day",
                 "resource_scope": [],
             },
-            "units": "byte",
         }
         serializer = OCPAWSQueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -259,10 +257,13 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/")
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPAWSQueryParamSerializer(data=param, context={"request": req})
+                    serializer = OCPAWSQueryParamSerializer(data=param, context=ctx)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
