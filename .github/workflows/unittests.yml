@@ -33,7 +33,7 @@ jobs:
       - id: check-files-or-fork
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
-            echo "::set-output name=run-tests::true"
+            echo "run-tests=true" >> $GITHUB_OUTPUT
           fi
 
       - run: echo ${{ needs.setup.outputs.run-tests }}
