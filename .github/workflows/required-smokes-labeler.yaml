@@ -39,7 +39,7 @@ jobs:
         id: check-files
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
-            echo "run-tests=true" >> $GITHUB_OUTPUT
+            echo "run-tests=true" >> $GITHUB_ENV
           fi
 
       - name: "Setting smokes-required label"
