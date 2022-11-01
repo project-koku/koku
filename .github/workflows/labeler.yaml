@@ -1,4 +1,4 @@
-name: Smoke Tests Required Labeler
+name: Labeler
 
 on:
   pull_request:
@@ -8,8 +8,9 @@ on:
 
 jobs:
   smokes-labeler:
-    name: Label Smoke Tests
+    name: Smoke Tests
     runs-on: ubuntu-20.04
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3.1.0

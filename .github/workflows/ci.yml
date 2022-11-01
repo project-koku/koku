@@ -1,4 +1,4 @@
-name: Check Migrations and Run Unit Tests
+name: CI
 
 on:
   pull_request:
@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       run_tests: ${{ steps.check-files-or-fork.outputs.run_tests }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3.1.0
