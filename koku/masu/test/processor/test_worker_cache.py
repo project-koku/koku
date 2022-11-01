@@ -208,14 +208,18 @@ class WorkerCacheTest(MasuTestCase):
         """Test that single task cache creates and deletes a cache entry."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         cache = WorkerCache()
-
         task_name = "test_task"
         task_args = [self.schema, "OCP", "1"]
         cache.lock_single_task(task_name, task_args)
 
-        self.assertFalse(rate_limit_tasks(task_name, self.schema))
+        with patch("masu.processor.worker_cache.connection") as mock_conn:
+            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
+            # mock_execute.return_value = 1
+            self.assertFalse(rate_limit_tasks(task_name, self.schema))
 
         task_args = [self.schema, "OCP", "2"]
         cache.lock_single_task(task_name, task_args)
 
-        self.assertTrue(rate_limit_tasks(task_name, self.schema))
+        with patch("masu.processor.worker_cache.connection") as mock_conn:
+            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (2,)
+            self.assertTrue(rate_limit_tasks(task_name, self.schema))
