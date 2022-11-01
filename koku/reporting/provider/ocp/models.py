@@ -93,6 +93,7 @@ class OCPUsageReport(models.Model):
     interval_end = models.DateTimeField(null=False)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPUsageLineItem(models.Model):
@@ -106,6 +107,8 @@ class OCPUsageLineItem(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
@@ -164,6 +167,8 @@ class OCPUsageLineItemDaily(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -249,6 +254,8 @@ class OCPUsageLineItemDailySummary(models.Model):
     uuid = models.UUIDField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -384,6 +391,7 @@ class OCPUsagePodLabelSummary(models.Model):
     key = models.TextField()
     values = ArrayField(models.TextField())
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
     namespace = models.TextField()
     node = models.TextField(null=True)
 
@@ -401,6 +409,8 @@ class OCPStorageLineItem(models.Model):
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
     report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -444,6 +454,8 @@ class OCPStorageLineItemDaily(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -493,6 +505,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
     key = models.TextField()
     values = ArrayField(models.TextField())
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
     namespace = models.TextField()
     node = models.TextField(null=True)
 
@@ -509,6 +522,8 @@ class OCPNodeLabelLineItem(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
@@ -537,6 +552,8 @@ class OCPNodeLabelLineItemDaily(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -567,6 +584,8 @@ class OCPNamespaceLabelLineItem(models.Model):
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
 
     report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=True)
@@ -615,6 +634,7 @@ class OCPNode(models.Model):
     resource_id = models.TextField(null=True)
     node_capacity_cpu_cores = models.DecimalField(max_digits=18, decimal_places=2, null=True)
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
     node_role = models.TextField(null=True)
 
 
@@ -630,6 +650,23 @@ class OCPPVC(models.Model):
     persistent_volume_claim = models.TextField()
     persistent_volume = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
+
+
+class CostCategory(models.Model):
+    """CostCategory for bucketing project costs."""
+
+    class Meta:
+        """Meta for CostCategories."""
+
+        db_table = "reporting_ocp_cost_category"
+
+    name = models.TextField(unique=True)
+    description = models.TextField()
+    source_type = models.TextField()
+    system_default = models.BooleanField(null=False, default=True)
+    namespace = ArrayField(models.TextField())
+    label = ArrayField(models.TextField())
 
 
 class OCPProject(models.Model):
@@ -643,6 +680,7 @@ class OCPProject(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     project = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
 
 # ======================================================
@@ -692,6 +730,8 @@ class OCPCostSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     raw_currency = models.TextField(null=True)
 
@@ -745,6 +785,8 @@ class OCPCostSummaryByProjectP(models.Model):
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
+
     raw_currency = models.TextField(null=True)
 
 
@@ -795,6 +837,8 @@ class OCPCostSummaryByNodeP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     raw_currency = models.TextField(null=True)
 
@@ -867,6 +911,8 @@ class OCPPodSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     raw_currency = models.TextField(null=True)
 
@@ -945,6 +991,8 @@ class OCPPodSummaryByProjectP(models.Model):
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
+
     raw_currency = models.TextField(null=True)
 
 
@@ -1002,6 +1050,8 @@ class OCPVolumeSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     raw_currency = models.TextField(null=True)
 
@@ -1065,5 +1115,7 @@ class OCPVolumeSummaryByProjectP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    cost_category = models.ForeignKey("CostCategory", on_delete=models.CASCADE, null=True)
 
     raw_currency = models.TextField(null=True)

@@ -268,6 +268,9 @@ FROM (
             AND nc.node = li.node
     LEFT JOIN cte_ocp_cluster_capacity as cc
         ON cc.usage_start = date(li.interval_start)
+    LEFT JOIN cte_cost_category as cat
+        WHERE li.namespace LIKE cat.namespace
+        OR li.pod_labels LIKE cat.label
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -379,6 +382,9 @@ FROM (
     LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = sli.namespace
             AND nsli.usage_start = date(sli.interval_start)
+    LEFT JOIN cte_cost_category as cat
+        WHERE li.namespace LIKE cat.namespace
+        OR li.pod_labels LIKE cat.label
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
