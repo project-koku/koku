@@ -35,7 +35,8 @@ jobs:
         with:
           files_from_source_file: docker-files.txt
 
-      - id: check-files
+      - name: Set whether to run tests
+        id: check-files
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
             echo "run-tests=true" >> $GITHUB_OUTPUT
