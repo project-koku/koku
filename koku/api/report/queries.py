@@ -330,8 +330,9 @@ class ReportQueryHandler(QueryHandler):
         exclude_list = (
             self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
         )
-        for exclusion in exclude_list:
-            exclusions.add(**exclusion)
+        if hasattr(exclude_list, "__iter__"):
+            for exclusion in exclude_list:
+                exclusions.add(**exclusion)
         return exclusions.compose()
 
     def _set_or_filters(self):
