@@ -417,8 +417,11 @@ def update_summary_tables(  # noqa: C901
         if is_large_customer(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
-        if worker_cache.single_task_is_running(task_name, cache_args) or rate_limited:
+
+        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            if rate_limited:
+                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg))
             update_summary_tables.s(
                 schema_name,
@@ -582,8 +585,10 @@ def update_openshift_on_cloud(
         if is_large_customer(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
-        if worker_cache.single_task_is_running(task_name, cache_args) or rate_limited:
+        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            if rate_limited:
+                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg))
             update_openshift_on_cloud.s(
                 schema_name,
