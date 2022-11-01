@@ -7,12 +7,18 @@ on:
 
 jobs:
   pre-commit:
+    name: Pre-commit
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - name: Checkout
+      uses: actions/checkout@v3.1.0
+
+    - name: Install Python
+      uses: actions/setup-python@v4.3.0
       with:
         python-version: '3.8'
-    - uses: pre-commit/action@v3.0.0
+
+    - name: Run pre-commit checks
+      uses: pre-commit/action@v3.0.0
       env:
         SETUPTOOLS_USE_DISTUTILS: stdlib

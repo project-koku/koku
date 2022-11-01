@@ -8,10 +8,11 @@ on:
 
 jobs:
   smokes-labeler:
+    name: Label Smoke Tests
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
 
@@ -27,11 +28,12 @@ jobs:
           echo pr_check.sh >> docker-files.txt;
           echo deploy/clowdapp.yaml >> docker-files.txt;
 
-      - run: cat docker-files.txt
+      - name: Show Dockerfiles
+        run: cat docker-files.txt
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v34
+        uses: tj-actions/changed-files@v34.0.2
         with:
           files_from_source_file: docker-files.txt
 
@@ -42,8 +44,8 @@ jobs:
             echo "RUN_TESTS=true" >> $GITHUB_ENV
           fi
 
-      - name: "Setting smokes-required label"
-        uses: actions/github-script@v6
+      - name: Setting smokes-required label
+        uses: actions/github-script@v6.3.3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
         with:
@@ -62,8 +64,8 @@ jobs:
               name: 'ok-to-skip-smokes'
             })
 
-      - name: "Remove smokes-required label"
-        uses: actions/github-script@v6
+      - name: Remove smokes-required label
+        uses: actions/github-script@v6.3.3
         if: ${{ env.RUN_TESTS != 'true' }}
         continue-on-error: true
         with:

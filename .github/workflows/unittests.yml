@@ -7,18 +7,18 @@ on:
       - main
 
 jobs:
-
   setup:
+    name: Setup
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v34
+        uses: tj-actions/changed-files@v34.0.2
         with:
           files: |
             db_functions/
@@ -39,25 +39,22 @@ jobs:
 
 
   unit-tests:
+    name: Units-${{ matrix.python-version }}
     needs: setup
     if: ${{ env.RUN_TESTS == 'true' }}
     runs-on: ubuntu-20.04
-    # continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
-        python-version: [3.9]
-        # experimental: [false]
-        # include:
-        #   - python-version: 3.10
-        #     experimental: true
+        python-version:
+          - '3.9'
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
 
@@ -68,7 +65,7 @@ jobs:
         run: docker-compose up -d db
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v4.3.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -77,7 +74,7 @@ jobs:
 
       - name: Cache dependencies
         id: cache-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v3.0.11
         with:
           path: |
             ~/.cache/pipenv
@@ -124,7 +121,7 @@ jobs:
         run: pipenv run coverage xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v3.1.1
         with:
           file: ./coverage.xml
           flags: unittests
@@ -133,6 +130,7 @@ jobs:
           fail_ci_if_error: true
 
   unit-tests-result:
+    name: Coverage
     needs: unit-tests
     if: |
       always() &&
@@ -140,9 +138,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Display build environment
-        run: printenv
-
-      - run: echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
+        run: |
+         printenv
+         echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
 
       - name: Override Codecov for skipped tests
         # This is a hack to override the Codecov behavior for skipped tests.
