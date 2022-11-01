@@ -42,8 +42,8 @@ jobs:
           fi
 
       - name: "Setting smokes-required label"
-        uses: actions/github-script@v3
-        if: ${{ steps.check-files.outputs.run-tests == 'true' }}
+        uses: actions/github-script@v6
+        if: ${{ env.run-tests == 'true' }}
         continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -62,8 +62,8 @@ jobs:
             })
 
       - name: "Remove smokes-required label"
-        uses: actions/github-script@v3
-        if: ${{ steps.check-files.outputs.run-tests != 'true' }}
+        uses: actions/github-script@v6
+        if: ${{ env.run-tests != 'true' }}
         continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
