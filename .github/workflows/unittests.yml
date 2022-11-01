@@ -11,7 +11,7 @@ jobs:
     name: Setup
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
@@ -53,7 +53,7 @@ jobs:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
