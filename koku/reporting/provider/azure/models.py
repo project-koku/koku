@@ -171,8 +171,8 @@ class AzureCostEntryLineItemDaily(models.Model):
     subscription_guid = models.TextField(null=False)
     tags = JSONField(null=True)
     usage_date = models.DateField(null=False)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
 
 class AzureCostEntryLineItemDailySummary(models.Model):
@@ -210,9 +210,9 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     tags = JSONField(null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
@@ -291,8 +291,8 @@ class AzureCostSummaryP(models.Model):
     id = models.UUIDField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -323,8 +323,8 @@ class AzureCostSummaryByAccountP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -356,8 +356,8 @@ class AzureCostSummaryByLocationP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     resource_location = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -389,8 +389,8 @@ class AzureCostSummaryByServiceP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -424,10 +424,10 @@ class AzureComputeSummaryP(models.Model):
     instance_type = models.TextField(null=True)
     instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -459,10 +459,10 @@ class AzureStorageSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -494,10 +494,10 @@ class AzureNetworkSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -529,10 +529,10 @@ class AzureDatabaseSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
