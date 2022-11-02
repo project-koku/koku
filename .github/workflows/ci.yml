@@ -37,10 +37,6 @@ jobs:
             echo "run_tests=true" >> $GITHUB_OUTPUT
           fi
 
-      - run: echo ${{ needs.setup.outputs.run_tests }}
-      - run: echo ${{ github.event.pull_request.head.repo.full_name }}
-
-
   unit-tests:
     name: Units - ${{ matrix.python-version }}
     needs: setup
