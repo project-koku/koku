@@ -68,7 +68,7 @@ jobs:
 
       - name: Setting smokes-required label
         uses: actions/github-script@v6.3.3
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: env.RUN_TESTS == 'true'
         continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -88,7 +88,7 @@ jobs:
 
       - name: Remove smokes-required label
         uses: actions/github-script@v6.3.3
-        if: ${{ env.RUN_TESTS != 'true' }}
+        if: env.RUN_TESTS != 'true'
         continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -137,10 +137,10 @@ jobs:
             echo "run_tests=true" >> $GITHUB_OUTPUT
           fi
 
-  unit-tests:
+  units:
     name: Units - ${{ matrix.python-version }}
     needs: changed-files
-    if: ${{ needs.changed-files.outputs.run_tests == 'true' }}
+    if: needs.changed-files.outputs.run_tests == 'true'
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
