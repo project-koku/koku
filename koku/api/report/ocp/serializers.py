@@ -110,20 +110,6 @@ class OCPExcludeSerializer(BaseExcludeSerializer):
         return data
 
 
-class OCPCostCategorySerializer(BaseExcludeSerializer):
-    """Serializer for handling query parameters with project categories."""
-
-    _opfields = "project"
-
-    project = StringOrListField(child=serializers.CharField(), required=False)
-
-    def validate_category(self, value):
-        """Validate category data."""
-        # error = {}
-        # TODO What are we trying to validate here exactly?
-        return value
-
-
 class OCPQueryParamSerializer(ReportQueryParamSerializer):
     """Serializer for handling query parameters."""
 
