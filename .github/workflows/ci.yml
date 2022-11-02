@@ -72,13 +72,13 @@ jobs:
         continue-on-error: true
         with:
           script: |
-            github.issues.addLabels({
+            github.rest.issues.addLabels({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: [ 'smokes-required' ]
             })
-            github.issues.removeLabel({
+            github.rest.issues.removeLabel({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -91,13 +91,13 @@ jobs:
         continue-on-error: true
         with:
           script: |
-            github.issues.addLabels({
+            github.rest.issues.addLabels({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: [ 'ok-to-skip-smokes' ]
             })
-            github.issues.removeLabel({
+            github.rest.issues.removeLabel({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
