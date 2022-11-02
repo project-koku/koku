@@ -7,8 +7,107 @@ on:
       - main
 
 jobs:
-  setup:
-    name: Setup
+  sanity:
+    name: Sanity
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.1.0
+
+      - name: Install Python
+        uses: actions/setup-python@v4.3.0
+        with:
+          python-version: '3.8'
+
+      - name: Run pre-commit checks
+        uses: pre-commit/action@v3.0.0
+        env:
+          SETUPTOOLS_USE_DISTUTILS: stdlib
+
+      - name: Check clowadd manifest
+        run: bash .github/scripts/check_clowdapp.sh
+
+  smokes-labeler:
+    name: Smoke Test Label
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.1.0
+        with:
+          fetch-depth: 0
+
+      - name: get Docker image files
+        id: docker-files
+        run: .github/scripts/files_require_smokes.sh >> docker-files.txt
+
+      - name: add other required files
+        id: add-files
+        run: |
+          echo .dockerignore >> docker-files.txt;
+          echo Dockerfile >> docker-files.txt;
+          echo pr_check.sh >> docker-files.txt;
+          echo deploy/clowdapp.yaml >> docker-files.txt;
+
+      - name: Show Dockerfiles
+        run: cat docker-files.txt
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v34.0.2
+        with:
+          files_from_source_file: docker-files.txt
+
+      - name: Set whether to run tests
+        id: check-files
+        run: |
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
+            echo "RUN_TESTS=true" >> $GITHUB_ENV
+          fi
+
+      - name: Setting smokes-required label
+        uses: actions/github-script@v6.3.3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ 'smokes-required' ]
+            })
+            github.issues.removeLabel({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'ok-to-skip-smokes'
+            })
+
+      - name: Remove smokes-required label
+        uses: actions/github-script@v6.3.3
+        if: ${{ env.RUN_TESTS != 'true' }}
+        continue-on-error: true
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ 'ok-to-skip-smokes' ]
+            })
+            github.issues.removeLabel({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'smokes-required'
+            })
+
+  changed-files:
+    name: Detect changed files
     runs-on: ubuntu-20.04
     outputs:
       run_tests: ${{ steps.check-files-or-fork.outputs.run_tests }}
@@ -31,7 +130,8 @@ jobs:
             .github/workflows/unittests.yml
             Pipfile.lock
 
-      - id: check-files-or-fork
+      - name: Check files or fork
+        id: check-files-or-fork
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
             echo "run_tests=true" >> $GITHUB_OUTPUT
@@ -39,8 +139,8 @@ jobs:
 
   unit-tests:
     name: Units - ${{ matrix.python-version }}
-    needs: setup
-    if: ${{ needs.setup.outputs.run_tests == 'true' }}
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.run_tests == 'true' }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -128,7 +228,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
-  unit-tests-result:
+  coverage:
     name: Coverage
     needs: unit-tests
     if: |
