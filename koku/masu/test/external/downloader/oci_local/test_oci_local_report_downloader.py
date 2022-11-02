@@ -15,6 +15,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external import UNCOMPRESSED
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -100,24 +101,31 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         self.assertEqual(full_file_path, self.testing_dir)
 
     def test_download_file_error(self):
-        """Test OCI-Local report download."""
-        key = "reports_cost-csv_0001000000603504.csv"
-        err_msg = "Unknown Error"
-        with patch(
-            "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader.download_file"
-        ) as downloader:
-            with patch("masu.external.downloader.oci_local.oci_local_report_downloader.os.path.isfile"):
-                with self.assertRaises(Exception) as exp:
-                    downloader.download_file(key)
-                    self.assertEqual(exp.message, err_msg)
+        """
+        Test download_file raise error when no file in path provided
+        """
 
-    def test_get_manifest_for_date(self):
+        key = "test-report.csv"
+        err_msg = f"Unable to locate {key}"
+        with self.assertRaises(Exception) as exp:
+            self.oci_local_report_downloader.download_file(key)
+        expected_exception = exp.exception
+        self.assertIn(err_msg, expected_exception.args[0])
+
+    @patch(
+        "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._prepare_monthly_files"
+    )
+    def test_get_manifest_for_date(self, mock_prepare_monthly_files):
         """Test OCI-local get manifest."""
-        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date)])
-        result_report_dict = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
-        self.assertEqual(result_report_dict.get("assembly_id"), expected_assembly_id)
-        result_files = result_report_dict.get("files")
-        self.assertTrue(result_files)
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date.strftime("%Y-%m"))])
+        mock_prepare_monthly_files.return_value = {self.start_date: []}
+        report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
+        result_report_dict = report_manifests_list[0]
+        self.assertEqual(result_report_dict.get("assembly_id", ""), expected_assembly_id)
+        mock_prepare_monthly_files.assert_called_once()
+        result_files = result_report_dict.get("files", [])
+        self.assertIsNotNone(result_files)
+        self.assertIsInstance(result_files, list)
         for file in result_files:
             self.assertEqual(file["key"], self.csv_file_name)
 
@@ -152,19 +160,56 @@ class OCILocalReportDownloaderTest(MasuTestCase):
             logging.disable(logging.CRITICAL)
 
     def test_extract_names(self):
-        """Test extract names creates mapping."""
-        filenames = self.oci_local_report_downloader._extract_names()
-        self.assertIsNotNone(filenames)
+        """Test _extract_names returns month filenames."""
+
+        date_str = self.start_date.strftime("%Y-%m")
+        cost_report_name = f"report_cost-0001_{date_str}.csv"
+        usage_report_name = f"report_cost-0001_{date_str}.csv"
+        expected_filenames = [cost_report_name, usage_report_name]
+        with patch("os.walk") as mockwalk:
+            mockwalk.return_value = [
+                ("", (), expected_filenames),
+            ]
+            filenames = self.oci_local_report_downloader._extract_names(self.start_date)
+        self.assertEqual(filenames, expected_filenames)
+
+    def test_extract_names_error(self):
+        """
+        Test that _extract_names raises error when bucket is not provided
+        """
+        err_msg = "The required bucket parameter was not provided in the data_source json."
+        self.oci_local_report_downloader = OCILocalReportDownloader(
+            **{
+                "customer_name": self.fake_customer_name,
+                "data_source": {},
+            }
+        )
+        with self.assertRaises(Exception) as exp:
+            self.oci_local_report_downloader._extract_names(self.start_date)
+        expected_exception = exp.exception
+        self.assertIn(err_msg, expected_exception.args[0])
 
     def test_generate_monthly_pseudo_manifest(self):
         """Test generating the monthly manifest."""
-        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date)])
         result_manifest_data = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
-        self.assertTrue(result_manifest_data)
-        self.assertEqual(result_manifest_data.get("assembly_id"), expected_assembly_id)
+        self.assertEqual(result_manifest_data.get("compression"), UNCOMPRESSED)
+        self.assertEqual(result_manifest_data.get("assembly_id"), "")
+        self.assertEqual(self.start_date, result_manifest_data.get("start_date"))
 
     def test_remove_manifest_file(self):
         """Test remove manifest file."""
         self.assertTrue(os.path.exists(self.csv_file_path))
         self.oci_local_report_downloader._remove_manifest_file(self.csv_file_path)
         self.assertFalse(os.path.exists(self.csv_file_path))
+
+    def test_prepare_monthly_files(self):
+        """
+        Test _prepare_monthly_files returns a pseudo dictionary of monthly files.
+        """
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        result_monthly_files_dict = self.oci_local_report_downloader._prepare_monthly_files(start_date, end_date)
+        expected_monthly_files_dict = {start_date.date(): []}
+        self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)

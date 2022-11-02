@@ -8,6 +8,9 @@ import logging
 import os
 import shutil
 
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
@@ -53,26 +56,57 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.storage_location = self.data_source.get("bucket")
         self.customer_name = customer_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
-        self._provider_uuid = kwargs.get("provider_uuid")
-        self.files_list = self._extract_names()
+        self._provider_uuid = kwargs.get("provider_uuid", "")
 
-    def _extract_names(self):
+    def _extract_names(self, ingest_month):
         """
         Get list of file names.
 
-        Returns:
-            () bucket location
+        Args:
+            ingest_month (datetime): - the month whose files to retrieve
 
+        Returns:
+            file_names (list): list of files for the ingest_month
+
+        Note:
+            - leveraging OCI nise filenames format, which includes the year and month created
+              i.e. [report_usage-0001_2022-09.csv, report_cost-0001_2022-09.csv]
+              to appropriately ingest files created in a month
         """
+
         if not self.storage_location:
             err_msg = "The required bucket parameter was not provided in the data_source json."
             raise OCIReportDownloaderError(err_msg)
         files_list = []
+        invoice_month = ingest_month.strftime("%Y-%m")
+        file_suffix = f"{invoice_month}.csv"
         for root, dirs, files in os.walk(self.storage_location, followlinks=True):
             for file in files:
-                if file.endswith(".csv"):
+                if file.endswith(file_suffix):
                     files_list.append(file)
         return files_list
+
+    def _prepare_monthly_files(self, start_date, end_date):
+        """
+        Prepare a dictionary of monthly files
+
+        Args:
+            start_date (datetime): start date
+            end_date (datetime): end date
+
+        Returns:
+            monthly_files_dict: dictionary of monthly files
+                Example: monthly_files_dict = {
+                            "2022-09-01": [],
+                            "2022-10-01": [],
+                         }
+        """
+        monthly_files_dict = {}
+        date_range_list = list(pd.date_range(start=start_date, end=end_date, freq="MS"))
+        for month in date_range_list:
+            monthly_files_dict.update({month.date(): []})
+        LOG.info(f"Prepared Monthly files dictionary: {monthly_files_dict}")
+        return monthly_files_dict
 
     def get_manifest_context_for_date(self, date):
         """
@@ -97,21 +131,28 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not manifest_dict:
             return report_dict
 
-        file_names_count = len(manifest_dict["file_names"])
         dh = DateHelper()
-        manifest_id = self._process_manifest_db_record(
-            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh._now
-        )
+        # Grabbing ingest delta for initial ingest
+        months_delta = Config.INITIAL_INGEST_NUM_MONTHS
+        ingest_month = date + relativedelta(months=-months_delta)
+        ingest_month = ingest_month.replace(day=1)
+        # get monthly report-filenames template
+        monthly_report_files = self._prepare_monthly_files(ingest_month, date)
 
-        report_dict["manifest_id"] = manifest_id
-        report_dict["assembly_id"] = manifest_dict.get("assembly_id")
-        report_dict["compression"] = manifest_dict.get("compression")
-        files_list = [
-            {"key": key, "local_file": self.get_local_file_for_report(key)}
-            for key in manifest_dict.get("file_names", [])
-        ]
-        report_dict["files"] = files_list
-        return report_dict
+        report_manifests_list = []
+        for month in monthly_report_files.keys():
+            monthly_report = {}
+            invoice_month = month.strftime("%Y-%m")
+            assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
+            month_file_names = self._extract_names(month)
+            manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(month_file_names), dh._now)
+            monthly_report["manifest_id"] = manifest_id
+            monthly_report["assembly_id"] = assembly_id
+            monthly_report["compression"] = manifest_dict.get("compression", "")
+            files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_file_names]
+            monthly_report["files"] = files_list
+            report_manifests_list.append(monthly_report)
+        return report_manifests_list
 
     def _generate_monthly_pseudo_manifest(self, start_date):
         """
@@ -128,15 +169,12 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        assembly_id = ":".join([str(self._provider_uuid), str(start_date)])
-        file_names = self.files_list
+
         manifest_data = {
-            "assembly_id": assembly_id,
+            "assembly_id": "",
             "compression": UNCOMPRESSED,
             "start_date": start_date,
-            "file_names": file_names,
+            "file_names": [],
         }
         return manifest_data
 

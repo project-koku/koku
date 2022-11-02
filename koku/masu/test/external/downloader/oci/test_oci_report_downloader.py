@@ -78,30 +78,84 @@ class OCIReportDownloaderTest(MasuTestCase):
 
         return downloader
 
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
-    def test_generate_monthly_pseudo_manifest(self, mock_collect_reports):
-        """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
+    def test_prepare_monthly_files(self):
+        """
+        Test _prepare_monthly_files returns a pseudo dictionary of monthly files.
+        """
+
         provider_uuid = uuid4()
-        filenames = ["test_cost.csv", "test_usage.csv"]
         dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=provider_uuid)
+        result_monthly_files_dict = downloader._prepare_monthly_files(start_date, end_date)
+        expected_monthly_files_dict = {start_date.date(): []}
+        self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)
+
+    def test_prepare_monthly_files_initial_ingest(self):
+        """
+        Test _prepare_monthly_files returns a pseudo dictionary of monthly files
+        """
+
+        provider_uuid = uuid4()
+        dh = DateHelper()
+        previous_month = dh.previous_month(dh.last_month_start)
+        last_month = dh.last_month_start
+        this_month = dh.this_month_start
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=provider_uuid)
+        result_monthly_files_dict = downloader._prepare_monthly_files(previous_month, this_month)
+        expected_monthly_files_dict = {
+            previous_month.date(): [],
+            last_month.date(): [],
+            this_month.date(): [],
+        }
+        self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)
+
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
+    def test_extract_names(self, mock_collect_reports):
+        """Test _extract_names returns filenames for files created in a month."""
+
+        provider_uuid = uuid4()
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        filenames = [
+            "test_cost_this_month.csv",
+            "test_usage_this_month.csv",
+            "test_cost_last_month.csv",
+            "test_usage_last_month.csv",
+        ]
         cost_report = MagicMock()
         cost_report.name = filenames[0]
+        cost_report.time_created = dh._now
         usage_report = MagicMock()
         usage_report.name = filenames[1]
+        usage_report.time_created = dh._now
         cost_reports = MagicMock()
         cost_reports.data.objects = [cost_report]
         usage_reports = MagicMock()
         usage_reports.data.objects = [usage_report]
         mock_collect_reports.side_effect = [cost_reports, usage_reports]
-        start_date = dh.this_month_start
-        expected_assembly_id = ":".join([str(provider_uuid), str(start_date)])
+        invoice_month = start_date.strftime("%Y%m")
+        assembly_id = ":".join([str(provider_uuid), str(invoice_month)])
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=provider_uuid)
-        result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
+        result_file_names = downloader._extract_names(assembly_id, start_date)
+        mock_collect_reports.assert_called()
+        expected_filenames = filenames[:2]
+        self.assertEqual(result_file_names, expected_filenames)
+        self.assertNotEqual(result_file_names, filenames)
+
+    def test_generate_monthly_pseudo_manifest(self):
+        """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
+        provider_uuid = uuid4()
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=provider_uuid)
+        result_manifest = downloader._generate_monthly_pseudo_manifest(start_date)
         expected_manifest_data = {
-            "assembly_id": expected_assembly_id,
+            "assembly_id": "",
             "compression": UNCOMPRESSED,
             "start_date": start_date,
-            "file_names": filenames,
+            "file_names": [],
         }
         self.assertEqual(result_manifest, expected_manifest_data)
 
@@ -109,30 +163,30 @@ class OCIReportDownloaderTest(MasuTestCase):
     def test_generate_monthly_pseudo_no_manifest(self, mock_collect_reports):
         """Test get monthly psuedo manifest with no manifest."""
         dh = DateHelper()
-        reports = MagicMock()
-        reports.data.objects = []
-        mock_collect_reports.side_effect = [reports, reports]
+        mock_collect_reports.side_effect = []
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=uuid4())
         start_date = dh.last_month_start
         manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
         self.assertIsNotNone(manifest_dict)
 
-    def test_get_manifest_context_for_date(self):
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._prepare_monthly_files")
+    def test_get_manifest_context_for_date(self, mock_prepare_monthly_files):
         """Test successful return of get manifest context for date."""
-        self.maxDiff = None
         dh = DateHelper()
         start_date = dh.this_month_start
         p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{str(start_date)}"
+        expected_assembly_id = f"{p_uuid}:{str(start_date.strftime('%Y%m'))}"
+        mock_prepare_monthly_files.return_value = {start_date: []}
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
         with patch(
             "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",
             return_value=2,
         ):
-            report_dict = downloader.get_manifest_context_for_date(start_date.date())
-        self.assertEqual(report_dict.get("manifest_id"), 2)
-        self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
-        self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)
+            report_manifests_list = downloader.get_manifest_context_for_date(start_date.date())
+            manifest = report_manifests_list[0]
+            self.assertEqual(manifest.get("compression", ""), UNCOMPRESSED)
+            self.assertEqual(manifest.get("manifest_id", ""), 2)
+            self.assertEqual(expected_assembly_id, manifest.get("assembly_id", ""))
 
     def test_get_local_file_for_report(self):
         """Assert that get_local_file_for_report is a simple pass-through."""
