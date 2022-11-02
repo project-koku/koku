@@ -747,12 +747,16 @@ class ReportQueryHandler(QueryHandler):
         if not (order_date := self.parameters.get("cost_explorer_order_by", {}).get("date")):
             return self._order_by(query_data, query_order_by)
         sort_term = self._get_group_by()[0]
+        none_sort_term = f"no-{sort_term}"
         filtered_query_data = filter(lambda x: x["date"] == order_date, query_data)
         ordered_data = self._order_by(filtered_query_data, query_order_by)
-        order_of_interest = CategoricalDtype([entry.get(sort_term) for entry in ordered_data], ordered=True)
-        df = pd.DataFrame(query_data)
+        order_of_interest = CategoricalDtype(
+            [entry.get(sort_term) or none_sort_term for entry in ordered_data], ordered=True
+        )
+        df = pd.DataFrame(query_data).fillna(value={sort_term: none_sort_term})
         df[sort_term] = df[sort_term].astype(order_of_interest)
         df.sort_values(by=["date", sort_term], inplace=True)
+        df.replace({sort_term: {none_sort_term: "None"}}, inplace=True)
         return df.to_dict("records")
 
     def _order_by(self, data, order_fields):

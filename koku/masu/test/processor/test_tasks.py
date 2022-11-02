@@ -1201,6 +1201,19 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
+        with patch("masu.processor.tasks.is_large_customer") as mock_customer:
+            mock_customer.return_value = True
+            with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
+                mock_rate_limit.return_value = False
+                mock_delay.reset_mock()
+                update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+                mock_delay.assert_not_called()
+
+                mock_rate_limit.return_value = True
+
+                update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+                mock_delay.assert_called()
+
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
@@ -1422,6 +1435,33 @@ class TestWorkerCacheThrottling(MasuTestCase):
         # Let the cache entry expire
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+        with patch("masu.processor.tasks.is_large_customer") as mock_customer:
+            mock_customer.return_value = True
+            with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
+                mock_rate_limit.return_value = False
+                mock_delay.reset_mock()
+                update_openshift_on_cloud(
+                    self.schema,
+                    self.ocp_on_aws_ocp_provider.uuid,
+                    self.aws_provider_uuid,
+                    Provider.PROVIDER_AWS,
+                    start_date,
+                    end_date,
+                )
+                mock_delay.assert_not_called()
+
+                mock_rate_limit.return_value = True
+
+                update_openshift_on_cloud(
+                    self.schema,
+                    self.ocp_on_aws_ocp_provider.uuid,
+                    self.aws_provider_uuid,
+                    Provider.PROVIDER_AWS,
+                    start_date,
+                    end_date,
+                )
+                mock_delay.assert_called()
 
 
 class TestRemoveStaleTenants(MasuTestCase):
