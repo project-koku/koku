@@ -71,7 +71,6 @@ jobs:
         if: env.RUN_TESTS == 'true'
         continue-on-error: true
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.issues.addLabels({
               issue_number: context.issue.number,
@@ -91,7 +90,6 @@ jobs:
         if: env.RUN_TESTS != 'true'
         continue-on-error: true
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.issues.addLabels({
               issue_number: context.issue.number,
