@@ -79,7 +79,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_p (
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Pod'
-        OR namespace != 'Workers Unallocated Capacity'
-        OR namespace != 'Platform Unallocated Capacity'
+        AND namespace NOT IN ('Workers Unallocated Capacity', 'Platform Unallocated Capacity')
     GROUP BY usage_start, cluster_id, cluster_alias
 ;
