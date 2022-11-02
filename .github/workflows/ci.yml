@@ -198,6 +198,7 @@ jobs:
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
       - name: Run unit tests
+        id: unit_tests_run
         run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
@@ -216,36 +217,21 @@ jobs:
           ENHANCED_ORG_ADMIN: True
           ENABLE_PARQUET_PROCESSING: True
 
+      - name: Display build environment
+        run: |
+         printenv
+         echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
+
       - name: Convert coverage report to XML
         run: pipenv run coverage xml
+        if: steps.unit_tests_run.outcome == 'success'
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
+        if: steps.unit_tests_run.outcome == 'success'
         with:
           file: ./coverage.xml
           flags: unittests
           name: Python-${{ matrix.python-version}}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
-
-  coverage:
-    name: Coverage
-    needs: unit-tests
-    if: |
-      always() &&
-      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Display build environment
-        run: |
-         printenv
-         echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
-
-      - name: Override Codecov for skipped tests
-        # This is a hack to override the Codecov behavior for skipped tests.
-        if: always() && needs.unit-tests.result == 'skipped' && github.ref_name != 'main'
-        env:
-          GITHUB_TOKEN: "${{ github.token }}"
-        run: |
-          gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/patch" -f state="success"
-          gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/project" -f state="success"
