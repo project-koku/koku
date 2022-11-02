@@ -8,6 +8,7 @@ import re
 
 from django.conf import settings
 from django.core.cache import caches
+from django.db import connection
 
 from koku import CELERY_INSPECT
 
@@ -22,6 +23,20 @@ def create_single_task_cache_key(task_name, task_args=None):
         cache_str += ":"
         cache_str += ":".join(task_args)
     return cache_str
+
+
+def rate_limit_tasks(task_name, schema_name):
+    """Limit the number of concurrent tasks for a customer."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM public.worker_cache_table WHERE cache_key LIKE %s and cache_key LIKE %s",
+            [f"%{task_name}%", f"%{schema_name}%"],
+        )
+        count = cursor.fetchone()[0]
+
+    if count >= settings.WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS:
+        return True
+    return False
 
 
 class WorkerCache:
