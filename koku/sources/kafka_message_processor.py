@@ -273,6 +273,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                 storage.add_source_pause(self.source_id, pause)
 
         if self.event_type in (KAFKA_APPLICATION_DESTROY,):
+            self.get_source_details()
             storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
 
 
