@@ -5,7 +5,7 @@
 """View for OCI tags."""
 from api.common.permissions.oci_access import OCIAccessPermission
 from api.tags.oci.queries import OCITagQueryHandler
-from api.tags.serializers import OCITagsQueryParamSerializer
+from api.tags.oci.serializers import OCITagsQueryParamSerializer
 from api.tags.view import TagView
 from reporting.provider.oci.models import OCITagsSummary
 

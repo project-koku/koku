@@ -103,7 +103,7 @@ def mock_details_generator(provider_type, name, uid, source_id):
 class ConsumerRecord:
     """Test class for kafka msg."""
 
-    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0, account_id="12345"):
+    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0, account_id="10001"):
         """Initialize Msg."""
         self._topic = topic
         self._offset = offset
@@ -142,8 +142,8 @@ class KafkaMessageProcessorTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         post_save.disconnect(storage_callback, sender=Sources)
-        account = "12345"
-        org_id = "3333333"
+        account = "10001"
+        org_id = "1234567"
         IdentityHeaderMiddleware.create_customer(account, org_id)
 
     def setUp(self):
@@ -230,7 +230,7 @@ class KafkaMessageProcessorTest(IamTestCase):
                     ("event_type", bytes(event, encoding="utf-8")),
                     ("x-rh-identity", bytes(Config.SOURCES_FAKE_HEADER, encoding="utf-8")),
                 ),
-                "expected": {"account_number": "12345", "auth_header": Config.SOURCES_FAKE_HEADER},
+                "expected": {"account_number": "10001", "auth_header": Config.SOURCES_FAKE_HEADER},
             },
         ]
         for test in table:

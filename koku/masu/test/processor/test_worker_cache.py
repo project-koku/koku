@@ -9,6 +9,7 @@ from unittest.mock import patch
 from django.core.cache import cache
 from django.test.utils import override_settings
 
+from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
 
@@ -200,3 +201,25 @@ class WorkerCacheTest(MasuTestCase):
         self.assertTrue(cache.single_task_is_running(task_name, task_args))
         cache.release_single_task(task_name, task_args)
         self.assertFalse(cache.single_task_is_running(task_name, task_args))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_rate_limit_tasks(self, mock_inspect):
+        """Test that single task cache creates and deletes a cache entry."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        cache = WorkerCache()
+        task_name = "test_task"
+        task_args = [self.schema, "OCP", "1"]
+        cache.lock_single_task(task_name, task_args)
+
+        with patch("masu.processor.worker_cache.connection") as mock_conn:
+            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
+            # mock_execute.return_value = 1
+            self.assertFalse(rate_limit_tasks(task_name, self.schema))
+
+        task_args = [self.schema, "OCP", "2"]
+        cache.lock_single_task(task_name, task_args)
+
+        with patch("masu.processor.worker_cache.connection") as mock_conn:
+            mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (2,)
+            self.assertTrue(rate_limit_tasks(task_name, self.schema))

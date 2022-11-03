@@ -123,7 +123,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
         self.assertIsNone(delta.get("percent", 0))
-        self.assertEqual(delta.get("value", 0), total_cost)
+        self.assertAlmostEqual(delta.get("value", 0), total_cost, 6)
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
@@ -806,7 +806,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_ocp_gcp_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -822,10 +822,13 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("service_alias") for service in expected]
+        tested = False
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
+                tested = True
+        self.assertTrue(tested)
 
     def test_ocp_gcp_date_incorrect_date(self):
         wrong_date = "200BC"

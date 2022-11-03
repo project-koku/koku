@@ -13,9 +13,7 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from api.report.view import _convert_units
 from api.utils import DateHelper
-from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 
@@ -153,50 +151,6 @@ class AWSReportViewTest(IamTestCase):
         result = str(response.data.get("cost_type")[0])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
-
-    def test_convert_units_success(self):
-        """Test unit conversion succeeds."""
-        converter = UnitConverter()
-        to_unit = "byte"
-        expected_unit = f"{to_unit}-Mo"
-        report_total = self.report.get("total", {}).get("value")
-
-        result = _convert_units(converter, self.report, to_unit)
-        result_unit = result.get("total", {}).get("units")
-        result_total = result.get("total", {}).get("value")
-
-        self.assertEqual(expected_unit, result_unit)
-        self.assertEqual(report_total * 1e9, result_total)
-
-    def test_convert_units_list(self):
-        """Test that the list check is hit."""
-        converter = UnitConverter()
-        to_unit = "byte"
-        expected_unit = f"{to_unit}-Mo"
-        report_total = self.report.get("total", {}).get("value")
-
-        report = [self.report]
-        result = _convert_units(converter, report, to_unit)
-        result_unit = result[0].get("total", {}).get("units")
-        result_total = result[0].get("total", {}).get("value")
-
-        self.assertEqual(expected_unit, result_unit)
-        self.assertEqual(report_total * 1e9, result_total)
-
-    def test_convert_units_total_not_dict(self):
-        """Test that the total not dict block is hit."""
-        converter = UnitConverter()
-        to_unit = "byte"
-        expected_unit = f"{to_unit}-Mo"
-
-        report = self.report["data"][0]["accounts"][0]["values"][0]
-        report_total = report.get("total")
-        result = _convert_units(converter, report, to_unit)
-        result_unit = result.get("units")
-        result_total = result.get("total")
-
-        self.assertEqual(expected_unit, result_unit)
-        self.assertEqual(report_total * 1e9, result_total)
 
     @RbacPermissions(
         {

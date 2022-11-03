@@ -5,7 +5,7 @@
 """View for AWS tags."""
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.tags.azure.queries import AzureTagQueryHandler
-from api.tags.serializers import AzureTagsQueryParamSerializer
+from api.tags.azure.serializers import AzureTagsQueryParamSerializer
 from api.tags.view import TagView
 from reporting.provider.azure.models import AzureTagsSummary
 
