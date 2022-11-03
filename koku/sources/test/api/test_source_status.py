@@ -513,7 +513,7 @@ class SourcesStatusTest(IamTestCase):
         actual_source_status = response.data
         expected = {
             "availability_status": "unavailable",
-            "availability_status_error": ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE,
+            "availability_status_error": ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE,
         }
         self.assertEqual(actual_source_status, expected)
 
