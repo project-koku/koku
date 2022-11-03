@@ -18,6 +18,7 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -45,6 +46,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self._category = parameters.category
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -102,7 +104,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             or "and:project" in self.parameters.parameters.get("group_by", {})
             or "or:project" in self.parameters.parameters.get("group_by", {})
         ):
-            annotations["project"] = F("namespace")
+            if self._category:
+                self.annotations["project"] = Coalesce(F("category__name"), F("namespace"))
+            else:
+                annotations["project"] = F("namespace")
 
         return annotations
 

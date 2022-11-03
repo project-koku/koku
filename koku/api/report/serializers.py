@@ -305,6 +305,7 @@ class ParamSerializer(BaseSerializer):
     end_date = serializers.DateField(required=False)
 
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    category = StringOrListField(child=serializers.CharField(), required=False)
 
     order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
