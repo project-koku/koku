@@ -25,7 +25,7 @@ jobs:
         env:
           SETUPTOOLS_USE_DISTUTILS: stdlib
 
-      - name: Check clowadd manifest
+      - name: Check clowdapp manifest
         run: bash .github/scripts/check_clowdapp.sh
 
   smokes-labeler:
