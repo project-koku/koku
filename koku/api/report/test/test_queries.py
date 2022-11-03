@@ -142,6 +142,7 @@ def create_test_handler(params, mapper=None):
             tag_column="tags",
             views=MagicMock(),
         )
+        provider = None
 
     return TestableReportQueryHandler(params)
 

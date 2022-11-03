@@ -102,7 +102,6 @@ class ReportQueryHandler(QueryHandler):
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
-        self.provider = None
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
