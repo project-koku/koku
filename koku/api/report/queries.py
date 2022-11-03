@@ -102,6 +102,7 @@ class ReportQueryHandler(QueryHandler):
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
+        self.provider = None
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
@@ -330,9 +331,8 @@ class ReportQueryHandler(QueryHandler):
         exclude_list = (
             self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
         )
-        if hasattr(exclude_list, "__iter__"):
-            for exclusion in exclude_list:
-                exclusions.add(**exclusion)
+        for exclusion in exclude_list:
+            exclusions.add(**exclusion)
         return exclusions.compose()
 
     def _set_or_filters(self):
