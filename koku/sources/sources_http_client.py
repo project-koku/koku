@@ -172,7 +172,7 @@ class SourcesHTTPClient:
         applications_data = (applications_response.get("data") or [None])[0]
         if not applications_data:
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
-        app_settings = applications_data.get("extra", {})
+        app_settings = applications_data.get("extra") or {}
         required_extras = APP_EXTRA_FIELD_MAP[source_type]
         if any(k not in app_settings for k in required_extras):
             raise SourcesHTTPClientError(
