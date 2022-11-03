@@ -97,7 +97,7 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["aws_openshift_daily"]
+    tables_to_drop = ["aws_line_items", "aws_line_items_daily"]
     # columns_to_drop = ["ocp_matched"]
     # columns_to_add = {"node_capacity_cpu_core_hours": "double", "node_capacity_memory_gigabyte_hours": "double"}
 
