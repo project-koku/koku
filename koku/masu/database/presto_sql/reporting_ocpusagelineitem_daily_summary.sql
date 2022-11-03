@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     persistentvolumeclaim_usage_gigabyte_months double,
     source_uuid varchar,
     infrastructure_usage_cost varchar,
-    category_id int,
+    cost_category_id int,
     source varchar,
     year varchar,
     month varchar,
@@ -83,7 +83,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost,
-    category_id,
+    cost_category_id,
     source,
     year,
     month,
@@ -229,7 +229,7 @@ SELECT null as uuid,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     pua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
-    pua.category_id,
+    pua.cost_category_id,
     {{source}} as source,
     cast(year(pua.usage_start) as varchar) as year,
     cast(month(pua.usage_start) as varchar) as month,
@@ -238,7 +238,7 @@ FROM (
     SELECT date(li.interval_start) as usage_start,
         li.namespace,
         li.node,
-        max(cat.id) as category_id,
+        max(cat.id) as cost_category_id,
         li.source as source_uuid,
         map_concat(
             cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
@@ -283,7 +283,7 @@ FROM (
         li.namespace,
         li.node,
         li.source,
-        5  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
+        6  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for presto to use */
 ) as pua
 
@@ -347,7 +347,7 @@ SELECT null as uuid,
         power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
     sua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
-    sua.category_id,
+    sua.cost_category_id,
     {{source}} as source,
     cast(year(sua.usage_start) as varchar) as year,
     cast(month(sua.usage_start) as varchar) as month,
@@ -367,7 +367,7 @@ FROM (
             cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))
         ) as volume_labels,
         sli.source as source_uuid,
-        max(cat.id) as category_id,
+        max(cat.id) as cost_category_id,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
         -- Divide volume usage and requests by the number of nodes that volume is mounted on
@@ -447,7 +447,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost,
-    category_id
+    cost_category_id
 )
 SELECT uuid(),
     report_period_id,
@@ -484,7 +484,7 @@ SELECT uuid(),
     persistentvolumeclaim_usage_gigabyte_months,
     cast(source_uuid as UUID),
     json_parse(infrastructure_usage_cost),
-    category_id
+    cost_category_id
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
