@@ -85,10 +85,9 @@ help:
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
 	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'dev/scripts/aws_org_tree.yml'."
-	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
-	@echo "  minio-bucket-cleanup                  Remove the data directory in our local MinIO bucket."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -129,7 +128,6 @@ help:
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
 	@echo "  docker-trino-down-all               Tear down Trino and Koku containers"
-	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
 	@echo "  docker-reinitdb-with-sources-lite    drop and recreate the database with fake sources without restarting everything"
@@ -138,18 +136,11 @@ help:
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
-	@echo "  docker-iqe-smokes-tests              run smoke tests"
-	@echo "  docker-iqe-smokes-tests-trino        run smoke tests without reininting the db and clearing testing"
+	@echo "  docker-iqe-smoke-tests              run smoke tests"
+	@echo "  docker-iqe-smoke-tests-trino        run smoke tests without reininting the db and clearing testing"
 
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
-	@echo ""
-	@echo "--- Commands using an OpenShift Cluster ---"
-	@echo "  oc-forward-ports                      port forward the DB to localhost"
-	@echo "  oc-login-dev                          login to an openshift cluster as 'developer'"
-	@echo "  oc-reinit                             remove existing app and restart app in initialized openshift cluster"
-	@echo "  oc-run-migrations                     run Django migrations in the Openshift DB"
-	@echo "  oc-stop-forwarding-ports              stop port forwarding the DB to localhost"
 	@echo ""
 	@echo "--- Create Sources ---"
 	@echo "  ocp-source-from-yaml                  Create ocp source using a yaml file."
@@ -248,7 +239,7 @@ serve:
 shell:
 	$(DJANGO_MANAGE) shell
 
-shell-schema: schema := acct10001
+shell-schema: schema := org1234567
 shell-schema:
 	$(DJANGO_MANAGE) tenant_command shell --schema=$(schema)
 
@@ -273,32 +264,6 @@ unleash-import-drop:
 
 scan_project:
 	./sonarqube.sh
-
-####################################
-# Commands using OpenShift Cluster #
-####################################
-
-oc-forward-ports: oc-stop-forwarding-ports
-	@oc port-forward $$(oc get pods -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
-
-oc-login-dev:
-	oc login -u developer --insecure-skip-tls-verify=true localhost:8443
-
-oc-make-migrations: oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
-	$(MAKE) oc-stop-forwarding-ports
-
-oc-run-migrations: oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) migrate_schemas
-	$(MAKE) oc-stop-forwarding-ports
-
-oc-stop-forwarding-ports:
-	@kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}') 2>/dev/null || true
-
-oc-delete-e2e:
-	oc delete project/hccm project/buildfactory project/secrets
 
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
@@ -332,9 +297,6 @@ docker-logs:
 
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
-
-docker-rabbit:
-	$(DOCKER_COMPOSE) up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
@@ -414,10 +376,10 @@ _set-test-dir-permissions:
 docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_local_hccm.sh $(iqe_cmd)
 
-docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-smoke-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh
 
-docker-iqe-smokes-tests-trino:
+docker-iqe-smoke-tests-trino:
 	./testing/run_smoke_tests.sh
 
 docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
@@ -426,17 +388,9 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
 
-minio-bucket-cleanup:
-	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data/
-
 docker-trino-setup: clear-trino
 	mkdir -p -m a+rwx ./.trino
-	@cp -fr deploy/trino/ .trino/trino/
-	find ./.trino/trino -type d -exec chmod a+rwx {} \;
-	@cp -fr deploy/hadoop/ .trino/hadoop/
-	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
 	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
 
 docker-trino-up: docker-trino-setup
 	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
@@ -496,6 +450,26 @@ endif
 	(printenv GCP_TABLE_ID > /dev/null 2>&1) || (echo 'GCP_TABLE_ID is not set in .env' && exit 1)
 	(printenv GCP_PROJECT_ID > /dev/null 2>&1) || (echo 'GCP_PROJECT_ID is not set in .env' && exit 1)
 	curl -d '{"name": "$(gcp_name)", "source_type": "GCP", "authentication": {"credentials": {"project_id":"${GCP_PROJECT_ID}"}}, "billing_source": {"data_source": {"table_id": "${GCP_TABLE_ID}", "dataset": "${GCP_DATASET}"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
+
+oci-source:
+ifndef oci_name
+	$(error param oci_name is not set)
+endif
+ifndef bucket
+	$(error param bucket is not set)
+endif
+ifndef namespace
+	$(error param namespace is not set)
+endif
+ifndef region
+	$(error param region is not set)
+endif
+# Required environment variables: [OCI_CLI_USER, OCI_CLI_KEY_FILE, OCI_CLI_FINGERPRINT, OCI_CLI_TENANCY]
+	(printenv OCI_CLI_USER > /dev/null 2>&1) || (echo 'OCI_CLI_USER is not set in .env' && exit 1)
+	(printenv OCI_CLI_KEY_FILE > /dev/null 2>&1) || (echo 'OCI_CLI_KEY_FILE is not set in .env' && exit 1)
+	(printenv OCI_CLI_FINGERPRINT > /dev/null 2>&1) || (echo 'OCI_CLI_FINGERPRINT is not set in .env' && exit 1)
+	(printenv OCI_CLI_TENANCY > /dev/null 2>&1) || (echo 'OCI_CLI_TENANCY is not set in .env' && exit 1)
+	curl -d '{"name": "$(oci_name)", "source_type": "OCI", "authentication": {"credentials": []}, "billing_source": {"data_source": {"bucket": "$(bucket)", "bucket_namespace": "$(namespace)", "bucket_region": "$(region)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 
 ###################################################
