@@ -2570,7 +2570,11 @@ class AWSReportQueryTest(IamTestCase):
                 group_handler = AWSReportQueryHandler(group_params)
                 group_total = group_handler.execute_query().get("total", None)
                 self.assertIsNotNone(filter_total)
-                self.assertEqual(filter_total, group_total)
+                for cost_type, filter_dict in filter_total.items():
+                    group_dict = group_total[cost_type]
+                    for breakdown in ["raw", "markup", "usage", "total"]:
+                        with self.subTest(breakdown):
+                            self.assertAlmostEqual(group_dict[breakdown]["value"], filter_dict[breakdown]["value"], 6)
 
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
@@ -2589,7 +2593,11 @@ class AWSReportQueryTest(IamTestCase):
             query_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
             handler = AWSReportQueryHandler(query_params)
             result_total = handler.execute_query().get("total")
-            self.assertEqual(expected_total, result_total)
+            for cost_type, expected_dict in expected_total.items():
+                result_dict = result_total[cost_type]
+                for breakdown in ["raw", "markup", "usage", "total"]:
+                    with self.subTest(breakdown):
+                        self.assertAlmostEqual(result_dict[breakdown]["value"], expected_dict[breakdown]["value"], 6)
 
     def test_multi_group_by_seperate_children(self):
         """Test cost sum of multi org_unit_id group by of children nodes"""
@@ -2608,7 +2616,7 @@ class AWSReportQueryTest(IamTestCase):
             multi_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
             multi_handler = AWSReportQueryHandler(multi_params)
             multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
-            self.assertEqual(sum(expected_costs), multi_cost)
+            self.assertAlmostEqual(sum(expected_costs), multi_cost, 6)
 
     def test_multiple_group_by_alias_change(self):
         """Test that the data is correctly formatted to id & alias multi org_unit_id group bys"""
