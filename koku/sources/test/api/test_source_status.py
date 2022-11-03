@@ -487,7 +487,8 @@ class SourcesStatusTest(IamTestCase):
         }
         self.assertEqual(actual_source_status, expected)
 
-    def test_azure_unavailable(self):
+    @patch("providers.azure.client.ClientSecretCredential")
+    def test_azure_unavailable(self, mock_client_credential):
         """Test that the API returns status when a source is configured correctly."""
         url = reverse("source-status")
         client = APIClient()
