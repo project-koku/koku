@@ -201,7 +201,7 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = []
         filters = self.parameters.get(parameter_key, {})
         for filt in filters:
-            if filt in self._tag_keys:
+            if "tag" in filt and filt in self._tag_keys:
                 tag_filters.append(filt)
         return tag_filters
 
@@ -210,7 +210,7 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = []
         filters = self.parameters.get("group_by", {})
         for filt in filters:
-            if filt in self._tag_keys:
+            if "tag" in filt and filt in self._tag_keys:
                 tag_groups.append(filt)
         return tag_groups
 
