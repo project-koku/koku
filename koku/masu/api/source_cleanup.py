@@ -4,6 +4,7 @@
 #
 """View for Source cleanup."""
 import logging
+from dataclasses import dataclass
 from uuid import UUID
 
 from django.views.decorators.cache import never_cache
@@ -42,8 +43,9 @@ def cleanup(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     params._mutable = True
-    params["limit"] = int(params.get("limit") or 10)
-    params["offset"] = int(params.get("offset") or 0)
+    lo = LimitOffset(int(params.get("limit") or 10), int(params.get("offset") or 0))
+    params["limit"] = lo.limit
+    params["offset"] = lo.offset
     params._mutable = False
 
     source_uuid = params.get("uuid")
@@ -58,19 +60,19 @@ def cleanup(request):
     LOG.info(f"Source Cleanup for UUID: {source_uuid}")
 
     if "providers_without_sources" in params.keys():
-        return handle_providers_without_sources_response(
-            request, _providers_without_sources(source_uuid, params["limit"], params["offset"])
-        )
+        return handle_providers_without_sources_response(request, _providers_without_sources(source_uuid), lo)
 
     if "out_of_order_deletes" in params.keys():
-        return handle_out_of_order_deletes_response(
-            request, _sources_out_of_order_deletes(source_uuid, params["limit"], params["offset"])
-        )
+        return handle_out_of_order_deletes_response(request, _sources_out_of_order_deletes(source_uuid), lo)
 
     if "missing_sources" in params.keys():
-        return handle_missing_sources_response(
-            request, _missing_sources(source_uuid, params["limit"], params["offset"])
-        )
+        return handle_missing_sources_response(request, _missing_sources(source_uuid, lo.limit, lo.offset), lo)
+
+
+@dataclass(frozen=True, order=True)
+class LimitOffset:
+    limit: int = 10
+    offset: int = 0
 
 
 class SimplePaginate(ListPaginator):
@@ -79,31 +81,38 @@ class SimplePaginate(ListPaginator):
         return self.data_set
 
 
-def handle_providers_without_sources_response(request, dataset):
+def handle_providers_without_sources_response(request, dataset, limit_offset):
     if request.method == "DELETE":
-        cleanup_provider_without_source(dataset)
+        cleanup_provider_without_source(
+            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]  # noqa: E203
+        )
         return Response({"job_queued": "providers_without_sources"})
     else:
         providers_without_sources = [f"{provider.name} ({provider.uuid})" for provider in dataset]
-        return SimplePaginate(providers_without_sources, request).paginated_response
+        return ListPaginator(providers_without_sources, request).paginated_response
 
 
-def handle_out_of_order_deletes_response(request, dataset):
+def handle_out_of_order_deletes_response(request, dataset, limit_offset):
     if request.method == "DELETE":
-        cleanup_out_of_order_deletes(dataset)
+        cleanup_out_of_order_deletes(
+            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]  # noqa: E203
+        )
         return Response({"job_queued": "out_of_order_deletes"})
     else:
         out_of_order_delete = [f"Source ID: {source.source_id}" for source in dataset]
-        return SimplePaginate(out_of_order_delete, request).paginated_response
+        return ListPaginator(out_of_order_delete, request).paginated_response
 
 
-def handle_missing_sources_response(request, dataset):
+def handle_missing_sources_response(request, sources_dataset, limit_offset):
+    all_sources, dataset = sources_dataset
     if request.method == "DELETE":
         cleanup_missing_sources(dataset)
         return Response({"job_queued": "missing_sources"})
     else:
         missing_sources = [f"Source ID: {source.source_id} Source UUID: {source.source_uuid}" for source in dataset]
-        return SimplePaginate(missing_sources, request).paginated_response
+        paginator = SimplePaginate(missing_sources, request)
+        paginator.count = len(all_sources)
+        return paginator.paginated_response
 
 
 def cleanup_provider_without_source(cleaning_list):
@@ -124,11 +133,11 @@ def cleanup_missing_sources(cleaning_list):
         LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
-def _providers_without_sources(provider_uuid=None, limit=10, offset=0):
+def _providers_without_sources(provider_uuid=None):
     if provider_uuid:
         providers = Provider.objects.filter(uuid=provider_uuid)
     else:
-        providers = Provider.objects.all().order_by("uuid")[offset : offset + limit]  # noqa: E203
+        providers = Provider.objects.all().order_by("uuid")
 
     providers_without_sources = []
     for provider in providers:
@@ -140,15 +149,11 @@ def _providers_without_sources(provider_uuid=None, limit=10, offset=0):
     return providers_without_sources
 
 
-def _sources_out_of_order_deletes(source_uuid=None, limit=10, offset=0):
+def _sources_out_of_order_deletes(source_uuid=None):
     if source_uuid:
         sources = Sources.objects.filter(source_uuid=source_uuid, out_of_order_delete=True, koku_uuid=None)
     else:
-        sources = (
-            Sources.objects.filter(out_of_order_delete=True, koku_uuid=None)
-            .all()
-            .order_by("source_id")[offset : offset + limit]  # noqa: E203
-        )
+        sources = Sources.objects.filter(out_of_order_delete=True, koku_uuid=None).all().order_by("source_id")
 
     return list(sources)
 
@@ -171,6 +176,6 @@ def _missing_sources(source_uuid=None, limit=10, offset=0):
                 f"Source {source.name} ID: {source.source_id} UUID: {source.source_uuid} not found in platform sources"
             )
             missing_sources.append(source)
-        except SourcesHTTPClientError:
-            LOG.info("Unable to reach platform sources")
-    return missing_sources
+        except SourcesHTTPClientError as e:
+            LOG.info(f"Unable to reach platform sources: {e}")
+    return sources, missing_sources
