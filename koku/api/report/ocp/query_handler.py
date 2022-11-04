@@ -105,7 +105,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             or "or:project" in self.parameters.parameters.get("group_by", {})
         ):
             if self._category:
-                self.annotations["project"] = Coalesce(F("category__name"), F("namespace"))
+                annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
             else:
                 annotations["project"] = F("namespace")
 
