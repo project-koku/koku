@@ -58,7 +58,9 @@ def cleanup(request):
     LOG.info(f"Source Cleanup for UUID: {source_uuid}")
 
     if "providers_without_sources" in params.keys():
-        return handle_providers_without_sources_response(request, _providers_without_sources(source_uuid))
+        return handle_providers_without_sources_response(
+            request, _providers_without_sources(source_uuid, params["limit"], params["offset"])
+        )
 
     if "out_of_order_deletes" in params.keys():
         return handle_out_of_order_deletes_response(
@@ -122,11 +124,11 @@ def cleanup_missing_sources(cleaning_list):
         LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
-def _providers_without_sources(provider_uuid=None):
+def _providers_without_sources(provider_uuid=None, limit=10, offset=0):
     if provider_uuid:
         providers = Provider.objects.filter(uuid=provider_uuid)
     else:
-        providers = Provider.objects.all()
+        providers = Provider.objects.all().order_by("uuid")[offset : offset + limit]  # noqa: E203
 
     providers_without_sources = []
     for provider in providers:
