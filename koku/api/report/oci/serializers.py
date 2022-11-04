@@ -36,7 +36,7 @@ class OCIOrderBySerializer(OrderSerializer):
 
     _opfields = ("payer_tenant_id", "usage_amount", "instance_type", "region", "product_service", "date")
 
-    payer_tenant_id = StringOrListField(child=serializers.CharField(), required=False)
+    payer_tenant_id = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     usage_amount = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)

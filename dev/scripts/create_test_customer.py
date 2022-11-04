@@ -224,15 +224,14 @@ def get_headers(token):
 def get_token(account_id, org_id, username, email):
     """Authenticate with the Koku API and obtain an auth token."""
     identity = {
-        "account_number": account_id,
-        "org_id": org_id,
+        "account_number": str(account_id),
+        "org_id": str(org_id),
         "type": "User",
         "user": {"username": username, "email": email, "is_org_admin": True},
     }
     header = {"identity": identity, "entitlements": {"cost_management": {"is_entitled": "True"}}}
     json_identity = json_dumps(header)
-    token = b64encode(json_identity.encode("utf-8"))
-    return token
+    return b64encode(json_identity.encode("utf-8"))
 
 
 def load_yaml(filename):
