@@ -13,6 +13,7 @@ from sources import storage
 from sources.config import Config
 from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import convert_header_to_dict
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -273,7 +274,12 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                 storage.add_source_pause(self.source_id, pause)
 
         if self.event_type in (KAFKA_APPLICATION_DESTROY,):
-            storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
+            try:
+                self.get_source_details()
+            except SourceNotFoundError:
+                storage.enqueue_source_delete(self.source_id, self.offset)
+            else:
+                storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
 
 
 class AuthenticationMsgProcessor(KafkaMessageProcessor):

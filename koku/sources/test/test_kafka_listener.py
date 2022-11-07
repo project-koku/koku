@@ -315,6 +315,22 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 },
             ],
         }
+        self.mock_delete_requests = {
+            Provider.PROVIDER_AWS: [
+                {
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 404,
+                    "json": {"data": [{"not": "source not found"}]},
+                },
+            ],
+            Provider.PROVIDER_OCP: [
+                {
+                    "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "status": 404,
+                    "json": {"data": [{"not": "source not found"}]},
+                },
+            ],
+        }
 
     def test_listen_for_messages_aws_create_update_pause_unpause_delete_AWS(self):
         """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
@@ -344,7 +360,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 mock_consumer = MockKafkaConsumer([msg])
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
-            s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_AWS).keys()])
+            s = model_to_dict(source, fields=list(self.sources.get(Provider.PROVIDER_AWS).keys()))
             self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS), msg="failed create")
 
         # now test the update pathway
@@ -376,7 +392,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 mock_consumer = MockKafkaConsumer([msg])
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
-            s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
+            s = model_to_dict(source, fields=list(self.updated_sources.get(Provider.PROVIDER_AWS).keys()))
             self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS), msg="failed update")
 
         # now test pause/unpause pathway
@@ -427,11 +443,14 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 },
             ),
         ]
-        for msg in msgs:
-            mock_consumer = MockKafkaConsumer([msg])
-            source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
-            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
-            self.assertTrue(source.pending_delete, msg="failed delete")
+        with requests_mock.mock() as m:
+            for resp in self.mock_delete_requests.get(Provider.PROVIDER_AWS):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for msg in msgs:
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
+                self.assertTrue(source.pending_delete, msg="failed delete")
 
     def test_listen_for_messages_aws_create_update_pause_unpause_delete_OCP(self):
         """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
@@ -453,7 +472,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 mock_consumer = MockKafkaConsumer([msg])
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
-            s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_OCP).keys()])
+            s = model_to_dict(source, fields=list(self.sources.get(Provider.PROVIDER_OCP).keys()))
             self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_OCP), msg="failed create")
 
         # now test the update pathway
@@ -477,7 +496,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 mock_consumer = MockKafkaConsumer([msg])
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
-            s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_OCP).keys()])
+            s = model_to_dict(source, fields=list(self.updated_sources.get(Provider.PROVIDER_OCP).keys()))
             self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_OCP), msg="failed update")
 
         # now test pause/unpause pathway
@@ -528,11 +547,14 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 },
             ),
         ]
-        for msg in msgs:
-            mock_consumer = MockKafkaConsumer([msg])
-            source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
-            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
-            self.assertTrue(source.pending_delete, msg="failed delete")
+        with requests_mock.mock() as m:
+            for resp in self.mock_delete_requests.get(Provider.PROVIDER_OCP):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for msg in msgs:
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
+                self.assertTrue(source.pending_delete, msg="failed delete")
 
     def test_message_not_associated_with_cost_mgmt(self):
         """Test that messages not associated with cost-mgmt are not processed."""
