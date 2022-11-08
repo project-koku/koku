@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
+from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
@@ -96,6 +97,7 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
+        self._category = parameters.category
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
         self._delta = parameters.delta
@@ -523,6 +525,24 @@ class ReportQueryHandler(QueryHandler):
             for k, v in self.exchange_rates.items()
         ]
         return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+
+    def _project_category_annotation(self, query_data):
+        """Get the correct annotation for a project or category"""
+        if self._category:
+            return query_data.annotate(
+                classification=Case(
+                    When(project__in=self._category, then=Value("category")),
+                    default=Value("project"),
+                    output_field=CharField(),
+                )
+            )
+        else:
+            project_default_whens = [
+                When(project__icontains=project, then=Value("True")) for project in ["openshift-", "kube-"]
+            ]
+            return query_data.annotate(
+                default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
+            )
 
     @property
     def annotations(self):
@@ -1010,6 +1030,12 @@ class ReportQueryHandler(QueryHandler):
         other_str = "Others" if other_count > 1 else "Other"
         for group in group_by:
             others_data_frame[group] = other_str
+            if (
+                "project" in self.parameters.parameters.get("group_by", {})
+                or "and:project" in self.parameters.parameters.get("group_by", {})
+                or "or:project" in self.parameters.parameters.get("group_by", {})
+            ):
+                others_data_frame["classification"] = "category"
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
         elif "gcp_project" in group_by:

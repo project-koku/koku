@@ -9,6 +9,7 @@ import logging
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
+from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -67,7 +68,10 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             or "and:project" in self.parameters.parameters.get("group_by", {})
             or "or:project" in self.parameters.parameters.get("group_by", {})
         ):
-            annotations["project"] = F("namespace")
+            if self._category:
+                annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
+            else:
+                annotations["project"] = F("namespace")
 
         return annotations
 
@@ -93,6 +97,13 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query.values(*query_group_by).annotate(**annotations)
+
+            if (
+                "project" in self.parameters.parameters.get("group_by", {})
+                or "and:project" in self.parameters.parameters.get("group_by", {})
+                or "or:project" in self.parameters.parameters.get("group_by", {})
+            ):
+                query_data = self._project_category_annotation(query_data)
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
