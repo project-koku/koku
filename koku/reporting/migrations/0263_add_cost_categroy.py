@@ -96,5 +96,292 @@ class Migration(migrations.Migration):
                 null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
             ),
         ),
+        migrations.AddField(
+            model_name="ocpallcomputesummarypt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallcostlineitemdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallcostlineitemprojectdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallcostsummarybyaccountpt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallcostsummarybyregionpt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallcostsummarybyservicept",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallcostsummarypt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpalldatabasesummarypt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallnetworksummarypt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpallstoragesummarypt",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscomputesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscostlineitemdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscostlineitemprojectdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscostsummarybyaccountp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscostsummarybyregionp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscostsummarybyservicep",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawscostsummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawsdatabasesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawsnetworksummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpawsstoragesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecomputesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecostlineitemdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecostlineitemprojectdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecostsummarybyaccountp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecostsummarybylocationp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecostsummarybyservicep",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurecostsummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazuredatabasesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurenetworksummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpazurestoragesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcomputesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostlineitemdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostlineitemprojectdailysummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybyaccountp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybygcpprojectp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybyregionp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybyservicep",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpdatabasesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpnetworksummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpstoragesummaryp",
+            name="cost_category",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.openshiftcostcategory"
+            ),
+        ),
         migrations.RunPython(add_platform_category),
     ]
