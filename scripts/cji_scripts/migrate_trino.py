@@ -106,6 +106,14 @@ def main():
         logging.info(f"*** Adding column to tables for schema {schema} ***")
         # drop_tables(tables_to_drop, CONNECT_PARAMS)
         add_columns_to_table(columns_to_add, "reporting_ocpusagelineitem_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(
+            columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary_temp", CONNECT_PARAMS
+        )
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
