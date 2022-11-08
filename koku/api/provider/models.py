@@ -350,7 +350,6 @@ select ftn.nspname as "table_schema",
 
         return link_tables
 
-    @transaction.atomic
     def _delete_from_target(self, target_info, target_values=None):
         """Generates and executes a simple delete statement"""
         if target_values is None:
