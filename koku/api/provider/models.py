@@ -10,10 +10,8 @@ from django.conf import settings
 from django.core.validators import MaxLengthValidator
 from django.db import connection
 from django.db import models
-from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
-from django.db.models.signals import post_delete
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
@@ -197,18 +195,13 @@ class Provider(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.customer:
-            using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type[: _type.index("-")] if _type.endswith("-local") else _type
                 self._cascade_delete()
-                self._delete_from_target(
-                    {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                    target_values=[self.pk],
-                )
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
-                post_delete.send(sender=self.__class__, instance=self, using=using)
+                super().delete()
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()
@@ -357,6 +350,7 @@ select ftn.nspname as "table_schema",
 
         return link_tables
 
+    @transaction.atomic
     def _delete_from_target(self, target_info, target_values=None):
         """Generates and executes a simple delete statement"""
         if target_values is None:
@@ -369,10 +363,9 @@ delete
  where "{target_info["column_name"]}" = any(%s)
 ;
 """
-        with transaction.atomic():
-            with connection.cursor() as cur:
-                cur.execute(_sql, (target_values,))
-                LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
+        with transaction.get_connection().cursor() as cur:
+            cur.execute(_sql, (target_values,))
+            LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
 
 
 class Sources(RunTextFieldValidators, models.Model):

@@ -82,29 +82,32 @@ class ProviderModelTest(MasuTestCase):
         """Assert the delete_archived_data task is called upon instance delete."""
         with tenant_context(self.tenant):
             self.aws_provider.delete()
-        mock_delete_archived_data.delay.assert_called_with(self.schema, self.aws_provider.type, self.aws_provider.uuid)
+        mock_delete_archived_data.delay.assert_called_with(
+            self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
+        )
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data):
         """Assert the cost models are deleted upon provider instance delete."""
-        provider_uuid = self.aws_provider.uuid
         data = {
             "name": "Test Cost Model",
             "description": "Test",
             "rates": [],
             "markup": {"value": FAKE.pyint() % 100, "unit": "percent"},
-            "provider_uuids": [provider_uuid],
+            "provider_uuids": [self.aws_provider_uuid],
         }
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 manager.create(**data)
-            cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
+            cost_model_map = CostModelMap.objects.filter(provider_uuid=self.aws_provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.aws_provider.delete()
-            self.assertEqual(0, CostModelMap.objects.filter(provider_uuid=provider_uuid).count())
-        mock_delete_archived_data.delay.assert_called_with(self.schema, self.aws_provider.type, self.aws_provider.uuid)
+            self.assertEqual(0, CostModelMap.objects.filter(provider_uuid=self.aws_provider_uuid).count())
+        mock_delete_archived_data.delay.assert_called_with(
+            self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
+        )
 
     @override_settings(ENABLE_PARQUET_PROCESSING=False)
     @patch("masu.celery.tasks.delete_archived_data")
