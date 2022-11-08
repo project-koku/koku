@@ -183,6 +183,26 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_data = query.values(*query_group_by).annotate(**self.report_annotations)
 
+            if (
+                "project" in self.parameters.parameters.get("group_by", {})
+                or "and:project" in self.parameters.parameters.get("group_by", {})
+                or "or:project" in self.parameters.parameters.get("group_by", {})
+            ):
+                if self._category:
+                    query_data = query_data.annotate(
+                        classification=Case(
+                            When(project__in=self._category, then=Value("category")),
+                            default=Value("project"),
+                            output_field=CharField(),
+                        )
+                    )
+                else:
+                    project_default_whens = [
+                        When(project__icontains=project, then=Value("True")) for project in ["openshift-", "kube-"]
+                    ]
+                    query_data = query_data.annotate(
+                        default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
+                    )
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):

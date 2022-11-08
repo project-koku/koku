@@ -26,6 +26,7 @@ from api.tags.serializers import month_list
 from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
 LOG = logging.getLogger(__name__)
@@ -465,7 +466,19 @@ class QueryParameters:
     @property
     def category(self):
         """Return category property."""
-        return self.get("category")
+        categories = None
+        db_categories = OpenshiftCostCategory.objects.values_list("name").distinct()
+        if ReportQueryHandler.has_wildcard(self.get("category")):
+            categories = db_categories
+        elif self.get("category"):
+            category_list = self.get("category")
+            for category in category_list:
+                if category in db_categories[0]:
+                    categories = category_list
+                else:
+                    message = f"Unsupported category: {category}"
+                    raise ValidationError(detail=message)
+        return categories
 
     @property
     def parameters(self):
