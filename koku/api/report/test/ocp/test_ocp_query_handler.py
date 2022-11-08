@@ -828,9 +828,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(handler.query_exclusions)
                 handler.execute_query()
                 excluded_result = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                distributed_cost = handler.query_sum.get("cost", {}).get("distributed", {}).get("value")
-                if view == OCPCpuView:
-                    expected_total = expected_total + distributed_cost
                 self.assertAlmostEqual(expected_total, excluded_result, 6)
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
