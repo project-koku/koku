@@ -739,6 +739,8 @@ class ReportQueryHandler(QueryHandler):
             (list): The sorted/ordered list
 
         """
+        if not query_data:
+            return query_data
         if not (order_date := self.parameters.get("cost_explorer_order_by", {}).get("date")):
             return self._order_by(query_data, query_order_by)
         sort_term = self._get_group_by()[0]
