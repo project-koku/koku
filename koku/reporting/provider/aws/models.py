@@ -3,17 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for AWS cost entry tables."""
-import logging
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
-from django.db.models import Field
 from django.db.models import JSONField
-from django.db.models import Lookup
-
-LOG = logging.getLogger(__name__)
 
 
 UI_SUMMARY_TABLES = (
@@ -65,34 +60,6 @@ PRESTO_REQUIRED_COLUMNS = (
     "resourceTags",
     "savingsPlan/SavingsPlanEffectiveCost",
 )
-
-
-@Field.register_lookup
-class AllowNullIcontains(Lookup):
-    lookup_name = "noticontains"
-    prepare_rhs = False
-
-    def as_sql(self, compiler, connection):
-        lhs, lhs_params = self.process_lhs(compiler, connection)
-        rhs, rhs_params = self.process_rhs(compiler, connection)
-        # params = lhs_params + rhs_params
-        # the lhs_param is returning it as a json object, but I need it as text.
-        formatted_sql = []
-        lhs = lhs.replace("->", "->>")
-        params = tuple()
-        for rhs_param in rhs_params:
-            for exclude in rhs_param:
-                format_exclude = f"%{exclude}%"
-                params = params + lhs_params + (format_exclude,)
-                # LOG.info(f"lhs: {lhs}")
-                # LOG.info(f"rhs: {rhs}")
-                # LOG.info(f"lhs params: {lhs_params}, rhs params: {format_exclude}")
-                # LOG.info(f"params: {params}")
-                the_format = f"(UPPER({lhs}::text) NOT LIKE UPPER({rhs}))"
-                formatted_sql.append(the_format)
-        final_format = " AND ".join(formatted_sql), params
-        # LOG.info(final_format)
-        return final_format
 
 
 class AWSCostEntryBill(models.Model):
