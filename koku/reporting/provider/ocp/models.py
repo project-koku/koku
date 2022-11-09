@@ -531,7 +531,6 @@ class OCPProject(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     project = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
-    # NOT SURE ON THIS cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 # ======================================================
