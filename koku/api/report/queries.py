@@ -749,11 +749,9 @@ class ReportQueryHandler(QueryHandler):
         ordered_data = self._order_by(filtered_query_data, query_order_by)
         if not ordered_data:
             return query_data
-        order_of_interest = CategoricalDtype(
-            [entry.get(sort_term) or none_sort_term for entry in ordered_data], ordered=True
-        )
+        ordered_list = dict.fromkeys([entry.get(sort_term) or none_sort_term for entry in ordered_data]).keys()
         df = pd.DataFrame(query_data).fillna(value={sort_term: none_sort_term})
-        df[sort_term] = df[sort_term].astype(order_of_interest)
+        df[sort_term] = df[sort_term].astype(CategoricalDtype(ordered_list, ordered=True))
         df.sort_values(by=["date", sort_term], inplace=True)
         df.replace({sort_term: {none_sort_term: None}}, inplace=True)
         return df.to_dict("records")
