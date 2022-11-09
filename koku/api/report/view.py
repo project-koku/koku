@@ -80,6 +80,4 @@ class ReportView(APIView):
 
         paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
         paginated_result = paginator.paginate_queryset(output, request)
-        response = paginator.get_paginated_response(paginated_result)
-
-        return response
+        return paginator.get_paginated_response(paginated_result)
