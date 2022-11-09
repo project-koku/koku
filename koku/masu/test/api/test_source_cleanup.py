@@ -113,7 +113,7 @@ class SourceCleanupTests(IamTestCase):
         response = self.client.get(reverse("cleanup"), params)
         body = response.json()
 
-        self.assertEqual(body.get("data"), expected_missing_list)
+        self.assertCountEqual(body.get("data"), expected_missing_list)
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)
