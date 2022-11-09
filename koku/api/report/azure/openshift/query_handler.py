@@ -63,11 +63,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = F(db_field)
-        if (
-            "project" in self.parameters.parameters.get("group_by", {})
-            or "and:project" in self.parameters.parameters.get("group_by", {})
-            or "or:project" in self.parameters.parameters.get("group_by", {})
-        ):
+        if is_grouped_by_project(self.parameters):
             if self._category:
                 annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
             else:
@@ -98,11 +94,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query.values(*query_group_by).annotate(**annotations)
 
-            if (
-                "project" in self.parameters.parameters.get("group_by", {})
-                or "and:project" in self.parameters.parameters.get("group_by", {})
-                or "or:project" in self.parameters.parameters.get("group_by", {})
-            ):
+            if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
