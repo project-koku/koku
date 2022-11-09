@@ -239,3 +239,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
         if: steps.unit_tests_run.outcome == 'success'
+
+      - name: Set Codecov job status on skipped tests
+        env:
+          GITHUB_TOKEN: "${{ github.token }}"
+        run: |
+          gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/patch" -f state="success"
+          gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/project" -f state="success"
+        if: needs.changed-files.outputs.run_tests != 'true'
