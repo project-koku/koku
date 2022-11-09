@@ -90,24 +90,28 @@ def drop_columns_from_table(columns, table, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for OCP/GCP node columns")
+    logging.info("Running the hive migration for OCP/AWS additional cost fields")
 
     logging.info("fetching schemas")
     schemas = get_schemas()
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["aws_line_items", "aws_line_items_daily"]
+    # tables_to_drop = ["aws_line_items", "aws_line_items_daily"]
     # columns_to_drop = ["ocp_matched"]
-    # columns_to_add = {"node_capacity_cpu_core_hours": "double", "node_capacity_memory_gigabyte_hours": "double"}
+    columns_to_add = {
+        "blended_cost": "double",
+        "markup_cost_blended": "double",
+        "savingsplan_effective_cost": "double",
+        "markup_cost_savingsplan": "double",
+    }
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** dropping tables for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
-
-        # logging.info(f"*** Adding column to tables for schema {schema} ***")
-        # add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
+        logging.info(f"*** adding columns to tables for schema {schema} ***")
+        # drop_tables(tables_to_drop, CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
