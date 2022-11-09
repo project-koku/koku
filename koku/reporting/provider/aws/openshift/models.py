@@ -89,24 +89,17 @@ class OCPAWSCostSummaryP(models.Model):
         indexes = [models.Index(fields=["usage_start"], name="ocpawscostsumm_usst")]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSCostSummaryByAccountP(models.Model):
@@ -127,28 +120,19 @@ class OCPAWSCostSummaryByAccountP(models.Model):
         indexes = [models.Index(fields=["usage_start"], name="ocpawscostsumm_acct_usst")]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSCostSummaryByServiceP(models.Model):
@@ -172,32 +156,21 @@ class OCPAWSCostSummaryByServiceP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     product_code = models.TextField(null=False)
-
     product_family = models.CharField(max_length=150, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSCostSummaryByRegionP(models.Model):
@@ -222,32 +195,21 @@ class OCPAWSCostSummaryByRegionP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     region = models.CharField(max_length=50, null=True)
-
     availability_zone = models.CharField(max_length=50, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSComputeSummaryP(models.Model):
@@ -271,36 +233,23 @@ class OCPAWSComputeSummaryP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     instance_type = models.CharField(max_length=50, null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSStorageSummaryP(models.Model):
@@ -324,34 +273,22 @@ class OCPAWSStorageSummaryP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     product_family = models.CharField(max_length=150, null=True)
-
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSNetworkSummaryP(models.Model):
@@ -375,34 +312,22 @@ class OCPAWSNetworkSummaryP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     product_code = models.TextField(null=False)
-
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSDatabaseSummaryP(models.Model):
@@ -426,34 +351,22 @@ class OCPAWSDatabaseSummaryP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
-
     product_code = models.TextField(null=False)
-
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
-
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSCostLineItemDailySummaryP(models.Model):
@@ -506,70 +419,45 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
-
     node = models.CharField(max_length=253, null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     # AWS Fields
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
-
     product_code = models.TextField(null=False)
-
     product_family = models.CharField(max_length=150, null=True)
-
     instance_type = models.CharField(max_length=50, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
-
     availability_zone = models.CharField(max_length=50, null=True)
-
     region = models.CharField(max_length=50, null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     tags = JSONField(null=True)
-
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
     normalized_usage_amount = models.FloatField(null=True)
-
     currency_code = models.CharField(max_length=10, null=True)
-
     # Cost breakdown can be done by cluster, node, project.
     # Cluster and node cost can be determined by summing the AWS unblended_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
-
     # A JSON dictionary of the project cost, keyed by project/namespace name
     # See comment on unblended_cost for project cost explanation
     project_costs = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
@@ -595,71 +483,41 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     # Whether the data comes from a pod or volume report
     data_source = models.CharField(max_length=64, null=True)
-
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
-
     node = models.CharField(max_length=253, null=True)
-
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
-
     persistentvolume = models.CharField(max_length=253, null=True)
-
     storageclass = models.CharField(max_length=50, null=True)
-
     pod_labels = JSONField(null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     # AWS Fields
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
-
     product_code = models.TextField(null=False)
-
     product_family = models.CharField(max_length=150, null=True)
-
     instance_type = models.CharField(max_length=50, null=True)
-
     usage_account_id = models.CharField(max_length=50, null=False)
-
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
-
     availability_zone = models.CharField(max_length=50, null=True)
-
     region = models.CharField(max_length=50, null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
     usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     normalized_usage_amount = models.FloatField(null=True)
-
     currency_code = models.CharField(max_length=10, null=True)
-
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     tags = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
