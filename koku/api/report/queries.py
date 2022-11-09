@@ -1035,7 +1035,10 @@ class ReportQueryHandler(QueryHandler):
                 or "and:project" in self.parameters.parameters.get("group_by", {})
                 or "or:project" in self.parameters.parameters.get("group_by", {})
             ):
-                others_data_frame["classification"] = "category"
+                if self._category:
+                    others_data_frame["classification"] = "category"
+                else:
+                    others_data_frame["default_project"] = "False"
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
         elif "gcp_project" in group_by:
