@@ -526,7 +526,7 @@ class ReportQueryHandler(QueryHandler):
         ]
         return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
-    def _project_category_annotation(self, query_data):
+    def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         if self._category:
             return query_data.annotate(

@@ -50,7 +50,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 or "and:project" in self.parameters.parameters.get("group_by", {})
                 or "or:project" in self.parameters.parameters.get("group_by", {})
             ):
-                query_data = self._project_category_annotation(query_data)
+                query_data = self._project_classification_annotation(query_data)
 
             if "account" in query_group_by:
                 query_data = query_data.annotate(

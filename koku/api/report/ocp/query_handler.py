@@ -187,7 +187,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 or "and:project" in self.parameters.parameters.get("group_by", {})
                 or "or:project" in self.parameters.parameters.get("group_by", {})
             ):
-                query_data = self._project_category_annotation(query_data)
+                query_data = self._project_classification_annotation(query_data)
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
