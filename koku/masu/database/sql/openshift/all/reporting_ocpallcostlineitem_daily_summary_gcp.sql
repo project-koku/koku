@@ -32,6 +32,7 @@ INSERT
            unblended_cost,
            markup_cost,
            currency_code,
+           cost_category_id,
            shared_projects,
            source_uuid
        )
@@ -56,6 +57,7 @@ SELECT 'GCP'::text AS source_type,
        sum(gcp.unblended_cost + gcp.credit_amount) as unblended_cost,
        sum(gcp.markup_cost),
        max(gcp.currency) AS currency_code,
+       max(cost_category_id) as cost_category_id,
        max(gcp.shared_projects),
        {{source_uuid}}::uuid as source_uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p AS gcp
