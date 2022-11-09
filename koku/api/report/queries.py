@@ -50,18 +50,21 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
-def _is_grouped_by_key(group_by, key):
-    return [k for k in group_by if k.startswith(key)]
+def _is_grouped_by_key(group_by, keys):
+    for key in keys:
+        for k in group_by:
+            if k.startswith(key):
+                return True
 
 
 def is_grouped_by_tag(parameters):
     """Determine if grouped by tag."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "tag")
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["tag"])
 
 
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "project")
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["project", "and:project", "or:project"])
 
 
 def check_if_valid_date_str(date_str):

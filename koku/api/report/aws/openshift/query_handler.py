@@ -8,7 +8,6 @@ import logging
 
 from django.db.models import CharField
 from django.db.models import F
-from django.db.models import Value
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
@@ -22,6 +21,23 @@ LOG = logging.getLogger(__name__)
 
 class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
     """Base class for OCP on Infrastructure."""
+
+    @property
+    def annotations_test(self):
+        """Create dictionary for query annotations.
+
+        Returns:
+            (Dict): query annotations dictionary
+
+        """
+        annotations = {}
+        if is_grouped_by_project(self.parameters):
+            if self._category:
+                annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
+            else:
+                annotations["project"] = F("namespace")
+
+        return annotations
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -37,7 +53,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations).annotate(**self.annotations_test)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
@@ -124,29 +140,3 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
-
-    @property
-    def annotations(self):
-        """Create dictionary for query annotations.
-
-        Returns:
-            (Dict): query annotations dictionary
-
-        """
-        annotations = {
-            "date": self.date_trunc("usage_start"),
-            # this currency is used by the provider map to populate the correct currency value
-            "currency_annotation": Value(self.currency, output_field=CharField()),
-            **self.exchange_rate_annotation_dict,
-        }
-        # { query_param: database_field_name }
-        fields = self._mapper.provider_map.get("annotations")
-        for q_param, db_field in fields.items():
-            annotations[q_param] = F(db_field)
-        if is_grouped_by_project(self.parameters):
-            if self._category:
-                annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
-            else:
-                annotations["project"] = F("namespace")
-
-        return annotations
