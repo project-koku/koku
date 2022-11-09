@@ -743,14 +743,15 @@ class ReportQueryHandler(QueryHandler):
             return query_data
         if not (order_date := self.parameters.get("cost_explorer_order_by", {}).get("date")):
             return self._order_by(query_data, query_order_by)
-        sort_terms = self._get_group_by()
-        none_sort_terms = [f"no-{sort_term}" for sort_term in sort_terms]
         filtered_query_data = filter(lambda x: x["date"] == order_date, query_data)
         ordered_data = self._order_by(filtered_query_data, query_order_by)
         if not ordered_data:
             return query_data
         df = pd.DataFrame(query_data)
+        sort_terms = self._get_group_by()
+        none_sort_terms = [f"no-{sort_term}" for sort_term in sort_terms]
         for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
+            # use a dictionary to uniquify the list and maintain the correct order
             ordered_list = dict.fromkeys([entry.get(sort_term) or none_sort_term for entry in ordered_data]).keys()
             df.fillna(value={sort_term: none_sort_term}, inplace=True)
             df[sort_term] = df[sort_term].astype(CategoricalDtype(ordered_list, ordered=True))
