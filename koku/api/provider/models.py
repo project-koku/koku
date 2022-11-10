@@ -271,7 +271,7 @@ update public.api_provider p
  where m.infrastructure_provider_id = %s::uuid
    and p.infrastructure_id = m.id
 ;
-"""  # noqa: F541
+"""
         LOG.info(
             "Setting the infrastructure_id to null for any provider "
             + "records that link to the target infrastructure map records"
