@@ -258,16 +258,16 @@ class OCIQueryParamSerializerTest(IamTestCase):
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/oci/storage/")
-        serializer = OCIQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/oci/storage/"
+        serializer = OCIQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/oci/costs/")
-        serializer = OCIQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/oci/costs/"
+        serializer = OCIQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 

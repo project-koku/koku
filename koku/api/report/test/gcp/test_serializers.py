@@ -242,8 +242,8 @@ class GCPQueryParamSerializerTest(IamTestCase):
                 "account": [FAKE.uuid4()],
             },
         }
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -258,8 +258,8 @@ class GCPQueryParamSerializerTest(IamTestCase):
             },
             "invalid": "param",
         }
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -274,8 +274,8 @@ class GCPQueryParamSerializerTest(IamTestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -283,16 +283,16 @@ class GCPQueryParamSerializerTest(IamTestCase):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -303,14 +303,12 @@ class GCPQueryParamSerializerTest(IamTestCase):
             "/api/cost-management/v1/reports/gcp/instance-types/": ["usage"],
             "/api/cost-management/v1/reports/gcp/storage/": ["usage"],
         }
-        for url, delta_list in valid_delta_map.items():
+        for path, delta_list in valid_delta_map.items():
             for valid_delta in delta_list:
-                with self.subTest(path_delta=(url, valid_delta)):
-                    ctx = self._create_request_context(
-                        self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=url
-                    )
+                with self.subTest(path_delta=(path, valid_delta)):
+                    self.request_path = path
                     query_params = {"delta": valid_delta}
-                    serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+                    serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
                     self.assertTrue(serializer.is_valid())
 
     def test_invalid_deltas(self):
@@ -321,27 +319,25 @@ class GCPQueryParamSerializerTest(IamTestCase):
             "/api/cost-management/v1/reports/gcp/storage/": ["cost", "cost_total", "bad_delta"],
         }
         for path, delta_list in bad_delta_map.items():
-            ctx = self._create_request_context(
-                self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-            )
+            self.request_path = path
             for bad_delta in delta_list:
                 query_params = {"delta": bad_delta}
-                serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+                serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
                 with self.assertRaises(serializers.ValidationError):
                     serializer.is_valid(raise_exception=True)
 
     def test_order_by_service_with_groupby(self):
         """Test that order_by[service] works with a matching group-by."""
         query_params = {"group_by": {"service": "asc"}, "order_by": {"service": "asc"}}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -354,8 +350,8 @@ class GCPQueryParamSerializerTest(IamTestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -368,8 +364,8 @@ class GCPQueryParamSerializerTest(IamTestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = GCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -380,11 +376,11 @@ class GCPQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/costs/")
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = GCPQueryParamSerializer(data=param, context=ctx)
+                    serializer = GCPQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
 
@@ -395,8 +391,8 @@ class GCPQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/gcp/instance-types/")
+        self.request_path = "/api/cost-management/v1/reports/gcp/instance-types/"
         for param in param_list:
             with self.subTest(param=param):
-                serializer = GCPQueryParamSerializer(data=param, context=ctx)
+                serializer = GCPQueryParamSerializer(data=param, context=self.ctx_w_path)
                 self.assertTrue(serializer.is_valid())

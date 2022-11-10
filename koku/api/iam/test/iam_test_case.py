@@ -83,6 +83,7 @@ class IamTestCase(TestCase):
         cls.headers = cls.request_context["request"].META
         cls.provider_uuid = UUID("00000000-0000-0000-0000-000000000001")
         cls.factory = RequestFactory()
+        cls.request_path = "/api/cost-management/v1/"
 
     @classmethod
     def tearDownClass(cls):
@@ -177,6 +178,20 @@ class IamTestCase(TestCase):
             request.user = user_data["username"]
         return {"request": request}
 
+    @property
+    def ctx_w_path(self):
+        mock_request = deepcopy(self.request_context["request"])
+        mock_request.path = self.request_path
+        return {"request": mock_request}
+
+    @property
+    def request_path(self):
+        return self._request_path
+
+    @request_path.setter
+    def request_path(self, value):
+        self._request_path = value
+
     def create_mock_customer_data(self):
         """Create randomized data for a customer test."""
         account = self.fake.ean8()
@@ -196,12 +211,6 @@ class IamTestCase(TestCase):
         if path:
             m_request.path = path
         return QueryParameters(m_request, view)
-
-    def get_request_ctx_w_path(self, path):
-        """Update the request context path value."""
-        mock_request = deepcopy(self.request_context["request"])
-        mock_request.path = path
-        return {"request": mock_request}
 
 
 class RbacPermissions:

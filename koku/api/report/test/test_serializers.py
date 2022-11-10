@@ -541,8 +541,8 @@ class QueryParamSerializerTest(IamTestCase):
     def test_valid_cost_type_no_exception(self):
         """Test that a valid cost type doesn't raise an exception."""
         query_params = {"cost_type": "blended_cost"}
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/aws/costs/")
-        serializer = AWSQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/aws/costs/"
+        serializer = AWSQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         serializer.is_valid(raise_exception=True)
 
     def test_multiple_group_by(self):
@@ -766,11 +766,11 @@ class ParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/")
+        self.request_path = "/api/cost-management/v1/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(ValidationError):
-                    serializer = ParamSerializer(data=param, context=ctx)
+                    serializer = ParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
 
@@ -778,8 +778,8 @@ class ParamSerializerTest(IamTestCase):
 class ReportQueryParamSerializerTest(IamTestCase):
     def test_validate_delta(self):
         """Test `delta` on base ReportQueryParamSerializer is invalid."""
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/")
-        serializer = ReportQueryParamSerializer(data={"delta": "cost"}, context=ctx)
+        self.request_path = "/api/cost-management/v1/"
+        serializer = ReportQueryParamSerializer(data={"delta": "cost"}, context=self.ctx_w_path)
         with self.assertRaises(ValidationError):
             self.assertFalse(serializer.is_valid())
             serializer.is_valid(raise_exception=True)

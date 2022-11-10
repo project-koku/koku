@@ -257,10 +257,10 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/")
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPAWSQueryParamSerializer(data=param, context=ctx)
+                    serializer = OCPAWSQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
