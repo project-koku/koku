@@ -746,7 +746,7 @@ class ReportQueryHandler(QueryHandler):
         filtered_query_data = filter(lambda x: x["date"] == order_date, query_data)
         ordered_data = self._order_by(filtered_query_data, query_order_by)
         if not ordered_data:
-            return query_data
+            return self._order_by(query_data, query_order_by)
         df = pd.DataFrame(query_data)
         sort_terms = self._get_group_by()
         none_sort_terms = [f"no-{sort_term}" for sort_term in sort_terms]
