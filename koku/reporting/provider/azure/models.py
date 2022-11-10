@@ -110,7 +110,6 @@ class AzureCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True)
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
-
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
@@ -133,7 +132,6 @@ class AzureCostEntryProductService(models.Model):
     service_info1 = models.TextField(null=True)
     service_info2 = models.TextField(null=True)
     instance_type = models.TextField(null=True)
-
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
 
@@ -148,7 +146,6 @@ class AzureMeter(models.Model):
     resource_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     unit_of_measure = models.TextField(null=True)
-
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
 
