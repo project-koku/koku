@@ -14,6 +14,7 @@ from api.common.pagination import ReportRankedPagination
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import get_paginator
+from api.utils import DateHelper
 
 
 class ReportViewTest(IamTestCase):
@@ -71,12 +72,24 @@ class ReportViewTest(IamTestCase):
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
 
+    def test_endpoints_date_query_param(self):
+        """Test endpoint runs with an invalid query param."""
+        for endpoint in self.ENDPOINTS:
+            with self.subTest(endpoint=endpoint):
+                query = f"order_by[date]={str(DateHelper().today.date())}&group_by[tag:app]=*"
+                url = f"{reverse(endpoint)}?{query}"
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                meta_result = response.json().get("meta")
+                self.assertIsNotNone(meta_result)
+                self.assertTrue("date" in meta_result.get("order_by") or [])
+
     def test_endpoints_invalid_query_param(self):
         """Test endpoint runs with an invalid query param."""
         for endpoint in self.ENDPOINTS:
             with self.subTest(endpoint=endpoint):
                 query = "group_by[invalid]=*"
-                url = reverse(endpoint) + "?" + query
+                url = f"{reverse(endpoint)}?{query}"
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
