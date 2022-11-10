@@ -70,10 +70,14 @@ class ReportView(APIView):
         handler = self.query_handler(params)
 
         output = handler.execute_query()
+
+        # reset the meta when order_by[date] is used
+        if output.get("cost_explorer_order_by"):
+            order_by_date = output.pop("cost_explorer_order_by")
+            output.get("order_by").update(order_by_date)
+
         max_rank = handler.max_rank
 
         paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
         paginated_result = paginator.paginate_queryset(output, request)
-        response = paginator.get_paginated_response(paginated_result)
-
-        return response
+        return paginator.get_paginated_response(paginated_result)
