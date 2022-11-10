@@ -198,7 +198,7 @@ class Provider(models.Model):
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
-                self._normalized_type = _type[: _type.index("-")] if _type.endswith("-local") else _type
+                self._normalized_type = _type.rsplit("-", 1)[0] if _type.endswith("-local") else _type
                 self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 super().delete()
