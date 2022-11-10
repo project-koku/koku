@@ -766,9 +766,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     handler = OCPReportQueryHandler(query_params)
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                    opt_dict = overall_output.get("data", [{}])[0]
-                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
-                    opt_value = opt_dict.get(exclude_opt)
+                    opt_value = None
+                    for date_dict in overall_output.get("data", [{}]):
+                        for element in date_dict.get(f"{exclude_opt}s"):
+                            if f"no-{exclude_opt}" != element.get(exclude_opt):
+                                opt_value = element.get(exclude_opt)
+                                break
+                        if opt_value:
+                            break
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
@@ -789,7 +794,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         grouping_list = date_dict.get(f"{exclude_opt}s", [])
                         self.assertIsNotNone(grouping_list)
                         for group_dict in grouping_list:
-                            self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
+                            if f"no-{exclude_opt}" != opt_value:
+                                self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 

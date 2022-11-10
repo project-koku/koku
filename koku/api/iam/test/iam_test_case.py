@@ -5,6 +5,7 @@
 """Test Case extension to collect common test data."""
 import functools
 from base64 import b64encode
+from copy import deepcopy
 from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
@@ -82,6 +83,7 @@ class IamTestCase(TestCase):
         cls.headers = cls.request_context["request"].META
         cls.provider_uuid = UUID("00000000-0000-0000-0000-000000000001")
         cls.factory = RequestFactory()
+        cls.request_path = "/api/cost-management/v1/"
 
     @classmethod
     def tearDownClass(cls):
@@ -175,6 +177,20 @@ class IamTestCase(TestCase):
         else:
             request.user = user_data["username"]
         return {"request": request}
+
+    @property
+    def ctx_w_path(self):
+        mock_request = deepcopy(self.request_context["request"])
+        mock_request.path = self.request_path
+        return {"request": mock_request}
+
+    @property
+    def request_path(self):
+        return self._request_path
+
+    @request_path.setter
+    def request_path(self, value):
+        self._request_path = value
 
     def create_mock_customer_data(self):
         """Create randomized data for a customer test."""
