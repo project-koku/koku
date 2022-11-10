@@ -52,7 +52,7 @@ class AzureClientFactory:
     @property
     def cost_management_client(self):
         """Get cost management client with subscription and credentials."""
-        return CostManagementClient(self.credentials, self.subscription_id)
+        return CostManagementClient(self.credentials)
 
     @property
     def resource_client(self):
