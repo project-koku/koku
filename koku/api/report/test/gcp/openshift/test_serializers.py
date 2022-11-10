@@ -313,11 +313,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_ocp_params_success(self):
@@ -333,11 +330,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -353,11 +347,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -373,11 +364,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -386,11 +374,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
@@ -398,53 +383,38 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_valid_delta_costs(self):
         """Test successful handling of valid delta for cost requests."""
         query_params = {"delta": "cost"}
-        path = "/api/cost-management/v1/reports/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_valid_delta_usage(self):
         """Test successful handling of valid delta for usage requests."""
         query_params = {"delta": "usage"}
-        path = "/api/cost-management/v1/reports/gcp/storage/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/storage/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        path = "/api/cost-management/v1/reports/gcp/storage/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/storage/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        path = "/api/cost-management/v1/reports/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -452,22 +422,16 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         """Test that order_by[service] works with a matching group-by."""
         query_params = {"group_by": {"service": "asc"}, "order_by": {"service": "asc"}}
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service] fails without a matching group-by."""
         query_params = {"order_by": {"service": "asc"}}
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -480,11 +444,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -498,11 +459,8 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -513,13 +471,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPGCPQueryParamSerializer(data=param, context=ctx)
+                    serializer = OCPGCPQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
