@@ -32,10 +32,7 @@ class AWSCostForecastParamSerializerTest(IamTestCase):
     def test_valid_cost_type_no_exception(self):
         """Test that a valid cost type doesn't raise an exception."""
         query_params = {"cost_type": "blended_cost"}
-        path = "/api/cost-management/v1/forecasts/aws/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path("/api/cost-management/v1/forecasts/aws/costs/")
         serializer = AWSCostForecastParamSerializer(data=query_params, context=ctx)
         serializer.is_valid(raise_exception=True)
 

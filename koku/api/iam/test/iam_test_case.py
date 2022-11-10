@@ -5,6 +5,7 @@
 """Test Case extension to collect common test data."""
 import functools
 from base64 import b64encode
+from copy import deepcopy
 from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
@@ -195,6 +196,12 @@ class IamTestCase(TestCase):
         if path:
             m_request.path = path
         return QueryParameters(m_request, view)
+
+    def get_request_ctx_w_path(self, path):
+        """Update the request context path value."""
+        mock_request = deepcopy(self.request_context["request"])
+        mock_request.path = path
+        return {"request": mock_request}
 
 
 class RbacPermissions:

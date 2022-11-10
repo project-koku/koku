@@ -82,10 +82,7 @@ class AWSOrgQueryParamSerializerTest(IamTestCase):
             "limit": "5",
             "offset": "3",
         }
-        path = "/api/cost-management/v1/organizations/aws/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/organizations/aws/")
         serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
@@ -101,10 +98,8 @@ class AWSOrgQueryParamSerializerTest(IamTestCase):
             "limit": "5",
             "offset": "3",
         }
-        path = "/api/cost-management/v1/organizations/aws/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/organizations/aws/")
         serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid(raise_exception=True))
 
@@ -116,20 +111,14 @@ class AWSOrgQueryParamSerializerTest(IamTestCase):
             "limit": "5",
             "offset": "3",
         }
-        path = "/api/cost-management/v1/organizations/aws/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/organizations/aws/")
         serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {"invalid": "invalid"}
-        path = "/api/cost-management/v1/organizations/aws/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/organizations/aws/")
         serializer = AWSOrgQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -137,10 +126,7 @@ class AWSOrgQueryParamSerializerTest(IamTestCase):
     def test_parse_filter_dates_valid(self):
         """Test parse of a filter date-based param should succeed."""
         dh = DateHelper()
-        path = "/api/cost-management/v1/organizations/aws/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/organizations/aws/")
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
@@ -165,10 +151,7 @@ class AWSOrgQueryParamSerializerTest(IamTestCase):
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
         dh = DateHelper()
-        path = "/api/cost-management/v1/organizations/aws/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/organizations/aws/")
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},

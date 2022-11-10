@@ -541,10 +541,7 @@ class QueryParamSerializerTest(IamTestCase):
     def test_valid_cost_type_no_exception(self):
         """Test that a valid cost type doesn't raise an exception."""
         query_params = {"cost_type": "blended_cost"}
-        path = "/api/cost-management/v1/reports/aws/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/reports/aws/costs/")
         serializer = AWSQueryParamSerializer(data=query_params, context=ctx)
         serializer.is_valid(raise_exception=True)
 
@@ -769,10 +766,7 @@ class ParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        path = "/api/cost-management/v1/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/")
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(ValidationError):
@@ -784,10 +778,7 @@ class ParamSerializerTest(IamTestCase):
 class ReportQueryParamSerializerTest(IamTestCase):
     def test_validate_delta(self):
         """Test `delta` on base ReportQueryParamSerializer is invalid."""
-        path = "/api/cost-management/v1/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        ctx = self.get_request_ctx_w_path(path="/api/cost-management/v1/")
         serializer = ReportQueryParamSerializer(data={"delta": "cost"}, context=ctx)
         with self.assertRaises(ValidationError):
             self.assertFalse(serializer.is_valid())
