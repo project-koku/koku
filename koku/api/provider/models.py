@@ -8,11 +8,10 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.core.validators import MaxLengthValidator
+from django.db import connection
 from django.db import models
-from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
-from django.db.models.signals import post_delete
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
@@ -196,22 +195,13 @@ class Provider(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.customer:
-            using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
-                self._normalized_type = _type if not _type.endswith("-local") else _type[: _type.index("-")]
-                with transaction.atomic():
-                    self._cascade_delete()
-                    # Make sure we commit the cascade delete before deleting the Provider record
-                    transaction.on_commit(
-                        lambda: self._delete_from_target(
-                            {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                            target_values=[self.pk],
-                        )
-                    )
+                self._normalized_type = _type.removesuffix("-local")
+                self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
-                post_delete.send(sender=self.__class__, instance=self, using=using)
+                super().delete()
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()
@@ -222,8 +212,7 @@ class Provider(models.Model):
         # This is potentially dnagerous if the sub-target is a partitioned table
         # Care must be taken when calling this method
         sub_target_pk = [f.name for f in sub_target._meta.fields if f.primary_key][0]
-        values = [r[sub_target_pk] for r in sub_target.objects.filter(**filters).values(sub_target_pk)]
-        return values
+        return [r[sub_target_pk] for r in sub_target.objects.filter(**filters).values(sub_target_pk)]
 
     def _cascade_delete(self, target_table=None, target_values=None, public_schema="public", seen=None):
         if seen is None:
@@ -275,26 +264,26 @@ class Provider(models.Model):
         # can be shared among other providers, we must set the api_provider.infrastructure_id to null
         # for the infrastructure_id targeted for delete that is shared across other providers.
         # That is a confusing sentence to describe a circular relation between tables.
-        _sql = f"""
+        _sql = """
 update public.api_provider p
    set infrastructure_id = %s
   from public.api_providerinfrastructuremap m
  where m.infrastructure_provider_id = %s::uuid
    and p.infrastructure_id = m.id
 ;
-"""  # noqa: F541
+"""
         LOG.info(
             "Setting the infrastructure_id to null for any provider "
             + "records that link to the target infrastructure map records"
         )
         params = (None, self.pk)
-        with transaction.get_connection().cursor() as cur:
+        with connection.cursor() as cur:
             cur.execute(_sql, params)
 
     def _get_linked_table_names(self, target_table, public_schema):
         """Given a table name and schema name and type,
         find the other tables that are related by foreign keys"""
-        with transaction.get_connection().cursor() as cur:
+        with connection.cursor() as cur:
             link_table_sql = """
 select ftn.nspname as "table_schema",
        ft.relname as "table_name",
