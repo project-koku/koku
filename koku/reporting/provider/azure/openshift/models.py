@@ -98,6 +98,7 @@ class OCPAzureCostSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureCostSummaryByAccountP(models.Model):
@@ -133,6 +134,7 @@ class OCPAzureCostSummaryByAccountP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureCostSummaryByLocationP(models.Model):
@@ -169,6 +171,7 @@ class OCPAzureCostSummaryByLocationP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureCostSummaryByServiceP(models.Model):
@@ -205,6 +208,7 @@ class OCPAzureCostSummaryByServiceP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureComputeSummaryP(models.Model):
@@ -244,6 +248,7 @@ class OCPAzureComputeSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureStorageSummaryP(models.Model):
@@ -282,6 +287,7 @@ class OCPAzureStorageSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureNetworkSummaryP(models.Model):
@@ -320,6 +326,7 @@ class OCPAzureNetworkSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureDatabaseSummaryP(models.Model):
@@ -358,6 +365,7 @@ class OCPAzureDatabaseSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureCostLineItemDailySummaryP(models.Model):
@@ -399,62 +407,41 @@ class OCPAzureCostLineItemDailySummaryP(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
-
     node = models.CharField(max_length=253, null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     # Azure Fields
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
-
     subscription_guid = models.TextField(null=False)
-
     instance_type = models.TextField(null=True)
-
     service_name = models.TextField(null=True)
-
     resource_location = models.TextField(null=True)
-
     tags = JSONField(null=True)
-
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the Azure pretax_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(pretax_cost) - sum(project_cost)
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     currency = models.TextField(null=True)
-
     unit_of_measure = models.TextField(null=True)
-
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
-
     # A JSON dictionary of the project cost, keyed by project/namespace name
     # See comment on pretax_cost for project cost explanation
     project_costs = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPAzureCostLineItemProjectDailySummaryP(models.Model):
@@ -480,61 +467,35 @@ class OCPAzureCostLineItemProjectDailySummaryP(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     # Whether the data comes from a pod or volume report
     data_source = models.CharField(max_length=64, null=True)
-
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
-
     node = models.CharField(max_length=253, null=True)
-
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
-
     persistentvolume = models.CharField(max_length=253, null=True)
-
     storageclass = models.CharField(max_length=50, null=True)
-
     pod_labels = JSONField(null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     # Azure Fields
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
-
     subscription_guid = models.TextField(null=False)
-
     instance_type = models.TextField(null=True)
-
     service_name = models.TextField(null=True)
-
     resource_location = models.TextField(null=True)
-
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
     unit_of_measure = models.TextField(null=True)
-
     currency = models.TextField(null=True)
-
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
-
     tags = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
