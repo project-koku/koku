@@ -23,7 +23,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
     """Base class for OCP on Infrastructure."""
 
     @property
-    def annotations_test(self):
+    def category_annotations(self):
         """Create dictionary for query annotations.
 
         Returns:
@@ -53,7 +53,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query = query.annotate(**self.annotations).annotate(**self.annotations_test)
+            query = query.annotate(**self.annotations).annotate(**self.category_annotations)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
