@@ -321,11 +321,8 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_ocp_params_success(self):
@@ -340,11 +337,8 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
                 "resource_scope": [],
             },
         }
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -359,11 +353,8 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
             },
             "invalid": "param",
         }
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -378,11 +369,8 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -390,64 +378,47 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+
+        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_valid_delta_costs(self):
         """Test successful handling of valid delta for cost requests."""
         query_params = {"delta": "cost"}
-        path = "/api/cost-management/v1/reports/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_valid_delta_usage(self):
         """Test successful handling of valid delta for usage requests."""
         query_params = {"delta": "usage"}
-        path = "/api/cost-management/v1/reports/azure/storage/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/azure/storage/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        path = "/api/cost-management/v1/reports/azure/storage/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/azure/storage/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        path = "/api/cost-management/v1/reports/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -455,22 +426,16 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
         """Test that order_by[service_name] works with a matching group-by."""
         query_params = {"group_by": {"service_name": "asc"}, "order_by": {"service_name": "asc"}}
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -484,11 +449,8 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -502,11 +464,8 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context=ctx)
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -517,13 +476,10 @@ class OCPAzureQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
-        ctx = self._create_request_context(
-            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
-        )
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPAzureQueryParamSerializer(data=param, context=ctx)
+                    serializer = OCPAzureQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
