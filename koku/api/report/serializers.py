@@ -10,9 +10,11 @@ from rest_framework import serializers
 from rest_framework.fields import DateField
 
 from api.currency.currencies import CURRENCY_CHOICES
+from api.report.queries import ReportQueryHandler
 from api.utils import DateHelper
 from api.utils import get_currency
 from api.utils import materialized_view_month_start
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
 def handle_invalid_fields(this, data):
@@ -322,6 +324,10 @@ class ParamSerializer(BaseSerializer):
         """
         super().validate(data)
 
+        if data.get("category") and (not data.get("group_by") or not data.get("group_by").get("project")):
+            error = {"error": ("The parameter category may not be used with the group_by project parameter")}
+            raise serializers.ValidationError(error)
+
         if not data.get("currency"):
             data["currency"] = get_currency(self.context.get("request"))
 
@@ -363,6 +369,27 @@ class ParamSerializer(BaseSerializer):
             raise serializers.ValidationError(error)
 
         return data
+
+    def validate_category(self, value):
+        """Validate incoming categories.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
+        categories = None
+        db_categories = OpenshiftCostCategory.objects.values_list("name", flat=True).distinct()
+        if ReportQueryHandler.has_wildcard(value):
+            categories = db_categories
+        elif value:
+            if diff := set(value).difference(db_categories):
+                error = {"error": f"Unsupported category(ies): {diff}"}
+                raise serializers.ValidationError(error)
+            categories = value
+        return categories
 
     def validate_exclude(self, value):
         """Validate incoming exclude data.
