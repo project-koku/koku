@@ -1040,11 +1040,7 @@ class ReportQueryHandler(QueryHandler):
         other_str = "Others" if other_count > 1 else "Other"
         for group in group_by:
             others_data_frame[group] = other_str
-            if (
-                "project" in self.parameters.parameters.get("group_by", {})
-                or "and:project" in self.parameters.parameters.get("group_by", {})
-                or "or:project" in self.parameters.parameters.get("group_by", {})
-            ):
+            if is_grouped_by_project(self.parameters):
                 if self._category:
                     others_data_frame["classification"] = "category"
                 else:
