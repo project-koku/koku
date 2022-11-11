@@ -325,7 +325,7 @@ class ParamSerializer(BaseSerializer):
         super().validate(data)
 
         if data.get("category") and (not data.get("group_by") or not data.get("group_by").get("project")):
-            error = {"error": ("The parameter category may not be used with the group_by project parameter")}
+            error = {"error": ("Category may not be used without a group_by project parameter")}
             raise serializers.ValidationError(error)
 
         if not data.get("currency"):
