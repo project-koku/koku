@@ -5,6 +5,7 @@
 """Test the Report serializers."""
 from unittest import TestCase
 from unittest.mock import Mock
+from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
@@ -783,3 +784,13 @@ class ReportQueryParamSerializerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.assertFalse(serializer.is_valid())
             serializer.is_valid(raise_exception=True)
+
+    def test_validate_category(self):
+        """Test `category` on base ReportQueryParamSerializer is invalid."""
+        self.request_path = "/api/cost-management/v1/"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            serializer = ReportQueryParamSerializer(data={"category": "platform"}, context=self.ctx_w_path)
+            with self.assertRaises(ValidationError):
+                self.assertFalse(serializer.is_valid())
+                serializer.is_valid(raise_exception=True)
