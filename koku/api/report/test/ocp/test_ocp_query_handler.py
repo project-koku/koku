@@ -680,48 +680,60 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_group_by_project_w_classification(self):
-        """COST-1252: Test that grouping by project with limit works as expected."""
+        """Test that classification works as expected."""
         url = "?group_by[project]=*&category=*"
-        query_params = self.mocked_query_params(url, OCPCostView)
-        handler = OCPReportQueryHandler(query_params)
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
-        expected_cost_total = current_totals.get("cost_total")
-        self.assertIsNotNone(expected_cost_total)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        for line in query_output.get("data")[0].get("projects"):
-            if line.get("project") != "platform":
-                self.assertEqual(line["values"][0]["classification"], "project")
-        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
-        self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPCostView)
+            handler = OCPReportQueryHandler(query_params)
+            current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+            expected_cost_total = current_totals.get("cost_total")
+            self.assertIsNotNone(expected_cost_total)
+            query_output = handler.execute_query()
+            self.assertIsNotNone(query_output.get("data"))
+            self.assertIsNotNone(query_output.get("total"))
+            total = query_output.get("total")
+            for line in query_output.get("data")[0].get("projects"):
+                if line.get("project") != "platform":
+                    self.assertEqual(line["values"][0]["classification"], "project")
+            result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+            self.assertIsNotNone(result_cost_total)
+            self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_group_by_project_w_classification_and_other(self):
-        """COST-1252: Test that grouping by project with limit works as expected."""
+        """Test that classification works as expected with Other."""
         url = "?group_by[project]=*&category=*&filter[limit]=1"
-        query_params = self.mocked_query_params(url, OCPCostView)
-        handler = OCPReportQueryHandler(query_params)
-        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
-        expected_cost_total = current_totals.get("cost_total")
-        self.assertIsNotNone(expected_cost_total)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        for line in query_output.get("data")[0].get("projects"):
-            if line["project"] == "platform":
-                self.assertEqual(line["values"][0]["classification"], "category")
-            elif line["project"] == "Other":
-                self.assertEqual(line["values"][0]["classification"], "category")
-            elif line["project"] == "Others":
-                self.assertEqual(line["values"][0]["classification"], "category")
-            else:
-                self.assertEqual(line["values"][0]["classification"], "project")
-        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
-        self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPCostView)
+            handler = OCPReportQueryHandler(query_params)
+            current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+            expected_cost_total = current_totals.get("cost_total")
+            self.assertIsNotNone(expected_cost_total)
+            query_output = handler.execute_query()
+            self.assertIsNotNone(query_output.get("data"))
+            self.assertIsNotNone(query_output.get("total"))
+            total = query_output.get("total")
+            for line in query_output.get("data")[0].get("projects"):
+                if line["project"] == "platform":
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                elif line["project"] == "Other":
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                elif line["project"] == "Others":
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                else:
+                    self.assertEqual(line["values"][0]["classification"], "project")
+            result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+            self.assertIsNotNone(result_cost_total)
+            self.assertEqual(result_cost_total, expected_cost_total)
+
+    def test_category_error(self):
+        """Test category error w/o project group by."""
+        url = "?category=*"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            with self.assertRaises(ValidationError):
+                self.mocked_query_params(url, OCPCostView)
 
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""

@@ -211,7 +211,7 @@ class QueryParametersTests(TestCase):
 
     def test_category_property(self):
         """Test that the category property returns expected value."""
-        expected = "p"
+        expected = self.FAKE.word()
         fake_uri = f"category={expected}"
         fake_request = Mock(
             spec=HttpRequest,
@@ -226,54 +226,8 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["p"]
-            params = QueryParameters(fake_request, fake_view)
-            self.assertEqual(params.category, expected)
-
-    def test_category_property_wildcard(self):
-        """Test that the category property returns expected value with wildcard."""
-        expected = ["platform"]
-        fake_uri = "category=*"
-        fake_request = Mock(
-            spec=HttpRequest,
-            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
-            GET=Mock(urlencode=Mock(return_value=fake_uri)),
-        )
-        fake_view = Mock(
-            spec=ReportView,
-            provider=self.FAKE.word(),
-            query_handler=Mock(provider=self.provider),
-            report=self.FAKE.word(),
-            serializer=Mock,
-            tag_handler=[],
-        )
-        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
-            params = QueryParameters(fake_request, fake_view)
-            self.assertEqual(params.category, expected)
-
-    def test_category_property_error(self):
-        """Test that the category property errors as expected."""
-        fake_uri = "category=test"
-        fake_request = Mock(
-            spec=HttpRequest,
-            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
-            GET=Mock(urlencode=Mock(return_value=fake_uri)),
-        )
-        fake_view = Mock(
-            spec=ReportView,
-            provider=self.FAKE.word(),
-            query_handler=Mock(provider=self.provider),
-            report=self.FAKE.word(),
-            serializer=Mock,
-            tag_handler=[],
-        )
-        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
-            with self.assertRaises(ValidationError):
-                params = QueryParameters(fake_request, fake_view)
-                params.category
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.category, expected)
 
     def test_tenant_property(self):
         """Test that the tenant property returns expected value."""
