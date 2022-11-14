@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscomputesummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscomputesummaryp",
@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscostlineitemdailysummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscostlineitemdailysummaryp",
@@ -84,7 +84,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscostlineitemprojectdailysummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscostlineitemprojectdailysummaryp",
@@ -115,7 +115,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscostsummarybyaccountp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscostsummarybyaccountp",
@@ -146,7 +146,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscostsummarybyregionp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscostsummarybyregionp",
@@ -177,7 +177,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscostsummarybyservicep",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscostsummarybyservicep",
@@ -208,7 +208,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawscostsummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawscostsummaryp",
@@ -239,7 +239,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawsdatabasesummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawsdatabasesummaryp",
@@ -270,7 +270,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawsnetworksummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawsnetworksummaryp",
@@ -301,7 +301,7 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="ocpawsstoragesummaryp",
                     name="blended_cost",
-                    field=models.DecimalField(decimal_places=15, max_digits=15, null=True),
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 migrations.AddField(
                     model_name="ocpawsstoragesummaryp",
