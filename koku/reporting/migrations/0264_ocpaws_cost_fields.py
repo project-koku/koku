@@ -11,12 +11,12 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_compute_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -42,12 +42,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpawscostlineitem_daily_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -73,12 +73,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpawscostlineitem_project_daily_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -104,12 +104,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_cost_summary_by_account_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -135,12 +135,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_cost_summary_by_region_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -166,12 +166,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_cost_summary_by_service_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -197,12 +197,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_cost_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -228,12 +228,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_database_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -259,12 +259,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_network_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
@@ -290,12 +290,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql="""
+            """
                 ALTER TABLE reporting_ocpaws_storage_summary_p
-                    ADD COLUMN blended_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_blended TYPE numeric(33, 15),
-                    ADD COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
-                    ADD COLUMN markup_cost_savingsplan TYPE numeric(33, 15)
+                    ADD COLUMN markup_cost_blended numeric(33, 15),
+                    ADD COLUMN blended_cost numeric(33, 15),
+                    ADD COLUMN savingsplan_effective_cost numeric(33, 15),
+                    ADD COLUMN markup_cost_savingsplan numeric(33, 15)
             """,
             state_operations=[
                 migrations.AddField(
