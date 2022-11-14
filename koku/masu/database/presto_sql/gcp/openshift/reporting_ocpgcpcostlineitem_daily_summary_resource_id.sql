@@ -210,8 +210,6 @@ FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON gcp.usage_start_time = ocp.usage_start
         AND strpos(gcp.resource_name, ocp.node) != 0
-        AND ocp.namespace != 'Workers Unallocated Capacity'
-        AND ocp.namespace != 'Platform Unallocated Capacity'
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
@@ -332,8 +330,6 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
-        AND ocp.namespace != 'Workers Unallocated Capacity'
-        AND ocp.namespace != 'Platform Unallocated Capacity'
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'

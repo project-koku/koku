@@ -179,8 +179,6 @@ SELECT azure.uuid as azure_uuid,
                 (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
                     OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
             )
-        AND ocp.namespace != 'Workers Unallocated Capacity'
-        AND ocp.namespace != 'Platform Unallocated Capacity'
     WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
         AND azure.year = {{year}}
         AND azure.month = {{month}}
@@ -292,8 +290,6 @@ SELECT azure.uuid as azure_uuid,
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
-        AND ocp.namespace != 'Workers Unallocated Capacity'
-        AND ocp.namespace != 'Platform Unallocated Capacity'
     LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
         ON azure.uuid = pds.azure_uuid
     WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
