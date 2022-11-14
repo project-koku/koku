@@ -11,7 +11,7 @@ class AllowNullIcontains(Lookup):
     Currently exclusively beinng used for tag exclusions.
     """
 
-    lookup_name = "notlikelist"
+    lookup_name = "noticontainslist"
     prepare_rhs = False
 
     def as_sql(self, compiler, connection):

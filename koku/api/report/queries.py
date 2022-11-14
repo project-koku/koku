@@ -346,7 +346,7 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
         for tag in tag_filters:
             tag_db_name = self._mapper.tag_column + "__" + strip_tag_prefix(tag)
-            filt = {"field": tag_db_name, "operation": "notlikelist"}
+            filt = {"field": tag_db_name, "operation": "noticontainslist"}
             emptyset_filters.append({"field": tag_db_name, "operation": "isnull", "parameter": True})
             list_ = self.parameters.get_exclude(tag, list())
             if list_ and not ReportQueryHandler.has_wildcard(list_):
