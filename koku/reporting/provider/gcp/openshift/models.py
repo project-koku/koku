@@ -48,72 +48,46 @@ class OCPGCPCostLineItemDailySummaryP(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
-
     node = models.CharField(max_length=253, null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     # GCP Fields
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
-
     account_id = models.CharField(max_length=20)
-
     project_id = models.CharField(max_length=256)
-
     project_name = models.CharField(max_length=256)
-
     instance_type = models.CharField(max_length=50, null=True)
-
     service_id = models.CharField(max_length=256, null=True)
-
     service_alias = models.CharField(max_length=256, null=True, blank=True)
-
     region = models.TextField(null=True)
-
     tags = JSONField(null=True)
-
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the GCP unblended_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     currency = models.TextField(null=True)
-
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
     unit = models.TextField(null=True)
-
     # This is a count of the number of projects that share a GCP resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
-
     # A JSON dictionary of the project cost, keyed by project/namespace name
     # See comment on pretax_cost for project cost explanation
     project_costs = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
-
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPCostLineItemProjectDailySummaryP(models.Model):
@@ -141,80 +115,46 @@ class OCPGCPCostLineItemProjectDailySummaryP(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
-
     cluster_id = models.CharField(max_length=50, null=True)
-
     cluster_alias = models.CharField(max_length=256, null=True)
-
     # Whether the data comes from a pod or volume report
     data_source = models.CharField(max_length=64, null=True)
-
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
-
     node = models.CharField(max_length=253, null=True)
-
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
-
     persistentvolume = models.CharField(max_length=253, null=True)
-
     storageclass = models.CharField(max_length=50, null=True)
-
     pod_labels = JSONField(null=True)
-
     resource_id = models.CharField(max_length=253, null=True)
-
     usage_start = models.DateField(null=False)
-
     usage_end = models.DateField(null=False)
-
     # GCP Fields
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
-
     account_id = models.CharField(max_length=20)
-
     project_id = models.CharField(max_length=256)
-
     project_name = models.CharField(max_length=256)
-
     instance_type = models.CharField(max_length=50, null=True)
-
     service_id = models.CharField(max_length=256, null=True)
-
     service_alias = models.CharField(max_length=256, null=True, blank=True)
-
     sku_id = models.CharField(max_length=256, null=True)
-
     sku_alias = models.CharField(max_length=256, null=True)
-
     region = models.TextField(null=True)
-
     unit = models.CharField(max_length=63, null=True)
-
     usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     currency = models.CharField(max_length=10, null=True)
-
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     pod_credit = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
     tags = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
-
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPCostSummaryByAccountP(models.Model):
@@ -249,6 +189,7 @@ class OCPGCPCostSummaryByAccountP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPCostSummaryByGCPProjectP(models.Model):
@@ -285,6 +226,7 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPCostSummaryByRegionP(models.Model):
@@ -320,6 +262,7 @@ class OCPGCPCostSummaryByRegionP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPCostSummaryByServiceP(models.Model):
@@ -357,6 +300,7 @@ class OCPGCPCostSummaryByServiceP(models.Model):
     service_alias = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPCostSummaryP(models.Model):
@@ -387,6 +331,7 @@ class OCPGCPCostSummaryP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPComputeSummaryP(models.Model):
@@ -421,6 +366,7 @@ class OCPGCPComputeSummaryP(models.Model):
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     account_id = models.CharField(max_length=50, null=False)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPDatabaseSummaryP(models.Model):
@@ -456,6 +402,7 @@ class OCPGCPDatabaseSummaryP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPNetworkSummaryP(models.Model):
@@ -491,6 +438,7 @@ class OCPGCPNetworkSummaryP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPStorageSummaryP(models.Model):
@@ -526,6 +474,7 @@ class OCPGCPStorageSummaryP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPGCPTagsValues(models.Model):
