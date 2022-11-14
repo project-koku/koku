@@ -1,4 +1,3 @@
-# noqa
 from django.db.models import Field
 from django.db.models import Lookup
 
