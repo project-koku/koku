@@ -93,7 +93,7 @@ def main():
     logging.info("Running the hive migration for bucketing costs")
 
     logging.info("fetching schemas")
-    schemas = get_schemas()
+    schemas = ["acct7117525", "acct531488", "acct608080", "acct6089719"]
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
