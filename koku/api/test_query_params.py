@@ -209,6 +209,26 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.delta, expected)
 
+    def test_category_property(self):
+        """Test that the category property returns expected value."""
+        expected = self.FAKE.word()
+        fake_uri = f"category={expected}"
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
+            GET=Mock(urlencode=Mock(return_value=fake_uri)),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=self.provider),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.category, expected)
+
     def test_tenant_property(self):
         """Test that the tenant property returns expected value."""
         expected = self.FAKE.word()

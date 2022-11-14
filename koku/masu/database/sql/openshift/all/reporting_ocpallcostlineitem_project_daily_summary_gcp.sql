@@ -34,6 +34,7 @@ INSERT
            project_markup_cost,
            pod_cost,
            currency_code,
+           cost_category_id,
            source_uuid
        )
 SELECT 'GCP' as source_type,
@@ -59,6 +60,7 @@ SELECT 'GCP' as source_type,
        sum(project_markup_cost) as project_markup_cost,
        sum(pod_cost) as pod_cost,
        max(currency) as currency_code,
+       max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
  WHERE usage_start >= {{start_date}}::date

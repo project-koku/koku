@@ -311,6 +311,35 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
+    def test_execute_query_by_project(self):
+        """Test execute_query group_by project."""
+        url = "?group_by[project]=*"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        for data_item in data:
+            projects_data = data_item.get("projects")
+            for project_item in projects_data:
+                self.assertIsInstance(project_item.get("project"), str)
+
+    def test_execute_query_by_project_w_category(self):
+        """Test execute group_by project query with category."""
+        url = "?group_by[project]=*&category=*"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPAzureCostView)
+            handler = OCPAzureReportQueryHandler(query_params)
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            self.assertIsNotNone(data)
+            for data_item in data:
+                projects_data = data_item.get("projects")
+                for project_item in projects_data:
+                    if project_item.get("project") != "platform":
+                        self.assertTrue(project_item.get("values")[0].get("classification"), "project")
+
     def test_execute_query_curr_month_by_cluster(self):
         """Test execute_query for current month on monthly breakdown by group_by cluster."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501

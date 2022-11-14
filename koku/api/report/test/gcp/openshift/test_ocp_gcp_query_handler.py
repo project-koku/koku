@@ -848,6 +848,22 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPGCPCostView)
 
+    def test_execute_query_by_project_w_category(self):
+        """Test execute group_by project query with category."""
+        url = "?group_by[project]=*&category=*"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPGCPCostView)
+            handler = OCPGCPReportQueryHandler(query_params)
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            self.assertIsNotNone(data)
+            for data_item in data:
+                projects_data = data_item.get("projects")
+                for project_item in projects_data:
+                    if project_item.get("project") != "platform":
+                        self.assertTrue(project_item.get("values")[0].get("classification"), "project")
+
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
