@@ -37,6 +37,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import enable_unallocated_capacity
 from masu.util.common import month_date_range_tuple
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
@@ -735,6 +736,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             end_date = end_date.date()
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+        unallocated_capacity_enabled = enable_unallocated_capacity(self.schema)
 
         days = DateHelper().list_days(start_date, end_date)
         days_str = "','".join([str(day.day) for day in days])
@@ -757,6 +759,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": month,
             "days": days_str,
             "storage_exists": storage_exists,
+            "unallocated_capacity_enabled": unallocated_capacity_enabled,
         }
 
         LOG.info("TRINO OCP: Connect")

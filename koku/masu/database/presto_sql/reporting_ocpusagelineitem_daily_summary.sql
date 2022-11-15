@@ -409,6 +409,9 @@ What was selected from unallocated capacity.
 AND lids.namespace != 'Platform Unallocated Capacity'
 AND lids.namespace != 'Workers Unallocated Capacity'
  */
+
+{% if unallocated_capacity_enabled %}
+
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -480,7 +483,17 @@ WHERE lids.source = {{source}}
     AND lids.node IS NOT NULL
     AND lids.data_source = 'Pod'
 GROUP BY lids.node, lids.usage_start, lids.source_uuid
+
+{% else %}
+
+SELECT 1
+-- Developer Note: Jinja has a weird relationship
+-- with semicolons inside of if statements
+
+{% endif %}
+
 ;
+
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,

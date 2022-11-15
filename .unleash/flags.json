@@ -205,6 +205,24 @@
             ],
             "variants": [],
             "createdAt": "2022-09-08T09:48:54.492Z"
+        },
+        {
+            "name": "cost-management.backend.unallocated_capacity_enabled",
+            "description": "A list of schemas for customers that are currently being charged for their unallocated capacity.",
+            "type": "operational",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    }
+                }
+            ],
+            "variants": [],
+            "createdAt": "2022-11-14T19:57:52.119Z"
         }
     ],
     "strategies": [

@@ -59,7 +59,7 @@ def disable_summary_processing(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"Summary UNLEASH check (disable_summary_processing): {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-summary-processing", context))
     LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
 
@@ -71,9 +71,9 @@ def disable_ocp_on_cloud_summary(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"Summary UNLEASH check (disable_ocp_on_cloud_summary): {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context))
-    LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
+    LOG.info(f"    OCP on Cloud Summary {'disabled' if res else 'enabled'} {account}")
 
     return res
 
@@ -83,7 +83,7 @@ def disable_gcp_resource_matching(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"Summary UNLEASH check : {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context))
     LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
 
@@ -109,5 +109,17 @@ def is_large_customer(account):
 
     context = {"schema": account}
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context))
+
+    return res
+
+
+def enable_unallocated_capacity(account):
+    """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check (unallocated_capacity): {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.unallocated_capacity_enabled", context))
+    LOG.info(f"    Calculate unallocated capacity {'enabled' if res else 'disabled'} {account}")
 
     return res
