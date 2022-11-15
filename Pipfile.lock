@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4f067a495fc98a4e68e303b44c3567bd10d8f894f12c495bdda2c48d5ca36bc6"
+            "sha256": "518f8ac76b0ddd57bbfbbed06f7e315afa8570b33a71c45b8df6233e08c8f88a"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -79,11 +79,19 @@
         },
         "azure-core": {
             "hashes": [
-                "sha256:3c1cf368650e76ec009c07cd1174a95cdcb471b247bb72d18245f7d56c1809b2",
-                "sha256:b0d62e67ec6d47365eebb12c50bc96f7b22d06b359f56ce7f904b095cb46b195"
+                "sha256:578ea3ae56bca48880c96797871b6c954b5ae78d10d54360182c7604dc837f25",
+                "sha256:b0036a0d256329e08d1278dff7df36be30031d2ec9b16c691bc61e4732f71fe0"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==1.25.1"
+            "version": "==1.26.0"
+        },
+        "azure-identity": {
+            "hashes": [
+                "sha256:c3fc800af58b857e7faf0e310376e5ef10f5dad5090914cc42ffa6d7d23b6729",
+                "sha256:f5eb0035ac9ceca26658b30bb2a375755c4cda61d0e3fd236b0e52ade2cb0995"
+            ],
+            "index": "pypi",
+            "version": "==1.11.0"
         },
         "azure-mgmt-core": {
             "hashes": [
@@ -95,35 +103,35 @@
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
-                "sha256:1afd6d71f21158cba69fb6e8976b48cb0342fbfa5729ef6515962836af849e14",
-                "sha256:6e4ccfebf651e5b572a3a18780f2d9078ae3d5c61f0530e7ee042dcf4832c1f0"
+                "sha256:6d855472a4cd66f65dac651210d0440a75d3019b7368748b227fe86b84eb512b",
+                "sha256:fd143415ebb49e4e2912fded79d5e1ef678a28d93d289c2d393f4e07b430a0b2"
             ],
             "index": "pypi",
-            "version": "==0.2.0"
+            "version": "==3.0.0"
         },
         "azure-mgmt-resource": {
             "hashes": [
-                "sha256:52965ade31cd059fea2b1513d65fe616046e433de0e583dcf5c9c9bebf3ebd69",
-                "sha256:5c8203f72bfb483adb345f73df1be65351072f25714fc6bb77eb0d5b970aba3b"
+                "sha256:bd2060d56393ffe6246a8f2ca67e754edd03ec07b975630b30ae03a8860597a7",
+                "sha256:c6f6987e6f61f0cb23abc3fb3658770bae8d299a46834d43d4b20251495d3806"
             ],
             "index": "pypi",
-            "version": "==21.1.0"
+            "version": "==21.2.1"
         },
         "azure-mgmt-storage": {
             "hashes": [
-                "sha256:86a782cd1ca763f6680182a8b18e40a18814f84ff850be828a515fd221c26db7",
-                "sha256:fc8e3cbf3c58cab98d9b2218c774dae2cc90b693f5ab5a24a7a959febe6c0528"
+                "sha256:214f3fde8c91e27d53f2e654a28d15003ad3f6f15c8438a8205f0c88a48d9451",
+                "sha256:afdc830329c674d96a91c963fa03ac81a4e387dfbf9f5a4e823950dc1fe95659"
             ],
             "index": "pypi",
-            "version": "==11.2.0"
+            "version": "==20.1.0"
         },
         "azure-storage-blob": {
             "hashes": [
-                "sha256:726b86f733dc76218ce45b7a3254b61ba4f0cc3d68b7621be4985248c92ee483",
-                "sha256:899c4b8e2671812d2cf78f107556a27dbb128caaa2bb06094e72a3d5836740af"
+                "sha256:52b84658e8df7853a3cf1c563814655b5028b979b2a87905b92aa6bb30be240e",
+                "sha256:860d4d82985a4bfc7d3271e71275af330f54f330a754355435a7ba749ccde997"
             ],
             "index": "pypi",
-            "version": "==12.13.1"
+            "version": "==12.14.1"
         },
         "beautifulsoup4": {
             "hashes": [
@@ -887,6 +895,20 @@
             ],
             "version": "==3.0.0"
         },
+        "msal": {
+            "hashes": [
+                "sha256:78344cd4c91d6134a593b5e3e45541e666e37b747ff8a6316c3668dd1e6ab6b2",
+                "sha256:d2f1c26368ecdc28c8657d457352faa0b81b1845a7b889d8676787721ba86792"
+            ],
+            "version": "==1.20.0"
+        },
+        "msal-extensions": {
+            "hashes": [
+                "sha256:91e3db9620b822d0ed2b4d1850056a0f133cba04455e62f11612e40f5502f2ee",
+                "sha256:c676aba56b0cce3783de1b5c5ecfe828db998167875126ca4b47dc6436451354"
+            ],
+            "version": "==1.0.0"
+        },
         "msrest": {
             "hashes": [
                 "sha256:21120a810e1233e5e6cc7fe40b474eeb4ec6f757a15d7cf86702c369f9567c32",
@@ -1013,6 +1035,14 @@
             ],
             "index": "pypi",
             "version": "==0.19.2"
+        },
+        "portalocker": {
+            "hashes": [
+                "sha256:102ed1f2badd8dec9af3d732ef70e94b215b85ba45a8d7ff3c0003f19b442f4e",
+                "sha256:964f6830fb42a74b5d32bce99ed37d8308c1d7d44ddf18f3dd89f4680de97b39"
+            ],
+            "markers": "python_version >= '3.5' and platform_system != 'Windows'",
+            "version": "==2.6.0"
         },
         "prometheus-client": {
             "hashes": [
@@ -1745,11 +1775,11 @@
         },
         "azure-core": {
             "hashes": [
-                "sha256:3c1cf368650e76ec009c07cd1174a95cdcb471b247bb72d18245f7d56c1809b2",
-                "sha256:b0d62e67ec6d47365eebb12c50bc96f7b22d06b359f56ce7f904b095cb46b195"
+                "sha256:578ea3ae56bca48880c96797871b6c954b5ae78d10d54360182c7604dc837f25",
+                "sha256:b0036a0d256329e08d1278dff7df36be30031d2ec9b16c691bc61e4732f71fe0"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==1.25.1"
+            "version": "==1.26.0"
         },
         "azure-mgmt-core": {
             "hashes": [
@@ -1761,35 +1791,35 @@
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
-                "sha256:1afd6d71f21158cba69fb6e8976b48cb0342fbfa5729ef6515962836af849e14",
-                "sha256:6e4ccfebf651e5b572a3a18780f2d9078ae3d5c61f0530e7ee042dcf4832c1f0"
+                "sha256:6d855472a4cd66f65dac651210d0440a75d3019b7368748b227fe86b84eb512b",
+                "sha256:fd143415ebb49e4e2912fded79d5e1ef678a28d93d289c2d393f4e07b430a0b2"
             ],
             "index": "pypi",
-            "version": "==0.2.0"
+            "version": "==3.0.0"
         },
         "azure-mgmt-resource": {
             "hashes": [
-                "sha256:52965ade31cd059fea2b1513d65fe616046e433de0e583dcf5c9c9bebf3ebd69",
-                "sha256:5c8203f72bfb483adb345f73df1be65351072f25714fc6bb77eb0d5b970aba3b"
+                "sha256:bd2060d56393ffe6246a8f2ca67e754edd03ec07b975630b30ae03a8860597a7",
+                "sha256:c6f6987e6f61f0cb23abc3fb3658770bae8d299a46834d43d4b20251495d3806"
             ],
             "index": "pypi",
-            "version": "==21.1.0"
+            "version": "==21.2.1"
         },
         "azure-mgmt-storage": {
             "hashes": [
-                "sha256:86a782cd1ca763f6680182a8b18e40a18814f84ff850be828a515fd221c26db7",
-                "sha256:fc8e3cbf3c58cab98d9b2218c774dae2cc90b693f5ab5a24a7a959febe6c0528"
+                "sha256:214f3fde8c91e27d53f2e654a28d15003ad3f6f15c8438a8205f0c88a48d9451",
+                "sha256:afdc830329c674d96a91c963fa03ac81a4e387dfbf9f5a4e823950dc1fe95659"
             ],
             "index": "pypi",
-            "version": "==11.2.0"
+            "version": "==20.1.0"
         },
         "azure-storage-blob": {
             "hashes": [
-                "sha256:726b86f733dc76218ce45b7a3254b61ba4f0cc3d68b7621be4985248c92ee483",
-                "sha256:899c4b8e2671812d2cf78f107556a27dbb128caaa2bb06094e72a3d5836740af"
+                "sha256:52b84658e8df7853a3cf1c563814655b5028b979b2a87905b92aa6bb30be240e",
+                "sha256:860d4d82985a4bfc7d3271e71275af330f54f330a754355435a7ba749ccde997"
             ],
             "index": "pypi",
-            "version": "==12.13.1"
+            "version": "==12.14.1"
         },
         "boto3": {
             "hashes": [
@@ -2528,11 +2558,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:71f60d970aaf1a4e58eae27e110ef21d4766664001c185e9d10a2a251300552a",
-                "sha256:a1fbc95386aaa2149422f26fc49b45bab1e222134967847c5c809d41ee55341a"
+                "sha256:4c4e07e46788bfb05db32cc4a3c819c50be9dd60a932a8a3e056089e221f14a4",
+                "sha256:d7ebff00f47908b8d8ba8177d7ae1f4db71a7191a181f1732355afe84a88e03b"
             ],
             "index": "pypi",
-            "version": "==3.0.3"
+            "version": "==3.0.5"
         },
         "kubernetes": {
             "hashes": [
