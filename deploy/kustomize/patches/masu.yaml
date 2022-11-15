@@ -2,9 +2,6 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-masu
-    metadata:
-      annotations:
-        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently it supports only internal administrative api
     minReplicas: ${{MASU_MIN_REPLICAS}}
     webServices:
       public:
@@ -14,6 +11,9 @@
       metrics:
         enabled: true
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently it supports only internal administrative api
       image: ${IMAGE}:${IMAGE_TAG}
       env:
         - name: CLOWDER_ENABLED
