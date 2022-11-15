@@ -242,18 +242,19 @@ class ReportQueryHandler(QueryHandler):
             # if we execute them in a .exclude the optimizer adds IS NOT NULL that breaks
             # the no-{option} logic
             tag_exclusion_composed = self._set_tag_exclusion_filters()
+            composed_filters = filter_collection.compose()
+        else:
+            composed_filters = filter_collection
 
         and_composed_filters = self._set_operator_specified_filters("and", check_for_exclude)
         or_composed_filters = self._set_operator_specified_filters("or", check_for_exclude)
 
-        composed_filters = filter_collection.compose()
-
         if check_for_exclude:
             # When excluding, we can get a combination of None & filters
             if composed_filters:
-                composed_filters = composed_filters & and_composed_filters | or_composed_filters
+                composed_filters = composed_filters & and_composed_filters & or_composed_filters
             else:
-                composed_filters = and_composed_filters | or_composed_filters
+                composed_filters = and_composed_filters & or_composed_filters
         else:
             composed_filters = composed_filters & and_composed_filters & or_composed_filters
         if tag_exclusion_composed:
@@ -272,14 +273,16 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        exclusions = QueryFilterCollection()
+        # exclusions = QueryFilterCollection()
         # TODO: find a better name for ou_or_operator and ou_or_filter
         ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
         if ou_or_operator:
             ou_or_filters = filters.compose()
             filters = QueryFilterCollection()
 
+        composed_exclusions = None
         for q_param, filt in fields.items():
+            exclusion = QueryFilterCollection()
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             exclude_ = self.parameters.get_exclude(q_param, list())
@@ -293,7 +296,7 @@ class ReportQueryHandler(QueryHandler):
                             filters.add(q_filter)
                     for item in exclude_:
                         exclude_filter = QueryFilter(parameter=item, **_filt)
-                        exclusions.add(exclude_filter)
+                        exclusion.add(exclude_filter)
             else:
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
@@ -304,12 +307,18 @@ class ReportQueryHandler(QueryHandler):
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
                     exclude_filter = QueryFilter(parameter=item, **filt)
-                    exclusions.add(exclude_filter)
+                    exclusion.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
+            if exclusion:
+                if not composed_exclusions:
+                    composed_exclusions = exclusion.compose()
+                else:
+                    composed_exclusions | exclusion.compose()
+        LOG.info(f"composed_exclusions: {composed_exclusions}")
 
-        self.query_exclusions = self._check_for_operator_specific_filters(exclusions, True)
+        self.query_exclusions = self._check_for_operator_specific_filters(composed_exclusions, True)
         composed_filters = self._check_for_operator_specific_filters(filters)
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
