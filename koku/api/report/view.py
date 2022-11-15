@@ -81,14 +81,4 @@ class ReportView(APIView):
         paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
         paginated_result = paginator.paginate_queryset(output, request)
 
-        from django.db import connection
-
-        readable_queries = []
-        for dikt in connection.queries:
-            for key, item in dikt.items():
-                item = item.replace('"', "")
-                item = item.replace("\\", "")
-                readable_queries.append({key: item})
-        LOG.info(readable_queries)
-
         return paginator.get_paginated_response(paginated_result)
