@@ -104,6 +104,8 @@ def drop_table_by_partition(table, partition_column, conn_params):
                 logging.info(f"*** Deleting {table} partition {partition_column} = {partition} ***")
                 sql = f"DELETE FROM {table} WHERE {partition_column} = '{partition}'"
                 result = run_trino_sql(sql, conn_params)
+                logging.info("DELETE PARTITION result: ")
+                logging.info(result)
     except Exception as e:
         logging.info(e)
 
