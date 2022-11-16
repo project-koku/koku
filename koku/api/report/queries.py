@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
+from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
@@ -49,18 +50,21 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
-def _is_grouped_by_key(group_by, key):
-    return [k for k in group_by if k.startswith(key)]
+def _is_grouped_by_key(group_by, keys):
+    for key in keys:
+        for k in group_by:
+            if k.startswith(key):
+                return True
 
 
 def is_grouped_by_tag(parameters):
     """Determine if grouped by tag."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "tag")
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["tag"])
 
 
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "project")
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["project", "and:project", "or:project"])
 
 
 def check_if_valid_date_str(date_str):
@@ -96,6 +100,7 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
+        self._category = parameters.category
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
         self._delta = parameters.delta
@@ -524,6 +529,24 @@ class ReportQueryHandler(QueryHandler):
         ]
         return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
+    def _project_classification_annotation(self, query_data):
+        """Get the correct annotation for a project or category"""
+        if self._category:
+            return query_data.annotate(
+                classification=Case(
+                    When(project__in=self._category, then=Value("category")),
+                    default=Value("project"),
+                    output_field=CharField(),
+                )
+            )
+        else:
+            project_default_whens = [
+                When(project__startswith=project, then=Value("True")) for project in ["openshift-", "kube-"]
+            ]
+            return query_data.annotate(
+                default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
+            )
+
     @property
     def annotations(self):
         """Create dictionary for query annotations.
@@ -589,7 +612,7 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         for group in groupby:
-            if group in data and data.get(group) is None:
+            if group in data and pd.isnull(data.get(group)):
                 value = group
                 if group.startswith(tag_prefix):
                     value = group[len(tag_prefix) :]  # noqa
@@ -739,19 +762,26 @@ class ReportQueryHandler(QueryHandler):
             (list): The sorted/ordered list
 
         """
+        if not query_data:
+            return query_data
         if not (order_date := self.parameters.get("cost_explorer_order_by", {}).get("date")):
             return self._order_by(query_data, query_order_by)
-        sort_term = self._get_group_by()[0]
-        none_sort_term = f"no-{sort_term}"
         filtered_query_data = filter(lambda x: x["date"] == order_date, query_data)
         ordered_data = self._order_by(filtered_query_data, query_order_by)
-        order_of_interest = CategoricalDtype(
-            [entry.get(sort_term) or none_sort_term for entry in ordered_data], ordered=True
-        )
-        df = pd.DataFrame(query_data).fillna(value={sort_term: none_sort_term})
-        df[sort_term] = df[sort_term].astype(order_of_interest)
-        df.sort_values(by=["date", sort_term], inplace=True)
-        df.replace({sort_term: {none_sort_term: "None"}}, inplace=True)
+        if not ordered_data:
+            return self._order_by(query_data, query_order_by)
+        df = pd.DataFrame(query_data)
+        sort_terms = self._get_group_by()
+        none_sort_terms = [f"no-{sort_term}" for sort_term in sort_terms]
+        for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
+            # use a dictionary to uniquify the list and maintain the correct order
+            ordered_list = dict.fromkeys([entry.get(sort_term) or none_sort_term for entry in ordered_data]).keys()
+            df.fillna(value={sort_term: none_sort_term}, inplace=True)
+            df[sort_term] = df[sort_term].astype(CategoricalDtype(ordered_list, ordered=True))
+        bys = list(reversed(sort_terms + ["date"]))
+        df.sort_values(by=bys, inplace=True)
+        for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
+            df.replace({sort_term: {none_sort_term: None}}, inplace=True)
         return df.to_dict("records")
 
     def _order_by(self, data, order_fields):
@@ -1005,6 +1035,11 @@ class ReportQueryHandler(QueryHandler):
         other_str = "Others" if other_count > 1 else "Other"
         for group in group_by:
             others_data_frame[group] = other_str
+            if is_grouped_by_project(self.parameters):
+                if self._category:
+                    others_data_frame["classification"] = "category"
+                else:
+                    others_data_frame["default_project"] = "False"
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
         elif "gcp_project" in group_by:

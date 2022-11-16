@@ -6,6 +6,7 @@
 import copy
 import logging
 
+from django.db.models import CharField
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
@@ -21,6 +22,23 @@ LOG = logging.getLogger(__name__)
 class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
     """Base class for OCP on Infrastructure."""
 
+    @property
+    def category_annotations(self):
+        """Create dictionary for query annotations.
+
+        Returns:
+            (Dict): query annotations dictionary
+
+        """
+        annotations = {}
+        if is_grouped_by_project(self.parameters):
+            if self._category:
+                annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
+            else:
+                annotations["project"] = F("namespace")
+
+        return annotations
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -35,7 +53,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations).annotate(**self.category_annotations)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
@@ -43,6 +61,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query.values(*query_group_by).annotate(**annotations)
+            if is_grouped_by_project(self.parameters):
+                query_data = self._project_classification_annotation(query_data)
 
             if "account" in query_group_by:
                 query_data = query_data.annotate(

@@ -7,7 +7,7 @@ import logging
 import random
 from unittest.mock import patch
 
-from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
@@ -28,8 +28,8 @@ class AzureClientFactoryTestCase(TestCase):
         """Test case setup."""
         self.clouds = ["china", "germany", "public", "usgov"]
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_constructor(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_constructor(self, mock_get_token):
         """Test that we can create an AzureClientFactory object."""
         obj = AzureClientFactory(
             subscription_id=FAKE.uuid4(),
@@ -40,8 +40,8 @@ class AzureClientFactoryTestCase(TestCase):
         )
         self.assertTrue(isinstance(obj, AzureClientFactory))
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_costmanagement_client(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_costmanagement_client(self, mock_get_token):
         """Test the costmanagement_client property."""
         obj = AzureClientFactory(
             subscription_id=FAKE.uuid4(),
@@ -52,8 +52,8 @@ class AzureClientFactoryTestCase(TestCase):
         )
         self.assertTrue(isinstance(obj.cost_management_client, CostManagementClient))
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_credentials(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_credentials(self, mock_get_token):
         """Test the credentials property."""
         obj = AzureClientFactory(
             subscription_id=FAKE.uuid4(),
@@ -62,10 +62,10 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        self.assertTrue(isinstance(obj._credentials, ServicePrincipalCredentials))
+        self.assertTrue(isinstance(obj._credentials, ClientSecretCredential))
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_resource_client(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_resource_client(self, mock_get_token):
         """Test the resource_client property."""
         obj = AzureClientFactory(
             subscription_id=FAKE.uuid4(),
@@ -76,8 +76,8 @@ class AzureClientFactoryTestCase(TestCase):
         )
         self.assertTrue(isinstance(obj.resource_client, ResourceManagementClient))
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_storage_client(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_storage_client(self, mock_get_token):
         """Test the storage_client property."""
         obj = AzureClientFactory(
             subscription_id=FAKE.uuid4(),
@@ -88,8 +88,8 @@ class AzureClientFactoryTestCase(TestCase):
         )
         self.assertTrue(isinstance(obj.storage_client, StorageManagementClient))
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_subscription_id(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_subscription_id(self, mock_get_token):
         """Test the subscription_id property."""
         subscription_id = FAKE.uuid4()
         obj = AzureClientFactory(
@@ -101,8 +101,8 @@ class AzureClientFactoryTestCase(TestCase):
         )
         self.assertTrue(obj.subscription_id, subscription_id)
 
-    @patch("providers.azure.client.ServicePrincipalCredentials.set_token")
-    def test_cloud_storage_account(self, _):
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_cloud_storage_account(self, mock_get_token):
         """Test the cloud_storage_account method."""
         subscription_id = FAKE.uuid4()
         resource_group_name = FAKE.word()

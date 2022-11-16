@@ -463,6 +463,11 @@ class QueryParameters:
         return self.get("delta")
 
     @property
+    def category(self):
+        """Return category property."""
+        return self.get("category")
+
+    @property
     def parameters(self):
         """Return parameters property."""
         return self._parameters
