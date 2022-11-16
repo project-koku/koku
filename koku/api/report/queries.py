@@ -231,34 +231,36 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
-    def _check_for_operator_specific_filters(self, filter_collection, check_for_exclude=False):
-        """Checks for operator specific fitlers, and adds them to the filter collection"""
+    def _check_for_operator_specific_filters(self, filter_collection):
+        """Checks for operator specific fitlers, and adds them to the filter collection
+
+        Notes:
+            Tag exlusions are added to the query_filter instead of
+            the self.query_exclusions if we execute them in a .exclude
+            the django optimizer adds "IS NOT NULL" that breaks the no-{option} logic
+        """
         tag_exclusion_composed = None
-        if not check_for_exclude:
-            filter_collection = self._set_tag_filters(filter_collection)
-            filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and")
-            filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or")
-            # Tag exlusions are added to the query_filter instead of the self.query_exclusions
-            # if we execute them in a .exclude the optimizer adds IS NOT NULL that breaks
-            # the no-{option} logic
-            tag_exclusion_composed = self._set_tag_exclusion_filters()
-            composed_filters = filter_collection.compose()
-        else:
-            composed_filters = filter_collection
-
-        and_composed_filters = self._set_operator_specified_filters("and", check_for_exclude)
-        or_composed_filters = self._set_operator_specified_filters("or", check_for_exclude)
-
-        if check_for_exclude:
-            # When excluding, we can get a combination of None & filters
-            if composed_filters:
-                composed_filters = composed_filters & and_composed_filters & or_composed_filters
-            else:
-                composed_filters = and_composed_filters & or_composed_filters
-        else:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        filter_collection = self._set_tag_filters(filter_collection)
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and")
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or")
+        tag_exclusion_composed = self._set_tag_exclusion_filters()
+        composed_filters = filter_collection.compose()
+        and_composed_filters = self._set_operator_specified_filters("and")
+        or_composed_filters = self._set_operator_specified_filters("or")
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
+        return composed_filters
+
+    def _check_for_operator_specific_exlusions(self, composed_filters):
+        """Check for operator specific filters for exclusions."""
+        # Tag exclusion filters are added to the self.query_filter. COST-3199
+        and_composed_filters = self._set_operator_specified_filters("and")
+        or_composed_filters = self._set_operator_specified_filters("or")
+        if composed_filters:
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        else:
+            composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -318,7 +320,7 @@ class ReportQueryHandler(QueryHandler):
                     composed_exclusions | exclusion.compose()
         LOG.info(f"composed_exclusions: {composed_exclusions}")
 
-        self.query_exclusions = self._check_for_operator_specific_filters(composed_exclusions, True)
+        self.query_exclusions = self._check_for_operator_specific_exlusions(composed_exclusions)
         composed_filters = self._check_for_operator_specific_filters(filters)
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
