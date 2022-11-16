@@ -569,7 +569,7 @@ class ReportQueryHandler(QueryHandler):
             )
         else:
             project_default_whens = [
-                When(project__icontains=project, then=Value("True")) for project in ["openshift-", "kube-"]
+                When(project__startswith=project, then=Value("True")) for project in ["openshift-", "kube-"]
             ]
             return query_data.annotate(
                 default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
