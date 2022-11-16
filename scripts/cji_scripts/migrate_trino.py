@@ -127,25 +127,10 @@ def main():
         CONNECT_PARAMS["schema"] = schema
         # logging.info(f"*** Adding column to tables for schema {schema} ***")
         logging.info(f"*** Dropping tables for schema {schema} ***")
-        # drop_tables(tables_to_drop, CONNECT_PARAMS)
         drop_table_by_partition("reporting_ocpusagelineitem_daily_summary", "source", CONNECT_PARAMS)
-        drop_table_by_partition("reporting_ocpawscostlineitem_project_daily_summary", "source", CONNECT_PARAMS)
-        drop_table_by_partition("reporting_ocpazurecostlineitem_project_daily_summary", "source", CONNECT_PARAMS)
-        drop_table_by_partition("reporting_ocpgcpcostlineitem_project_daily_summary", "source", CONNECT_PARAMS)
-
-        # add_columns_to_table(columns_to_add, "reporting_ocpusagelineitem_daily_summary", CONNECT_PARAMS)
-        # add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
-        # add_columns_to_table(
-        #     columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS
-        # )
-        # add_columns_to_table(columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary", CONNECT_PARAMS)
-        # add_columns_to_table(
-        #     columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary_temp", CONNECT_PARAMS
-        # )
-        # add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
-        # add_columns_to_table(
-        #     columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS
-        # )
+        drop_table_by_partition("reporting_ocpawscostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
+        drop_table_by_partition("reporting_ocpazurecostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
+        drop_table_by_partition("reporting_ocpgcpcostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
