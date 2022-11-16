@@ -255,8 +255,8 @@ class ReportQueryHandler(QueryHandler):
     def _check_for_operator_specific_exlusions(self, composed_filters):
         """Check for operator specific filters for exclusions."""
         # Tag exclusion filters are added to the self.query_filter. COST-3199
-        and_composed_filters = self._set_operator_specified_filters("and")
-        or_composed_filters = self._set_operator_specified_filters("or")
+        and_composed_filters = self._set_operator_specified_filters("and", True)
+        or_composed_filters = self._set_operator_specified_filters("or", True)
         if composed_filters:
             composed_filters = composed_filters & and_composed_filters & or_composed_filters
         else:
