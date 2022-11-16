@@ -16,7 +16,6 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.models import OCPAWSCostLineItemDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
@@ -686,7 +685,10 @@ class OCPAWSProviderMap(ProviderMap):
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {"query": OCPAWSCostLineItemDailySummaryP, "total": OCPAWSCostLineItemDailySummaryP},
+                "tables": {
+                    "query": OCPAWSCostLineItemProjectDailySummaryP,
+                    "total": OCPAWSCostLineItemProjectDailySummaryP,
+                },
             }
         ]
 
