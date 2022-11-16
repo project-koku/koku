@@ -56,6 +56,11 @@ class SourcesErrorMessageTest(TestCase):
             },
             {
                 "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": "Authentication failed",
+                "expected_message": ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE,
+            },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
                 "internal_message": (
                     ", AdalError: Get Token request returned http error: 400 and server response:"
                     ' {"error":"invalid_request","error_description":"AADSTS90002: Tenant'
