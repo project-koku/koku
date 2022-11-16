@@ -417,9 +417,6 @@ SELECT pds.gcp_uuid,
     usage_amount / r.gcp_uuid_count as usage_amount,
     currency,
     invoice_month,
-    -- credit_amount / r.gcp_uuid_count as credit_amount,
-    -- unblended_cost / r.gcp_uuid_count as unblended_cost,
-    -- markup_cost / r.gcp_uuid_count as markup_cost,
     CASE WHEN ocp_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * credit_amount
         ELSE credit_amount / r.gcp_uuid_count

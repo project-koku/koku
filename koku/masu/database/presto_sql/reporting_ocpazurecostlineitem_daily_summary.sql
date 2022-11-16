@@ -372,8 +372,6 @@ SELECT pds.azure_uuid,
     unit_of_measure,
     usage_quantity / r.azure_uuid_count as usage_quantity,
     currency,
-    -- pretax_cost / r.azure_uuid_count as pretax_cost,
-    -- markup_cost / r.azure_uuid_count as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
         ELSE pretax_cost / r.azure_uuid_count
