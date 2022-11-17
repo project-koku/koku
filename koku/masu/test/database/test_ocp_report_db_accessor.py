@@ -2872,6 +2872,30 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_hive_partitions_by_source_success(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        result = self.accessor.delete_hive_partitions_by_source("table", "partition_column", self.ocp_provider_uuid)
+        mock_trino.assert_called()
+        self.assertTrue(result)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            result = self.accessor.delete_hive_partitions_by_source(
+                "table", "partition_column", self.ocp_provider_uuid
+            )
+            self.assertFalse(result)
+        mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_max_min_timestamp_from_parquet(self, mock_query):
         """Get the max and min timestamps for parquet data given a date range"""
