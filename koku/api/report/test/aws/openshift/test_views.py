@@ -5,7 +5,6 @@
 """Test the OCP on AWS Report views."""
 import datetime
 import random
-from unittest import skip
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -468,7 +467,6 @@ class OCPAWSReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         with tenant_context(self.tenant):
