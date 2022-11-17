@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     volume_labels varchar,
     tags varchar,
     project_rank integer,
-    data_source_rank integer
+    data_source_rank integer,
+    cost_category_id int
 ) WITH(format = 'PARQUET')
 ;
 
@@ -95,6 +96,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     tags varchar,
     project_rank integer,
     data_source_rank integer,
+    cost_category_id int,
     gcp_source varchar,
     ocp_source varchar,
     year varchar,
@@ -150,7 +152,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
-    tags
+    tags,
+    cost_category_id
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -194,7 +197,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     NULL as volume_labels,
-    max(json_format(json_parse(gcp.labels))) as tags
+    max(json_format(json_parse(gcp.labels))) as tags,
+    max(ocp.cost_category_id) as cost_category_id
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
@@ -258,7 +262,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
-    tags
+    tags,
+    cost_category_id
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -302,7 +307,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.volume_labels) as volume_labels,
-    max(json_format(json_parse(gcp.labels))) as tags
+    max(json_format(json_parse(gcp.labels))) as tags,
+    max(ocp.cost_category_id) as cost_category_id
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
@@ -372,6 +378,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
+    cost_category_id,
     gcp_source,
     ocp_source,
     year,
@@ -448,6 +455,7 @@ SELECT pds.gcp_uuid,
                 cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
     END as tags,
+    cost_category_id,
     '{{gcp_source_uuid | sqlsafe }}' as gcp_source,
     '{{ocp_source_uuid | sqlsafe }}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
@@ -492,6 +500,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     pod_cost,
     pod_credit,
     tags,
+    cost_category_id,
     source_uuid,
     credit_amount,
     invoice_month
@@ -529,6 +538,7 @@ SELECT uuid(),
     pod_cost,
     pod_credit,
     json_parse(tags),
+    cost_category_id,
     cast(gcp_source as UUID),
     credit_amount,
     invoice_month

@@ -10,8 +10,10 @@ from django.conf import settings
 from django.core.validators import MaxLengthValidator
 from django.db import connection
 from django.db import models
+from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
+from django.db.models.signals import post_delete
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
@@ -195,13 +197,20 @@ class Provider(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.customer:
+            using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
                 self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
-                super().delete()
+                LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
+                self._delete_from_target(
+                    {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                    target_values=[self.pk],
+                )
+                LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table} COMPLETE")
+                post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()

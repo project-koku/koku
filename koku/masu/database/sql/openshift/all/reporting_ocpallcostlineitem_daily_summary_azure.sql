@@ -32,6 +32,7 @@ INSERT
            unblended_cost,
            markup_cost,
            currency_code,
+           cost_category_id,
            shared_projects,
            source_uuid
        )
@@ -56,6 +57,7 @@ SELECT 'Azure'::text AS source_type,
        sum(azure.pretax_cost) AS unblended_cost,
        sum(azure.markup_cost),
        max(azure.currency) AS currency_code,
+       max(cost_category_id) as cost_category_id,
        max(azure.shared_projects),
        {{source_uuid}}::uuid as source_uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary_p AS azure

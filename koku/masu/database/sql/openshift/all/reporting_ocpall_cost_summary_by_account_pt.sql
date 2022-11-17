@@ -24,6 +24,7 @@ INSERT
            unblended_cost,
            markup_cost,
            currency_code,
+           cost_category_id,
            source_uuid
        )
 SELECT {{source_type}},
@@ -36,6 +37,7 @@ SELECT {{source_type}},
        sum(unblended_cost),
        sum(markup_cost),
        max(currency_code),
+       max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date

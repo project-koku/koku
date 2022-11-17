@@ -17,6 +17,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     supplementary_usage_cost,
     supplementary_project_monthly_cost,
     source_uuid,
+    cost_category_id,
     raw_currency
 )
     SELECT uuid_generate_v4() as id,
@@ -48,6 +49,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
             'pvc', sum(((coalesce(supplementary_project_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
         ) as supplementary_project_monthly_cost,
         {{source_uuid}}::uuid as source_uuid,
+        max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date

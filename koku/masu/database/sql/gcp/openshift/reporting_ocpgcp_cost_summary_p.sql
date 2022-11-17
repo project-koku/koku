@@ -19,7 +19,8 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_p (
     currency,
     source_uuid,
     credit_amount,
-    invoice_month
+    invoice_month,
+    cost_category_id
 )
     SELECT uuid_generate_v4() as id,
         cluster_id,
@@ -31,7 +32,8 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_p (
         max(currency) as currency,
         source_uuid,
         sum(credit_amount) as credit_amount,
-        invoice_month
+        invoice_month,
+        max(cost_category_id)
     FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
