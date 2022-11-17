@@ -21,6 +21,7 @@ from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
+from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -470,13 +471,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
-    def back_populate_ocp_on_aws_daily_summary(self, start_date, end_date, report_period_id):
-        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+    def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
+        """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data(
-            "masu.database", "sql/reporting_ocpawscostentrylineitem_daily_summary_back_populate.sql"
-        )
+        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,

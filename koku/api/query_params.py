@@ -52,7 +52,7 @@ def enable_negative_filtering(org_id):
     LOG.info(f"enable_negative_filtering context: {context}")
     result = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-enable-negative-filtering", context))
     LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
-    return result
+    return True
 
 
 class QueryParameters:

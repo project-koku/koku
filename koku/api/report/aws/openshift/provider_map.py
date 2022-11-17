@@ -175,10 +175,6 @@ class OCPAWSProviderMap(ProviderMap):
                         "default_ordering": {"cost_total": "desc"},
                     },
                     "costs_by_project": {
-                        "tables": {
-                            "query": OCPAWSCostLineItemProjectDailySummaryP,
-                            "total": OCPAWSCostLineItemProjectDailySummaryP,
-                        },
                         "aggregates": {
                             "infra_total": Sum(
                                 (
@@ -372,10 +368,6 @@ class OCPAWSProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage_by_project": {
-                        "tables": {
-                            "query": OCPAWSCostLineItemProjectDailySummaryP,
-                            "total": OCPAWSCostLineItemProjectDailySummaryP,
-                        },
                         "aggregates": {
                             "infra_total": Sum(
                                 (
@@ -576,10 +568,6 @@ class OCPAWSProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                     },
                     "instance_type_by_project": {
-                        "tables": {
-                            "query": OCPAWSCostLineItemProjectDailySummaryP,
-                            "total": OCPAWSCostLineItemProjectDailySummaryP,
-                        },
                         "aggregates": {
                             "infra_total": Sum(
                                 (
