@@ -28,7 +28,7 @@ from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
-from reporting.models import OCPAWSCostLineItemDailySummaryP
+from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
@@ -512,9 +512,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                 )
 
-                OCPAWSCostLineItemDailySummaryP.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                    markup_cost=(F("unblended_cost") * markup)
-                )
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
+                    cost_entry_bill_id=bill_id, **date_filters
+                ).update(project_markup_cost=(F("unblended_cost") * markup))
                 for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
                     ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
                         markup_cost=(F("unblended_cost") * markup)
