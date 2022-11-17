@@ -1549,41 +1549,33 @@ class OCIReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, OCITagView)
+        query_params = self.mocked_query_params("?", OCITagView)
         handler = OCITagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, OCICostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, OCICostView)
-        handler = OCIReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, OCICostView)
-        handler = OCIReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"no-{group_tag}" in str(data):
+            check_no_option = True
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, OCICostView)
+            handler = OCIReportQueryHandler(query_params)
+            url = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"no-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, *args):
