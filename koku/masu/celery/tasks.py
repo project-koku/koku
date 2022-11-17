@@ -30,6 +30,7 @@ from koku import celery_app
 from koku.notifications import NotificationService
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts_accessor import AccountsAccessor
@@ -44,6 +45,7 @@ from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
 from masu.util.ocp.common import REPORT_TYPES
+from reporting.models import TRINO_MANAGED_TABLES
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
@@ -247,6 +249,11 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
     for prefix in prefixes:
         LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
         deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
+
+    if provider_type == Provider.PROVIDER_OCP:
+        accessor = OCPReportDBAccessor(schema_name)
+        for table, partition_column in TRINO_MANAGED_TABLES.items():
+            accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
 
 
 @celery_app.task(
