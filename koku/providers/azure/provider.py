@@ -122,9 +122,6 @@ class AzureProvider(ProviderInterface):
                 key = ProviderErrors.AZURE_NO_REPORT_FOUND
                 message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
                 raise ValidationError(error_obj(key, message))
-        except HttpResponseError as http_resp_err:
-            key = ProviderErrors.AZURE_CLIENT_ERROR
-            raise ValidationError(error_obj(key, str(http_resp_err)))
         except AzureCostReportNotFound as costreport_err:
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
@@ -134,6 +131,7 @@ class AzureProvider(ProviderInterface):
             AzureException,
             AzureServiceError,
             ClientException,
+            HttpResponseError,
             TypeError,
             ValueError,
         ) as exc:
