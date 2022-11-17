@@ -235,11 +235,10 @@ class ReportQueryHandler(QueryHandler):
         """Checks for operator specific fitlers, and adds them to the filter collection
 
         Notes:
-            Tag exlusions are added to the query_filter instead of
-            the self.query_exclusions if we execute them in a .exclude
-            the django optimizer adds "IS NOT NULL" that breaks the no-{option} logic
+            Tag exclusions are constructed to use Django's `.filter` instead of 
+            `.exclude`. Django adds "IS NOT NULL" when using `.exclude` which removes 
+            the `no-{option}` results.
         """
-        tag_exclusion_composed = None
         filter_collection = self._set_tag_filters(filter_collection)
         filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and")
         filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or")
