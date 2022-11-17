@@ -225,7 +225,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 .all()
             )
             for item in query:
-                self.assertAlmostEqual(item.project_markup_cost, item.pod_cost * markup_dec)
+                self.assertAlmostEqual(item.project_markup_cost, item.unblended_cost * markup_dec)
 
     def test_get_infra_map_from_providers(self):
         """Test that an infrastructure map is returned."""
