@@ -18,7 +18,6 @@ class AllowNullIcontains(Lookup):
         lhs, lhs_params = self.process_lhs(compiler, connection)
         rhs, rhs_params = self.process_rhs(compiler, connection)
         formatted_sql = []
-        lhs = lhs.replace("->", "->>")  # the lhs_param is returning it as a json object, but I need it as text.
         params = tuple()
         for rhs_param in rhs_params:
             for exclude in rhs_param:
