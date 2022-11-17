@@ -177,3 +177,10 @@ OCP_ON_AZURE_PERSPECTIVES = (
     OCPAzureNetworkSummaryP,
     OCPAzureDatabaseSummaryP,
 )
+
+TRINO_MANAGED_TABLES = {
+    "reporting_ocpusagelineitem_daily_summary": "source",
+    "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
+}
