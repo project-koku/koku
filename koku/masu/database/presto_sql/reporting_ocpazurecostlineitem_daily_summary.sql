@@ -290,6 +290,8 @@ SELECT azure.uuid as azure_uuid,
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
+        AND namespace != 'Workers Unallocated Capacity'
+        AND namespace != 'Platform Unallocated Capacity'
     LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
         ON azure.uuid = pds.azure_uuid
     WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
