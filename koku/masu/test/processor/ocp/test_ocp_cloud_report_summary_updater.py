@@ -200,33 +200,6 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             for item in query:
                 self.assertAlmostEqual(item.markup_cost, item.unblended_cost * markup_dec)
 
-    @patch("masu.processor.ocp.ocp_cloud_summary_updater.CostModelDBAccessor")
-    def test_update_project_markup_cost(self, mock_cost_model):
-        """Test that summary tables are updated correctly."""
-        markup = {"value": 10, "unit": "percent"}
-        mock_cost_model.return_value.__enter__.return_value.markup = markup
-        markup_dec = decimal.Decimal(markup.get("value") / 100)
-
-        start_date = self.dh.this_month_start
-        end_date = self.dh.this_month_end
-        updater = OCPCloudReportSummaryUpdater(
-            schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
-        )
-
-        updater.update_summary_tables(
-            start_date, end_date, self.ocp_on_aws_ocp_provider.uuid, self.aws_provider.uuid, Provider.PROVIDER_AWS
-        )
-
-        summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        with AWSReportDBAccessor(self.schema) as aws_accessor:
-            query = (
-                aws_accessor._get_db_obj_query(summary_table_name)
-                .filter(cost_entry_bill__billing_period_start=start_date, data_source="Pod")
-                .all()
-            )
-            for item in query:
-                self.assertAlmostEqual(item.project_markup_cost, item.unblended_cost * markup_dec)
-
     def test_get_infra_map_from_providers(self):
         """Test that an infrastructure map is returned."""
         updater = OCPCloudReportSummaryUpdater(
