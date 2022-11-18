@@ -41,7 +41,7 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from reporting.provider.ocp.models import OpenshiftCostCategory
+from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -302,9 +302,11 @@ class ReportQueryHandler(QueryHandler):
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
-                        if OpenshiftCostCategory.objects.filter(name=item):
+                        if self._category:
                             param_id = (
-                                OpenshiftCostCategory.objects.values_list("id", flat=True).filter(name=item).first()
+                                OCPUsageLineItemDailySummary.objects.values_list("cost_category_id", flat=True)
+                                .filter(cost_category__name__contains=item)
+                                .first()
                             )
                             q_filter = QueryFilter(
                                 parameter=param_id, **{"field": "cost_category__id", "operation": "icontains"}
@@ -316,8 +318,12 @@ class ReportQueryHandler(QueryHandler):
 
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
-                    if OpenshiftCostCategory.objects.filter(name=item):
-                        param_id = OpenshiftCostCategory.objects.values_list("id", flat=True).filter(name=item).first()
+                    if self._category:
+                        param_id = (
+                            OCPUsageLineItemDailySummary.objects.values_list("cost_category_id", flat=True)
+                            .filter(cost_category__name__contains=item)
+                            .first()
+                        )
                         exclude_filter = QueryFilter(
                             parameter=param_id, **{"field": "cost_category__id", "operation": "icontains"}
                         )
