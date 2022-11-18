@@ -321,7 +321,7 @@ class ReportQueryHandler(QueryHandler):
                         exclude_filter = QueryFilter(
                             parameter=param_id, **{"field": "cost_category__id", "operation": "icontains"}
                         )
-                        exclusion.add(q_filter)
+                        exclusion.add(exclude_filter)
                     else:
                         exclude_filter = QueryFilter(parameter=item, **filt)
                         exclusion.add(exclude_filter)
