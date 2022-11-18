@@ -41,6 +41,7 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 LOG = logging.getLogger(__name__)
 
@@ -301,23 +302,29 @@ class ReportQueryHandler(QueryHandler):
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
-                        if item == "platform":
-                            q_filter0 = QueryFilter(parameter="openshift-", **filt)
-                            q_filter1 = QueryFilter(parameter="kube-", **filt)
-                            filters.add(q_filter0)
-                            filters.add(q_filter1)
-                        q_filter = QueryFilter(parameter=item, **filt)
-                        filters.add(q_filter)
+                        if OpenshiftCostCategory.objects.filter(name=item):
+                            param_id = (
+                                OpenshiftCostCategory.objects.values_list("id", flat=True).filter(name=item).first()
+                            )
+                            q_filter = QueryFilter(
+                                parameter=param_id, **{"field": "cost_category__id", "operation": "icontains"}
+                            )
+                            filters.add(q_filter)
+                        else:
+                            q_filter = QueryFilter(parameter=item, **filt)
+                            filters.add(q_filter)
 
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
-                    if item == "platform":
-                        exclude_filter0 = QueryFilter(parameter="openshift-", **filt)
-                        exclude_filter1 = QueryFilter(parameter="kube-", **filt)
-                        exclusions.add(exclude_filter0)
-                        exclusions.add(exclude_filter1)
-                    exclude_filter = QueryFilter(parameter=item, **filt)
-                    exclusion.add(exclude_filter)
+                    if OpenshiftCostCategory.objects.filter(name=item):
+                        param_id = OpenshiftCostCategory.objects.values_list("id", flat=True).filter(name=item).first()
+                        exclude_filter = QueryFilter(
+                            parameter=param_id, **{"field": "cost_category__id", "operation": "icontains"}
+                        )
+                        exclusion.add(q_filter)
+                    else:
+                        exclude_filter = QueryFilter(parameter=item, **filt)
+                        exclusion.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
