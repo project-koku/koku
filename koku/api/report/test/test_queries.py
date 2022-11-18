@@ -490,6 +490,7 @@ class ReportQueryHandlerTest(IamTestCase):
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
             mock_object.values_list.return_value.distinct.return_value = ["platform"]
             query_params = self.mocked_query_params(url, OCPAzureCostView)
+            query_params.parameters["exclude"] = OrderedDict([("project", ["platform"])])
             handler = OCPAzureReportQueryHandler(query_params)
             query_output = handler.execute_query()
             data = query_output.get("data")
