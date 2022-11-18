@@ -306,9 +306,8 @@ class ReportQueryHandler(QueryHandler):
                                 parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
                             )
                             filters.add(q_filter)
-                        else:
-                            q_filter = QueryFilter(parameter=item, **filt)
-                            filters.add(q_filter)
+                        q_filter = QueryFilter(parameter=item, **filt)
+                        filters.add(q_filter)
 
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
@@ -317,9 +316,8 @@ class ReportQueryHandler(QueryHandler):
                             parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
                         )
                         exclusion.add(exclude_filter)
-                    else:
-                        exclude_filter = QueryFilter(parameter=item, **filt)
-                        exclusion.add(exclude_filter)
+                    exclude_filter = QueryFilter(parameter=item, **filt)
+                    exclusion.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
