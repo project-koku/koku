@@ -59,7 +59,8 @@ class ProviderErrors:
         "Cost management requires that AWS Cost and Usage Reports use GZIP compression format."
     )
     AZURE_MISSING_EXPORT_MESSAGE = (
-        "A cost management export cannot be found. In Azure, create a daily export task for your storage account."
+        "The Azure cost export cannot be found. Ensure the Storage account name, Resource group name, "
+        "and Subscription ID are correct. In Azure, create a daily export task for your storage account."
     )
     AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE = (
         "Cost management requires a resource group and "
