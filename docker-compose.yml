@@ -16,7 +16,7 @@ services:
       - unleash
 
   koku-server:
-    container_name: koku_server
+    container_name: koku-server
     image: koku_base
     working_dir: /koku
     entrypoint:
@@ -78,7 +78,7 @@ services:
       - koku-base
 
   masu-server:
-    container_name: masu_server
+    container_name: masu-server
     image: koku_base
     working_dir: /koku
     entrypoint:
@@ -232,7 +232,7 @@ services:
         - koku-base
 
   koku-listener:
-    container_name: koku_listener
+    container_name: koku-listener
     image: koku_base
     working_dir: /koku/
     entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'listener']
@@ -284,7 +284,7 @@ services:
       - koku-base
 
   sources-client:
-    container_name: sources_client
+    container_name: sources-client
     image: koku_base
     restart: on-failure:25
     working_dir: /koku/
@@ -344,7 +344,7 @@ services:
       - koku-base
 
   koku-beat:
-    container_name: koku_beat
+    container_name: koku-beat
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
@@ -385,7 +385,7 @@ services:
 ### Utilities
 
   db:
-    container_name: koku_db
+    container_name: koku-db
     image: postgres:13
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
@@ -459,7 +459,7 @@ services:
       # - log_statement_stats=true
 
   redis:
-    container_name: koku_redis
+    container_name: koku-redis
     image: redis:5.0.4
     ports:
       - 6379:6379
@@ -482,7 +482,7 @@ services:
       - ./pgadmin_servers.json:/pgadmin4/servers.json
 
   grafana:
-    container_name: koku_grafana
+    container_name: koku-grafana
     build:
         context: grafana
         dockerfile: Dockerfile-grafana
@@ -517,7 +517,7 @@ services:
     build:
         context: .
         dockerfile: Dockerfile.minio
-    container_name: kokuminio
+    container_name: koku-minio
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
