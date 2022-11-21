@@ -2,6 +2,7 @@ version: '3'
 
 services:
   koku-base:
+    container_name: koku-base
     image: koku_base
     build:
       context: .
@@ -145,6 +146,7 @@ services:
 
   koku-worker:
     hostname: koku-worker-1
+    container_name: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
     entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
@@ -493,7 +495,7 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:4.16.1
+    image: unleashorg/unleash-server:3.9
     environment:
       - AUTH_ENABLE_API_TOKEN=true
       - CHECK_VERSION=false
@@ -535,7 +537,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
+      /usr/bin/mc config host add --quiet --api s3v4 local http://koku-minio:9000 kokuminioaccess kokuminiosecret;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc policy set public local/koku-bucket;
@@ -551,7 +553,7 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - S3_HOST=kokuminio
+      - S3_HOST=koku-minio
       - S3_PORT=9000
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
@@ -578,7 +580,7 @@ services:
       - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
       - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
       - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://kokuminio:9000}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-minio:9000}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
