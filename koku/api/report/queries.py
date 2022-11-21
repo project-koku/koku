@@ -336,7 +336,7 @@ class ReportQueryHandler(QueryHandler):
                     else:
                         exclude_filter = QueryFilter(parameter=item, **filt)
                         exclusion.add(exclude_filter)
-                        composed_exclusions = category_exclusion.compose()
+                        composed_exclusions = exclusion.compose()
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
