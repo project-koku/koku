@@ -116,7 +116,7 @@ help:
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker compose up --build -d"
 	@echo "  docker-up-no-build                   run docker compose up -d"
-	@echo "  docker-up-koku                       run docker compose up -d koku-server"
+	@echo "  docker-up-koku                       run docker compose up -d server"
 	@echo "                                         @param build : set to '--build' to build the container"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-up-db-monitor                 run the database monitoring via grafana"
@@ -294,7 +294,7 @@ docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f db
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
+	$(DOCKER_COMPOSE) logs -f server worker masu-server
 
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
@@ -309,11 +309,11 @@ docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-mig
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
-	$(DOCKER_COMPOSE) run --service-ports koku-server
+	$(DOCKER_COMPOSE) run --service-ports server
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
-         $(DOCKER_COMPOSE) restart koku-server masu-server koku-worker koku-beat koku-listener ; \
+         $(DOCKER_COMPOSE) restart server masu-server worker beat listener ; \
          make _koku-wait ; \
          echo " koku is available" ; \
      else \
@@ -323,7 +323,7 @@ docker-restart-koku:
 docker-up-koku:
 	@if [ -z "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          echo "Starting koku_server ..." ; \
-         $(DOCKER_COMPOSE) up $(build) -d koku-server ; \
+         $(DOCKER_COMPOSE) up $(build) -d server ; \
          make _koku-wait ; \
      fi
 	@echo " koku is available!"
@@ -336,26 +336,26 @@ _koku-wait:
      done
 
 docker-build:
-	$(DOCKER_COMPOSE) build koku-base
+	$(DOCKER_COMPOSE) build base
 
 docker-up: docker-build
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
+	$(DOCKER_COMPOSE) up -d --scale worker=$(scale)
 
 docker-up-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
+	$(DOCKER_COMPOSE) up -d --scale worker=$(scale)
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --scale worker=$(scale) redis server masu-server worker trino hive-metastore
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
 docker-up-min-with-listener: docker-up-min
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+	$(DOCKER_COMPOSE) up -d --scale worker=$(scale) listener
 
 docker-up-min-no-build-with-listener: docker-up-min-no-build
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+	$(DOCKER_COMPOSE) up -d --scale worker=$(scale) listener
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
