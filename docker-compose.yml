@@ -42,8 +42,6 @@ services:
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
       - REDIS_HOST=${REDIS_HOST-koku-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - USE_RABBIT=${USE_RABBIT-False}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
@@ -103,8 +101,6 @@ services:
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
       - REDIS_HOST=${REDIS_HOST-koku-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - USE_RABBIT=${USE_RABBIT-False}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
@@ -163,8 +159,6 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - REDIS_HOST=${REDIS_HOST-koku-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - USE_RABBIT=${USE_RABBIT-False}
       - DEVELOPMENT=${DEVELOPMENT-True}
       - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
@@ -248,8 +242,6 @@ services:
       - DATABASE_NAME=${DATABASE_NAME-postgres}
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - USE_RABBIT=${USE_RABBIT-False}
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
@@ -307,8 +299,6 @@ services:
       - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
       - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
       - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - REDIS_HOST=${REDIS_HOST-koku-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
       - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
@@ -364,8 +354,6 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - REDIS_HOST=${REDIS_HOST-koku-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - USE_RABBIT=${USE_RABBIT-False}
       - LOG_LEVEL=INFO
       - DJANGO_SETTINGS_MODULE=koku.settings
@@ -605,4 +593,3 @@ services:
       nofile:
         soft: 4096
         hard: 4096
-
