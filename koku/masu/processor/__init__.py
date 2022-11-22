@@ -71,9 +71,9 @@ def disable_ocp_on_cloud_summary(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"OCP on Cloud Summary UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context))
-    LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
+    LOG.info(f"    OCP on Cloud Summary {'disabled' if res else 'enabled'} {account}")
 
     return res
 
