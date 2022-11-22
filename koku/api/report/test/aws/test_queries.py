@@ -3233,7 +3233,6 @@ class AWSQueryHandlerTest(IamTestCase):
         exclude_opts = list(AWSExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
         exclude_opts.remove("org_unit_id")
-        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
                 with self.subTest(exclude_opt=exclude_opt, view=view):

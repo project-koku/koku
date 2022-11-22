@@ -1505,7 +1505,6 @@ class OCIReportQueryHandlerTest(IamTestCase):
     def test_exclude_functionality(self, *args):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCIExcludeSerializer._opfields
-        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [OCICostView, OCIStorageView, OCIInstanceTypeView]:
                 with self.subTest(exclude_opt):

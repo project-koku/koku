@@ -1360,7 +1360,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCPGCPExcludeSerializer._opfields
-        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [OCPGCPCostView, OCPGCPStorageView, OCPGCPInstanceTypeView]:
                 with self.subTest(exclude_opt, view=view):

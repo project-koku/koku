@@ -496,7 +496,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         exclude_opts.remove("az")
         # ocp on aws daily summary table doesn't have org_unit_id
         exclude_opts.remove("org_unit_id")
-        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [OCPAWSCostView, OCPAWSStorageView, OCPAWSInstanceTypeView]:
                 with self.subTest(exclude_opt):

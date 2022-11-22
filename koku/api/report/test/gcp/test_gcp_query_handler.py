@@ -1534,7 +1534,6 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
         exclude_opts = GCPExcludeSerializer._opfields
-        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [GCPCostView, GCPStorageView, GCPInstanceTypeView]:
                 with self.subTest(exclude_opt):
