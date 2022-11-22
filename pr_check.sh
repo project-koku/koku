@@ -203,4 +203,7 @@ if [[ $exit_code > 0 ]]; then
 elif [[ $exit_code < 0 ]]; then
     echo "PR check skipped"
     make_skipped_xml
+    exit_code=0
 fi
+
+exit $exit_code

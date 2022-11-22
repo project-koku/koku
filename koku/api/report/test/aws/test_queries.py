@@ -30,7 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.aws.serializers import ExcludeSerializer
+from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
@@ -2652,7 +2652,11 @@ class AWSReportQueryTest(IamTestCase):
                 group_handler = AWSReportQueryHandler(group_params)
                 group_total = group_handler.execute_query().get("total", None)
                 self.assertIsNotNone(filter_total)
-                self.assertEqual(filter_total, group_total)
+                for cost_type, filter_dict in filter_total.items():
+                    group_dict = group_total[cost_type]
+                    for breakdown in ["raw", "markup", "usage", "total"]:
+                        with self.subTest(breakdown):
+                            self.assertAlmostEqual(group_dict[breakdown]["value"], filter_dict[breakdown]["value"], 6)
 
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
@@ -2671,7 +2675,11 @@ class AWSReportQueryTest(IamTestCase):
             query_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
             handler = AWSReportQueryHandler(query_params)
             result_total = handler.execute_query().get("total")
-            self.assertEqual(expected_total, result_total)
+            for cost_type, expected_dict in expected_total.items():
+                result_dict = result_total[cost_type]
+                for breakdown in ["raw", "markup", "usage", "total"]:
+                    with self.subTest(breakdown):
+                        self.assertAlmostEqual(result_dict[breakdown]["value"], expected_dict[breakdown]["value"], 6)
 
     def test_multi_group_by_seperate_children(self):
         """Test cost sum of multi org_unit_id group by of children nodes"""
@@ -2690,7 +2698,7 @@ class AWSReportQueryTest(IamTestCase):
             multi_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
             multi_handler = AWSReportQueryHandler(multi_params)
             multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
-            self.assertEqual(sum(expected_costs), multi_cost)
+            self.assertAlmostEqual(sum(expected_costs), multi_cost, 6)
 
     def test_multiple_group_by_alias_change(self):
         """Test that the data is correctly formatted to id & alias multi org_unit_id group bys"""
@@ -2789,7 +2797,7 @@ class AWSReportQueryTest(IamTestCase):
         }
         for group_by, table in group_bys.items():
             with self.subTest(test=group_by):
-                url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"
+                url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"  # noqa: E501
                 query_params = self.mocked_query_params(url, AWSCostView)
                 handler = AWSReportQueryHandler(query_params)
                 query_output = handler.execute_query()
@@ -2799,7 +2807,7 @@ class AWSReportQueryTest(IamTestCase):
                 group_by_annotations = handler.annotations.get(group_by)
                 cost_annotations = handler.report_annotations.get("cost_total")
                 with tenant_context(self.tenant):
-                    query = table.objects.filter(usage_start=str(yesterday))
+                    query = table.objects.filter(usage_start=str(yesterday)).annotate(**handler.annotations)
                     if group_by_annotations:
                         gb = "gb"
                         query = query.annotate(gb=group_by_annotations)
@@ -2808,10 +2816,13 @@ class AWSReportQueryTest(IamTestCase):
                 if correctlst and None in correctlst:
                     ind = correctlst.index(None)
                     correctlst[ind] = "no-" + group_by
+                tested = False
                 for element in data:
                     lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
                     if lst and correctlst:
                         self.assertEqual(correctlst, lst)
+                        tested = True
+                self.assertTrue(tested)
 
     def test_aws_date_incorrect_date(self):
         wrong_date = "200BC"
@@ -3219,7 +3230,7 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(AWSExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
         exclude_opts.remove("org_unit_id")
         for exclude_opt in exclude_opts:
@@ -3260,46 +3271,38 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, AWSTagView)
+        query_params = self.mocked_query_params("?", AWSTagView)
         handler = AWSTagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, AWSCostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"no-{group_tag}" in str(data):
+            check_no_option = True
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            data = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"no-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(AWSExcludeSerializer._opfields)
         exclude_opts.remove("org_unit_id")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501

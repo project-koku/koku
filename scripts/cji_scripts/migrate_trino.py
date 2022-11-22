@@ -3,6 +3,7 @@ import logging
 import os
 
 import trino
+from trino.exceptions import TrinoExternalError
 
 logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
@@ -35,11 +36,19 @@ def get_schemas():
 
 
 def run_trino_sql(sql, conn_params):
-    with trino.dbapi.connect(**conn_params) as conn:
-        cur = conn.cursor()
-        cur.execute(sql)
-        result = cur.fetchall()
-    return result
+    retries = 5
+    for i in range(retries):
+        try:
+            with trino.dbapi.connect(**conn_params) as conn:
+                cur = conn.cursor()
+                cur.execute(sql)
+                result = cur.fetchall()
+                return result
+        except TrinoExternalError as err:
+            if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                continue
+            else:
+                raise err
 
 
 def drop_tables(tables, conn_params):
@@ -54,10 +63,11 @@ def drop_tables(tables, conn_params):
             logging.info(e)
 
 
-def add_columns_to_table(columns, table, conn_params):
-    for column in columns:
-        logging.info(f"adding column {column} to table {table}")
-        sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} double"
+def add_columns_to_table(column_map, table, conn_params):
+    """Given a map of column name: type, add columns to table."""
+    for column, type in column_map.items():
+        logging.info(f"adding column {column} of type {type} to table {table}")
+        sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {type}"
         try:
             result = run_trino_sql(sql, conn_params)
             logging.info("ALTER TABLE result: ")
@@ -67,6 +77,7 @@ def add_columns_to_table(columns, table, conn_params):
 
 
 def drop_columns_from_table(columns, table, conn_params):
+    """Given a list of columns, drop from table."""
     for column in columns:
         logging.info(f"Dropping column {column} from table {table}")
         sql = f"ALTER TABLE IF EXISTS {table} DROP COLUMN IF EXISTS {column}"
@@ -78,22 +89,48 @@ def drop_columns_from_table(columns, table, conn_params):
             logging.info(e)
 
 
+def drop_table_by_partition(table, partition_column, conn_params):
+    sql = f"SELECT count(DISTINCT {partition_column}) FROM {table}"
+    try:
+        result = run_trino_sql(sql, conn_params)
+        partition_count = result[0][0]
+        limit = 10000
+        for i in range(0, partition_count, limit):
+            sql = f"SELECT DISTINCT {partition_column} FROM {table} OFFSET {i} LIMIT {limit}"
+            result = run_trino_sql(sql, conn_params)
+            partitions = [res[0] for res in result]
+
+            for partition in partitions:
+                logging.info(f"*** Deleting {table} partition {partition_column} = {partition} ***")
+                sql = f"DELETE FROM {table} WHERE {partition_column} = '{partition}'"
+                result = run_trino_sql(sql, conn_params)
+                logging.info("DELETE PARTITION result: ")
+                logging.info(result)
+    except Exception as e:
+        logging.info(e)
+
+
 def main():
-    logging.info("Running the hive migration for cost model effective cost")
+    logging.info("Running the hive migration for bucketing costs")
 
     logging.info("fetching schemas")
-    schemas = get_schemas()
+    # schemas = get_schemas()
+    schemas = ["acct6089719"]
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["gcp_openshift_daily"]
-    # columns_to_add = []
-    # columns_to_drop = []
+    # tables_to_drop = ["aws_openshift_daily"]
+    # columns_to_drop = ["ocp_matched"]
+    # columns_to_add = {"cost_category_id": "int"}
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** dropping tables for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        # logging.info(f"*** Adding column to tables for schema {schema} ***")
+        logging.info(f"*** Dropping tables for schema {schema} ***")
+        drop_table_by_partition("reporting_ocpusagelineitem_daily_summary", "source", CONNECT_PARAMS)
+        drop_table_by_partition("reporting_ocpawscostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
+        drop_table_by_partition("reporting_ocpazurecostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
+        drop_table_by_partition("reporting_ocpgcpcostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":

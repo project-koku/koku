@@ -26,6 +26,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
     service_alias,
     region,
     tags,
+    cost_category_id,
     usage_amount,
     unblended_cost,
     markup_cost,
@@ -54,6 +55,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
         service_alias,
         region,
         tags,
+        cost_category_id,
         sum(usage_amount) as usage_amount,
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
@@ -83,6 +85,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
         service_alias,
         region,
         tags,
+        cost_category_id,
         source_uuid,
         invoice_month
 ;
@@ -103,6 +106,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     resource_id,
     pod_labels,
     volume_labels,
+    cost_category_id,
     source_uuid,
     infrastructure_raw_cost,
     infrastructure_project_raw_cost,
@@ -147,9 +151,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
             THEN ocp_gcp.pod_labels
             ELSE CAST('{}' AS JSON)
         END as volume_labels,
+        max(ocp_gcp.cost_category_id) as cost_category_id,
         rp.provider_id as source_uuid,
         sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
-        sum(ocp_gcp.pod_cost + ocp_gcp.project_markup_cost + ocp_gcp.credit_amount) AS infrastructure_project_raw_cost,
+        sum(ocp_gcp.pod_cost + ocp_gcp.project_markup_cost + ocp_gcp.pod_credit) AS infrastructure_project_raw_cost,
         CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as infrastructure_usage_cost,
         CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,

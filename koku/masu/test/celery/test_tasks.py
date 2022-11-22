@@ -25,6 +25,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ManifestCreationHelper
+from reporting.models import TRINO_MANAGED_TABLES
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
@@ -168,25 +169,25 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.requests")
     def test_get_currency_conversion_rates_successful(self, mock_requests):
         beforeRows = ExchangeRates.objects.count()
-        self.assertEqual(beforeRows, 0)
+        self.assertEqual(beforeRows, 2)
         mock_requests.get.return_value = Mock(
             status_code=201, json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}}
         )
         tasks.get_daily_currency_rates()
         afterRows = ExchangeRates.objects.count()
-        self.assertEqual(afterRows, 3)
+        self.assertEqual(afterRows, 5)
 
     @patch("masu.celery.tasks.requests")
     def test_get_currency_conversion_rates_unsupported_currency(self, mock_requests):
         beforeRows = ExchangeRates.objects.count()
-        self.assertEqual(beforeRows, 0)
+        self.assertEqual(beforeRows, 2)
         mock_requests.get.return_value = Mock(
             status_code=201,
             json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928, "FOO": 12.34}},
         )
         tasks.get_daily_currency_rates()
         afterRows = ExchangeRates.objects.count()
-        self.assertEqual(afterRows, 3)
+        self.assertEqual(afterRows, 5)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
@@ -261,6 +262,22 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
+
+    @override_settings(ENABLE_S3_ARCHIVING=True)
+    @patch("masu.celery.tasks.OCPReportDBAccessor.delete_hive_partitions_by_source")
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    def test_delete_archived_data_ocp_delete_trino_partitions(self, mock_delete, mock_delete_partitions):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        schema_name = "org1234567"
+        provider_type = Provider.PROVIDER_OCP
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+        mock_delete.assert_called()
+        calls = []
+        for table, partition_column in TRINO_MANAGED_TABLES.items():
+            calls.append(call(table, partition_column, provider_uuid))
+        mock_delete_partitions.assert_has_calls(calls)
 
     @patch("masu.celery.tasks.Config")
     @patch("masu.external.date_accessor.DateAccessor.get_billing_months")

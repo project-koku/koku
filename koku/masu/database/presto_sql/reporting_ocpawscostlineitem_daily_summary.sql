@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     pod_labels varchar,
     volume_labels varchar,
     tags varchar,
+    cost_category_id int,
     project_rank integer,
     data_source_rank integer,
     resource_id_matched boolean
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_markup_cost double,
     pod_labels varchar,
     tags varchar,
+    cost_category_id int,
     project_rank integer,
     data_source_rank integer,
     aws_source varchar,
@@ -131,6 +133,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_labels,
     volume_labels,
     tags,
+    cost_category_id,
     resource_id_matched
 )
 SELECT aws.uuid as aws_uuid,
@@ -145,7 +148,12 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(
+            CASE
+                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+                ELSE nullif(aws.lineitem_productcode, '')
+            END
+        ) as product_code,
         max(nullif(aws.product_productfamily, '')) as product_family,
         max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
@@ -172,11 +180,12 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         NULL as volume_labels,
         max(aws.resourcetags) as tags,
+        max(ocp.cost_category_id) as cost_category_id,
         max(aws.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
-            AND aws.lineitem_resourceid = ocp.resource_id
+            AND strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
@@ -232,6 +241,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_labels,
     volume_labels,
     tags,
+    cost_category_id,
     resource_id_matched
 )
 SELECT aws.uuid as aws_uuid,
@@ -246,7 +256,12 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(
+            CASE
+                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+                ELSE nullif(aws.lineitem_productcode, '')
+            END
+        ) as product_code,
         max(nullif(aws.product_productfamily, '')) as product_family,
         max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
@@ -273,6 +288,7 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
+        max(ocp.cost_category_id) as cost_category_id,
         max(aws.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -329,6 +345,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     project_markup_cost,
     pod_labels,
     tags,
+    cost_category_id,
     aws_source,
     ocp_source,
     year,
@@ -386,6 +403,7 @@ SELECT pds.aws_uuid,
                 cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
     END as tags,
+    cost_category_id,
     '{{aws_source_uuid | sqlsafe}}' as aws_source,
     '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
@@ -429,6 +447,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     project_markup_cost,
     pod_labels,
     tags,
+    cost_category_id,
     source_uuid
 )
 SELECT uuid(),
@@ -461,6 +480,7 @@ SELECT uuid(),
     project_markup_cost,
     json_parse(pod_labels),
     json_parse(tags),
+    cost_category_id,
     cast(aws_source as UUID)
 FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'

@@ -4,11 +4,11 @@
 #
 """Test the OCI Provider serializers."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.oci.serializers import OCIExcludeSerializer
 from api.report.oci.serializers import OCIFilterSerializer
 from api.report.oci.serializers import OCIGroupBySerializer
@@ -213,7 +213,7 @@ class OCIOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCIQueryParamSerializerTest(TestCase):
+class OCIQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_query_params_invalid_fields(self):
@@ -247,13 +247,6 @@ class OCIQueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
-    def test_parse_units_failure(self):
-        """Test failure while parsing units query params."""
-        query_params = {"units": "bites"}
-        serializer = OCIQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
@@ -265,16 +258,16 @@ class OCIQueryParamSerializerTest(TestCase):
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        req = Mock(path="/api/cost-management/v1/reports/oci/storage/")
-        serializer = OCIQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_path = "/api/cost-management/v1/reports/oci/storage/"
+        serializer = OCIQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/oci/costs/")
-        serializer = OCIQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_path = "/api/cost-management/v1/reports/oci/costs/"
+        serializer = OCIQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 

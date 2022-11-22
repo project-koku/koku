@@ -20,7 +20,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import ExcludeSerializer
+from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
@@ -71,27 +71,33 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.namespaces = OCPUsageLineItemDailySummary.objects.values("namespace").distinct()
             self.namespaces = [entry.get("namespace") for entry in self.namespaces]
 
-    def get_totals_by_time_scope(self, aggregates, filters=None):
+    def get_totals(self, handler, filters=None):
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        with tenant_context(self.tenant):
+            return (
+                OCPUsageLineItemDailySummary.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
+
+    def get_totals_by_time_scope(self, handler, filters=None):
         """Return the total aggregates for a time period."""
         if filters is None:
             filters = self.ten_day_filter
-        with tenant_context(self.tenant):
-            return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+        return self.get_totals(handler, filters)
 
-    def get_totals_costs_by_time_scope(self, aggregates, filters=None):
+    def get_totals_costs_by_time_scope(self, handler, filters=None):
         """Return the total costs aggregates for a time period."""
         if filters is None:
             filters = self.this_month_filter
-        with tenant_context(self.tenant):
-            return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+        return self.get_totals(handler, filters)
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates)
+        current_totals = self.get_totals_by_time_scope(handler)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
@@ -107,8 +113,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = "?"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -333,14 +338,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
         q_table = handler._mapper.provider_map.get("tables").get("query")
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
-            query_data = query.annotate(**handler.annotations)
+            query = query.annotate(**handler.annotations)
             group_by_value = handler._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ("-date",)
             query_order_by += (handler.order,)
 
             annotations = handler.report_annotations
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
 
             aggregates = handler._mapper.report_type_map.get("aggregates")
             metric_sum = query.aggregate(**aggregates)
@@ -378,14 +383,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
         q_table = handler._mapper.provider_map.get("tables").get("query")
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
-            query_data = query.annotate(**handler.annotations)
+            query = query.annotate(**handler.annotations)
             group_by_value = handler._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ("-date",)
             query_order_by += (handler.order,)
 
             annotations = annotations = handler.report_annotations
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
 
             aggregates = handler._mapper.report_type_map.get("aggregates")
             metric_sum = query.aggregate(**aggregates)
@@ -663,8 +668,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -675,23 +679,85 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
+    def test_group_by_project_w_classification(self):
+        """Test that classification works as expected."""
+        url = "?group_by[project]=*&category=*"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPCostView)
+            handler = OCPReportQueryHandler(query_params)
+            current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+            expected_cost_total = current_totals.get("cost_total")
+            self.assertIsNotNone(expected_cost_total)
+            query_output = handler.execute_query()
+            self.assertIsNotNone(query_output.get("data"))
+            self.assertIsNotNone(query_output.get("total"))
+            total = query_output.get("total")
+            for line in query_output.get("data")[0].get("projects"):
+                if line.get("project") != "platform":
+                    self.assertEqual(line["values"][0]["classification"], "project")
+            result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+            self.assertIsNotNone(result_cost_total)
+            self.assertEqual(result_cost_total, expected_cost_total)
+
+    def test_group_by_project_w_classification_and_other(self):
+        """Test that classification works as expected with Other."""
+        url = "?group_by[project]=*&category=*&filter[limit]=1"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPCostView)
+            handler = OCPReportQueryHandler(query_params)
+            current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+            expected_cost_total = current_totals.get("cost_total")
+            self.assertIsNotNone(expected_cost_total)
+            query_output = handler.execute_query()
+            self.assertIsNotNone(query_output.get("data"))
+            self.assertIsNotNone(query_output.get("total"))
+            total = query_output.get("total")
+            for line in query_output.get("data")[0].get("projects"):
+                if line["project"] == "platform":
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                elif line["project"] == "Other":
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                elif line["project"] == "Others":
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                else:
+                    self.assertEqual(line["values"][0]["classification"], "project")
+            result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+            self.assertIsNotNone(result_cost_total)
+            self.assertEqual(result_cost_total, expected_cost_total)
+
+    def test_category_error(self):
+        """Test category error w/o project group by."""
+        url = "?category=*"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            with self.assertRaises(ValidationError):
+                self.mocked_query_params(url, OCPCostView)
+
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         tested = False
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
 
         proj_annotations = handler.annotations.get("project")
+        exch_annotations = handler.annotations.get("exchange_rate")
+        infra_exch_annotations = handler.annotations.get("infra_exchange_rate")
         cost_annotations = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 OCPCostSummaryByProjectP.objects.filter(usage_start=str(yesterday))
-                .annotate(project=proj_annotations)
-                .values("project")
+                .annotate(
+                    project=proj_annotations,
+                    exchange_rate=exch_annotations,
+                    infra_exchange_rate=infra_exch_annotations,
+                )
+                .values("project", "exchange_rate")
                 .annotate(cost=cost_annotations)
                 .order_by("-cost")
             )
@@ -746,7 +812,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")  # Tested separately
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
@@ -756,9 +822,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     handler = OCPReportQueryHandler(query_params)
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                    opt_dict = overall_output.get("data", [{}])[0]
-                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
-                    opt_value = opt_dict.get(exclude_opt)
+                    opt_value = None
+                    for date_dict in overall_output.get("data", [{}]):
+                        for element in date_dict.get(f"{exclude_opt}s"):
+                            if f"no-{exclude_opt}" != element.get(exclude_opt):
+                                opt_value = element.get(exclude_opt)
+                                break
+                        if opt_value:
+                            break
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
@@ -779,7 +850,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         grouping_list = date_dict.get(f"{exclude_opt}s", [])
                         self.assertIsNotNone(grouping_list)
                         for group_dict in grouping_list:
-                            self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
+                            if f"no-{exclude_opt}" != opt_value:
+                                self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
@@ -823,46 +895,46 @@ class OCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, OCPTagView)
+        query_params = self.mocked_query_params("?", OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, OCPCostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, OCPCostView)
-        handler = OCPReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, OCPCostView)
-        handler = OCPReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"no-{group_tag}" in str(data):
+            check_no_option = True
+        returned_values = []
+        for date in data:
+            date_list = date.get(f"{group_tag}s")
+            for date_dict in date_list:
+                tag_value = date_dict.get(group_tag)
+                if tag_value not in returned_values:
+                    returned_values.append(tag_value)
+        exclude_vals = [value for value in exclude_vals if value in returned_values]
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, OCPCostView)
+            handler = OCPReportQueryHandler(query_params)
+            data = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"no-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501

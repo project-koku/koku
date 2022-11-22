@@ -5,14 +5,20 @@
 """Query Handling for all APIs."""
 import datetime
 import logging
+from functools import cached_property
 
 from dateutil import parser
 from dateutil import relativedelta
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import Case
+from django.db.models import DecimalField
+from django.db.models import Value
+from django.db.models import When
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 from pytz import UTC
 
+from api.currency.models import ExchangeRateDictionary
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.utils import DateHelper
@@ -54,6 +60,7 @@ class QueryHandler:
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
+        self.currency = parameters.currency
         self.parameters = parameters
         self.default_ordering = self._mapper._report_type_map.get("default_ordering")
         self.time_interval = []
@@ -106,6 +113,23 @@ class QueryHandler:
             return False
         return any(WILDCARD == item for item in in_list)
 
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+
     @property
     def order(self):
         """Extract order_by parameter and apply ordering to the appropriate field.
@@ -119,17 +143,7 @@ class QueryHandler:
 
         """
         order_map = {"asc": "", "desc": "-"}
-        order = []
-        order_by = self.parameters.get("order_by", self.default_ordering)
-
-        for order_field, order_direction in order_by.items():
-            if order_direction not in order_map and order_field == "date":
-                # We've overloaded date to hold a specific date, not asc/desc
-                order.append(order_direction)
-            else:
-                order.append(f"{order_map[order_direction]}{order_field}")
-
-        return order
+        return f"{order_map[self.order_direction]}{self.order_field}"
 
     @property
     def order_field(self):

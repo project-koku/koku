@@ -6,6 +6,7 @@
 import logging
 import random
 from unittest import skip
+from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -51,7 +52,7 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 6
+        fields_len = 9
         self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
         for element in tg_mngmnt_subform_fields:
             component_name = element.get("component")
@@ -67,7 +68,8 @@ class SettingsViewTest(IamTestCase):
             {"name": "gcp", "label": "Google Cloud Platform tags"},
         ]
 
-        response = self.get_settings()
+        with patch("api.settings.settings.UNLEASH_CLIENT.is_enabled", return_value=True):
+            response = self.get_settings()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         duallist = self.get_duallist_from_response(response)
         all_enabled_tags = duallist.get("initialValue")

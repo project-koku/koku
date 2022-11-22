@@ -75,19 +75,16 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.services = GCPCostEntryLineItemDailySummary.objects.values("service_alias").distinct()
             self.services = [entry.get("service_alias") for entry in self.services]
 
-    def get_totals_by_time_scope(self, aggregates, filters=None):
-        """Return the total aggregates for a time period."""
-        if filters is None:
-            filters = self.ten_day_filter
-        with tenant_context(self.tenant):
-            return GCPCostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
-
-    def get_totals_costs_by_time_scope(self, aggregates, filters=None):
-        """Return the total costs aggregates for a time period."""
+    def get_totals_costs_by_time_scope(self, handler, filters=None):
         if filters is None:
             filters = self.this_month_filter
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            result = GCPCostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            result = (
+                GCPCostEntryLineItemDailySummary.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
             for key in result:
                 if result[key] is None:
                     result[key] = Decimal(0)
@@ -98,8 +95,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         url = "?"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
@@ -128,8 +124,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -142,8 +137,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -162,8 +156,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -195,13 +188,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_alias__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -226,8 +218,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -249,13 +240,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_id__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -272,8 +262,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -297,8 +286,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -324,8 +312,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -355,8 +342,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -386,8 +372,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.last_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -426,8 +411,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -459,9 +443,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "project_id": project}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -490,9 +473,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "account_id": account}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -517,13 +499,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_id__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -544,9 +525,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -582,9 +562,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -608,8 +587,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -743,8 +721,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{"cost_units": expected_units})
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.last_month_filter)
         cost_total = result.get("cost", {}).get("total")
         self.assertIsNotNone(cost_total)
         self.assertEqual(cost_total.get("value"), current_totals["cost_total"])
@@ -1364,9 +1341,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "account_id": account}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
@@ -1381,12 +1357,11 @@ class GCPReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, GCPInstanceTypeView)
         handler = GCPReportQueryHandler(query_params)
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = self.ten_day_filter
         for filt in handler._mapper.report_type_map.get("filter"):
             qf = QueryFilter(**filt)
             filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -1442,9 +1417,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "account_id": account}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -1500,26 +1474,30 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_gcp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
         svc_annotations = handler.annotations.get("service")
+        exch_annotation = handler.annotations.get("exchange_rate")
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 GCPCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
-                .annotate(service=svc_annotations)
+                .annotate(service=svc_annotations, exchange_rate=exch_annotation)
                 .values("service")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
         correctlst = [service.get("service") for service in expected]
+        tested = False
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertCountEqual(correctlst, lst)
+                tested = True
+        self.assertTrue(tested)
 
     def test_gcp_date_incorrect_date(self):
         wrong_date = "200BC"
@@ -1594,41 +1572,33 @@ class GCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, GCPTagView)
+        query_params = self.mocked_query_params("?", GCPTagView)
         handler = GCPTagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, GCPCostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, GCPCostView)
-        handler = GCPReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, GCPCostView)
-        handler = GCPReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"no-{group_tag}" in str(data):
+            check_no_option = True
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, GCPCostView)
+            handler = GCPReportQueryHandler(query_params)
+            data = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"no-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):

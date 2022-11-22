@@ -376,7 +376,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{MASU_MIN_REPLICAS}}
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently it supports only internal administrative api
+      minReplicas: ${{MASU_MIN_REPLICAS}}
       name: clowder-masu
       podSpec:
         env:
@@ -410,6 +414,14 @@ objects:
               fieldPath: metadata.name
         - name: API_PATH_PREFIX
           value: ${API_PATH_PREFIX}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
@@ -555,7 +567,11 @@ objects:
           enabled: true
         public:
           enabled: false
-    - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently scheduling is a singleton
+      minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
       name: clowder-scheduler
       podSpec:
         command:
@@ -898,7 +914,12 @@ objects:
           enabled: true
         public:
           enabled: false
-    - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently sources integration requires in order message handling,
+            which can fail with multiple consumers due to race conditions
+      minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
       name: clowder-sources-listener
       podSpec:
         command:
@@ -2775,7 +2796,7 @@ parameters:
 - description: Koku Sentry Env
   displayName: Koku Sentry Env
   name: KOKU_SENTRY_ENV
-  value: dev
+  value: development
 - description: Enable API Sentry
   displayName: Enable API Sentry
   name: ENABLE_API_SENTRY

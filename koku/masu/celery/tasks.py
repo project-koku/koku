@@ -16,7 +16,7 @@ from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
 
-from api.currency.currencies import CURRENCIES
+from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.dataexport.models import DataExportRequest
@@ -30,6 +30,7 @@ from koku import celery_app
 from koku.notifications import NotificationService
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts_accessor import AccountsAccessor
@@ -44,6 +45,8 @@ from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
 from masu.util.ocp.common import REPORT_TYPES
+from reporting.models import TRINO_MANAGED_TABLES
+from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
@@ -247,6 +250,11 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
         LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
         deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
+    if provider_type == Provider.PROVIDER_OCP:
+        accessor = OCPReportDBAccessor(schema_name)
+        for table, partition_column in TRINO_MANAGED_TABLES.items():
+            accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
+
 
 @celery_app.task(
     name="masu.celery.tasks.sync_data_to_customer",
@@ -366,11 +374,7 @@ def clean_volume():
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
     """Task to get latest daily conversion rates."""
-    # Create list of supported currencies
-    supported_currencies = []
     rate_metrics = {}
-    for curr_object in CURRENCIES:
-        supported_currencies.append(curr_object.get("code"))
 
     url = settings.CURRENCY_URL
     # Retrieve conversion rates from URL
@@ -383,7 +387,7 @@ def get_daily_currency_rates():
     rates = data["rates"]
     # Update conversion rates in database
     for curr_type in rates.keys():
-        if curr_type.upper() in supported_currencies:
+        if curr_type.upper() in VALID_CURRENCIES:
             value = rates[curr_type]
             try:
                 exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
@@ -503,20 +507,40 @@ def delete_provider_async(name, provider_uuid, schema_name):
 def out_of_order_source_delete_async(source_id):
     LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
     try:
-        Sources.objects.get(source_id=source_id).delete()
+        source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.warning(
             f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
         )
+        return
+    if source.account_id in settings.DEMO_ACCOUNTS:
+        LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
+        return
+    delete_source_helper(source)
 
 
 @celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
 def missing_source_delete_async(source_id):
     LOG.info(f"Removing missing Source: {str(source_id)}")
     try:
-        Sources.objects.get(source_id=source_id).delete()
+        source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
+        return
+    if source.account_id in settings.DEMO_ACCOUNTS:
+        LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
+        return
+    delete_source_helper(source)
+
+
+def delete_source_helper(source):
+    if source.koku_uuid:
+        # if there is a koku-uuid, a Provider also exists.
+        # Go thru delete_source to remove the Provider and the Source
+        delete_source(source.source_id, source.auth_header, source.koku_uuid)
+    else:
+        # here, no Provider exists, so just delete the Source
+        source.delete()
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)

@@ -61,19 +61,17 @@ class OCIReportQueryHandlerTest(IamTestCase):
             self.services = OCICostEntryLineItemDailySummary.objects.values("product_service").distinct()
             self.services = [entry.get("product_service") for entry in self.services]
 
-    def get_totals_by_time_scope(self, aggregates, filters=None):
-        """Return the total aggregates for a time period."""
-        if filters is None:
-            filters = self.ten_day_filter
-        with tenant_context(self.tenant):
-            return OCICostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
-
-    def get_totals_costs_by_time_scope(self, aggregates, filters=None):
+    def get_totals_costs_by_time_scope(self, handler, filters=None):
         """Return the total costs aggregates for a time period."""
         if filters is None:
             filters = self.this_month_filter
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            result = OCICostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            result = (
+                OCICostEntryLineItemDailySummary.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
             for key in result:
                 if result[key] is None:
                     result[key] = Decimal(0)
@@ -85,12 +83,11 @@ class OCIReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCIInstanceTypeView)
         handler = OCIReportQueryHandler(query_params)
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = self.ten_day_filter
         for filt in handler._mapper.report_type_map.get("filter"):
             qf = QueryFilter(**filt)
             filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -109,8 +106,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         url = "?"
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
@@ -140,8 +136,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -157,8 +152,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -180,8 +174,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -215,13 +208,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "product_service__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
-                filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+                filters[qf.composed_query_string()] = qf.parameter
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -255,13 +247,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "product_service__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -289,8 +280,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -320,8 +310,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -351,8 +340,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -380,8 +368,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -414,8 +401,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -457,8 +443,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -493,10 +478,9 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
         filters["region__icontains"] = location
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -528,9 +512,8 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "payer_tenant_id": tenant}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -558,13 +541,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "product_service__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -594,10 +576,9 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
         filters["region__icontains"] = location
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -646,10 +627,9 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter}
         filters["region__icontains"] = location
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -676,8 +656,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -699,8 +678,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{"cost_units": expected_units})
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.this_month_filter)
         cost_total = result.get("cost", {}).get("total")
         self.assertIsNotNone(cost_total)
         self.assertEqual(cost_total.get("value"), current_totals.get("cost_total"))
@@ -1439,9 +1417,8 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "payer_tenant_id": tenant}
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -1457,19 +1434,23 @@ class OCIReportQueryHandlerTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[product_service]=*"
+        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[product_service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+
+        exch_annotation = handler.annotations.get("exchange_rate")
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 OCICostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
+                .annotate(exchange_rate=exch_annotation)
                 .values("product_service")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
+
         ranking_map = {}
         count = 1
         tested = False
@@ -1521,7 +1502,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self, *args):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCIExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
@@ -1537,7 +1518,10 @@ class OCIReportQueryHandlerTest(IamTestCase):
                         # TODO: figure out why this sometimes returns none
                         continue
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
-                    opt_value = opt_dict.get(exclude_opt)
+                    opt_value = opt_dict.get(exclude_opt, "")
+                    if opt_value.startswith("no-"):
+                        # Hanlde cases where "no-instance-type" is returned
+                        continue
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
@@ -1565,44 +1549,36 @@ class OCIReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, OCITagView)
+        query_params = self.mocked_query_params("?", OCITagView)
         handler = OCITagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, OCICostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, OCICostView)
-        handler = OCIReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, OCICostView)
-        handler = OCIReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"no-{group_tag}" in str(data):
+            check_no_option = True
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, OCICostView)
+            handler = OCIReportQueryHandler(query_params)
+            url = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"no-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self, *args):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCIExcludeSerializer._opfields
         for ex_opt in exclude_opts:
@@ -1616,11 +1592,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    _exclude_option = exclude_option.get(ex_opt, "")
+                    if not _exclude_option.startswith("no-"):
                         if not exclude_one:
-                            exclude_one = exclude_option.get(ex_opt)
+                            exclude_one = _exclude_option
                         elif not exclude_two:
-                            exclude_two = exclude_option.get(ex_opt)
+                            exclude_two = _exclude_option
                         else:
                             continue
                 if not exclude_one or not exclude_two:

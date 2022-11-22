@@ -6,6 +6,7 @@
 import copy
 import logging
 
+from django.db.models import CharField
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
@@ -13,7 +14,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.oci.provider_map import OCIProviderMap
-from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
@@ -92,10 +92,11 @@ class OCIReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
+            # this currency is used by the provider map to populate the correct currency value
+            "currency_annotation": Value(self.currency, output_field=CharField()),
+            **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -126,17 +127,18 @@ class OCIReportQueryHandler(ReportQueryHandler):
         sum_units = {}
         query_sum = self.initialize_totals()
 
-        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
-            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
+            sum_annotations = {
+                "cost_units": Coalesce(self._mapper.cost_units_key, Value(self._mapper.cost_units_fallback))
+            }
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations).order_by()
 
-            units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
+            units_value = self.currency
             sum_units = {"cost_units": units_value}
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
@@ -144,7 +146,7 @@ class OCIReportQueryHandler(ReportQueryHandler):
 
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = cost_units_fallback
+            sum_units["cost_units"] = self.currency
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -164,14 +166,13 @@ class OCIReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
-            query_order_by = ["-date"]
-            query_order_by.extend(self.order)  # add implicit ordering
+            query_order_by = ["-date", self.order]
 
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
             if self._limit:
@@ -183,39 +184,9 @@ class OCIReportQueryHandler(ReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
+            query_data = self.order_by(query_data, query_order_by)
 
-            order_date = None
-            for i, param in enumerate(query_order_by):
-                if check_if_valid_date_str(param):
-                    # Checks to see if the date is in the query_data
-                    if any(d["date"] == param for d in query_data):
-                        # Set order_date to a valid date
-                        order_date = param
-                        break
-            # Remove the date order by as it is not actually used for ordering
-            if order_date:
-                sort_term = self._get_group_by()[0]
-                query_order_by.pop(i)
-                filtered_query_data = []
-                for index in query_data:
-                    for key, value in index.items():
-                        if (key == "date") and (value == order_date):
-                            filtered_query_data.append(index)
-                ordered_data = self.order_by(filtered_query_data, query_order_by)
-                order_of_interest = []
-                for entry in ordered_data:
-                    order_of_interest.append(entry.get(sort_term))
-                # write a special order by function that iterates through the
-                # rest of the days in query_data and puts them in the same order
-                # return_query_data = []
-                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
-                query_data = self.order_by(sorted_data, ["-date"])
-            else:
-                # &order_by[cost]=desc&order_by[date]=2021-08-02
-                query_data = self.order_by(query_data, query_order_by)
-
-            if is_csv_output:
+            if self.is_csv_output:
                 data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
@@ -241,12 +212,10 @@ class OCIReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
-        query_data = query.annotate(**self.annotations)
-        query_data = query_data.values(*query_group_by)
+        query = query.annotate(**self.annotations)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         total_query = query.aggregate(**aggregates)
