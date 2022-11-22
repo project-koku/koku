@@ -457,6 +457,64 @@ class ReportQueryHandlerTest(IamTestCase):
                 for project_item in projects_data:
                     self.assertTrue(project_item.get("project"), "platform")
 
+    def test_execute_search_by_project_w_filter(self):
+        """Test execute group_by project query with category."""
+        project = "test"
+        url = f"?group_by[project]=*&filter[project]={project}"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        for data_item in data:
+            projects_data = data_item.get("projects")
+            for project_item in projects_data:
+                self.assertTrue(project_item.get("project"), project)
+
+    def test_execute_search_by_project_w_filter_unknown_category(self):
+        """Test execute group_by project query with category."""
+        category = "test"
+        url = f"?group_by[project]=*&category=*&filter[project]={category}"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPAzureCostView)
+            handler = OCPAzureReportQueryHandler(query_params)
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            self.assertIsNotNone(data)
+            for data_item in data:
+                projects_data = data_item.get("projects")
+                for project_item in projects_data:
+                    self.assertTrue(project_item.get("project"), category)
+
+    def test_execute_search_by_project_w_exclude_unknown_category(self):
+        """Test execute group_by project query with category."""
+        category = "test"
+        url = f"?group_by[project]=*&category=*&exclude[project]={category}"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPAzureCostView)
+            query_params.parameters["exclude"] = OrderedDict([("project", [category])])
+            handler = OCPAzureReportQueryHandler(query_params)
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            self.assertIsNotNone(data)
+            self.assertNotIn(category, data)
+
+    def test_execute_search_by_project_w_multiple_exclude_w_unknown_category(self):
+        """Test execute group_by project query with category."""
+        category = "platform"
+        url = f"?group_by[project]=*&category=platform&exclude[project]={category}&exclude[service_name]=Storage"
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            query_params = self.mocked_query_params(url, OCPAzureCostView)
+            query_params.parameters["exclude"] = OrderedDict([("project", [category])])
+            handler = OCPAzureReportQueryHandler(query_params)
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            self.assertIsNotNone(data)
+            self.assertNotIn(category, data)
+
     def test_execute_search_by_project_w_exclude_category(self):
         """Test execute group_by project query with category."""
         url = "?group_by[project]=*&category=*&exclude[project]=platform"
