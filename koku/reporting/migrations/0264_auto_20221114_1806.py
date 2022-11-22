@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="""
-                ALTER TABLE reporting_ocp_cost_summary_by_node_p
+                ALTER TABLE reporting_ocp_cost_summary_by_project_p
                     ADD COLUMN IF NOT EXISTS cost_model_cpu_cost NUMERIC(33, 15),
                     ADD COLUMN IF NOT EXISTS cost_model_memory_cost NUMERIC(33, 15),
                     ADD COLUMN IF NOT EXISTS cost_model_volume_cost NUMERIC(33, 15),
