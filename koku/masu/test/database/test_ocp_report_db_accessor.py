@@ -2761,6 +2761,15 @@ select * from eek where val1 in {{report_period_id}} ;
             for project in projects:
                 self.assertIsNotNone(OCPProject.objects.filter(project=project).first())
 
+        mock_table.reset_mock()
+        mock_get_pvcs.reset_mock()
+        mock_table.return_value = False
+
+        self.accessor.populate_openshift_cluster_information_tables(
+            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+        )
+        mock_get_pvcs.assert_not_called()
+
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
