@@ -285,6 +285,7 @@ class ReportQueryHandler(QueryHandler):
         exclusion = QueryFilterCollection()
         composed_category_filters = None
         composed_exclusions = None
+        composed_category_exclusions = None
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -332,14 +333,18 @@ class ReportQueryHandler(QueryHandler):
                         else:
                             exclude_filter = QueryFilter(parameter=item, **filt)
                             category_exclusion.add(exclude_filter)
-                        composed_exclusions = category_exclusion.compose(logical_operator="or")
+                        composed_category_exclusions = category_exclusion.compose(logical_operator="or")
                     else:
                         exclude_filter = QueryFilter(parameter=item, **filt)
                         exclusion.add(exclude_filter)
-                        composed_exclusions = exclusion.compose()
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
+        composed_exclusions = exclusion.compose()
+        if composed_category_exclusions and composed_exclusions:
+            composed_exclusions = composed_exclusions & composed_category_exclusions
+        elif composed_category_exclusions and not composed_exclusions:
+            composed_exclusions = composed_category_exclusions
         self.query_exclusions = self._check_for_operator_specific_exlusions(composed_exclusions)
         composed_filters = self._check_for_operator_specific_filters(filters)
         if composed_category_filters:
