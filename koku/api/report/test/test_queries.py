@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from faker import Faker
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
@@ -20,14 +19,13 @@ from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
-from api.report.gcp.provider_map import GCPProviderMap
 from api.report.gcp.query_handler import GCPReportQueryHandler
+from api.report.gcp.view import GCPCostView
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.provider_map import ProviderMap
 from api.report.queries import ReportQueryHandler
 from api.report.view import ReportView
 from api.utils import DateHelper
-from reporting.models import GCPCostEntryLineItemDailySummary
 
 FAKE = Faker()
 
@@ -434,40 +432,15 @@ class ReportQueryHandlerTest(IamTestCase):
 
     def test_get_search_filter_with_exclude(self):
         """Test that the search filter with excludes."""
-        with tenant_context(self.tenant):
-            exclude_project = GCPCostEntryLineItemDailySummary.objects.values_list(
-                "project_name", flat=True
-            ).distinct()[0]
-        url = (
-            f"filter[resolution]=monthly&"
-            f"filter[time_scope_value]=-1&"
-            f"filter[time_scope_units]=month&"
-            f"group_by[gcp_project]=*&"
-            f"exclude[gcp_project]={exclude_project}"
-        )
-        fake_view = Mock(
-            spec=ReportView,
-            provider="GCP",
-            query_handler=GCPReportQueryHandler,
-            report="cost",
-            serializer=Mock,
-            tag_handler=Mock,
-        )
-        mocked_parameters = self.mocked_query_params(url, fake_view)
-        # I couldn't figure out how to mock an unleash flag inside of another mock,
-        # so I manually added the expected exclude to the parameters here.
-        mocked_parameters.parameters["exclude"] = OrderedDict([("gcp_project", [exclude_project])])
-        filters_dict = GCPProviderMap("GCP", "cost")._mapping[0].get("filters")
-        mapper = {"filter": [{}], "filters": filters_dict}
-        rqh = create_test_handler(params=mocked_parameters, mapper=mapper)
-        with tenant_context(self.tenant):
-            result = (
-                GCPCostEntryLineItemDailySummary.objects.values_list("project_name", flat=True)
-                .exclude(rqh.query_exclusions)
-                .distinct()
-            )
-            self.assertIsNotNone(result)
-            self.assertNotIn(exclude_project, result)
+        gcp_project = "move-give-along"
+        url = f"?group_by[gcp_project]=*&exclude[gcp_project]={gcp_project}"
+        query_params = self.mocked_query_params(url, GCPCostView)
+        query_params.parameters["exclude"] = OrderedDict([("gcp_project", [gcp_project])])
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertNotIn(gcp_project, data)
 
     def test_execute_search_by_project_w_filter_category(self):
         """Test execute group_by project query with category."""

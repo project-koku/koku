@@ -1440,6 +1440,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCPAzureExcludeSerializer._opfields
+        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [OCPAzureCostView, OCPAzureStorageView, OCPAzureInstanceTypeView]:
                 with self.subTest((exclude_opt, view)):

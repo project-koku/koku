@@ -223,6 +223,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAllExcludeSerializer._opfields)
         exclude_opts.remove("source_type")
+        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [OCPAllCostView, OCPAllStorageView, OCPAllInstanceTypeView]:
                 with self.subTest(exclude_opt):

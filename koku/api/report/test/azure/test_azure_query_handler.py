@@ -1649,6 +1649,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
         exclude_opts = AzureExcludeSerializer._opfields
+        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [AzureCostView, AzureStorageView, AzureInstanceTypeView]:
                 with self.subTest((exclude_opt, view)):
