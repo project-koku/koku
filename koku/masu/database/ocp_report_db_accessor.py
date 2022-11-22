@@ -930,6 +930,59 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cost_mapping.get(metric_constants.PVC_DISTRIBUTION, default_cost),
         )
 
+    def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
+        """
+        Populate the monthly cost of a customer.
+
+        There are three types of monthly rates Node, Cluster & PVC.
+
+        args:
+            cost_type (str): Contains the type of monthly cost. ex: "Node"
+            rate_type(str): Contains the metric name. ex: "node_cost_per_month"
+            rate (decimal): Contains the rate amount ex: 100.0
+            node_cost (Decimal): The node cost per month
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            cluster_id (str): The id of the cluster
+            cluster_alias: The name of the cluster
+            distribution: Choice of monthly distribution ex. memory
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        if cost_type in ("Node", "Cluster"):
+            summary_sql = pkgutil.get_data("masu.database", "sql/openshift/monthly_cost_cluster_and_node.sql")
+        elif cost_type == "PVC":
+            summary_sql = pkgutil.get_data("masu.database", "sql/openshift/monthly_cost_persistentvolumeclaim.sql")
+
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "rate": rate,
+            "cost_type": cost_type,
+            "rate_type": rate_type,
+            "distribution": distribution,
+        }
+        LOG.info(summary_sql_params)
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info("Populating monthly cost from %s to %s.", start_date, end_date)
+        LOG.info(summary_sql)
+        LOG.info(summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name,
+            summary_sql,
+            start_date,
+            end_date,
+            bind_params=list(summary_sql_params),
+            operation="INSERT",
+        )
+
     def populate_monthly_cost(
         self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias, distribution, provider_uuid
     ):
