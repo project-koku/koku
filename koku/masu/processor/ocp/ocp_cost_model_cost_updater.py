@@ -14,6 +14,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
@@ -205,6 +206,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                         self._cluster_id,
                         self._cluster_alias,
+                        self._distribution,
+                        self._provider_uuid,
+                    )
+
+                    if rate:
+                        amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
+                    else:
+                        amortized_rate = 0.0
+                    report_accessor.populate_monthly_cost_sql(
+                        cost_type,
+                        rate_type,
+                        amortized_rate,
+                        start_date,
+                        end_date,
                         self._distribution,
                         self._provider_uuid,
                     )
