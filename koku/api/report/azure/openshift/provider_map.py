@@ -41,6 +41,7 @@ class OCPAzureProviderMap(ProviderMap):
                 "annotations": {"cluster": "cluster_id"},
                 "end_date": "costentrybill__billing_period_start",
                 "filters": {
+                    "category": {"field": "cost_category__name", "operation": "icontains"},
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
                         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
