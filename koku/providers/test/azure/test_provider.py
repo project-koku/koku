@@ -111,3 +111,37 @@ class AzureProviderTestCase(TestCase):
             azure_provider = AzureProvider()
             with self.assertRaises(ValidationError):
                 azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    # Written as separate tests for atomic testing
+    # These two tests could be combined with pytest.parametrize
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_cost_usage_source_reachable_value_error(self, mock_azure_factory):
+        """Test that cost_usage_source_is_reachable raises the correct exception when a ValueError is raised"""
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        azure_provider = AzureProvider()
+
+        with patch("providers.azure.provider.AzureService", side_effect=ValueError("Raised intentionally")):
+            with self.assertRaisesRegex(ValidationError, "Raised intentionally"):
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_cost_usage_source_reachable_type_error(self, mock_azure_factory):
+        """Test that cost_usage_source_is_reachable raises the correct exception when a TypeError is raised"""
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        azure_provider = AzureProvider()
+
+        with patch("providers.azure.provider.AzureService", side_effect=TypeError("Raised intentionally")):
+            with self.assertRaisesRegex(ValidationError, "Raised intentionally"):
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
