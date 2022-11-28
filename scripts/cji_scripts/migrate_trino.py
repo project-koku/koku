@@ -89,6 +89,27 @@ def drop_columns_from_table(columns, table, conn_params):
             logging.info(e)
 
 
+def drop_table_by_partition(table, partition_column, conn_params):
+    sql = f"SELECT count(DISTINCT {partition_column}) FROM {table}"
+    try:
+        result = run_trino_sql(sql, conn_params)
+        partition_count = result[0][0]
+        limit = 10000
+        for i in range(0, partition_count, limit):
+            sql = f"SELECT DISTINCT {partition_column} FROM {table} OFFSET {i} LIMIT {limit}"
+            result = run_trino_sql(sql, conn_params)
+            partitions = [res[0] for res in result]
+
+            for partition in partitions:
+                logging.info(f"*** Deleting {table} partition {partition_column} = {partition} ***")
+                sql = f"DELETE FROM {table} WHERE {partition_column} = '{partition}'"
+                result = run_trino_sql(sql, conn_params)
+                logging.info("DELETE PARTITION result: ")
+                logging.info(result)
+    except Exception as e:
+        logging.info(e)
+
+
 def main():
     logging.info("Running the hive migration for OCP/AWS additional cost fields")
 

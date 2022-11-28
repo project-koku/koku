@@ -44,7 +44,7 @@ class AzureProviderTestCase(TestCase):
             obj = AzureProvider()
             self.assertTrue(obj.cost_usage_source_is_reachable(credentials, source_name))
 
-    @patch("providers.azure.provider.AzureClientFactory", side_effect=AzureException("test exception"))
+    @patch("providers.azure.provider.AzureService", side_effect=AzureException("test exception"))
     def test_cost_usage_source_is_reachable_exception(self, _):
         """Test that ValidationError is raised when AzureException is raised."""
         credentials = {

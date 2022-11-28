@@ -5,13 +5,11 @@
 """Management capabilities for Provider functionality."""
 import logging
 from datetime import timedelta
-from functools import partial
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from tenant_schemas.utils import tenant_context
@@ -331,5 +329,4 @@ def provider_post_delete_callback(*args, **kwargs):
         from masu.celery.tasks import delete_archived_data
 
         LOG.info("Deleting any archived data")
-        delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
-        transaction.on_commit(delete_func)
+        delete_archived_data.delay(provider.customer.schema_name, provider.type, provider.uuid)
