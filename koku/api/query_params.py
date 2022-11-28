@@ -115,12 +115,15 @@ class QueryParameters:
         self._set_tag_keys()  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
-        parameter_set_list = ["filter", "group_by", "order_by", "access"]
-        org_id = self.request.user.customer.org_id
-        if enable_negative_filtering(org_id):
-            parameter_set_list.append("exclude")
-        elif self.parameters.get("exclude"):
-            del self.parameters["exclude"]
+        if settings.DEVELOPMENT:
+            parameter_set_list = ["filter", "group_by", "order_by", "access", "exclude"]
+        else:
+            parameter_set_list = ["filter", "group_by", "order_by", "access"]
+            org_id = self.request.user.customer.org_id
+            if enable_negative_filtering(org_id):
+                parameter_set_list.append("exclude")
+            elif self.parameters.get("exclude"):
+                del self.parameters["exclude"]
 
         for item in parameter_set_list:
             if item not in self.parameters:

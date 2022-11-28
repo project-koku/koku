@@ -709,6 +709,44 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         else:
                             raise err
 
+    def delete_hive_partitions_by_source(self, table, partition_column, provider_uuid):
+        """Deletes partitions individually for each day in days list."""
+        retries = settings.HIVE_PARTITION_DELETE_RETRIES
+        if self.table_exists_trino(table):
+            LOG.info(
+                "Deleting Hive partitions for the following: \n\tSchema: %s " "\n\tOCP Source: %s \n\tTable: %s",
+                self.schema,
+                provider_uuid,
+                table,
+            )
+            for i in range(retries):
+                try:
+                    sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                    WHERE {partition_column} = '{provider_uuid}'
+                    """
+                    self._execute_presto_raw_sql_query(
+                        self.schema,
+                        sql,
+                        log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
+                        attempts_left=(retries - 1) - i,
+                    )
+                    break
+                except TrinoExternalError as err:
+                    if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                        continue
+                    else:
+                        raise err
+            LOG.info(
+                "Successfully deleted Hive partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tTable: %s",
+                self.schema,
+                provider_uuid,
+                table,
+            )
+            return True
+        return False
+
     def populate_line_item_daily_summary_table_presto(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
     ):
@@ -2275,7 +2313,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         cluster = self.populate_cluster_table(provider, cluster_id, cluster_alias)
 
         nodes = self.get_nodes_presto(str(provider.uuid), start_date, end_date)
-        pvcs = self.get_pvcs_presto(str(provider.uuid), start_date, end_date)
+        pvcs = []
+        if trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
+            pvcs = self.get_pvcs_presto(str(provider.uuid), start_date, end_date)
         projects = self.get_projects_presto(str(provider.uuid), start_date, end_date)
 
         # pvcs = self.match_node_to_pvc(pvcs, projects)
