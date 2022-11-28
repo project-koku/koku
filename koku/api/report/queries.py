@@ -279,10 +279,12 @@ class ReportQueryHandler(QueryHandler):
         if ou_or_operator:
             ou_or_filters = filters.compose()
             filters = QueryFilterCollection()
-
+        if self._category:
+            category_filters = QueryFilterCollection()
+        exclusion = QueryFilterCollection()
+        composed_category_filters = None
         composed_exclusions = None
         for q_param, filt in fields.items():
-            exclusion = QueryFilterCollection()
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             exclude_ = self.parameters.get_exclude(q_param, list())
@@ -301,34 +303,39 @@ class ReportQueryHandler(QueryHandler):
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
-                        if self._category and any([item in cat for cat in self._category]):
-                            q_filter = QueryFilter(
-                                parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
-                            )
+                        if self._category:
+                            if any([item in cat for cat in self._category]):
+                                q_cat_filter = QueryFilter(
+                                    parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                                )
+                                category_filters.add(q_cat_filter)
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            else:
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            composed_category_filters = category_filters.compose(logical_operator="or")
+                        else:
+                            q_filter = QueryFilter(parameter=item, **filt)
                             filters.add(q_filter)
-                        q_filter = QueryFilter(parameter=item, **filt)
-                        filters.add(q_filter)
-
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
-                    if self._category and any([item in cat for cat in self._category]):
-                        exclude_filter = QueryFilter(
-                            parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
-                        )
-                        exclusion.add(exclude_filter)
+                    if self._category:
+                        if any([item in cat for cat in self._category]):
+                            exclude_cat_filter = QueryFilter(
+                                parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                            )
+                            exclusion.add(exclude_cat_filter)
                     exclude_filter = QueryFilter(parameter=item, **filt)
                     exclusion.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
-            if exclusion:
-                if not composed_exclusions:
-                    composed_exclusions = exclusion.compose()
-                else:
-                    composed_exclusions = composed_exclusions | exclusion.compose()
-
+        composed_exclusions = exclusion.compose(logical_operator="or")
         self.query_exclusions = self._check_for_operator_specific_exlusions(composed_exclusions)
         composed_filters = self._check_for_operator_specific_filters(filters)
+        if composed_category_filters:
+            composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
         if ou_or_operator and ou_or_filters:

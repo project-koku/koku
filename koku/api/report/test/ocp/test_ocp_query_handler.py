@@ -814,6 +814,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")  # Tested separately
+        exclude_opts.remove("category")
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
                 with self.subTest(exclude_opt):
@@ -936,6 +937,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")
+        exclude_opts.remove("category")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPVolumeView, OCPCostView, OCPCpuView, OCPMemoryView]:
