@@ -2717,10 +2717,13 @@ select * from eek where val1 in {{report_period_id}} ;
                 mock_presto.assert_called()
                 self.assertIn(expected_log, logger.output)
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
-    def test_populate_openshift_cluster_information_tables(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
+    def test_populate_openshift_cluster_information_tables(
+        self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
+    ):
         """Test that we populate cluster info."""
         nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
@@ -2732,6 +2735,7 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
         mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
+        mock_table.return_value = True
         cluster_id = uuid.uuid4()
         cluster_alias = "test-cluster-1"
         dh = DateHelper()
@@ -2757,10 +2761,22 @@ select * from eek where val1 in {{report_period_id}} ;
             for project in projects:
                 self.assertIsNotNone(OCPProject.objects.filter(project=project).first())
 
+        mock_table.reset_mock()
+        mock_get_pvcs.reset_mock()
+        mock_table.return_value = False
+
+        self.accessor.populate_openshift_cluster_information_tables(
+            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+        )
+        mock_get_pvcs.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
-    def test_get_openshift_topology_for_multiple_providers(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
+    def test_get_openshift_topology_for_multiple_providers(
+        self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
+    ):
         """Test that OpenShift topology is populated."""
         nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
@@ -2772,6 +2788,7 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
         mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
+        mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
         cluster_alias = "test-cluster-1"
         dh = DateHelper()
@@ -2867,6 +2884,30 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):
             self.accessor.delete_ocp_hive_partition_by_day([1], self.ocp_provider_uuid, "2022", "01")
+        mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_hive_partitions_by_source_success(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        result = self.accessor.delete_hive_partitions_by_source("table", "partition_column", self.ocp_provider_uuid)
+        mock_trino.assert_called()
+        self.assertTrue(result)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            result = self.accessor.delete_hive_partitions_by_source(
+                "table", "partition_column", self.ocp_provider_uuid
+            )
+            self.assertFalse(result)
         mock_trino.assert_called()
         # Confirms that the error log would be logged on last attempt
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)

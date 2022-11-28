@@ -38,6 +38,7 @@ class OCPProviderMap(ProviderMap):
                 "annotations": {"cluster": "cluster_id"},
                 "end_date": "usage_start",
                 "filters": {
+                    "category": {"field": "cost_category__name", "operation": "icontains"},
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
                         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},

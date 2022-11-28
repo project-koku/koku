@@ -59,6 +59,7 @@ class OCPGCPProviderMap(ProviderMap):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
+                    "category": {"field": "cost_category__name", "operation": "icontains"},
                     "project": {"field": "namespace", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                     "cluster": [
@@ -209,10 +210,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -220,7 +218,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
@@ -235,10 +236,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -261,10 +259,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -272,7 +267,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
@@ -287,10 +285,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -466,10 +461,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -477,7 +469,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
@@ -492,10 +487,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -525,10 +517,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -536,7 +525,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
@@ -731,10 +723,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -742,7 +731,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
@@ -757,10 +749,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -788,10 +777,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -799,7 +785,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
@@ -814,10 +803,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
-                                )
+                                (Coalesce(F("pod_cost"), Value(0, output_field=DecimalField())))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),

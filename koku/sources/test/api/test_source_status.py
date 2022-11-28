@@ -487,7 +487,8 @@ class SourcesStatusTest(IamTestCase):
         }
         self.assertEqual(actual_source_status, expected)
 
-    def test_azure_unavailable(self):
+    @patch("providers.azure.client.ClientSecretCredential")
+    def test_azure_unavailable(self, mock_client_credential):
         """Test that the API returns status when a source is configured correctly."""
         url = reverse("source-status")
         client = APIClient()
@@ -512,7 +513,7 @@ class SourcesStatusTest(IamTestCase):
         actual_source_status = response.data
         expected = {
             "availability_status": "unavailable",
-            "availability_status_error": ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE,
+            "availability_status_error": ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE,
         }
         self.assertEqual(actual_source_status, expected)
 
