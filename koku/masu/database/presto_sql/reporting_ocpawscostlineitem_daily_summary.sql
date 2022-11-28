@@ -43,8 +43,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     cost_category_id int,
     project_rank integer,
     data_source_rank integer,
-    resource_id_matched boolean
-) WITH(format = 'PARQUET')
+    resource_id_matched boolean,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 -- Direct resource_id matching
@@ -134,7 +136,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     volume_labels,
     tags,
     cost_category_id,
-    resource_id_matched
+    resource_id_matched,
+    ocp_source
 )
 SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_id) as cluster_id,
@@ -181,7 +184,8 @@ SELECT aws.uuid as aws_uuid,
         NULL as volume_labels,
         max(aws.resourcetags) as tags,
         max(ocp.cost_category_id) as cost_category_id,
-        max(aws.resource_id_matched) as resource_id_matched
+        max(aws.resource_id_matched) as resource_id_matched,
+        '{{ocp_source_uuid | sqlsafe}}' as ocp_source
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
@@ -242,7 +246,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     volume_labels,
     tags,
     cost_category_id,
-    resource_id_matched
+    resource_id_matched,
+    ocp_source
 )
 SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_id) as cluster_id,
@@ -289,7 +294,8 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
         max(ocp.cost_category_id) as cost_category_id,
-        max(aws.resource_id_matched) as resource_id_matched
+        max(aws.resource_id_matched) as resource_id_matched,
+        '{{ocp_source_uuid | sqlsafe}}' as ocp_source
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
@@ -312,6 +318,7 @@ SELECT aws.uuid as aws_uuid,
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN ({{days}})
         AND pds.aws_uuid IS NULL
+        AND pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
 ;
 
@@ -491,4 +498,5 @@ WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
