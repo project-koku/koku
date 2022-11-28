@@ -527,10 +527,10 @@ services:
       /usr/bin/mc config host add --quiet --api s3v4 local http://koku-minio:9000 kokuminioaccess kokuminiosecret;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
-      /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc anonymous set public local/koku-bucket;
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
-      /usr/bin/mc policy set public local/metastore;
+      /usr/bin/mc anonymous set public local/metastore;
       "
     depends_on:
       - minio
