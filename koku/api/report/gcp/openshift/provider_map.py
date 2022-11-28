@@ -59,6 +59,7 @@ class OCPGCPProviderMap(ProviderMap):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
+                    "category": {"field": "cost_category__name", "operation": "icontains"},
                     "project": {"field": "namespace", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                     "cluster": [
