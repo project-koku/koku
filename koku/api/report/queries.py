@@ -370,23 +370,31 @@ class ReportQueryHandler(QueryHandler):
         return filters.compose(logical_operator="or")
 
     def _set_tag_exclusion_filters(self):
-        """Creates exclusion fitlers for tags that allow null returns."""
-        tag_exclusion_collection = QueryFilterCollection()
-        emptyset_filters = []
-        tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
-        for tag in tag_filters:
+        """Creates exclusion fitlers for tags that allow null returns.
+
+        Notes:
+        Null filters are added to create the no-{key} in the api return.
+        They are added as a separate QueryFilterCollection because we need
+        the nulls to be AND together in order to handle different tag
+        key values.
+
+        noticontainslist is a custom django lookup we wrote to handle
+        tag exclusions.
+        """
+        null_collections = QueryFilterCollection()
+        tag_filter_list = []
+        for tag in self.get_tag_filter_keys(parameter_key="exclude"):
             tag_db_name = self._mapper.tag_column + "__" + strip_tag_prefix(tag)
-            emptyset_filters.append({"field": tag_db_name, "operation": "isnull", "parameter": True})
             list_ = self.parameters.get_exclude(tag, list())
             if list_ and not ReportQueryHandler.has_wildcard(list_):
-                filt = {"field": tag_db_name, "operation": "noticontainslist"}
-                q_filter = QueryFilter(parameter=list_, **filt)
-                tag_exclusion_collection.add(q_filter)
-        emptyset_filters.append({"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"})
-        emptyset_composed = self._set_or_filters(emptyset_filters)
-        tag_exclusion_composed = tag_exclusion_collection.compose()
-        if tag_exclusion_composed and emptyset_composed:
-            tag_exclusion_composed = tag_exclusion_composed | emptyset_composed
+                tag_filter_list.append({"field": tag_db_name, "operation": "noticontainslist", "parameter": list_})
+                null_collections.add(QueryFilter(**{"field": tag_db_name, "operation": "isnull", "parameter": True}))
+        if tag_filter_list:
+            tag_filter_list.append({"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"})
+        null_composed = null_collections.compose()
+        tag_exclusion_composed = self._set_or_filters(tag_filter_list)
+        if tag_exclusion_composed and null_composed:
+            tag_exclusion_composed = tag_exclusion_composed | null_composed
         return tag_exclusion_composed
 
     def _set_tag_filters(self, filters):
