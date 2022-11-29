@@ -402,9 +402,10 @@ class ReportQueryHandler(QueryHandler):
                     tag_exclusion_composed = tag_filt_composed
                 else:
                     tag_exclusion_composed = tag_exclusion_composed & tag_filt_composed
-            tag_exclusion_composed = (
-                tag_exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
-            )
+            if tag_exclusion_composed:
+                tag_exclusion_composed = (
+                    tag_exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
+                )
         else:
             if tag_filter_list:
                 tag_filter_list.append(empty_json_filter)
