@@ -318,7 +318,6 @@ SELECT aws.uuid as aws_uuid,
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN ({{days}})
         AND pds.aws_uuid IS NULL
-        AND pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
 ;
 

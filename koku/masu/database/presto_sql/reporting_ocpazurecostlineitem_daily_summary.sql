@@ -315,7 +315,6 @@ SELECT azure.uuid as azure_uuid,
         AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND pds.azure_uuid is NULL
-        AND pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source
 ;
 

@@ -338,7 +338,6 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN ({{days}})
     AND pds.gcp_uuid IS NULL
-    AND pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
