@@ -121,16 +121,14 @@ def main():
 
     # tables_to_drop = ["aws_openshift_daily"]
     # columns_to_drop = ["ocp_matched"]
-    # columns_to_add = {"cost_category_id": "int"}
+    columns_to_add = {"node_capacity_cpu_core_hours": "double", "node_capacity_memory_gigabyte_hours": "double"}
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        # logging.info(f"*** Adding column to tables for schema {schema} ***")
-        logging.info(f"*** Dropping tables for schema {schema} ***")
-        drop_table_by_partition("reporting_ocpusagelineitem_daily_summary", "source", CONNECT_PARAMS)
-        drop_table_by_partition("reporting_ocpawscostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
-        drop_table_by_partition("reporting_ocpazurecostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
-        drop_table_by_partition("reporting_ocpgcpcostlineitem_project_daily_summary", "ocp_source", CONNECT_PARAMS)
+        logging.info(f"*** Adding column to tables for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary")
+        # logging.info(f"*** Dropping tables for schema {schema} ***")
+        # drop_table_by_partition("reporting_ocpusagelineitem_daily_summary", "source", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
