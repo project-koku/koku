@@ -49,8 +49,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     cost_category_id int,
     project_rank integer,
     data_source_rank integer,
-    ocp_matched boolean
-) WITH(format = 'PARQUET')
+    ocp_matched boolean,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -111,6 +112,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 -- Direct resource_id matching
@@ -161,7 +163,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     volume_labels,
     tags,
     cost_category_id,
-    ocp_matched
+    ocp_matched,
+    ocp_source
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -209,7 +212,8 @@ SELECT gcp.uuid as gcp_uuid,
     NULL as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
     max(ocp.cost_category_id) as cost_category_id,
-    max(gcp.ocp_matched) as ocp_matched
+    max(gcp.ocp_matched) as ocp_matched,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON gcp.usage_start_time = ocp.usage_start
@@ -277,7 +281,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     volume_labels,
     tags,
     cost_category_id,
-    ocp_matched
+    ocp_matched,
+    ocp_source
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -325,7 +330,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.volume_labels) as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
     max(ocp.cost_category_id) as cost_category_id,
-    max(gcp.ocp_matched) as ocp_matched
+    max(gcp.ocp_matched) as ocp_matched,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
@@ -569,4 +575,5 @@ WHERE gcp_source = '{{gcp_source_uuid | sqlsafe}}'
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
