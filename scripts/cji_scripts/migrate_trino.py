@@ -114,7 +114,8 @@ def main():
     logging.info("Running the hive migration for OCP/GCP additional cost fields")
 
     logging.info("fetching schemas")
-    schemas = get_schemas()
+    # schemas = get_schemas()
+    schemas = ["acct6089719"]
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
