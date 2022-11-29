@@ -249,7 +249,6 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
-            LOG.info(f"composed_filters: {composed_filters}")
         return composed_filters
 
     def _check_for_operator_specific_exlusions(self, composed_filters):
