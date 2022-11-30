@@ -167,6 +167,31 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_data_from_manifest(manifests)
             self.assertIn("using start and end dates from the manifest for HCS processing", _logs.output[0])
 
+    @patch("hcs.tasks.get_start_and_end_from_manifest_id")
+    @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor")
+    @patch("hcs.tasks.collect_hcs_report_data")
+    def test_get_report_with_manifest_invalid(self, mock_report, mock_manifest_accessor, mock_start_end, mock_ehp, rd):
+        """Test report with invalid manifest does not process"""
+        from hcs.tasks import collect_hcs_report_data_from_manifest
+
+        mock_ehp.return_value = True
+        mock_start_end.return_value = None
+
+        manifests = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.aws_provider_type,
+                "provider_uuid": str(self.aws_provider.uuid),
+                "tracing_id": self.tracing_id,
+            }
+        ]
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_data_from_manifest(manifests)
+
+            self.assertIn("SKIPPING REPORT, no manifest found: ", _logs.output[0])
+            self.assertIn(manifests[0], _logs.output[0])
+
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization(self, rd, mock_ehp, mock_report):
         """Test report finalization"""
@@ -430,6 +455,12 @@ class TestHCSTasks(HCSTestCase):
         start, end = get_start_and_end_from_manifest_id(1)
         self.assertEqual(start, self.dh.last_month_start.date())
         self.assertEqual(end, self.dh.last_month_end.date())
+
+    @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_by_id", return_value=None)
+    def test_get_start_and_end_from_manifest_id_no_manifest(self, rd, mock_ehp, mock_manifest_accessor):
+        """Test that given a NULL maniest, this function returns None"""
+        date_tuple = get_start_and_end_from_manifest_id(1)
+        self.assertIsNone(date_tuple)
 
     def test_should_finalize(self, rd, mock_ehp):
         """test the different cases that finalize should return true or false"""

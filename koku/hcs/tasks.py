@@ -129,6 +129,7 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
             # GCP and OCI set report start and report end, AWS/Azure do not
             date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
             if not date_tuple:
+                LOG.debug(f"SKIPPING REPORT, no manifest found: {report}")
                 continue
             start_date, end_date = date_tuple
         schema_name = report.get("schema_name")
