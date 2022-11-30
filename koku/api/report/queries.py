@@ -400,18 +400,37 @@ class ReportQueryHandler(QueryHandler):
         noticontainslist is a custom django lookup we wrote to handle
         tag exclusions.
         """
+        OCP_LIST = [Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_ALL, Provider.OCP_GCP, Provider.PROVIDER_OCP]
         null_collections = QueryFilterCollection()
         tag_filter_list = []
+        empty_json_filter = {"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"}
         for tag in self.get_tag_filter_keys(parameter_key="exclude"):
             tag_db_name = self._mapper.tag_column + "__" + strip_tag_prefix(tag)
             list_ = self.parameters.get_exclude(tag, list())
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 tag_filter_list.append({"field": tag_db_name, "operation": "noticontainslist", "parameter": list_})
                 null_collections.add(QueryFilter(**{"field": tag_db_name, "operation": "isnull", "parameter": True}))
-        if tag_filter_list:
-            tag_filter_list.append({"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"})
         null_composed = null_collections.compose()
-        tag_exclusion_composed = self._set_or_filters(tag_filter_list)
+        if self.provider and self.provider in OCP_LIST:
+            # For OCP tables we need to use the AND operator because the two tag keys are found
+            # in the same json structure per row.
+            tag_exclusion_composed = None
+            for tag_filt in tag_filter_list:
+                tag_filt_composed = QueryFilterCollection([QueryFilter(**tag_filt)]).compose()
+                if not tag_exclusion_composed:
+                    tag_exclusion_composed = tag_filt_composed
+                else:
+                    tag_exclusion_composed = tag_exclusion_composed & tag_filt_composed
+            if tag_exclusion_composed:
+                tag_exclusion_composed = (
+                    tag_exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
+                )
+        else:
+            if tag_filter_list:
+                tag_filter_list.append(empty_json_filter)
+            # We use OR here for our non ocp tables because the tag keys will not live in the
+            # same json structure.
+            tag_exclusion_composed = self._set_or_filters(tag_filter_list)
         if tag_exclusion_composed and null_composed:
             tag_exclusion_composed = tag_exclusion_composed | null_composed
         return tag_exclusion_composed
