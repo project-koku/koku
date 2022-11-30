@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0263_add_cost_categroy"),
+        ("reporting", "0264_ocpaws_cost_fields"),
     ]
 
     operations = [
