@@ -185,7 +185,13 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_data_from_manifest(manifests)
 
             self.assertIn("SKIPPING REPORT, no manifest found: ", _logs.output[0])
-            self.assertIn(manifests[0], _logs.output[0])
+            self.assertIn(
+                (
+                    f"'schema_name': '{self.schema}', 'provider_type': '{self.aws_provider_type}', "
+                    f"'provider_uuid': '{str(self.aws_provider.uuid)}', 'tracing_id': '{self.tracing_id}'"
+                ),
+                _logs.output[0],
+            )
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization(self, rd, mock_ehp, mock_report):
