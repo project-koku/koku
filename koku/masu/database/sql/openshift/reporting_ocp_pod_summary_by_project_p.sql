@@ -31,6 +31,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_by_project_p (
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     source_uuid,
+    cost_category_id,
     raw_currency
 )
     SELECT uuid_generate_v4() as id,
@@ -75,11 +76,14 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_by_project_p (
         max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         {{source_uuid}}::uuid as source_uuid,
+        max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Pod'
+        AND namespace IS DISTINCT FROM 'Workers Unallocated Capacity'
+        AND namespace IS DISTINCT FROM 'Platform Unallocated Capacity'
     GROUP BY usage_start, cluster_id, cluster_alias, namespace
 ;

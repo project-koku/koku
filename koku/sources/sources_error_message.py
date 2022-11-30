@@ -22,7 +22,7 @@ class SourcesErrorMessage:
     def azure_client_errors(self, message):
         """Azure client error messages."""
         scrubbed_message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
-        if "http error: 401" in message:
+        if any(test in message for test in ["http error: 401", "Authentication failed"]):
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE
         if "AADSTS700016" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
@@ -32,7 +32,7 @@ class SourcesErrorMessage:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
-        if "SubscriptionNotFound" in message:
+        if any(test in message for test in ["SubscriptionNotFound", "InvalidSubscriptionId"]):
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
         return scrubbed_message
 

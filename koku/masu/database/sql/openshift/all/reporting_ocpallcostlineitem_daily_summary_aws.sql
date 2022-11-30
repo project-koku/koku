@@ -32,6 +32,7 @@ INSERT
            unblended_cost,
            markup_cost,
            currency_code,
+           cost_category_id,
            shared_projects,
            source_uuid
        )
@@ -56,6 +57,7 @@ SELECT 'AWS'::text AS source_type,
        sum(aws.unblended_cost),
        sum(aws.markup_cost),
        max(aws.currency_code),
+       max(cost_category_id) as cost_category_id,
        max(aws.shared_projects),
        {{source_uuid}}::uuid as source_uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p AS aws

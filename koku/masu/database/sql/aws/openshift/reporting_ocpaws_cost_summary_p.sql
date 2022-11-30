@@ -14,7 +14,8 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
     unblended_cost,
     markup_cost,
     currency_code,
-    source_uuid
+    source_uuid,
+    cost_category_id
 )
     SELECT uuid_generate_v4() as id,
         usage_start,
@@ -24,7 +25,8 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
         sum(unblended_cost),
         sum(markup_cost),
         max(currency_code),
-        {{source_uuid}}::uuid
+        {{source_uuid}}::uuid,
+        max(cost_category_id)
     FROM reporting_ocpawscostlineitem_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date

@@ -7,6 +7,8 @@ import logging
 
 from adal.adal_error import AdalError
 from azure.common import AzureException
+from azure.core.exceptions import AzureError
+from azure.core.exceptions import HttpResponseError
 from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
@@ -123,7 +125,16 @@ class AzureProvider(ProviderInterface):
         except AzureCostReportNotFound as costreport_err:
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
-        except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
+        except (
+            AdalError,
+            AzureError,
+            AzureException,
+            AzureServiceError,
+            ClientException,
+            HttpResponseError,
+            TypeError,
+            ValueError,
+        ) as exc:
             key = ProviderErrors.AZURE_CLIENT_ERROR
             raise ValidationError(error_obj(key, str(exc)))
 
