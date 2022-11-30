@@ -392,7 +392,7 @@ class ReportQueryHandler(QueryHandler):
                 tag_filter_list.append({"field": tag_db_name, "operation": "noticontainslist", "parameter": list_})
                 null_collections.add(QueryFilter(**{"field": tag_db_name, "operation": "isnull", "parameter": True}))
         null_composed = null_collections.compose()
-        if self.provider in OCP_LIST:
+        if self.provider and self.provider in OCP_LIST:
             # For OCP tables we need to use the AND operator because the two tag keys are found
             # in the same json structure per row.
             tag_exclusion_composed = None
