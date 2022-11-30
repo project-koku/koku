@@ -78,7 +78,7 @@ services:
       - base
 
   masu-server:
-    container_name: masu-server
+    container_name: koku-masu-server
     image: koku_base
     working_dir: /koku
     entrypoint:
