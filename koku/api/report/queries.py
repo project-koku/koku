@@ -251,7 +251,7 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & tag_exclusion_composed
         return composed_filters
 
-    def _check_for_operator_specific_exlusions(self, composed_filters):
+    def _check_for_operator_specific_exclusions(self, composed_filters):
         """Check for operator specific filters for exclusions."""
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
@@ -332,7 +332,10 @@ class ReportQueryHandler(QueryHandler):
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
         composed_exclusions = exclusion.compose(logical_operator="or")
-        self.query_exclusions = self._check_for_operator_specific_exlusions(composed_exclusions)
+        self.query_exclusions = self._check_for_operator_specific_exclusions(composed_exclusions)
+        provider_map_exclusions = self._provider_map_conditional_exclusions()
+        if provider_map_exclusions:
+            self.query_exclusions = self.query_exclusions | provider_map_exclusions
         composed_filters = self._check_for_operator_specific_filters(filters)
         if composed_category_filters:
             composed_filters = composed_filters & composed_category_filters
@@ -352,6 +355,22 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f"_get_search_filter: {composed_filters}")
         LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
+
+    def _provider_map_conditional_exclusions(self):
+        """
+        Uses the provider_map conditionals to exclude from a query in certain scenarios.
+
+        Such as when we fall back to the daily summary table but don't want Unallocated projects
+        included for OCP compute/memory endpoints.
+        """
+
+        exclusions = QueryFilterCollection()
+        exclude_list = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
+        )
+        for exclusion in exclude_list:
+            exclusions.add(**exclusion)
+        return exclusions.compose()
 
     def _set_or_filters(self, or_filter=None):
         """Create a composed filter collection of ORed filters.

@@ -4,6 +4,7 @@
 #
 """Test the Report Queries."""
 from collections import OrderedDict
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -136,9 +137,12 @@ def create_test_handler(params, mapper=None):
         _mapper = Mock(
             spec=ProviderMap,
             _report_type_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
+            report_type_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
             _provider_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
             tag_column="tags",
+            views=MagicMock(),
         )
+        provider = None
 
     return TestableReportQueryHandler(params)
 

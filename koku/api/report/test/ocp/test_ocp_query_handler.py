@@ -883,7 +883,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 gcp_filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                 # Test exclude
                 # we subtract the ocp_raw cost here because we only want cost associated to
-                # an infrastructure here, or atleas tthat is my understanding.
+                # an infrastructure here, or atleast that is my understanding.
                 expected_total = (ocp_total + azure_filtered_total + gcp_filtered_total) - ocp_raw
                 exclude_url = "?exclude[infrastructures]=aws"
                 query_params = self.mocked_query_params(exclude_url, view)
