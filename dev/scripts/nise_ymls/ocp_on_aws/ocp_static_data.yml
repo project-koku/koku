@@ -148,7 +148,7 @@ generators:
         - node:
           node_name: aws_master
           node_labels: label_nodeclass:master
-          cpu_cores: 2
+          cpu_cores: 4
           memory_gig: 8
           resource_id: 55555558
           namespaces:

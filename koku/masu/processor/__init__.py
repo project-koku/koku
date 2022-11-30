@@ -71,9 +71,9 @@ def disable_ocp_on_cloud_summary(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"OCP on Cloud Summary UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context))
-    LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
+    LOG.info(f"    OCP on Cloud Summary {'disabled' if res else 'enabled'} {account}")
 
     return res
 
@@ -83,7 +83,7 @@ def disable_gcp_resource_matching(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"GCP resource matching UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context))
     LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
 
@@ -96,7 +96,7 @@ def summarize_ocp_on_gcp_by_node(account):
         account = f"acct{account}"
 
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
+    LOG.info(f"OCP on GCP Summary by Node UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context))
     LOG.info(f"    Summarize by Node for OCP on GCP {'enabled' if res else 'disabled'} {account}")
 

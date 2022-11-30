@@ -6,7 +6,6 @@
 import datetime
 import random
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
@@ -1236,7 +1235,6 @@ class OCPReportViewTest(IamTestCase):
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
-    @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         url = "?filter[type]=pod&filter[enabled]=true"

@@ -6,7 +6,6 @@ generators:
       nodes:
         - node:
           node_name: gcp_compute1
-          node_labels: label_nodeclass:compute
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -27,7 +26,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:murphy|label_app:fall|label_version:red|label_qa:checked
+                  labels: label_environment:ruby|label_app:fall|label_version:red|label_qa:checked
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
@@ -72,7 +71,6 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: gcp_compute2
-          node_labels: label_nodeclass:compute
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -108,8 +106,8 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: gcp_compute3
-          node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra
-          cpu_cores: 4
+          node_labels: label_node_role_kubernetes_io:infra
+          cpu_cores: 6
           memory_gig: 16
           namespaces:
             analytics:
@@ -145,7 +143,7 @@ generators:
         - node:
           node_name: gcp_master
           node_labels: label_nodeclass:master
-          cpu_cores: 2
+          cpu_cores: 4
           memory_gig: 8
           namespaces:
             kube-system:
@@ -157,7 +155,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:murphy|label_app:summer|label_version:yellow
+                  labels: label_environment:bo|label_app:summer|label_version:yellow
             openshift:
               pods:
                 - pod:
@@ -167,7 +165,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:ruby|label_app:summer|label_version:yellow
+                  labels: label_environment:bo|label_app:summer|label_version:yellow
             openshift-kube-apiserver:
               pods:
                 - pod:
