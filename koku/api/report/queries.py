@@ -623,6 +623,7 @@ class ReportQueryHandler(QueryHandler):
             return query_data.annotate(
                 classification=Case(
                     When(project__in=self._category, then=Value("category")),
+                    When(project__endswith=" Unallocated Capacity", then=Value("unallocatedCapacity")),
                     default=Value("project"),
                     output_field=CharField(),
                 )
