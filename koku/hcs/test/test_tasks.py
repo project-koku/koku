@@ -12,6 +12,7 @@ from unittest.mock import PropertyMock
 
 import hcs.tasks as tasks
 from api.utils import DateHelper
+from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import get_start_and_end_from_manifest_id
 from hcs.tasks import should_finalize
 from hcs.test import HCSTestCase
@@ -123,8 +124,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest(self, mock_report, mock_manifest_accessor, mock_start_end, mock_ehp, rd):
         """Test report with manifest"""
-        from hcs.tasks import collect_hcs_report_data_from_manifest
-
         mock_ehp.return_value = True
         mock_start_end.return_value = (self.dh.this_month_start.date(), self.dh.this_month_end.date())
 
@@ -150,8 +149,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest_and_dates(self, rd, mock_ehp, mock_report):
         """Test report with manifest and dates"""
-        from hcs.tasks import collect_hcs_report_data_from_manifest
-
         mock_ehp.return_value = True
         manifests = [
             {
@@ -172,8 +169,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest_invalid(self, mock_report, mock_manifest_accessor, mock_start_end, mock_ehp, rd):
         """Test report with invalid manifest does not process"""
-        from hcs.tasks import collect_hcs_report_data_from_manifest
-
         mock_ehp.return_value = True
         mock_start_end.return_value = None
 
