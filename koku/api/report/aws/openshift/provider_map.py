@@ -120,7 +120,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -140,7 +140,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
+                            "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -206,7 +206,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum("usage_amount"),
+                            "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
                         "annotations": {
@@ -304,7 +304,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "count": Count("resource_id", distinct=True),
-                            "usage": Sum("usage_amount"),
+                            "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
                         "aggregate_key": "usage_amount",
