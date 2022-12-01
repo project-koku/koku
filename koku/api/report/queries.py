@@ -449,7 +449,11 @@ class ReportQueryHandler(QueryHandler):
             group_by = self.parameters.get_group_by(tag, list())
             filter_ = self.parameters.get_filter(tag, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            if list_ and ReportQueryHandler.has_wildcard(list_):
+                filt = {"field": tag_column, "operation": "has_key"}
+                q_filter = QueryFilter(parameter=strip_tag_prefix(tag), **filt)
+                filters.add(q_filter)
+            elif list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
