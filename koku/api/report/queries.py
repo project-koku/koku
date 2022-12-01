@@ -619,13 +619,14 @@ class ReportQueryHandler(QueryHandler):
 
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
-        whens = [
-            When(project__startswith="openshift-", then=Value("defaultProject")),
-            When(project__startswith="kube-", then=Value("defaultProject")),
-            When(project__endswith=" Unallocated Capacity", then=Value("unallocatedCapacity")),
-        ]
+        whens = []
+        # these are ordered, category label should take priority
         if self._category:
             whens.append(When(project__in=self._category, then=Value("category")))
+        whens.append(When(project__startswith="openshift-", then=Value("defaultProject")))
+        whens.append(When(project__startswith="kube-", then=Value("defaultProject")))
+        whens.append(When(project__endswith=" Unallocated Capacity", then=Value("unallocatedCapacity")))
+
         return query_data.annotate(
             classification=Case(
                 *whens,
