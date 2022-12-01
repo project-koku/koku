@@ -620,7 +620,6 @@ class ReportQueryHandler(QueryHandler):
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         whens = []
-        # these are ordered, category label should take priority
         if self._category:
             whens.append(When(project__in=self._category, then=Value("category")))
         whens.extend(
