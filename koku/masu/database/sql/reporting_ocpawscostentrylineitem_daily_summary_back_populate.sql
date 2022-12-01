@@ -32,8 +32,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p (
     unblended_cost,
     markup_cost,
     shared_projects,
-    source_uuid,
-    cost_category_id
+    source_uuid
 )
     SELECT uuid_generate_v4(),
         report_period_id,
@@ -59,8 +58,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p (
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
         count(DISTINCT namespace) as shared_projects,
-        source_uuid,
-        max(cost_category_id)
+        source_uuid
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date({{start_date}})
@@ -122,8 +120,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
-    raw_currency,
-    cost_category_id
+    raw_currency
 )
     SELECT uuid_generate_v4() as uuid,
         ocp_aws.report_period_id,
@@ -167,8 +164,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months,
-        max(ocp_aws.currency_code) as raw_currency,
-        max(ocp_aws.cost_category_id) as cost_category_id
+        max(ocp_aws.currency_code) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p AS ocp_aws
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_aws.cluster_id = rp.cluster_id
