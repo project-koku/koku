@@ -229,7 +229,7 @@ We have a special docker compose file specifically for running Trino (formerly P
 Set the following environment variables ::
 
     S3_BUCKET_NAME=koku-bucket
-    S3_ENDPOINT=http://kokuminio:9000
+    S3_ENDPOINT=http://koku-minio:9000
     S3_ACCESS_KEY=kokuminioaccess
     S3_SECRET=kokuminiosecret
 
