@@ -35,7 +35,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
     shared_projects,
     source_uuid,
     credit_amount,
-    invoice_month
+    invoice_month,
+    cost_category_id
 )
     SELECT uuid(),
         report_period_id,
@@ -64,7 +65,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
         count(DISTINCT namespace) as shared_projects,
         source_uuid,
         sum(credit_amount) as credit_amount,
-        invoice_month
+        invoice_month,
+        cost_category_id as cost_category_id
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date('{{start_date | sqlsafe}}')
@@ -128,7 +130,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
-    raw_currency
+    raw_currency,
+    cost_category_id
 )
     SELECT uuid() as uuid,
         ocp_gcp.report_period_id,
@@ -173,7 +176,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months,
-        max(ocp_gcp.currency) as raw_currency
+        max(ocp_gcp.currency) as raw_currency,
+        max(cost_category_id) as cost_category_id
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS ocp_gcp
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_gcp.cluster_id = rp.cluster_id
