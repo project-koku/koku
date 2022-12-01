@@ -623,9 +623,13 @@ class ReportQueryHandler(QueryHandler):
         # these are ordered, category label should take priority
         if self._category:
             whens.append(When(project__in=self._category, then=Value("category")))
-        whens.append(When(project__startswith="openshift-", then=Value("defaultProject")))
-        whens.append(When(project__startswith="kube-", then=Value("defaultProject")))
-        whens.append(When(project__endswith=" Unallocated Capacity", then=Value("unallocatedCapacity")))
+        whens.extend(
+            [
+                When(project__startswith="openshift-", then=Value("defaultProject")),
+                When(project__startswith="kube-", then=Value("defaultProject")),
+                When(project__endswith=" Unallocated Capacity", then=Value("unallocatedCapacity")),
+            ]
+        )
 
         return query_data.annotate(
             classification=Case(
