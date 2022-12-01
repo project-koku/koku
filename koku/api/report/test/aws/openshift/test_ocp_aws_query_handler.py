@@ -6,7 +6,6 @@
 import copy
 import logging
 from datetime import timedelta
-from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from rest_framework.exceptions import ValidationError
@@ -487,8 +486,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAWSExcludeSerializer._opfields)
         # az needed to be tested separate cause
@@ -532,8 +530,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_availability_zone(self, _):
+    def test_exclude_availability_zone(self):
         """Test that the exclude feature works for all options."""
         exclude_opt = "az"
         for view in [OCPAWSCostView, OCPAWSStorageView, OCPAWSInstanceTypeView]:
@@ -573,8 +570,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 self.assertAlmostEqual(expected_total, excluded_total, 6)
                 self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
@@ -605,8 +601,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAWSExcludeSerializer._opfields)
         exclude_opts.remove("az")

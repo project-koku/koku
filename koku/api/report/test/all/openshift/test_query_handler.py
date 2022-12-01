@@ -5,7 +5,6 @@
 """Test the OCP on All query handler."""
 import logging
 from unittest import skip
-from unittest.mock import patch
 
 from tenant_schemas.utils import tenant_context
 
@@ -218,8 +217,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         expected = [QueryFilter(field=field, operation="contains", parameter=access)]
         self.assertEqual(filters._filters, expected)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAllExcludeSerializer._opfields)
         exclude_opts.remove("source_type")
@@ -259,8 +257,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     self.assertNotEqual(overall_total, excluded_total)
 
     @skip("the ocp-all table is not populated")
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", OCPAllTagView)
         handler = OCPAllTagQueryHandler(query_params)
@@ -291,8 +288,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAllExcludeSerializer._opfields)
         exclude_opts.remove("source_type")
