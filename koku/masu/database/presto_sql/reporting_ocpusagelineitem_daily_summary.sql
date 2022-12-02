@@ -443,53 +443,89 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cluster_capacity_memory_gigabyte_hours,
     data_source,
     source_uuid,
+    cost_category_id,
     source,
     year,
     month,
     day
 )
-SELECT NULL as uuid,
-    {{report_period_id}} as report_period_id,
-    {{cluster_id}} as cluster_id,
-    {{cluster_alias}} as cluster_alias,
-    max(lids.usage_start),
-    max(lids.usage_end),
-    CASE max(nodes.node_role)
-        WHEN 'master' THEN 'Platform Unallocated Capacity'
-        WHEN 'infra' THEN 'Platform Unallocated Capacity'
-        WHEN 'worker' THEN 'Workers Unallocated Capacity'
-    END as namespace,
-    lids.node,
-    max(lids.resource_id) as resource_id,
-    (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_usage_cpu_core_hours)) as pod_usage_cpu_core_hours,
-    (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_request_cpu_core_hours)) as pod_request_cpu_core_hours,
-    (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_effective_usage_cpu_core_hours)) as pod_effective_usage_cpu_core_hours,
-    (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_usage_memory_gigabyte_hours)) as pod_usage_memory_gigabyte_hours,
-    (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_request_memory_gigabyte_hours)) as pod_request_memory_gigabyte_hours,
-    (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_effective_usage_memory_gigabyte_hours)) as pod_effective_usage_memory_gigabyte_hours,
-    max(lids.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-    max(lids.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
-    max(lids.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
-    max(lids.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-    max(lids.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-    max(lids.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    max(lids.data_source),
-    lids.source_uuid,
-    {{source}} as source,
-    cast(year(lids.usage_start) as varchar) as year,
-    cast(month(lids.usage_start) as varchar) as month,
-    cast(day(lids.usage_start) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
-    ON lids.node = nodes.node
-    AND lids.resource_id = nodes.resource_id
-WHERE lids.source = {{source}}
-    AND lids.year = {{year}}
-    AND lpad(lids.month, 2, '0') = {{month}}
-    AND lids.usage_start >= TIMESTAMP {{start_date}}
-    AND lids.node IS NOT NULL
-    AND lids.data_source = 'Pod'
-GROUP BY lids.node, lids.usage_start, lids.source_uuid
+WITH cte_unallocated_capacity AS (
+    SELECT
+        NULL as uuid,
+        {{report_period_id}} as report_period_id,
+        {{cluster_id}} as cluster_id,
+        {{cluster_alias}} as cluster_alias,
+        max(lids.usage_start) as usage_start,
+        max(lids.usage_end) as usage_end,
+        CASE max(nodes.node_role)
+            WHEN 'master' THEN 'Platform Unallocated Capacity'
+            WHEN 'infra' THEN 'Platform Unallocated Capacity'
+            WHEN 'worker' THEN 'Workers Unallocated Capacity'
+        END as namespace,
+        lids.node,
+        max(lids.resource_id) as resource_id,
+        (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_usage_cpu_core_hours)) as pod_usage_cpu_core_hours,
+        (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_request_cpu_core_hours)) as pod_request_cpu_core_hours,
+        (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_effective_usage_cpu_core_hours)) as pod_effective_usage_cpu_core_hours,
+        (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_usage_memory_gigabyte_hours)) as pod_usage_memory_gigabyte_hours,
+        (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_request_memory_gigabyte_hours)) as pod_request_memory_gigabyte_hours,
+        (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_effective_usage_memory_gigabyte_hours)) as pod_effective_usage_memory_gigabyte_hours,
+        max(lids.node_capacity_cpu_cores) as node_capacity_cpu_cores,
+        max(lids.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+        max(lids.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
+        max(lids.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
+        max(lids.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+        max(lids.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+        max(lids.data_source) as data_source,
+        lids.source_uuid,
+        {{source}} as source,
+        cast(year(lids.usage_start) as varchar) as year,
+        cast(month(lids.usage_start) as varchar) as month,
+        cast(day(lids.usage_start) as varchar) as day
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
+        ON lids.node = nodes.node
+        AND lids.resource_id = nodes.resource_id
+    WHERE lids.source = {{source}}
+        AND lids.year = {{year}}
+        AND lpad(lids.month, 2, '0') = {{month}}
+        AND lids.usage_start >= TIMESTAMP {{start_date}}
+        AND lids.node IS NOT NULL
+        AND lids.data_source = 'Pod'
+    GROUP BY lids.node, lids.usage_start, lids.source_uuid
+)
+SELECT
+    uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    usage_start,
+    usage_end,
+    uc.namespace,
+    node,
+    resource_id,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_cores,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabytes,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    data_source,
+    source_uuid,
+    cat.id as cost_category_id,
+    source,
+    year,
+    month,
+    day
+FROM cte_unallocated_capacity AS uc
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+    ON any_match(cat.namespace, x -> uc.namespace LIKE x)
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
