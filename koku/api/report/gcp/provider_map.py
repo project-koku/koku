@@ -310,13 +310,16 @@ class GCPProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                         # COST-3043
                         # a default filter to use if querying a specific table. Filter generated in gcp_filter
-                        "conditional_filter": {
-                            "filter": {
-                                "field": "sku_alias",
-                                "operation": "icontains",
-                                "parameter": "Instance Core running",
+                        "conditionals": {
+                            GCPCostEntryLineItemDailySummary: {
+                                "filter": [
+                                    {
+                                        "field": "sku_alias",
+                                        "operation": "icontains",
+                                        "parameter": "Instance Core running",
+                                    },
+                                ],
                             },
-                            "if_table": GCPCostEntryLineItemDailySummary,
                         },
                     },
                     "storage": {

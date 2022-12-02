@@ -1615,6 +1615,22 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
+                        "conditionals": {
+                            OCPUsageLineItemDailySummary: {
+                                "exclude": [
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Workers Unallocated Capacity",
+                                    },
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Platform Unallocated Capacity",
+                                    },
+                                ],
+                            },
+                        },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
@@ -1927,6 +1943,22 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
+                        "conditionals": {
+                            OCPUsageLineItemDailySummary: {
+                                "exclude": [
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Workers Unallocated Capacity",
+                                    },
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Platform Unallocated Capacity",
+                                    },
+                                ],
+                            },
+                        },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Hours",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],

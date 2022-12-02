@@ -46,8 +46,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     tags varchar,
     project_rank integer,
     data_source_rank integer,
-    cost_category_id int
-) WITH(format = 'PARQUET')
+    cost_category_id int,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -106,6 +107,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 -- OCP ON GCP kubernetes-io-cluster-{cluster_id} label is applied on the VM and is exclusively a pod cost
@@ -153,7 +155,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
-    cost_category_id
+    cost_category_id,
+    ocp_source
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -198,7 +201,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     NULL as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
-    max(ocp.cost_category_id) as cost_category_id
+    max(ocp.cost_category_id) as cost_category_id,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
@@ -263,7 +267,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
-    cost_category_id
+    cost_category_id,
+    ocp_source
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -308,7 +313,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.volume_labels) as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
-    max(ocp.cost_category_id) as cost_category_id
+    max(ocp.cost_category_id) as cost_category_id,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
@@ -319,6 +325,8 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
+        AND ocp.namespace != 'Workers Unallocated Capacity'
+        AND ocp.namespace != 'Platform Unallocated Capacity'
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
@@ -551,4 +559,5 @@ WHERE gcp_source = '{{gcp_source_uuid | sqlsafe}}'
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
