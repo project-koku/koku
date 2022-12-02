@@ -17,6 +17,35 @@ from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPTagsValues
 
 
+filter_map_single = {
+    "project": {"field": "namespace", "operation": "icontains"},
+    "cluster": [
+        {
+            "field": "report_period__cluster_id",
+            "operation": "icontains",
+            "composition_key": "cluster_filter",
+        },
+        {
+            "field": "report_period__cluster_alias",
+            "operation": "icontains",
+            "composition_key": "cluster_filter",
+        },
+    ],
+    "node": {"field": "node", "operation": "icontains"},
+    "category": {"field": "cost_category__name", "operation": "icontains"},
+}
+
+filter_map_multi = {
+    "project": {"field": "namespaces", "operation": "contained_by"},
+    "cluster": [
+        {"field": "cluster_ids", "operation": "contained_by", "composition_key": "cluster_filter"},
+        {"field": "cluster_aliases", "operation": "contained_by", "composition_key": "cluster_filter"},
+    ],
+    "node": {"field": "nodes", "operation": "contained_by"},
+    "category": {"field": "cost_category__name", "operation": "contained_by"},
+}
+
+
 class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
@@ -37,26 +66,16 @@ class OCPTagQueryHandler(TagQueryHandler):
         },
     ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPTagsValues, "fields": ["key"]}]
-    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster", "node"]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster", "node", "category"]
+    FILTER_MAP_OCP_SINGLE = filter_map_single
+    FILTER_MAP_OCP_MULTI = filter_map_multi
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
-        {
-            "project": {"field": "namespace", "operation": "icontains"},
-            "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-            "cluster": [
-                {"field": "report_period__cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
-                {
-                    "field": "report_period__cluster_alias",
-                    "operation": "icontains",
-                    "composition_key": "cluster_filter",
-                },
-            ],
-            "node": {"field": "node", "operation": "icontains"},
-        }
-    )
+        dict({"enabled": {"field": "enabled", "operation": "exact", "parameter": True},}, **filter_map_single)
+        )
 
     def __init__(self, parameters):
-        """Establish AWS report query handler.
+        """Establish OCP report query handler.
 
         Args:
             parameters    (QueryParameters): parameter object for query
@@ -76,36 +95,9 @@ class OCPTagQueryHandler(TagQueryHandler):
         """Establish which filter map to use based on tag API."""
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
+        enabled_filter = {"enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},}
         if self._parameters.get_filter("value"):
-            filter_map.update(
-                {
-                    "project": {"field": "namespaces", "operation": "contained_by"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
-                    "cluster": [
-                        {"field": "cluster_ids", "operation": "contained_by", "composition_key": "cluster_filter"},
-                        {"field": "cluster_aliases", "operation": "contained_by", "composition_key": "cluster_filter"},
-                    ],
-                    "node": {"field": "nodes", "operation": "contained_by"},
-                }
-            )
+            filter_map.update(dict(enabled_filter, **filter_map_multi))
         else:
-            filter_map.update(
-                {
-                    "project": {"field": "namespace", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
-                    "cluster": [
-                        {
-                            "field": "report_period__cluster_id",
-                            "operation": "icontains",
-                            "composition_key": "cluster_filter",
-                        },
-                        {
-                            "field": "report_period__cluster_alias",
-                            "operation": "icontains",
-                            "composition_key": "cluster_filter",
-                        },
-                    ],
-                    "node": {"field": "node", "operation": "icontains"},
-                }
-            )
+            filter_map.update(dict(enabled_filter, **filter_map_single))
         return filter_map
