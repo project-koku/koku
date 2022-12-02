@@ -129,7 +129,11 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPAWSProviderMap(
+            provider=self.provider,
+            report_type=parameters.report_type,
+            cost_type=parameters.parameters.get("cost_type"),
+        )
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
