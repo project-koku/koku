@@ -22,6 +22,7 @@ from reporting.provider.azure.openshift.models import OCPAzureTagsValues
 
 class OCPAllTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP-on-All."""
+
     # TODO SHOULDNT THIS INCLUDE GCP?
 
     provider = Provider.OCP_ALL
@@ -67,26 +68,42 @@ class OCPAllTagQueryHandler(TagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                dict({
-                    "account": [
-                        {"field": "account_aliases", "operation": "icontains", "composition_key": "account_filter"},
-                        {"field": "usage_account_ids", "operation": "icontains", "composition_key": "account_filter"},
-                    ],
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
+                dict(
+                    {
+                        "account": [
+                            {
+                                "field": "account_aliases",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                            {
+                                "field": "usage_account_ids",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                        ],
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
                 )
             )
         else:
             filter_map.update(
-                dict({
-                    "account": [
-                        {
-                            "field": "account_alias__account_alias",
-                            "operation": "icontains",
-                            "composition_key": "account_filter",
-                        },
-                        {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
-                    ],
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
+                dict(
+                    {
+                        "account": [
+                            {
+                                "field": "account_alias__account_alias",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                            {
+                                "field": "usage_account_id",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                        ],
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
                 )
             )
         return filter_map

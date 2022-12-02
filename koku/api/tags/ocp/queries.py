@@ -69,8 +69,13 @@ class OCPTagQueryHandler(TagQueryHandler):
     FILTER_MAP_OCP_MULTI = filter_map_multi
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
-        dict({"enabled": {"field": "enabled", "operation": "exact", "parameter": True},}, **filter_map_single)
+        dict(
+            {
+                "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+            },
+            **filter_map_single
         )
+    )
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
@@ -93,7 +98,9 @@ class OCPTagQueryHandler(TagQueryHandler):
         """Establish which filter map to use based on tag API."""
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
-        enabled_filter = {"enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},}
+        enabled_filter = {
+            "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
+        }
         if self._parameters.get_filter("value"):
             filter_map.update(dict(enabled_filter, **filter_map_multi))
         else:

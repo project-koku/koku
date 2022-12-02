@@ -60,18 +60,22 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                dict({
-                    "subscription_guid": {"field": "subscription_guids", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
+                dict(
+                    {
+                        "subscription_guid": {"field": "subscription_guids", "operation": "icontains"},
+                        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
                 )
             )
         else:
             filter_map.update(
-                dict({
-                    "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
+                dict(
+                    {
+                        "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
+                        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
                 )
             )
         return filter_map

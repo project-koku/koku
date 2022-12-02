@@ -61,28 +61,44 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                dict({
-                    "account": [
-                        {"field": "account_aliases", "operation": "icontains", "composition_key": "account_filter"},
-                        {"field": "usage_account_ids", "operation": "icontains", "composition_key": "account_filter"},
-                    ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
+                dict(
+                    {
+                        "account": [
+                            {
+                                "field": "account_aliases",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                            {
+                                "field": "usage_account_ids",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                        ],
+                        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
                 )
             )
         else:
             filter_map.update(
-                dict({
-                    "account": [
-                        {
-                            "field": "account_alias__account_alias",
-                            "operation": "icontains",
-                            "composition_key": "account_filter",
-                        },
-                        {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
-                    ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
+                dict(
+                    {
+                        "account": [
+                            {
+                                "field": "account_alias__account_alias",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                            {
+                                "field": "usage_account_id",
+                                "operation": "icontains",
+                                "composition_key": "account_filter",
+                            },
+                        ],
+                        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
                 )
             )
         return filter_map

@@ -58,18 +58,22 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                dict({
-                    "account": {"field": "account_ids", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
+                dict(
+                    {
+                        "account": {"field": "account_ids", "operation": "icontains"},
+                        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
                 )
             )
         else:
             filter_map.update(
-                dict({
-                    "account": {"field": "account_id", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }, **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
+                dict(
+                    {
+                        "account": {"field": "account_id", "operation": "icontains"},
+                        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    },
+                    **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
                 )
             )
         return filter_map
