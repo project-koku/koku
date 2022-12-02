@@ -60,34 +60,18 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                {
+                dict({
                     "subscription_guid": {"field": "subscription_guids", "operation": "icontains"},
-                    "project": {"field": "namespaces", "operation": "icontains"},
-                    "cluster": [
-                        {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
-                        {"field": "cluster_aliases", "operation": "icontains", "composition_key": "cluster_filter"},
-                    ],
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }
+                }, **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
+                )
             )
         else:
             filter_map.update(
-                {
+                dict({
                     "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
-                    "project": {"field": "namespace", "operation": "icontains"},
-                    "cluster": [
-                        {
-                            "field": "report_period__cluster_id",
-                            "operation": "icontains",
-                            "composition_key": "cluster_filter",
-                        },
-                        {
-                            "field": "report_period__cluster_alias",
-                            "operation": "icontains",
-                            "composition_key": "cluster_filter",
-                        },
-                    ],
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-                }
+                }, **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
+                )
             )
         return filter_map

@@ -32,7 +32,6 @@ filter_map_single = {
         },
     ],
     "node": {"field": "node", "operation": "icontains"},
-    "category": {"field": "cost_category__name", "operation": "icontains"},
 }
 
 filter_map_multi = {
@@ -42,7 +41,6 @@ filter_map_multi = {
         {"field": "cluster_aliases", "operation": "contained_by", "composition_key": "cluster_filter"},
     ],
     "node": {"field": "nodes", "operation": "contained_by"},
-    "category": {"field": "cost_category__name", "operation": "contained_by"},
 }
 
 
@@ -66,7 +64,7 @@ class OCPTagQueryHandler(TagQueryHandler):
         },
     ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPTagsValues, "fields": ["key"]}]
-    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster", "node", "category"]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster", "node"]
     FILTER_MAP_OCP_SINGLE = filter_map_single
     FILTER_MAP_OCP_MULTI = filter_map_multi
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)

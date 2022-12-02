@@ -12,6 +12,7 @@ from django.db.models import Value
 
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
+from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPAWSTagsSummary
 from reporting.models import OCPAzureTagsSummary
@@ -21,6 +22,7 @@ from reporting.provider.azure.openshift.models import OCPAzureTagsValues
 
 class OCPAllTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP-on-All."""
+    # TODO SHOULDNT THIS INCLUDE GCP?
 
     provider = Provider.OCP_ALL
     data_sources = [
@@ -45,7 +47,7 @@ class OCPAllTagQueryHandler(TagQueryHandler):
             },
         },
     ]
-    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "cluster"]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.
@@ -65,21 +67,17 @@ class OCPAllTagQueryHandler(TagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                {
+                dict({
                     "account": [
                         {"field": "account_aliases", "operation": "icontains", "composition_key": "account_filter"},
                         {"field": "usage_account_ids", "operation": "icontains", "composition_key": "account_filter"},
                     ],
-                    "project": {"field": "namespaces", "operation": "icontains"},
-                    "cluster": [
-                        {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
-                        {"field": "cluster_aliases", "operation": "icontains", "composition_key": "cluster_filter"},
-                    ],
-                }
+                }, **OCPTagQueryHandler.FILTER_MAP_OCP_MULTI
+                )
             )
         else:
             filter_map.update(
-                {
+                dict({
                     "account": [
                         {
                             "field": "account_alias__account_alias",
@@ -88,19 +86,7 @@ class OCPAllTagQueryHandler(TagQueryHandler):
                         },
                         {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
                     ],
-                    "project": {"field": "namespace", "operation": "icontains"},
-                    "cluster": [
-                        {
-                            "field": "report_period__cluster_id",
-                            "operation": "icontains",
-                            "composition_key": "cluster_filter",
-                        },
-                        {
-                            "field": "report_period__cluster_alias",
-                            "operation": "icontains",
-                            "composition_key": "cluster_filter",
-                        },
-                    ],
-                }
+                }, **OCPTagQueryHandler.FILTER_MAP_OCP_SINGLE
+                )
             )
         return filter_map
