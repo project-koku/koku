@@ -111,3 +111,13 @@ def is_large_customer(account):
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context))
 
     return res
+
+
+def enable_ocp_savings_plan_cost(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-savings-plan-cost", context))
+
+    return res
