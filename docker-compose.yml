@@ -379,10 +379,10 @@ services:
     container_name: koku-db
     image: postgres:13
     environment:
-    - POSTGRES_DB=${DATABASE_NAME-postgres}
-    - POSTGRES_USER=${DATABASE_USER-postgres}
-    - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
-    - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
+      - POSTGRES_DB=${DATABASE_NAME-postgres}
+      - POSTGRES_USER=${DATABASE_USER-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
     ports:
       - 15432:5432
     volumes:
@@ -465,8 +465,8 @@ services:
     container_name: pgAdmin
     image: dpage/pgadmin4
     environment:
-    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres@local.dev}
-    - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD-postgres}
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres@local.dev}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD-postgres}
     ports:
       - "${PGADMIN_PORT-8432}:80"
     volumes:
@@ -475,8 +475,8 @@ services:
   grafana:
     container_name: koku-grafana
     build:
-        context: grafana
-        dockerfile: Dockerfile-grafana
+      context: grafana
+      dockerfile: Dockerfile-grafana
     ports:
       - 3001:3000
     depends_on:
@@ -507,8 +507,8 @@ services:
     container_name: koku-minio
     image: local-minio:latest
     build:
-        context: .
-        dockerfile: Dockerfile.minio
+      context: .
+      dockerfile: Dockerfile.minio
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
