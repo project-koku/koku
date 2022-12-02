@@ -25,7 +25,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AWSCostEntryBill
 from reporting.models import OCPAWSComputeSummaryP
-from reporting.models import OCPAWSCostLineItemDailySummaryP
+from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostSummaryByAccountP
 from reporting.models import OCPAWSCostSummaryByRegionP
 from reporting.models import OCPAWSCostSummaryByServiceP
@@ -93,7 +93,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         }
 
         with tenant_context(self.tenant):
-            self.services = OCPAWSCostLineItemDailySummaryP.objects.values("product_code").distinct()
+            self.services = OCPAWSCostLineItemProjectDailySummaryP.objects.values("product_code").distinct()
             self.services = [entry.get("product_code") for entry in self.services]
 
     def get_totals_by_time_scope(self, handler, filters=None):
@@ -102,7 +102,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
             return (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(**filters)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(**filters)
                 .annotate(**handler.annotations)
                 .aggregate(**aggregates)
             )
@@ -545,7 +545,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                     elif view == OCPAWSInstanceTypeView:
                         filters["instance_type__isnull"] = False
                     az_list = (
-                        OCPAWSCostLineItemDailySummaryP.objects.filter(**filters)
+                        OCPAWSCostLineItemProjectDailySummaryP.objects.filter(**filters)
                         .values_list("availability_zone", flat=True)
                         .distinct()
                     )
