@@ -429,7 +429,7 @@ SELECT pds.aws_uuid,
         ELSE blended_cost / aws_uuid_count
     END as blended_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_columvn | sqlsafe}} / {{node_column | sqlsafe}}) * blended_cost * cast({{markup}} as decimal(24,9))
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * blended_cost * cast({{markup}} as decimal(24,9))
         ELSE blended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost_blended,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
