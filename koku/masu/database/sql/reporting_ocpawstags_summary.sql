@@ -5,11 +5,10 @@ WITH cte_tag_value AS (
         li.usage_account_id,
         li.report_period_id,
         max(li.account_alias_id) as account_alias_id,
-        project as namespace,
+        namespace,
         node
-    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p AS li,
-        jsonb_each_text(li.tags) labels,
-        unnest(li.namespace) projects(project)
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p AS li,
+        jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
     {% if bill_ids %}
@@ -19,7 +18,7 @@ WITH cte_tag_value AS (
         {%- endfor -%}
     )
     {% endif %}
-    GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id, li.report_period_id, project, li.node
+    GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id, li.report_period_id, li.namespace, li.node
 ),
 cte_values_agg AS (
     SELECT key,
