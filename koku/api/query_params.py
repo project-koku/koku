@@ -466,6 +466,11 @@ class QueryParameters:
         return self.get("currency", settings.KOKU_DEFAULT_CURRENCY)
 
     @property
+    def cost_type(self):
+        """Get currency."""
+        return self.get("cost_type", settings.KOKU_DEFAULT_COST_TYPE)
+
+    @property
     def delta(self):
         """Return delta property."""
         return self.get("delta")
