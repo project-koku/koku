@@ -62,8 +62,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         END as volume_labels,
         rp.provider_id as source_uuid,
         {% if is_savingsplan_cost %}
-        sum(coalesce(ocp_aws.savingsplan_effective_cost, ocp_aws.unblended_cost) + coalesce(ocp_aws.markup_cost_savingsplan, ocp_aws.markup_cost)) AS infrastructure_raw_cost,
-        sum(coalesce(ocp_aws.savingsplan_effective_cost, ocp_aws.unblended_cost) + coalesce(ocp_aws.markup_cost_savingsplan, ocp_aws.markup_cost)) AS infrastructure_project_raw_cost,
+        sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_raw_cost,
+        sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_project_raw_cost,
         {% else %}
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost,
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_project_raw_cost,
