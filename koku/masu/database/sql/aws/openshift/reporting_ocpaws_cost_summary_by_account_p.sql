@@ -19,7 +19,6 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_account_p
     markup_cost_blended,
     savingsplan_effective_cost,
     markup_cost_savingsplan,
-
     currency_code,
     source_uuid
 )
