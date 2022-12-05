@@ -13,6 +13,7 @@ from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.queries import TagQueryHandler
+from koku.settings import KOKU_DEFAULT_COST_TYPE
 from reporting.models import OCPAWSTagsSummary
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
@@ -51,7 +52,7 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         self._mapper = OCPAWSProviderMap(
             provider=self.provider,
             report_type=parameters.report_type,
-            cost_type=parameters.parameters.get("cost_type"),
+            cost_type=parameters.parameters.get("cost_type", KOKU_DEFAULT_COST_TYPE),
         )
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
