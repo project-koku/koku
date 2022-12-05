@@ -467,7 +467,7 @@ class QueryParameters:
 
     @property
     def cost_type(self):
-        """Get currency."""
+        """Get cost type param."""
         return self.get("cost_type", settings.KOKU_DEFAULT_COST_TYPE)
 
     @property
