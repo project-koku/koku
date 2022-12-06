@@ -32,7 +32,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
 from reporting.models import OCPGCPComputeSummaryP
-from reporting.models import OCPGCPCostLineItemDailySummaryP
+from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.models import OCPGCPCostSummaryByAccountP
 from reporting.models import OCPGCPCostSummaryByServiceP
 from reporting.models import OCPGCPCostSummaryP
@@ -105,7 +105,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
             return (
-                OCPGCPCostLineItemDailySummaryP.objects.filter(**filters)
+                OCPGCPCostLineItemProjectDailySummaryP.objects.filter(**filters)
                 .annotate(**handler.annotations)
                 .aggregate(**aggregates)
             )
@@ -867,7 +867,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
-            cluster = OCPGCPCostLineItemDailySummaryP.objects.values("cluster_id")[0].get("cluster_id")
+            cluster = OCPGCPCostLineItemProjectDailySummaryP.objects.values("cluster_id")[0].get("cluster_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]={cluster}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -901,7 +901,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             valid_services = [
                 service[0]
-                for service in OCPGCPCostLineItemDailySummaryP.objects.values_list("service_alias").distinct()
+                for service in OCPGCPCostLineItemProjectDailySummaryP.objects.values_list("service_alias").distinct()
             ]
             service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]={service}"  # noqa: E501
@@ -935,7 +935,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
-            service = OCPGCPCostLineItemDailySummaryP.objects.values("service_alias")[0].get("service_alias")
+            service = OCPGCPCostLineItemProjectDailySummaryP.objects.values("service_alias")[0].get("service_alias")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -965,7 +965,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
         with tenant_context(self.tenant):
-            account = OCPGCPCostLineItemDailySummaryP.objects.values("account_id")[0].get("account_id")
+            account = OCPGCPCostLineItemProjectDailySummaryP.objects.values("account_id")[0].get("account_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -989,7 +989,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_exclude_service(self):
         """Test execute_query for current month on monthly excluded by service."""
         with tenant_context(self.tenant):
-            service = OCPGCPCostLineItemDailySummaryP.objects.values("service_alias")[0].get("service_alias")
+            service = OCPGCPCostLineItemProjectDailySummaryP.objects.values("service_alias")[0].get("service_alias")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&exclude[service]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -1414,7 +1414,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                     filters["unit"] = "gibibyte month"
                 with tenant_context(self.tenant):
                     opt_value = (
-                        OCPGCPCostLineItemDailySummaryP.objects.filter(**filters)
+                        OCPGCPCostLineItemProjectDailySummaryP.objects.filter(**filters)
                         .values_list("instance_type", flat=True)
                         .distinct()[0]
                     )
