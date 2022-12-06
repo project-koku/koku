@@ -115,7 +115,7 @@ def main():
 
     logging.info("fetching schemas")
     # schemas = get_schemas()
-    schemas = ["acct6394315", "acct6089719"]
+    schemas = ["acct6394315", "acct6089719", "org13468291"]
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
