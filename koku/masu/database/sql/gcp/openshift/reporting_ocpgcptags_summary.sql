@@ -9,7 +9,7 @@ WITH cte_tag_value AS (
         li.namespace,
         node
     FROM {{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS li,
-        jsonb_each_text(li.tags) labels,
+        jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
