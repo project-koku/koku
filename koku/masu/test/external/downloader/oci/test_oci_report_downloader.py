@@ -169,14 +169,20 @@ class OCIReportDownloaderTest(MasuTestCase):
         manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
         self.assertIsNotNone(manifest_dict)
 
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._extract_names")
     @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._prepare_monthly_files")
-    def test_get_manifest_context_for_date(self, mock_prepare_monthly_files):
+    def test_get_manifest_context_for_date(self, mock_prepare_monthly_files, mock_extract_names):
         """Test successful return of get manifest context for date."""
         dh = DateHelper()
         start_date = dh.this_month_start
         p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{str(start_date.strftime('%Y%m'))}"
+        file_month_year = self.start_date.strftime("%Y%m")
+        cost_report = f"report_cost-{file_month_year}.csv"
+        usage_report = f"report_usage-{file_month_year}.csv"
+        test_file_list = [cost_report, usage_report]
+        expected_assembly_id = f"{p_uuid}:{str(file_month_year)}"
         mock_prepare_monthly_files.return_value = {start_date: []}
+        mock_extract_names.return_value = test_file_list
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
         with patch(
             "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",

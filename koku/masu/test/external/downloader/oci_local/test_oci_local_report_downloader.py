@@ -112,22 +112,28 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         expected_exception = exp.exception
         self.assertIn(err_msg, expected_exception.args[0])
 
+    @patch("masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._extract_names")
     @patch(
         "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._prepare_monthly_files"
     )
-    def test_get_manifest_for_date(self, mock_prepare_monthly_files):
+    def test_get_manifest_for_date(self, mock_prepare_monthly_files, mock_extract_names):
         """Test OCI-local get manifest."""
-        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date.strftime("%Y-%m"))])
+        file_month_year = self.start_date.strftime("%Y-%m")
+        cost_report = f"report_cost-{file_month_year}.csv"
+        usage_report = f"report_usage-{file_month_year}.csv"
+        test_file_list = [cost_report, usage_report]
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(file_month_year)])
         mock_prepare_monthly_files.return_value = {self.start_date: []}
+        mock_extract_names.return_value = test_file_list
         report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
         result_report_dict = report_manifests_list[0]
         self.assertEqual(result_report_dict.get("assembly_id", ""), expected_assembly_id)
         mock_prepare_monthly_files.assert_called_once()
-        result_files = result_report_dict.get("files", [])
-        self.assertIsNotNone(result_files)
-        self.assertIsInstance(result_files, list)
-        for file in result_files:
-            self.assertEqual(file["key"], self.csv_file_name)
+        mock_extract_names.assert_called_once()
+        expected_file_list = result_report_dict.get("files", [])
+        self.assertIsInstance(expected_file_list, list)
+        for file in expected_file_list:
+            self.assertIn(file["key"], test_file_list)
 
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
