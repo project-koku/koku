@@ -13,6 +13,10 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
     cluster_alias,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     currency_code,
     source_uuid,
     cost_category_id
@@ -24,10 +28,14 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
         {{cluster_alias}},
         sum(unblended_cost),
         sum(markup_cost),
+        sum(blended_cost),
+        sum(markup_cost_blended),
+        sum(savingsplan_effective_cost),
+        sum(markup_cost_savingsplan),
         max(currency_code),
         {{source_uuid}}::uuid,
         max(cost_category_id)
-    FROM reporting_ocpawscostlineitem_daily_summary_p
+    FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND cluster_id = {{cluster_id}}

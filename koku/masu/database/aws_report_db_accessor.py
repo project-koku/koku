@@ -21,13 +21,15 @@ from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
+from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_ocp_savings_plan_cost
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
-from reporting.models import OCPAWSCostLineItemDailySummaryP
+from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
@@ -470,19 +472,21 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
-    def back_populate_ocp_on_aws_daily_summary(self, start_date, end_date, report_period_id):
-        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+    def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
+        """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data(
-            "masu.database", "sql/reporting_ocpawscostentrylineitem_daily_summary_back_populate.sql"
-        )
+        # Check if we're using the savingsplan unleash-gated feature
+        is_savingsplan_cost = enable_ocp_savings_plan_cost(self.schema)
+
+        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
+            "is_savingsplan_cost": is_savingsplan_cost,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))
@@ -513,8 +517,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                 )
 
-                OCPAWSCostLineItemDailySummaryP.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                    markup_cost=(F("unblended_cost") * markup)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
+                    cost_entry_bill_id=bill_id, **date_filters
+                ).update(
+                    markup_cost=(F("unblended_cost") * markup), project_markup_cost=(F("unblended_cost") * markup)
                 )
                 for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
                     ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
