@@ -245,7 +245,7 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
 
     def test_query_params_invalid_cost_type(self):
         """Test that cost type is not allowed."""
-        query_params = {"cost_type": "blended_cost"}
+        query_params = {"cost_type": "shplended_cost"}
         serializer = OCPAWSQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
