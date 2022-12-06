@@ -647,6 +647,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        mock_cost_model.return_value.__enter__.return_value.distribution = "cpu"
         # We need to bypass the None check for cost model in update_cost_model_costs
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 

@@ -330,6 +330,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         infrastructure_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -395,6 +396,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         supplementary_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = supplementary_rates
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
