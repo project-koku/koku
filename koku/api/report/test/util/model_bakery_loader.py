@@ -21,6 +21,7 @@ from api.currency.utils import exchange_dictionary
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
+from api.report.test.util.common import update_cost_category
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -324,6 +325,15 @@ class ModelBakeryDataLoader(DataLoader):
         provider = self.create_provider(provider_type, credentials, billing_source, cluster_id)
         if not on_cloud:
             self.create_cost_model(provider)
+            with schema_context(self.schema):
+                baker.make(
+                    "OpenshiftCostCategory",
+                    name=f"platform {cluster_id}",
+                    description="Default OpenShift projects bucketed into a Platform group",
+                    source_type="OCP",
+                    system_default=True,
+                )
+
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load ocp data for start: {start_date}, end: {end_date}")
             self.create_manifest(provider, bill_date)
@@ -377,6 +387,7 @@ class ModelBakeryDataLoader(DataLoader):
             accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
 
         populate_ocp_topology(self.schema, provider, cluster_id)
+        update_cost_category(self.schema, on_cloud, "openshift-default")
 
         return provider, report_periods
 
