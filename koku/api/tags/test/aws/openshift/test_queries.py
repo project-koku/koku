@@ -136,12 +136,11 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = OCPAWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
-            tag_values = [value for tag in tags for value in tag.get("values")]
-        expected = {"key": key, "values": tag_values}
-        result = handler.get_tags()
-        self.assertEqual(result[0].get("key"), expected.get("key"))
-        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+            tags = OCPAWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().first()
+            expected_tag_values = tags.get("values")
+        results = {r.get("key"): r.get("values") for r in handler.get_tags()}
+        self.assertIn(key, results)
+        self.assertEqual(sorted(results[key]), sorted(expected_tag_values))
 
     def test_execute_query_for_value_filter(self):
         """Test that the execute query runs properly with value query."""
