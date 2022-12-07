@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0264_ocpaws_cost_fields"),
+        ("reporting", "0265_auto_20221114_1806"),
     ]
 
     operations = [
