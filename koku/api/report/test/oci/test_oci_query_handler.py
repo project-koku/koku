@@ -1294,7 +1294,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         ag_key = "cost_total"
         with tenant_context(self.tenant):
             totals = OCICostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start
+                usage_start__gte=self.dh.this_month_start, tags__has_key=filter_key
             ).aggregate(**{ag_key: Sum(F("markup_cost") + F("cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501

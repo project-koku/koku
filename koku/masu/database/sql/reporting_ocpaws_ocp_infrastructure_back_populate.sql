@@ -1,87 +1,3 @@
--- Clear out old entries first
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND report_period_id = {{report_period_id | sqlsafe}}
-;
-
-
--- Populate the daily aggregate line item data
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p (
-    uuid,
-    report_period_id,
-    cluster_id,
-    cluster_alias,
-    namespace,
-    node,
-    resource_id,
-    usage_start,
-    usage_end,
-    product_code,
-    product_family,
-    instance_type,
-    cost_entry_bill_id,
-    usage_account_id,
-    account_alias_id,
-    availability_zone,
-    region,
-    unit,
-    tags,
-    usage_amount,
-    currency_code,
-    unblended_cost,
-    markup_cost,
-    shared_projects,
-    source_uuid
-)
-    SELECT uuid_generate_v4(),
-        report_period_id,
-        cluster_id,
-        cluster_alias,
-        array_agg(DISTINCT namespace) as namespace,
-        node,
-        resource_id,
-        usage_start,
-        usage_end,
-        product_code,
-        product_family,
-        instance_type,
-        cost_entry_bill_id,
-        usage_account_id,
-        account_alias_id,
-        availability_zone,
-        region,
-        unit,
-        tags,
-        sum(usage_amount) as usage_amount,
-        max(currency_code) as currency_code,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        count(DISTINCT namespace) as shared_projects,
-        source_uuid
-    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
-    WHERE report_period_id = {{report_period_id | sqlsafe}}
-        AND usage_start >= date({{start_date}})
-        AND usage_start <= date({{end_date}})
-    GROUP BY report_period_id,
-        cluster_id,
-        cluster_alias,
-        node,
-        resource_id,
-        usage_start,
-        usage_end,
-        product_code,
-        product_family,
-        instance_type,
-        cost_entry_bill_id,
-        usage_account_id,
-        account_alias_id,
-        availability_zone,
-        region,
-        unit,
-        tags,
-        source_uuid
-;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -120,7 +36,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
-    raw_currency
+    raw_currency,
+    cost_category_id
 )
     SELECT uuid_generate_v4() as uuid,
         ocp_aws.report_period_id,
@@ -144,8 +61,13 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             ELSE '{}'::jsonb
         END as volume_labels,
         rp.provider_id as source_uuid,
+        {% if is_savingsplan_cost %}
+        sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_raw_cost,
+        sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_project_raw_cost,
+        {% else %}
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost,
-        sum(ocp_aws.pod_cost + ocp_aws.project_markup_cost) AS infrastructure_project_raw_cost,
+        sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_project_raw_cost,
+        {% endif %}
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,
@@ -164,7 +86,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months,
-        max(ocp_aws.currency_code) as raw_currency
+        max(ocp_aws.currency_code) as raw_currency,
+        max(ocp_aws.cost_category_id) as cost_category_id
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p AS ocp_aws
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_aws.cluster_id = rp.cluster_id
