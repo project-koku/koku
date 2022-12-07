@@ -7,10 +7,12 @@ import logging
 
 from django.conf import settings
 
+from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
 from masu.util.common import convert_account
+
 
 LOG = logging.getLogger(__name__)
 
@@ -117,6 +119,10 @@ def enable_ocp_savings_plan_cost(account):
     account = convert_account(account)
 
     context = {"schema": account}
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-savings-plan-cost", context))
+    res = bool(
+        UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
+        )
+    )
 
     return res
