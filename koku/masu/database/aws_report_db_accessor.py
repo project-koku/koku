@@ -24,6 +24,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_ocp_savings_plan_cost
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -475,6 +476,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
+        # Check if we're using the savingsplan unleash-gated feature
+        is_savingsplan_cost = enable_ocp_savings_plan_cost(self.schema)
+
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -482,6 +486,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
+            "is_savingsplan_cost": is_savingsplan_cost,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))
