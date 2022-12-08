@@ -20,6 +20,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_handler import TruncDayString
+from api.report.aws.serializers import AWSQueryParamSerializer
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 
@@ -1109,3 +1110,20 @@ class OCPAWSReportViewTest(IamTestCase):
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cost_type(self):
+        cost_types = [choice[0] for choice in AWSQueryParamSerializer.COST_TYPE_CHOICE]
+        bad_cost_types = ["shplended_cost"]
+
+        client = APIClient()
+        for url in URLS:
+            for cost_type in cost_types:
+                params = {"cost_type": cost_type}
+                paramed_url = url + "?" + urlencode(params, quote_via=quote_plus)
+                response = client.get(paramed_url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+            for cost_type in bad_cost_types:
+                params = {"cost_type": cost_type}
+                paramed_url = url + "?" + urlencode(params, quote_via=quote_plus)
+                response = client.get(paramed_url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

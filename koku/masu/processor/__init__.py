@@ -7,9 +7,12 @@ import logging
 
 from django.conf import settings
 
+from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
+from masu.util.common import convert_account
+
 
 LOG = logging.getLogger(__name__)
 
@@ -34,8 +37,7 @@ def enable_trino_processing(source_uuid, source_type, account):  # noqa
 
 def enable_purge_trino_files(account):
     """Helper to determine if account is enabled for deleting trino files."""
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    account = convert_account(account)
 
     context = {"schema": account}
     LOG.info(f"enable_purge_trino_files context: {context}")
@@ -43,8 +45,8 @@ def enable_purge_trino_files(account):
 
 
 def disable_cloud_source_processing(account):
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    """Disable processing for a cloud source."""
+    account = convert_account(account)
 
     context = {"schema": account}
     LOG.info(f"Processing UNLEASH check: {context}")
@@ -55,8 +57,8 @@ def disable_cloud_source_processing(account):
 
 
 def disable_summary_processing(account):
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    """Disable summary processing."""
+    account = convert_account(account)
 
     context = {"schema": account}
     LOG.info(f"Summary UNLEASH check: {context}")
@@ -67,8 +69,8 @@ def disable_summary_processing(account):
 
 
 def disable_ocp_on_cloud_summary(account):
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    """Disable OCP on Cloud summary."""
+    account = convert_account(account)
 
     context = {"schema": account}
     LOG.info(f"OCP on Cloud Summary UNLEASH check: {context}")
@@ -79,8 +81,8 @@ def disable_ocp_on_cloud_summary(account):
 
 
 def disable_gcp_resource_matching(account):
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    """Disable GCP resource matching for OCP on GCP."""
+    account = convert_account(account)
 
     context = {"schema": account}
     LOG.info(f"GCP resource matching UNLEASH check: {context}")
@@ -92,8 +94,7 @@ def disable_gcp_resource_matching(account):
 
 def summarize_ocp_on_gcp_by_node(account):
     """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    account = convert_account(account)
 
     context = {"schema": account}
     LOG.info(f"OCP on GCP Summary by Node UNLEASH check: {context}")
@@ -104,10 +105,24 @@ def summarize_ocp_on_gcp_by_node(account):
 
 
 def is_large_customer(account):
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
+    """Flag the customer as large."""
+    account = convert_account(account)
 
     context = {"schema": account}
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context))
+
+    return res
+
+
+def enable_ocp_savings_plan_cost(account):
+    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
+    account = convert_account(account)
+
+    context = {"schema": account}
+    res = bool(
+        UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
+        )
+    )
 
     return res

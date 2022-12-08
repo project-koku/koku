@@ -82,7 +82,7 @@ class OCPCostForecastParamSerializer(ForecastParamSerializer):
     """OCP Cost Forecast Serializer."""
 
 
-class OCPAWSCostForecastParamSerializer(ForecastParamSerializer):
+class OCPAWSCostForecastParamSerializer(AWSCostForecastParamSerializer):
     """OCP+AWS Cost Forecast Serializer."""
 
 

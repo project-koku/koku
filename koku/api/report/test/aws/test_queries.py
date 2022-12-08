@@ -2658,6 +2658,20 @@ class AWSReportQueryTest(IamTestCase):
                         with self.subTest(breakdown):
                             self.assertAlmostEqual(group_dict[breakdown]["value"], filter_dict[breakdown]["value"], 6)
 
+    def test_group_by_and_filter_with_excluded_org_unit(self):
+        """Test that the cost group_by and filter match."""
+        excluded_org_unit = "OU_002"
+        url = "?group_by[org_unit_id]=R_001&filter[org_unit_id]=R_001&exclude[org_unit_id]=OU_002"
+        with patch("api.query_params.enable_negative_filtering") as unleash_flag:
+            unleash_flag.return_value = True
+            with tenant_context(self.tenant):
+                _params = self.mocked_query_params(url, AWSCostView, "costs")
+                _handler = AWSReportQueryHandler(_params)
+                data = _handler.execute_query().get("data")
+                for org_unit_data in data:
+                    for org_unit in org_unit_data.get("org_entities"):
+                        self.assertNotEqual(org_unit.get("id"), excluded_org_unit)
+
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
         with tenant_context(self.tenant):
