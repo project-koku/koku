@@ -1,94 +1,3 @@
--- Clear out old entries first
-DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
-WHERE usage_start >= date('{{start_date | sqlsafe}}')
-    AND usage_start <= date('{{end_date | sqlsafe}}')
-    AND report_period_id = {{report_period_id | sqlsafe}}
-;
-
-
--- Populate the daily aggregate line item data
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p (
-    uuid,
-    report_period_id,
-    cluster_id,
-    cluster_alias,
-    namespace,
-    node,
-    resource_id,
-    usage_start,
-    usage_end,
-    cost_entry_bill_id,
-    account_id,
-    project_id,
-    project_name,
-    instance_type,
-    service_id,
-    service_alias,
-    region,
-    tags,
-    cost_category_id,
-    usage_amount,
-    unblended_cost,
-    markup_cost,
-    currency,
-    unit,
-    shared_projects,
-    source_uuid,
-    credit_amount,
-    invoice_month
-)
-    SELECT uuid(),
-        report_period_id,
-        cluster_id,
-        cluster_alias,
-        array_agg(DISTINCT namespace) as namespace,
-        node,
-        resource_id,
-        usage_start,
-        usage_end,
-        cost_entry_bill_id,
-        account_id,
-        project_id,
-        project_name,
-        instance_type,
-        service_id,
-        service_alias,
-        region,
-        tags,
-        cost_category_id,
-        sum(usage_amount) as usage_amount,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency) as currency,
-        max(unit) as unit,
-        count(DISTINCT namespace) as shared_projects,
-        source_uuid,
-        sum(credit_amount) as credit_amount,
-        invoice_month
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
-    WHERE report_period_id = {{report_period_id | sqlsafe}}
-        AND usage_start >= date('{{start_date | sqlsafe}}')
-        AND usage_start <= date('{{end_date | sqlsafe}}')
-    GROUP BY report_period_id,
-        cluster_id,
-        cluster_alias,
-        node,
-        resource_id,
-        usage_start,
-        usage_end,
-        cost_entry_bill_id,
-        account_id,
-        project_id,
-        project_name,
-        instance_type,
-        service_id,
-        service_alias,
-        region,
-        tags,
-        cost_category_id,
-        source_uuid,
-        invoice_month
-;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -154,7 +63,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
         max(ocp_gcp.cost_category_id) as cost_category_id,
         rp.provider_id as source_uuid,
         sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
-        sum(ocp_gcp.pod_cost + ocp_gcp.project_markup_cost + ocp_gcp.pod_credit) AS infrastructure_project_raw_cost,
+        sum(ocp_gcp.unblended_cost + ocp_gcp.project_markup_cost + ocp_gcp.pod_credit) AS infrastructure_project_raw_cost,
         CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as infrastructure_usage_cost,
         CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,
