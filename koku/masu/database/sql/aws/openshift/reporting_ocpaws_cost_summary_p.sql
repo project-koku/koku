@@ -13,6 +13,10 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
     cluster_alias,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     currency_code,
     source_uuid,
     cost_category_id
@@ -24,6 +28,10 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
         {{cluster_alias}},
         sum(unblended_cost),
         sum(markup_cost),
+        sum(blended_cost),
+        sum(markup_cost_blended),
+        sum(savingsplan_effective_cost),
+        sum(markup_cost_savingsplan),
         max(currency_code),
         {{source_uuid}}::uuid,
         max(cost_category_id)

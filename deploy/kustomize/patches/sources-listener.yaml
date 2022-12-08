@@ -2,9 +2,6 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-sources-listener
-    metadata:
-      annotations:
-        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently sources integration requires in order message handling, which can fail with multiple consumers due to race conditions
     minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
     webServices:
       public:
@@ -14,6 +11,9 @@
       metrics:
         enabled: true
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently sources integration requires in order message handling, which can fail with multiple consumers due to race conditions
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash

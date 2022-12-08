@@ -82,7 +82,7 @@ class Forecast:
         self.params = query_params
         self.currency = query_params.currency
 
-        if self.provider is Provider.PROVIDER_AWS:
+        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
             if query_params.get("cost_type"):
                 self.cost_type = query_params.get("cost_type")
             else:
@@ -122,8 +122,7 @@ class Forecast:
     @property
     def provider_map(self):
         """Return the provider map instance."""
-        current_provider = self
-        if current_provider.provider is Provider.PROVIDER_AWS:
+        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
             return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
