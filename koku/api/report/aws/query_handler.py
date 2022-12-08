@@ -668,6 +668,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 .distinct("org_unit_id")
             )
 
+            # This is to remove the excluded values from the sub_org_units
+            if "org_unit_id" in list(self.query_table_exclude_keys):
+                org_unit_list.extend(org_id for org_id in self.parameters.get_exclude("org_unit_id", []))
+
             sub_org_unit_list = None
             if org_unit_objects:
                 sub_org_units = []
