@@ -328,7 +328,6 @@ class ModelBakeryDataLoader(DataLoader):
             with schema_context(self.schema):
                 baker.make(
                     "OpenshiftCostCategory",
-                    name=f"platform {cluster_id}",
                     description="Default OpenShift projects bucketed into a Platform group",
                     source_type="OCP",
                     system_default=True,
@@ -376,6 +375,7 @@ class ModelBakeryDataLoader(DataLoader):
             accessor.update_line_item_daily_summary_with_enabled_tags(
                 self.first_start_date, self.last_end_date, report_period_ids
             )
+            update_cost_category(self.schema, on_cloud, "openshift-default")
             update_cost_model_costs(
                 self.schema,
                 provider.uuid,
@@ -387,7 +387,6 @@ class ModelBakeryDataLoader(DataLoader):
             accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
 
         populate_ocp_topology(self.schema, provider, cluster_id)
-        update_cost_category(self.schema, on_cloud, "openshift-default")
 
         return provider, report_periods
 

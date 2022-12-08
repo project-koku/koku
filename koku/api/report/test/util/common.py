@@ -32,7 +32,7 @@ def update_cost_category(schema, on_cloud, namespace):
     if not on_cloud:
         with schema_context(schema):
             cost_category_value = OpenshiftCostCategory.objects.first()
-            rows = OCPUsageLineItemDailySummary.objects.filter(namespace=namespace, cost_category_id__isnull=False)
+            rows = OCPUsageLineItemDailySummary.objects.filter(namespace=namespace, cost_category_id__isnull=True)
             for row in rows:
                 row.cost_category = cost_category_value
                 row.save()
