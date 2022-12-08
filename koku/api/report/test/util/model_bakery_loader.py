@@ -375,7 +375,8 @@ class ModelBakeryDataLoader(DataLoader):
             accessor.update_line_item_daily_summary_with_enabled_tags(
                 self.first_start_date, self.last_end_date, report_period_ids
             )
-            update_cost_category(self.schema, on_cloud, "openshift-default")
+            if not on_cloud:
+                update_cost_category(self.schema)
             update_cost_model_costs(
                 self.schema,
                 provider.uuid,
