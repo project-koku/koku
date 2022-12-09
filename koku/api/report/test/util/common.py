@@ -35,6 +35,8 @@ def update_cost_category(schema):
         rows = OCPUsageLineItemDailySummary.objects.filter(
             namespace=OCP_PLATFORM_NAMESPACE, cost_category_id__isnull=True
         )
+        update_list = []
         for row in rows:
             row.cost_category = cost_category_value
-            row.save()
+            update_list.append(row)
+        OCPUsageLineItemDailySummary.objects.bulk_update(update_list, ["cost_category"])
