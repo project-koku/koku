@@ -23,10 +23,12 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.ocp.provider_map_amortized import OCPProviderMap as OCPProviderMapAmortized
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor import enable_ocp_amortized_monthly_cost
 
 LOG = logging.getLogger(__name__)
 
@@ -43,7 +45,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+        if enable_ocp_amortized_monthly_cost(parameters.request.user.customer.schema_name):
+            self._mapper = OCPProviderMapAmortized(provider=self.provider, report_type=parameters.report_type)
+        else:
+            self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
@@ -175,7 +180,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
-
             query_data = query.values(*query_group_by).annotate(**self.report_annotations)
 
             if is_grouped_by_project(self.parameters):
