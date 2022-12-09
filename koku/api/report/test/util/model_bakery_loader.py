@@ -325,13 +325,6 @@ class ModelBakeryDataLoader(DataLoader):
         provider = self.create_provider(provider_type, credentials, billing_source, cluster_id)
         if not on_cloud:
             self.create_cost_model(provider)
-            with schema_context(self.schema):
-                baker.make(
-                    "OpenshiftCostCategory",
-                    description="Default OpenShift projects bucketed into a Platform group",
-                    source_type="OCP",
-                    system_default=True,
-                )
 
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load ocp data for start: {start_date}, end: {end_date}")
