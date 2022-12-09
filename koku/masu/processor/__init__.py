@@ -126,3 +126,17 @@ def enable_ocp_savings_plan_cost(account):
     )
 
     return res
+
+
+def enable_ocp_amortized_monthly_cost(account):
+    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
+    account = convert_account(account)
+
+    context = {"schema": account}
+    res = bool(
+        UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.enable-ocp-amortized-monthly-cost", context, fallback_development_true
+        )
+    )
+
+    return res
