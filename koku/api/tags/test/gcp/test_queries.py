@@ -149,13 +149,11 @@ class GCPTagQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, GCPTagView)
         handler = GCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = GCPTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
-            tag_values = tags[0].get("values")
-            self.assertTrue(tag_values)
-        expected = {"key": key, "values": tag_values}
-        result = handler.get_tags()
-        self.assertEqual(result[0].get("key"), expected.get("key"))
-        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+            tags = GCPTagsSummary.objects.filter(key__exact=key).values("values").distinct().first()
+            expected_tag_values = tags.get("values")
+        results = {r.get("key"): r.get("values") for r in handler.get_tags()}
+        self.assertIn(key, results)
+        self.assertEqual(sorted(results[key]), sorted(expected_tag_values))
 
     def test_get_tag_values_for_value_filter(self):
         """Test that get tag values runs properly with value query."""
