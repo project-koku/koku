@@ -13,6 +13,7 @@ from api.metrics import constants as metric_constants
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_ocp_amortized_monthly_cost
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -198,31 +199,32 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    report_accessor.populate_monthly_cost(
-                        cost_type,
-                        rate_type,
-                        rate,
-                        start_date,
-                        end_date,
-                        self._cluster_id,
-                        self._cluster_alias,
-                        self._distribution,
-                        self._provider_uuid,
-                    )
-
-                    if rate:
-                        amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
+                    if enable_ocp_amortized_monthly_cost(self._schema):
+                        if rate:
+                            amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
+                        else:
+                            amortized_rate = 0.0
+                        report_accessor.populate_monthly_cost_sql(
+                            cost_type,
+                            rate_type,
+                            amortized_rate,
+                            start_date,
+                            end_date,
+                            self._distribution,
+                            self._provider_uuid,
+                        )
                     else:
-                        amortized_rate = 0.0
-                    report_accessor.populate_monthly_cost_sql(
-                        cost_type,
-                        rate_type,
-                        amortized_rate,
-                        start_date,
-                        end_date,
-                        self._distribution,
-                        self._provider_uuid,
-                    )
+                        report_accessor.populate_monthly_cost(
+                            cost_type,
+                            rate_type,
+                            rate,
+                            start_date,
+                            end_date,
+                            self._cluster_id,
+                            self._cluster_alias,
+                            self._distribution,
+                            self._provider_uuid,
+                        )
 
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
