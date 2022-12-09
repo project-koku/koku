@@ -157,6 +157,7 @@ cte_volume_nodes AS (
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.pod,
+        sli.namespace,
         uli.node,
         uli.resource_id
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as sli
@@ -177,6 +178,7 @@ cte_volume_nodes AS (
           sli.persistentvolumeclaim,
           sli.persistentvolume,
           sli.pod,
+          sli.namespace,
           uli.node,
           uli.resource_id
 ),
@@ -378,6 +380,7 @@ FROM (
         ON vn.usage_start = date(sli.interval_start)
             AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
             AND vn.pod = sli.pod
+            AND vn.namespace = sli.namespace
     LEFT JOIN cte_shared_volume_node_count as nc
         ON nc.usage_start = date(sli.interval_start)
             AND nc.persistentvolume = sli.persistentvolume
