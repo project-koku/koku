@@ -1052,6 +1052,58 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, provider_uuid
                     )
 
+    def populate_monthly_tag_cost_sql(  # noqa: C901
+        self, cost_type, rate_type, tag_key, case_statements, start_date, end_date, distribution, provider_uuid
+    ):
+        """
+        Update or insert daily summary line item for node cost.
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        cpu_case, memory_case, volume_case = case_statements
+
+        if cost_type == "Node":
+            summary_sql = pkgutil.get_data("masu.database", "sql/openshift/monthly_cost_node_by_tag.sql")
+        elif cost_type == "PVC":
+            summary_sql = pkgutil.get_data(
+                "masu.database", "sql/openshift/monthly_cost_persistentvolumeclaim_by_tag.sql"
+            )
+
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "cost_model_cpu_cost": cpu_case,
+            "cost_model_memory_cost": memory_case,
+            "cost_model_volume_cost": volume_case,
+            "cost_type": cost_type,
+            "rate_type": rate_type,
+            "distribution": distribution,
+            "tag_key": tag_key,
+        }
+        LOG.info(summary_sql_params)
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info("Populating monthly tag cost from %s to %s.", start_date, end_date)
+        LOG.info(summary_sql)
+        LOG.info(summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name,
+            summary_sql,
+            start_date,
+            end_date,
+            bind_params=list(summary_sql_params),
+            operation="INSERT",
+        )
+
     def populate_monthly_tag_cost(
         self,
         cost_type,
