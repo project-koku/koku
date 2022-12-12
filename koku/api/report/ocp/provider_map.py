@@ -1621,12 +1621,12 @@ class OCPProviderMap(ProviderMap):
                                     {
                                         "field": "namespace",
                                         "operation": "exact",
-                                        "parameter": "Workers Unallocated Capacity",
+                                        "parameter": "Worker unallocated",
                                     },
                                     {
                                         "field": "namespace",
                                         "operation": "exact",
-                                        "parameter": "Platform Unallocated Capacity",
+                                        "parameter": "Platform unallocated",
                                     },
                                 ],
                             },
@@ -1949,12 +1949,12 @@ class OCPProviderMap(ProviderMap):
                                     {
                                         "field": "namespace",
                                         "operation": "exact",
-                                        "parameter": "Workers Unallocated Capacity",
+                                        "parameter": "Worker unallocated",
                                     },
                                     {
                                         "field": "namespace",
                                         "operation": "exact",
-                                        "parameter": "Platform Unallocated Capacity",
+                                        "parameter": "Platform unallocated",
                                     },
                                 ],
                             },
