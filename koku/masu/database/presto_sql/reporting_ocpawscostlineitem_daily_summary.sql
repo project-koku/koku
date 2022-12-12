@@ -330,8 +330,8 @@ SELECT aws.uuid as aws_uuid,
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
-        AND namespace != 'Workers Unallocated Capacity'
-        AND namespace != 'Platform Unallocated Capacity'
+        AND namespace != 'Worker unallocated'
+        AND namespace != 'Platform unallocated'
     LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
         ON aws.uuid = pds.aws_uuid
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'

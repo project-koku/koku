@@ -34,7 +34,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_p (
         sum(credit_amount) as credit_amount,
         invoice_month,
         max(cost_category_id)
-    FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
+    FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND invoice_month = {{invoice_month}}
