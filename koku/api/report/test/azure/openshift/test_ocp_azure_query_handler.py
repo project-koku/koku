@@ -1265,7 +1265,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         expected = [
             {"node": "alpha", "cluster": "cluster-2"},
             {"node": "bravo", "cluster": "cluster-3"},
-            {"node": "no-node", "cluster": "cluster-1"},
+            {"node": "No-node", "cluster": "cluster-1"},
             {"node": "oscar", "cluster": "cluster-4"},
         ]
         ordered_data = handler.order_by(unordered_data, order_fields)
@@ -1451,8 +1451,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                     opt_dict = overall_output.get("data", [{}])[0]
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
                     opt_value = opt_dict.get(exclude_opt)
-                    if "no-" in opt_value:
-                        # Hanlde cases where "no-instance-type" is returned
+                    if "No-" in opt_value:
+                        # Hanlde cases where "No-instance-type" is returned
                         continue
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
@@ -1496,7 +1496,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        if f"no-{group_tag}" in str(data):
+        if f"No-{group_tag}" in str(data):
             check_no_option = True
         previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         for exclude_value in exclude_vals:
@@ -1505,7 +1505,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             handler = OCPAzureReportQueryHandler(query_params)
             data = handler.execute_query()
             if check_no_option:
-                self.assertIn(f"no-{group_tag}", str(data))
+                self.assertIn(f"No-{group_tag}", str(data))
             current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
             self.assertLess(current_total, previous_total)
             previous_total = current_total
@@ -1525,7 +1525,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    if "No-" not in exclude_option.get(ex_opt):
                         if not exclude_one:
                             exclude_one = exclude_option.get(ex_opt)
                         elif not exclude_two:

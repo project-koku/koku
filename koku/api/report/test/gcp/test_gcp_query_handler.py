@@ -1586,7 +1586,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        if f"no-{group_tag}" in str(data):
+        if f"No-{group_tag}" in str(data):
             check_no_option = True
         previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         for exclude_value in exclude_vals:
@@ -1595,7 +1595,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             handler = GCPReportQueryHandler(query_params)
             data = handler.execute_query()
             if check_no_option:
-                self.assertIn(f"no-{group_tag}", str(data))
+                self.assertIn(f"No-{group_tag}", str(data))
             current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
             self.assertLess(current_total, previous_total)
             previous_total = current_total
@@ -1615,7 +1615,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    if "No-" not in exclude_option.get(ex_opt):
                         if not exclude_one:
                             exclude_one = exclude_option.get(ex_opt)
                         elif not exclude_two:
