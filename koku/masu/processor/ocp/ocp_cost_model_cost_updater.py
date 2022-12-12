@@ -330,9 +330,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_accessor.populate_usage_costs(
-                self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
-            )
+            if enable_ocp_amortized_monthly_cost(self._schema):
+                report_accessor.populate_usage_costs_new_columns(
+                    self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+                )
+            else:
+                report_accessor.populate_usage_costs(
+                    self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+                )
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""

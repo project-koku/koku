@@ -2101,6 +2101,53 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
+    def populate_usage_costs_new_columns(
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+    ):
+        """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
+        # NOTE: This method will replace populate_usage_costs and will be renamed to match
+        #       once fully switched over.
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        OCPUsageLineItemDailySummary.objects.filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+        ).update(
+            cost_model_cpu_cost=Coalesce(
+                Value(infrastructure_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("cpu_core_effective_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_effective_usage_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+            cost_model_memory_cost=Coalesce(
+                Value(infrastructure_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("memory_gb_effective_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_effective_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+            cost_model_volume_cost=Coalesce(
+                Value(infrastructure_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+        )
+
     def populate_usage_costs(self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         # Cast start_date and end_date to date object, if they aren't already
