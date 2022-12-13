@@ -23,83 +23,6 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 LOG = logging.getLogger(__name__)
 
 
-def build_node_tag_rate_case_statement_str(rate_dict, start_date, default_rate_dict={}):
-    """Given a tag key, value, and rate return a CASE SQL statement."""
-    case_dict = {}
-    for tag_key, tag_value_rates in rate_dict.items():
-        cpu_statement_list = ["CASE"]
-        memory_statement_list = ["CASE"]
-        for tag_value, rate_value in tag_value_rates.items():
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            cpu_statement_list.append(
-                f"""
-                    WHEN pod_labels->>'{tag_key}='{tag_value}' AND {{{{distribution}}}} = 'cpu'
-                        THEN sum(pod_effective_usage_cpu_core_hours)
-                            / max(node_capacity_cpu_core_hours)
-                            * {rate}::decimal
-                """
-            )
-            memory_statement_list.append(
-                f"""
-                    WHEN pod_labels->>'{tag_key}='{tag_value}' AND {{{{distribution}}}} = 'memory'
-                        THEN sum(pod_effective_usage_memory_gigabyte_hours)
-                            / max(node_capacity_memory_gigabyte_hours)
-                            * {rate}::decimal
-                """
-            )
-        if default_rate_dict:
-            rate_value = default_rate_dict.get("tag_key", {}).get("default_value", 0)
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            cpu_statement_list.append(
-                f"""
-                    ELSE sum(pod_effective_usage_cpu_core_hours)
-                        / max(node_capacity_cpu_core_hours)
-                        * {rate}::decimal
-                """
-            )
-            memory_statement_list.append(
-                f"""
-                    ELSE sum(pod_effective_usage_memory_gigabyte_hours)
-                        / max(node_capacity_memory_gigabyte_hours)
-                        * {rate}::decimal
-                """
-            )
-        cpu_statement_list.append("END as cost_model_cpu_cost")
-        memory_statement_list.append("END as cost_model_memory_cost")
-        case_dict[tag_key] = (
-            "\n".join(cpu_statement_list),
-            "\n".join(memory_statement_list),
-            "NULL as cost_model_volume_cost",
-        )
-    return case_dict
-
-
-def build_volume_tag_rate_case_statement_str(rate_dict, start_date, default_rate_dict={}):
-    """Given a tag key, value, and rate return a CASE SQL statement."""
-    case_dict = {}
-    for tag_key, tag_value_rates in rate_dict.items():
-        volume_statement_list = ["CASE"]
-        for tag_value, rate_value in tag_value_rates.items():
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            volume_statement_list.append(
-                f"""
-                    WHEN volume_labels->>'{tag_key}='{tag_value}'
-                        THEN {rate}::decimal / vc.pvc_count
-                """
-            )
-        if default_rate_dict:
-            rate_value = default_rate_dict.get("tag_key", {}).get("default_value", 0)
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
-        volume_statement_list.append("END as cost_model_volume_cost")
-        case_dict[tag_key] = (
-            "NULL as cost_model_cpu_cost",
-            "NULL as cost_model_memory_cost",
-            "\n".join(volume_statement_list),
-        )
-    return case_dict
-
-
 class OCPCostModelCostUpdaterError(Exception):
     """OCPCostModelCostUpdater error."""
 
@@ -247,6 +170,81 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
         LOG.info("Finished updating markup.")
 
+    def _build_node_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}):
+        """Given a tag key, value, and rate return a CASE SQL statement."""
+        case_dict = {}
+        for tag_key, tag_value_rates in rate_dict.items():
+            cpu_statement_list = ["CASE"]
+            memory_statement_list = ["CASE"]
+            for tag_value, rate_value in tag_value_rates.items():
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                cpu_statement_list.append(
+                    f"""
+                        WHEN pod_labels->>'{tag_key}'='{tag_value}' AND '{self._distribution}' = 'cpu'
+                            THEN sum(pod_effective_usage_cpu_core_hours)
+                                / max(node_capacity_cpu_core_hours)
+                                * {rate}::decimal
+                    """
+                )
+                memory_statement_list.append(
+                    f"""
+                        WHEN pod_labels->>'{tag_key}'='{tag_value}' AND '{self._distribution}' = 'memory'
+                            THEN sum(pod_effective_usage_memory_gigabyte_hours)
+                                / max(node_capacity_memory_gigabyte_hours)
+                                * {rate}::decimal
+                    """
+                )
+            if default_rate_dict:
+                rate_value = default_rate_dict.get("tag_key", {}).get("default_value", 0)
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                cpu_statement_list.append(
+                    f"""
+                        ELSE sum(pod_effective_usage_cpu_core_hours)
+                            / max(node_capacity_cpu_core_hours)
+                            * {rate}::decimal
+                    """
+                )
+                memory_statement_list.append(
+                    f"""
+                        ELSE sum(pod_effective_usage_memory_gigabyte_hours)
+                            / max(node_capacity_memory_gigabyte_hours)
+                            * {rate}::decimal
+                    """
+                )
+            cpu_statement_list.append("END as cost_model_cpu_cost")
+            memory_statement_list.append("END as cost_model_memory_cost")
+            case_dict[tag_key] = (
+                "\n".join(cpu_statement_list),
+                "\n".join(memory_statement_list),
+                "NULL as cost_model_volume_cost",
+            )
+        return case_dict
+
+    def _build_volume_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}):
+        """Given a tag key, value, and rate return a CASE SQL statement."""
+        case_dict = {}
+        for tag_key, tag_value_rates in rate_dict.items():
+            volume_statement_list = ["CASE"]
+            for tag_value, rate_value in tag_value_rates.items():
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                volume_statement_list.append(
+                    f"""
+                        WHEN volume_labels->>'{tag_key}'='{tag_value}'
+                            THEN {rate}::decimal / vc.pvc_count
+                    """
+                )
+            if default_rate_dict:
+                rate_value = default_rate_dict.get("tag_key", {}).get("default_value", 0)
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
+            volume_statement_list.append("END as cost_model_volume_cost")
+            case_dict[tag_key] = (
+                "NULL as cost_model_cpu_cost",
+                "NULL as cost_model_memory_cost",
+                "\n".join(volume_statement_list),
+            )
+        return case_dict
+
     def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
@@ -393,11 +391,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         )
 
                         if cost_type == "Node":
-                            key_rate_dict = build_node_tag_rate_case_statement_str(
+                            key_rate_dict = self._build_node_tag_rate_case_statement_str(
                                 rate_dict, start_date, default_rate_dict
                             )
                         elif cost_type == "PVC":
-                            key_rate_dict = build_volume_tag_rate_case_statement_str(
+                            key_rate_dict = self._build_volume_tag_rate_case_statement_str(
                                 rate_dict, start_date, default_rate_dict
                             )
 
