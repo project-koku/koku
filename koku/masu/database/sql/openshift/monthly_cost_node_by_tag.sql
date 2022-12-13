@@ -83,9 +83,9 @@ SELECT uuid_generate_v4(),
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     {{rate_type}} as cost_model_rate_type,
-    {{cost_model_cpu_cost}},
-    {{cost_model_memory_cost}},
-    {{cost_model_volume_cost}},
+    {{cost_model_cpu_cost | sqlsafe}},
+    {{cost_model_memory_cost | sqlsafe}},
+    {{cost_model_volume_cost | sqlsafe}},
     {{cost_type}} as monthly_cost_type
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date

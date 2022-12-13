@@ -59,8 +59,7 @@ WITH cte_volume_count AS (
         AND lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
         AND lids.volume_labels ? {{tag_key}}
-        AND lids.supplementary_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
-        AND lids.infrastructure_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
+        AND lids.infrastructure_monthly_cost_json IS NULL
     GROUP BY lids.usage_start, lids.cluster_id, lids.namespace
 )
 SELECT uuid_generate_v4(),
@@ -98,9 +97,9 @@ SELECT uuid_generate_v4(),
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     lids.source_uuid,
     {{rate_type}} as cost_model_rate_type,
-    {{cost_model_cpu_cost}},
-    {{cost_model_memory_cost}},
-    {{cost_model_volume_cost}},
+    {{cost_model_cpu_cost | sqlsafe}},
+    {{cost_model_memory_cost | sqlsafe}},
+    {{cost_model_volume_cost | sqlsafe}},
     {{cost_type}} as monthly_cost_type
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN cte_volume_count AS vc
@@ -113,7 +112,6 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.persistentvolumeclaim IS NOT NULL
     AND lids.data_source = 'Storage'
     AND lids.volume_labels ? {{tag_key}}
-    AND lids.supplementary_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
-    AND lids.infrastructure_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
+    AND lids.infrastructure_monthly_cost_json IS NULL
 GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, lids.persistentvolumeclaim, lids.persistentvolume, lids.volume_labels, vc.pvc_count
 ;
