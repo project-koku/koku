@@ -14,6 +14,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     storageclass,
     source_uuid,
     supplementary_usage_cost,
+    cost_model_cpu_cost,
+    cost_model_memory_cost,
+    cost_model_volume_cost,
+    cost_model_rate_type,
     {{labels_field | sqlsafe}},
     monthly_cost_type
 )
@@ -39,7 +43,23 @@ SELECT uuid_generate_v4() as uuid,
         WHEN {{usage_type}} = 'storage'
             THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
     END as supplementary_usage_cost,
-    {{k_v_pair}}::jsonb as {{labels_field | sqlsafe}},
+    CASE
+        WHEN {{usage_type}} = 'cpu'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_cpu_cost,
+    CASE
+        WHEN {{usage_type}} = 'memory'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_memory_cost,
+    CASE
+        WHEN {{usage_type}} = 'storage'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_volume_cost,
+    'Supplementary' as cost_model_rate_type,
+    {{labels_field | sqlsafe}},
     'Tag' as monthly_cost_type -- We are borrowing the monthly field here, although this is a daily usage cost
 FROM (
     SELECT lids.report_period_id,
@@ -54,6 +74,7 @@ FROM (
         lids.persistentvolume,
         lids.storageclass,
         lids.source_uuid,
+        lids.{{labels_field | sqlsafe}},
         CASE
             WHEN {{metric}}='cpu_core_usage_per_hour' THEN sum(lids.pod_usage_cpu_core_hours)
             WHEN {{metric}}='cpu_core_request_per_hour' THEN sum(lids.pod_request_cpu_core_hours)
@@ -65,10 +86,13 @@ FROM (
             WHEN {{metric}}='storage_gb_request_per_month' THEN sum(lids.volume_request_storage_gigabyte_months)
         END as usage
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-    WHERE lids.{{labels_field | sqlsafe}} @> {{k_v_pair}}
-        AND lids.cluster_id = {{cluster_id}}
+    WHERE lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
         AND lids.usage_start <= {{end_date}}
+        AND lids.{{labels_field | sqlsafe}} ? {{tag_key}}
+        {% for pair in k_v_pair %}
+        AND NOT lids.{{labels_field | sqlsafe}} @> {{pair}}
+        {% endfor %}
     GROUP BY lids.report_period_id,
         lids.cluster_id,
         lids.cluster_alias,
@@ -80,5 +104,6 @@ FROM (
         lids.persistentvolumeclaim,
         lids.persistentvolume,
         lids.storageclass,
-        lids.source_uuid
+        lids.source_uuid,
+        lids.{{labels_field | sqlsafe}}
 ) AS sub
