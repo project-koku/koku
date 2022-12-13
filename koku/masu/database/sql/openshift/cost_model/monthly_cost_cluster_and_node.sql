@@ -96,7 +96,7 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * {{rate}}::decimal
         ELSE 0
     END as cost_model_memory_cost,
-    NULL as cost_model_volume_cost,
+    0 as cost_model_volume_cost,
     {{cost_type}} as monthly_cost_type
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
