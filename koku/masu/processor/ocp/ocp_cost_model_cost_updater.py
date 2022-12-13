@@ -332,7 +332,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with OCPReportDBAccessor(self._schema) as report_accessor:
             if enable_ocp_amortized_monthly_cost(self._schema):
                 report_accessor.populate_usage_costs_new_columns(
-                    self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+                    metric_constants.INFRASTRUCTURE_COST_TYPE,
+                    self._infra_rates,
+                    start_date,
+                    end_date,
+                    self._cluster_id,
+                    self._provider.uuid,
+                )
+                report_accessor.populate_usage_costs_new_columns(
+                    metric_constants.SUPPLEMENTARY_COST_TYPE,
+                    self._supplementary_rates,
+                    start_date,
+                    end_date,
+                    self._cluster_id,
+                    self._provider.uuid,
                 )
             else:
                 report_accessor.populate_usage_costs(
