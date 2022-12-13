@@ -33,7 +33,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_database_summary_p (
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
-    FROM reporting_ocpazurecostlineitem_daily_summary_p
+    FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE service_name IN ('Cosmos DB','Cache for Redis') OR service_name ILIKE '%%database%%'
         AND usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
