@@ -325,8 +325,8 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
-        AND ocp.namespace != 'Workers Unallocated Capacity'
-        AND ocp.namespace != 'Platform Unallocated Capacity'
+        AND ocp.namespace != 'Worker unallocated'
+        AND ocp.namespace != 'Platform unallocated'
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
@@ -425,9 +425,21 @@ SELECT pds.gcp_uuid,
     usage_amount / r.gcp_uuid_count as usage_amount,
     currency,
     invoice_month,
-    credit_amount / r.gcp_uuid_count as credit_amount,
-    unblended_cost / r.gcp_uuid_count as unblended_cost,
-    markup_cost / r.gcp_uuid_count as markup_cost,
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * credit_amount
+        ELSE credit_amount / r.gcp_uuid_count
+    END as credit_amount,
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
+        ELSE unblended_cost / r.gcp_uuid_count
+    END as unblended_cost,
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
+        ELSE unblended_cost / r.gcp_uuid_count * cast({{markup}} as decimal(24,9))
+    END as markup_cost,
     CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
             OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))

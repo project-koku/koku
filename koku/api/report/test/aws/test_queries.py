@@ -162,7 +162,7 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         groups = ["region"]
         data = {"region": None, "units": "USD"}
-        expected = {"region": "no-region", "units": "USD"}
+        expected = {"region": "No-region", "units": "USD"}
         out_data = handler._apply_group_null_label(data, groups)
         self.assertEqual(expected, out_data)
 
@@ -182,8 +182,8 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         groups = ["region"]
         group_index = 0
-        data = {None: [{"region": "no-region", "units": "USD"}]}
-        expected = [{"region": "no-region", "values": [{"region": "no-region", "units": "USD"}]}]
+        data = {None: [{"region": "No-region", "units": "USD"}]}
+        expected = [{"region": "No-region", "values": [{"region": "No-region", "units": "USD"}]}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
@@ -192,8 +192,8 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
-        data = {None: {"region": "no-region", "units": "USD"}}
-        expected = [{"region": "no-region", "values": {"region": "no-region", "units": "USD"}}]
+        data = {None: {"region": "No-region", "units": "USD"}}
+        expected = [{"region": "No-region", "values": {"region": "No-region", "units": "USD"}}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
@@ -204,8 +204,8 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         groups = ["region"]
         group_index = 0
-        data = {None: [{"region": "no-region", "units": "USD"}]}
-        expected = [{"region": "no-region", "values": [{"region": "no-region", "units": "USD"}]}]
+        data = {None: [{"region": "No-region", "units": "USD"}]}
+        expected = [{"region": "No-region", "values": [{"region": "No-region", "units": "USD"}]}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
@@ -214,8 +214,8 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
-        data = {None: {"region": "no-region", "units": "USD"}}
-        expected = [{"region": "no-region", "values": {"region": "no-region", "units": "USD"}}]
+        data = {None: {"region": "No-region", "units": "USD"}}
+        expected = [{"region": "No-region", "values": {"region": "No-region", "units": "USD"}}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
@@ -2658,6 +2658,20 @@ class AWSReportQueryTest(IamTestCase):
                         with self.subTest(breakdown):
                             self.assertAlmostEqual(group_dict[breakdown]["value"], filter_dict[breakdown]["value"], 6)
 
+    def test_group_by_and_filter_with_excluded_org_unit(self):
+        """Test that the cost group_by and filter match."""
+        excluded_org_unit = "OU_002"
+        url = "?group_by[org_unit_id]=R_001&filter[org_unit_id]=R_001&exclude[org_unit_id]=OU_002"
+        with patch("api.query_params.enable_negative_filtering") as unleash_flag:
+            unleash_flag.return_value = True
+            with tenant_context(self.tenant):
+                _params = self.mocked_query_params(url, AWSCostView, "costs")
+                _handler = AWSReportQueryHandler(_params)
+                data = _handler.execute_query().get("data")
+                for org_unit_data in data:
+                    for org_unit in org_unit_data.get("org_entities"):
+                        self.assertNotEqual(org_unit.get("id"), excluded_org_unit)
+
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
         with tenant_context(self.tenant):
@@ -2815,7 +2829,7 @@ class AWSReportQueryTest(IamTestCase):
                 correctlst = [field.get(gb) for field in expected]
                 if correctlst and None in correctlst:
                     ind = correctlst.index(None)
-                    correctlst[ind] = "no-" + group_by
+                    correctlst[ind] = "No-" + group_by
                 tested = False
                 for element in data:
                     lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
@@ -3285,7 +3299,7 @@ class AWSQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        if f"no-{group_tag}" in str(data):
+        if f"No-{group_tag}" in str(data):
             check_no_option = True
         previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         for exclude_value in exclude_vals:
@@ -3294,7 +3308,7 @@ class AWSQueryHandlerTest(IamTestCase):
             handler = AWSReportQueryHandler(query_params)
             data = handler.execute_query()
             if check_no_option:
-                self.assertIn(f"no-{group_tag}", str(data))
+                self.assertIn(f"No-{group_tag}", str(data))
             current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
             self.assertLess(current_total, previous_total)
             previous_total = current_total
@@ -3315,7 +3329,7 @@ class AWSQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    if "No-" not in exclude_option.get(ex_opt):
                         if not exclude_one:
                             exclude_one = exclude_option.get(ex_opt)
                         elif not exclude_two:

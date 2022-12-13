@@ -450,7 +450,7 @@ class OCPReportViewTest(IamTestCase):
 
         # assert the others count is correct
         meta = data.get("meta")
-        if "'no-node'" in str(data):
+        if "'No-node'" in str(data):
             num_nodes += 1
         self.assertEqual(meta.get("others"), num_nodes - 1)
 
@@ -1408,18 +1408,18 @@ class OCPReportViewTest(IamTestCase):
                 if option in order_mapping:
                     data_key = option
                     for node in nodes:
-                        if node.get("node") in ("Others", "no-node"):
+                        if node.get("node") in ("Others", "No-node"):
                             continue
                         previous_value = node.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
                         break
                 else:
                     for node in nodes:
-                        if node.get("node") in ("Others", "no-node"):
+                        if node.get("node") in ("Others", "No-node"):
                             continue
                         previous_value = node.get("values", [])[0].get(option, {}).get("value")
                         break
                 for entry in nodes:
-                    if entry.get("node", "") in ("Others", "no-node"):
+                    if entry.get("node", "") in ("Others", "No-node"):
                         continue
                     if data_key:
                         current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
