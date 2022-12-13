@@ -57,8 +57,7 @@ WITH cte_volume_count AS (
     WHERE lids.persistentvolumeclaim IS NOT NULL
         AND lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
-        AND lids.supplementary_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
-        AND lids.infrastructure_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
+        AND lids.infrastructure_monthly_cost_json IS NULL
     GROUP BY lids.usage_start, lids.cluster_id, lids.namespace
 )
 SELECT uuid_generate_v4(),
@@ -96,8 +95,8 @@ SELECT uuid_generate_v4(),
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     lids.source_uuid,
     {{rate_type}} as cost_model_rate_type,
-    NULL as cost_model_cpu_cost,
-    NULL as cost_model_memory_cost,
+    0 as cost_model_cpu_cost,
+    0 as cost_model_memory_cost,
     CASE
         WHEN {{cost_type}} = 'PVC'
             THEN {{rate}}::decimal / vc.pvc_count
@@ -114,7 +113,6 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.report_period_id = {{report_period_id}}
     AND lids.persistentvolumeclaim IS NOT NULL
     AND lids.data_source = 'Storage'
-    AND lids.supplementary_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
-    AND lids.infrastructure_usage_cost = '{"cpu": 0.0, "memory": 0.0, "storage": 0.0}'::jsonb
+    AND lids.infrastructure_monthly_cost_json IS NULL
 GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, lids.persistentvolumeclaim, lids.persistentvolume, lids.volume_labels, vc.pvc_count
 ;
