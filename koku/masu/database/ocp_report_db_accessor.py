@@ -1073,10 +1073,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         cpu_case, memory_case, volume_case = case_statements
 
         if cost_type == "Node":
-            summary_sql = pkgutil.get_data("masu.database", "sql/openshift/monthly_cost_node_by_tag.sql")
+            summary_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
         elif cost_type == "PVC":
             summary_sql = pkgutil.get_data(
-                "masu.database", "sql/openshift/monthly_cost_persistentvolumeclaim_by_tag.sql"
+                "masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql"
             )
 
         summary_sql = summary_sql.decode("utf-8")
@@ -2320,8 +2320,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         # define the rates so the loop can operate on both rate types
         rate_types = [
-            {"rates": infrastructure_rates, "sql_file": "sql/infrastructure_tag_rates.sql"},
-            {"rates": supplementary_rates, "sql_file": "sql/supplementary_tag_rates.sql"},
+            {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
+            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
         if isinstance(start_date, str):
@@ -2403,8 +2403,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         # define the rates so the loop can operate on both rate types
         rate_types = [
-            {"rates": infrastructure_rates, "sql_file": "sql/default_infrastructure_tag_rates.sql"},
-            {"rates": supplementary_rates, "sql_file": "sql/default_supplementary_tag_rates.sql"},
+            {
+                "rates": infrastructure_rates,
+                "sql_file": "sql/openshift/cost_model/default_infrastructure_tag_rates.sql",
+            },
+            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
         if isinstance(start_date, str):
