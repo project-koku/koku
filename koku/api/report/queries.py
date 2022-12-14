@@ -33,6 +33,7 @@ from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
 
@@ -623,21 +624,21 @@ class ReportQueryHandler(QueryHandler):
 
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
+        whens = [
+            When(project__startswith="openshift-", then=Value("default")),
+            When(project__startswith="kube-", then=Value("default")),
+            When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
+        ]
         if self._category:
-            return query_data.annotate(
-                classification=Case(
-                    When(project__in=self._category, then=Value("category")),
-                    default=Value("project"),
-                    output_field=CharField(),
-                )
+            whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
+
+        return query_data.annotate(
+            classification=Case(
+                *whens,
+                default=Value("project"),
+                output_field=CharField(),
             )
-        else:
-            project_default_whens = [
-                When(project__startswith=project, then=Value("True")) for project in ["openshift-", "kube-"]
-            ]
-            return query_data.annotate(
-                default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
-            )
+        )
 
     @property
     def annotations(self):
@@ -708,7 +709,7 @@ class ReportQueryHandler(QueryHandler):
                 value = group
                 if group.startswith(tag_prefix):
                     value = group[len(tag_prefix) :]  # noqa
-                group_label = f"no-{value}"
+                group_label = f"No-{value}"
                 data[group] = group_label
 
         return data
@@ -775,7 +776,7 @@ class ReportQueryHandler(QueryHandler):
                         new_key = group_info.get("key")
                         if data.get(group_key):
                             if isinstance(data[group_key], str):
-                                # This if is to overwrite the "cost": "no-cost"
+                                # This if is to overwrite the "cost": "No-cost"
                                 # that is provided by the order_by function.
                                 data[group_key] = {}
                             data[group_key][new_key] = {"value": value, "units": units}
@@ -837,7 +838,7 @@ class ReportQueryHandler(QueryHandler):
                 group_title = group_type[len(tag_prefix) :]  # noqa
             group_label = group
             if group is None:
-                group_label = f"no-{group_title}"
+                group_label = f"No-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
 
@@ -864,7 +865,7 @@ class ReportQueryHandler(QueryHandler):
             return self._order_by(query_data, query_order_by)
         df = pd.DataFrame(query_data)
         sort_terms = self._get_group_by()
-        none_sort_terms = [f"no-{sort_term}" for sort_term in sort_terms]
+        none_sort_terms = [f"No-{sort_term}" for sort_term in sort_terms]
         for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
             # use a dictionary to uniquify the list and maintain the correct order
             ordered_list = dict.fromkeys([entry.get(sort_term) or none_sort_term for entry in ordered_data]).keys()
@@ -920,7 +921,7 @@ class ReportQueryHandler(QueryHandler):
             else:
                 for line_data in sorted_data:
                     if not line_data.get(field):
-                        line_data[field] = f"no-{field}"
+                        line_data[field] = f"No-{field}"
                 sorted_data = sorted(
                     sorted_data,
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
