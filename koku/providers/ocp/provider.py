@@ -13,9 +13,9 @@ from tenant_schemas.utils import tenant_context
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.provider.models import Provider
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummaryP
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummaryP
-from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -83,21 +83,21 @@ class OCPProvider(ProviderInterface):
     def _aws_clusters(self, tenant):
         """Return a list of OCP clusters running on AWS."""
         with tenant_context(tenant):
-            objects = OCPAWSCostLineItemDailySummaryP.objects.values_list("cluster_id", flat=True)
+            objects = OCPAWSCostLineItemProjectDailySummaryP.objects.values_list("cluster_id", flat=True)
             clusters = list(objects.distinct())
         return clusters
 
     def _azure_clusters(self, tenant):
         """Return a list of OCP clusters running on Azure."""
         with tenant_context(tenant):
-            objects = OCPAzureCostLineItemDailySummaryP.objects.values_list("cluster_id", flat=True)
+            objects = OCPAzureCostLineItemProjectDailySummaryP.objects.values_list("cluster_id", flat=True)
             clusters = list(objects.distinct())
         return clusters
 
     def _gcp_clusters(self, tenant):
-        """Return a list of OCP clusters running on Azure."""
+        """Return a list of OCP clusters running on GCP."""
         with tenant_context(tenant):
-            objects = OCPGCPCostLineItemDailySummaryP.objects.values_list("cluster_id", flat=True)
+            objects = OCPGCPCostLineItemProjectDailySummaryP.objects.values_list("cluster_id", flat=True)
             clusters = list(objects.distinct())
         return clusters
 

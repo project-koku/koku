@@ -250,7 +250,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     markup_value,
                     distribution,
                 )
-            accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
+            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
             accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
 
@@ -385,7 +385,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                         distribution,
                     )
 
-            accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, current_ocp_report_period_id)
+            accessor.back_populate_ocp_infrastructure_costs_trino(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
 

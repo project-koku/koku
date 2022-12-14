@@ -737,13 +737,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def back_populate_ocp_on_gcp_daily_summary_trino(self, start_date, end_date, report_period_id):
+    def back_populate_ocp_infrastructure_costs_trino(self, start_date, end_date, report_period_id):
         """Populate the OCP on GCP and OCP daily summary tables. after populating the project table."""
         # table_name = GCP_REPORT_TABLE_MAP["ocp_on_gcp_daily_summary"]
 
         sql = pkgutil.get_data(
             "masu.database",
-            "presto_sql/gcp/openshift/reporting_ocpgcpcostentrylineitem_daily_summary_back_populate.sql",
+            "presto_sql/gcp/openshift/reporting_ocpgcp_ocp_infrastructure_back_populate.sql",
         )
         sql = sql.decode("utf-8")
         sql_params = {
