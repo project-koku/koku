@@ -145,7 +145,7 @@ class TagQueryHandler(QueryHandler):
         end_filter = QueryFilter(field=f"{field_prefix}_start", operation="lte", parameter=end)
         return start_filter, end_filter
 
-    def _find_namespaces_in_category_list(self, category_list):
+    def _build_namespace_filters_from_category_list(self, category_list):
         """
         Create a mapping of category to namespaces.
         """
@@ -213,8 +213,13 @@ class TagQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
-        if self.parameters.get("category"):
-            composed_category_filters = self._find_namespaces_in_category_list(self.paradometers.get("category"))
+        category_list = (
+            self.parameters.get("category")
+            if self.parameters.get("category")
+            else self.parameters.get_filter("category")
+        )
+        if category_list:
+            composed_category_filters = self._build_namespace_filters_from_category_list(category_list)
             composed_filters = composed_filters & composed_category_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
@@ -267,6 +272,12 @@ class TagQueryHandler(QueryHandler):
         exclusions.add(q_filter)
 
         composed_exclusions = exclusions.compose()
+        category_exclude = self.parameters.get_exclude("category")
+        if category_exclude:
+            composed_category_filters = self._build_namespace_filters_from_category_list(
+                self.parameters.get_exclude("category")
+            )
+            composed_exclusions = composed_exclusions | composed_category_filters
 
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
