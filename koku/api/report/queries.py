@@ -33,6 +33,7 @@ from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
 
@@ -626,21 +627,21 @@ class ReportQueryHandler(QueryHandler):
 
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
+        whens = [
+            When(project__startswith="openshift-", then=Value("default")),
+            When(project__startswith="kube-", then=Value("default")),
+            When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
+        ]
         if self._category:
-            return query_data.annotate(
-                classification=Case(
-                    When(project__in=self._category, then=Value("category")),
-                    default=Value("project"),
-                    output_field=CharField(),
-                )
+            whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
+
+        return query_data.annotate(
+            classification=Case(
+                *whens,
+                default=Value("project"),
+                output_field=CharField(),
             )
-        else:
-            project_default_whens = [
-                When(project__startswith=project, then=Value("True")) for project in ["openshift-", "kube-"]
-            ]
-            return query_data.annotate(
-                default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
-            )
+        )
 
     @property
     def annotations(self):

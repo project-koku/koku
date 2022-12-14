@@ -22,13 +22,14 @@ from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
+from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
-from reporting.models import OCPAzureCostLineItemDailySummaryP
+from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
@@ -211,7 +212,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 date_filters = {}
 
-            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, OCPAzureCostLineItemDailySummaryP)
+            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, OCPAzureCostLineItemProjectDailySummaryP)
             OCPALL_MARKUP = (OCPAllCostLineItemDailySummaryP, *OCP_ON_ALL_PERSPECTIVES)
 
             for bill_id in bill_ids:
@@ -505,13 +506,11 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    def back_populate_ocp_on_azure_daily_summary(self, start_date, end_date, report_period_id):
+    def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP on Azure and OCP daily summary tables. after populating the project table via trino."""
-        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data(
-            "masu.database", "sql/reporting_ocpazurecostentrylineitem_daily_summary_back_populate.sql"
-        )
+        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
