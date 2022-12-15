@@ -38,9 +38,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider = self.ocp_on_aws_ocp_provider
-        self.cluster_id = self.ocpaws_ocp_cluster_id
-        self.provider_uuid = self.ocpaws_provider_uuid
+        self.provider = self.ocp_provider
+        self.cluster_id = self.ocp_cluster_id
+        self.provider_uuid = self.ocp_provider_uuid
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
 
     def test_normalize_tier(self):
@@ -299,10 +299,11 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 data_source="Pod",
                 cluster_id=self.cluster_id,
                 infrastructure_raw_cost__isnull=True,
+                cost_model_rate_type__isnull=True,
             ).all()
             for line_item in pod_line_items:
-                self.assertNotEqual(line_item.infrastructure_usage_cost.get("cpu"), 0)
-                self.assertNotEqual(line_item.infrastructure_usage_cost.get("memory"), 0)
+                self.assertNotEqual(line_item.infrastructure_usage_cost.get("cpu", 0), 0)
+                self.assertNotEqual(line_item.infrastructure_usage_cost.get("memory", 0), 0)
                 self.assertEqual(line_item.infrastructure_usage_cost.get("storage"), 0)
 
                 self.assertEqual(line_item.supplementary_usage_cost.get("cpu"), 0)
@@ -314,6 +315,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 data_source="Storage",
                 cluster_id=self.cluster_id,
                 infrastructure_raw_cost__isnull=True,
+                cost_model_rate_type__isnull=True,
             ).all()
 
             for line_item in volume_line_items:
@@ -323,7 +325,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                 self.assertEqual(line_item.supplementary_usage_cost.get("cpu"), 0)
                 self.assertEqual(line_item.supplementary_usage_cost.get("memory"), 0)
-                self.assertNotEqual(line_item.supplementary_usage_cost.get("storage"), 0)
+                self.assertNotEqual(line_item.supplementary_usage_cost.get("storage", 0), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.enable_ocp_amortized_monthly_cost")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -409,7 +411,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         infrastructure_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
-        mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = "cpu"
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
@@ -422,7 +424,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 cluster_id=self.cluster_id,
             ).first()
 
-            self.assertEqual(monthly_cost_row.cost_model_cpu_cost, 0)
+            self.assertNotEqual(monthly_cost_row.cost_model_cpu_cost, 0)
             self.assertEqual(monthly_cost_row.cost_model_memory_cost, 0)
             self.assertEqual(monthly_cost_row.cost_model_volume_cost, 0)
 

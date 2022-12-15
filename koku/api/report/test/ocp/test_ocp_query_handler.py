@@ -122,7 +122,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        self.assertAlmostEqual(result_cost_total, expected_cost_total, 6)
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
@@ -694,7 +694,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertIsNotNone(query_output.get("total"))
             total = query_output.get("total")
             for line in query_output.get("data")[0].get("projects"):
-                if line.get("project") != "platform":
+                if "openshift-" in line.get("project") or "kube-" in line.get("project"):
+                    self.assertEqual(line["values"][0]["classification"], "default")
+                elif line.get("project") != "platform":
                     self.assertEqual(line["values"][0]["classification"], "project")
             result_cost_total = total.get("cost", {}).get("total", {}).get("value")
             self.assertIsNotNone(result_cost_total)
@@ -735,8 +737,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             with self.assertRaises(ValidationError):
                 self.mocked_query_params(url, OCPCostView)
 
-    def test_ocp_date_order_by_cost_desc(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_ocp_date_order_by_cost_desc(self, mock_amortized):
         """Test that order of every other date matches the order of the `order_by` date."""
+        mock_amortized.return_value = True
         tested = False
         yesterday = self.dh.yesterday.date()
         url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
