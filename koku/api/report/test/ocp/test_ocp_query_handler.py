@@ -687,30 +687,40 @@ class OCPReportQueryHandlerTest(IamTestCase):
             mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPCostView)
             handler = OCPReportQueryHandler(query_params)
-            merged_filters = {**self.ten_day_filter, **self.plaform_filter}
-            current_totals = self.get_totals_costs_by_time_scope(handler, merged_filters)
-            expected_cost_total = current_totals.get("cost_total")
-            self.assertIsNotNone(expected_cost_total)
-            query_output = handler.execute_query()
-            self.assertIsNotNone(query_output.get("data"))
-            self.assertIsNotNone(query_output.get("total"))
-            total = query_output.get("total")
-            for line in query_output.get("data")[0].get("projects"):
-                if line.get("project") != "Platform":
-                    self.assertEqual(line["values"][0]["classification"], "project")
-            result_cost_total = total.get("cost", {}).get("total", {}).get("value")
-            self.assertIsNotNone(result_cost_total)
-            self.assertEqual(result_cost_total, expected_cost_total)
+            with tenant_context(self.tenant):
+                current_totals = (
+                    OCPCostSummaryByProjectP.objects.filter(handler.query_filter)
+                    .annotate(**handler.annotations)
+                    .aggregate(**handler._mapper.report_type_map.get("aggregates"))
+                )
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        for line in query_output.get("data")[0].get("projects"):
+            if line.get("project") != "Platform":
+                self.assertEqual(line["values"][0]["classification"], "project")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        overall = result_cost_total - expected_cost_total
+        self.assertEqual(overall, 0)
 
     def test_group_by_project_w_classification_and_other(self):
         """Test that classification works as expected with Other."""
-        url = "?group_by[project]=*&category=*&filter[limit]=1"
+        cat_key = "Platform"
+        url = "?group_by[project]=*&category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
+            mock_object.values_list.return_value.distinct.return_value = [cat_key]
             query_params = self.mocked_query_params(url, OCPCostView)
             handler = OCPReportQueryHandler(query_params)
-            merged_filters = {**self.ten_day_filter, **self.plaform_filter}
-            current_totals = self.get_totals_costs_by_time_scope(handler, merged_filters)
+            with tenant_context(self.tenant):
+                current_totals = (
+                    OCPCostSummaryByProjectP.objects.filter(handler.query_filter)
+                    .annotate(**handler.annotations)
+                    .aggregate(**handler._mapper.report_type_map.get("aggregates"))
+                )
             expected_cost_total = current_totals.get("cost_total")
             self.assertIsNotNone(expected_cost_total)
             query_output = handler.execute_query()
@@ -719,16 +729,17 @@ class OCPReportQueryHandlerTest(IamTestCase):
             total = query_output.get("total")
             for line in query_output.get("data")[0].get("projects"):
                 if line["project"] == "Platform":
-                    self.assertEqual(line["values"][0]["classification"], "category")
+                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 elif line["project"] == "Other":
-                    self.assertEqual(line["values"][0]["classification"], "category")
+                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 elif line["project"] == "Others":
-                    self.assertEqual(line["values"][0]["classification"], "category")
+                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 else:
                     self.assertEqual(line["values"][0]["classification"], "project")
             result_cost_total = total.get("cost", {}).get("total", {}).get("value")
             self.assertIsNotNone(result_cost_total)
-            self.assertEqual(result_cost_total, expected_cost_total)
+            overall = result_cost_total - expected_cost_total
+            self.assertEqual(overall, 0)
 
     def test_category_error(self):
         """Test category error w/o project group by."""
