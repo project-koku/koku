@@ -695,7 +695,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id, data_source="Storage", infrastructure_raw_cost__isnull=True
+                cluster_id=cluster_id,
+                data_source="Storage",
+                infrastructure_raw_cost__isnull=True,
+                cost_model_rate_type__isnull=True,
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)

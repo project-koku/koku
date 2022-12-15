@@ -12,11 +12,8 @@ from urllib.parse import urlencode
 
 from dateutil import relativedelta
 from django.db.models import Count
-from django.db.models import DecimalField
-from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
-from django.db.models.functions import Coalesce
 from django.http import HttpRequest
 from django.http import QueryDict
 from django.urls import reverse
@@ -36,7 +33,6 @@ from api.report.ocp.view import OCPMemoryView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
-from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
 
@@ -53,6 +49,11 @@ class OCPReportViewTest(IamTestCase):
         cls.cost_term = (
             cls.provider_map.cloud_infrastructure_cost
             + cls.provider_map.markup_cost
+            + cls.provider_map.cost_model_cost
+        )
+        cls.cost_term_by_project = (
+            cls.provider_map.cloud_infrastructure_cost_by_project
+            + cls.provider_map.markup_cost_by_project
             + cls.provider_map.cost_model_cost
         )
 
@@ -533,60 +534,8 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             cost = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
-                .aggregate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.cost_term_by_project)
                 .get("total")
             )
             expected_total = cost if cost is not None else 0
@@ -989,23 +938,13 @@ class OCPReportViewTest(IamTestCase):
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
                 .aggregate(
                     **{
                         "usage": Sum("pod_usage_cpu_core_hours"),
                         "request": Sum("pod_request_cpu_core_hours"),
                         "limit": Sum("pod_limit_cpu_core_hours"),
-                        "cost": Sum(
-                            Coalesce(
-                                KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                                Value(0, output_field=DecimalField()),
-                            )
-                            + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                            + Coalesce(
-                                KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                                Value(0, output_field=DecimalField()),
-                            )
-                            + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                        ),
+                        "cost": self.cost_term,
                     }
                 )
             )
@@ -1049,36 +988,8 @@ class OCPReportViewTest(IamTestCase):
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
-                .aggregate(
-                    cost=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(cost=self.cost_term)
             )
 
         url = reverse("reports-openshift-costs")
@@ -1106,26 +1017,19 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
-            totals = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start__gte=self.ten_days_ago.date(), pod_labels__has_key=filter_key
-            ).aggregate(
-                **{
-                    "usage": Sum("pod_usage_cpu_core_hours"),
-                    "request": Sum("pod_request_cpu_core_hours"),
-                    "limit": Sum("pod_limit_cpu_core_hours"),
-                    "cost": Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    ),
-                }
+            totals = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=self.ten_days_ago.date(), pod_labels__has_key=filter_key
+                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(
+                    **{
+                        "usage": Sum("pod_usage_cpu_core_hours"),
+                        "request": Sum("pod_request_cpu_core_hours"),
+                        "limit": Sum("pod_limit_cpu_core_hours"),
+                        "cost": self.cost_term,
+                    }
+                )
             )
 
         url = reverse("reports-openshift-cpu")
