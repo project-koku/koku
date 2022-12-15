@@ -5,9 +5,11 @@
 """Common Test utilities."""
 from tenant_schemas.utils import schema_context
 
+from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
 def populate_ocp_topology(schema, provider, cluster_id):
@@ -24,3 +26,17 @@ def populate_ocp_topology(schema, provider, cluster_id):
             if node[0]:
                 n = OCPNode(node=node[0], resource_id=node[1], cluster=cluster)
                 n.save()
+
+
+def update_cost_category(schema):
+    """Update the daily summary rows to to have a cost category."""
+    with schema_context(schema):
+        cost_category_value = OpenshiftCostCategory.objects.first()
+        rows = OCPUsageLineItemDailySummary.objects.filter(
+            namespace=OCP_PLATFORM_NAMESPACE, cost_category_id__isnull=True
+        )
+        update_list = []
+        for row in rows:
+            row.cost_category = cost_category_value
+            update_list.append(row)
+        OCPUsageLineItemDailySummary.objects.bulk_update(update_list, ["cost_category"])

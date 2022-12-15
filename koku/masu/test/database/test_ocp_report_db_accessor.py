@@ -1090,11 +1090,8 @@ select * from eek where val1 in {{report_period_id}} ;
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
                     report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-                    start_date = report_entry["interval_start__min"]
-                    end_date = report_entry["interval_start__max"]
-
-                    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                    end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    start_date = report_entry["interval_start__min"].replace(hour=0, minute=0, second=0, microsecond=0)
+                    end_date = report_entry["interval_start__max"].replace(hour=0, minute=0, second=0, microsecond=0)
                     self.accessor.upsert_monthly_cluster_cost_line_item(
                         start_date,
                         end_date,
@@ -1104,6 +1101,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         rate,
                         distribution,
                         self.provider_uuid,
+                        {},  # cost_category_mapping
                     )
                     summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
                     query = self.accessor._get_db_obj_query(summary_table_name)
