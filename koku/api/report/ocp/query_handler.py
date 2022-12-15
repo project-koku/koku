@@ -46,11 +46,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         if enable_ocp_amortized_monthly_cost(parameters.request.user.customer.schema_name):
-            self._mapper = OCPProviderMapAmortized(provider=self.provider, report_type=parameters.report_type)
+            mapper_class = OCPProviderMapAmortized
         else:
-            self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
-        self.group_by_options = self._mapper.provider_map.get("group_by_options")
+            mapper_class = OCPProviderMap
         self._limit = parameters.get_filter("limit")
+        self._report_type = parameters.report_type
+        # Update which field is used to calculate cost by group by param.
+        if is_grouped_by_project(parameters) and parameters.report_type == "costs":
+            self._report_type = parameters.report_type + "_by_project"
+        self._mapper = mapper_class(provider=self.provider, report_type=self._report_type)
+        self.group_by_options = self._mapper.provider_map.get("group_by_options")
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -73,11 +78,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
-
-        # Update which field is used to calculate cost by group by param.
-        if is_grouped_by_project(parameters) and parameters.report_type == "costs":
-            self._report_type = parameters.report_type + "_by_project"
-            self._mapper = OCPProviderMap(provider=self.provider, report_type=self._report_type)
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
