@@ -366,14 +366,15 @@ class ModelBakeryDataLoader(DataLoader):
             accessor.update_line_item_daily_summary_with_enabled_tags(
                 self.first_start_date, self.last_end_date, report_period_ids
             )
-            update_cost_model_costs(
-                self.schema,
-                provider.uuid,
-                self.first_start_date,
-                self.last_end_date,
-                tracing_id="12345",
-                synchronous=True,
-            )
+            for date in self.dates:
+                update_cost_model_costs(
+                    self.schema,
+                    provider.uuid,
+                    date[0],
+                    date[1],
+                    tracing_id="12345",
+                    synchronous=True,
+                )
             accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
 
         populate_ocp_topology(self.schema, provider, cluster_id)
