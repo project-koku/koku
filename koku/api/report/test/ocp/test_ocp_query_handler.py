@@ -735,8 +735,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             with self.assertRaises(ValidationError):
                 self.mocked_query_params(url, OCPCostView)
 
-    def test_ocp_date_order_by_cost_desc(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_ocp_date_order_by_cost_desc(self, mock_amortized):
         """Test that order of every other date matches the order of the `order_by` date."""
+        mock_amortized.return_value = True
         tested = False
         yesterday = self.dh.yesterday.date()
         url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
