@@ -973,11 +973,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "rate_type": rate_type,
             "distribution": distribution,
         }
-        LOG.info(summary_sql_params)
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         LOG.info("Populating monthly cost from %s to %s.", start_date, end_date)
-        LOG.info(summary_sql)
-        LOG.info(summary_sql_params)
         self._execute_raw_sql_query(
             table_name,
             summary_sql,
