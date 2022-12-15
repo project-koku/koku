@@ -68,6 +68,8 @@ def get_start_and_end_from_manifest_id(manifest_id):
     end_date = None
     with ReportManifestDBAccessor() as manifest_accessor:
         manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        if not manifest:
+            return
         bill_date = manifest.billing_period_start_datetime.date()
         provider_uuid = manifest.provider_id
         manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(provider_uuid, bill_date)
@@ -125,8 +127,11 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
             end_date = parser.parse(report.get("end")).date()
         else:
             # GCP and OCI set report start and report end, AWS/Azure do not
-            start_date, end_date = get_start_and_end_from_manifest_id(report.get("manifest_id"))
-
+            date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
+            if not date_tuple:
+                LOG.debug(f"SKIPPING REPORT, no manifest found: {report}")
+                continue
+            start_date, end_date = date_tuple
         schema_name = report.get("schema_name")
         provider_type = report.get("provider_type")
         provider_uuid = report.get("provider_uuid")

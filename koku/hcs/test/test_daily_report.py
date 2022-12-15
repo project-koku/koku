@@ -6,6 +6,7 @@
 import logging
 from datetime import timedelta
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from hcs.daily_report import ReportHCS
 from hcs.test import HCSTestCase
@@ -28,6 +29,7 @@ class TestReportHCS(HCSTestCase):
         """Test the initializer."""
         dr = ReportHCS(self.schema, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id)
         self.assertEqual(dr._schema_name, self.schema)
-        self.assertEqual(dr._provider, self.aws_provider_type)
+        # the local is stripped off the provider so we are left with the AWS provider
+        self.assertEqual(dr._provider, Provider.PROVIDER_AWS)
         self.assertEqual(dr._provider_uuid, self.aws_provider_uuid)
         self.assertEqual(dr._tracing_id, self.tracing_id)
