@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for OCP Reports."""
+from functools import cached_property
+
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
@@ -56,32 +58,6 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __cloud_infrastructure_cost(self, by_project=False):
-        """Return ORM term for cloud infra costs."""
-        if by_project:
-            return Sum(
-                Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
-                * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-            )
-        else:
-            return Sum(
-                Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-            )
-
-    def __markup_cost(self, by_project=False):
-        """Return ORM term for cloud infra costs."""
-        if by_project:
-            return Sum(
-                Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
-                * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-            )
-        else:
-            return Sum(
-                Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-            )
-
     def __init__(self, provider, report_type):
         """Constructor."""
         self._mapping = [
@@ -111,40 +87,36 @@ class OCPProviderMap(ProviderMap):
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -154,9 +126,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -166,40 +136,40 @@ class OCPProviderMap(ProviderMap):
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(by_project=True),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(by_project=True),
-                            "infra_total": self.__cloud_infrastructure_cost(by_project=True)
-                            + self.__markup_cost(by_project=True)
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(by_project=True),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(by_project=True),
-                            "cost_total": self.__cloud_infrastructure_cost(by_project=True)
-                            + self.__markup_cost(by_project=True)
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost_by_project,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost_by_project,
+                            "infra_total": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost_by_project,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost_by_project,
+                            "cost_total": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_cost,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(by_project=True),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(by_project=True),
-                            "infra_total": self.__cloud_infrastructure_cost(by_project=True)
-                            + self.__markup_cost(by_project=True)
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(by_project=True),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(by_project=True),
-                            "cost_total": self.__cloud_infrastructure_cost(by_project=True)
-                            + self.__markup_cost(by_project=True)
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost_by_project,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost_by_project,
+                            "infra_total": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost_by_project,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost_by_project,
+                            "cost_total": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -209,9 +179,9 @@ class OCPProviderMap(ProviderMap):
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
-                            "cost_total": self.__cloud_infrastructure_cost(by_project=True)
-                            + self.__markup_cost(by_project=True)
-                            + self.__cost_model_cost(),
+                            "cost_total": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_cost,
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -220,21 +190,19 @@ class OCPProviderMap(ProviderMap):
                     "cpu": {
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
@@ -243,21 +211,19 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
@@ -273,9 +239,7 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
@@ -301,21 +265,19 @@ class OCPProviderMap(ProviderMap):
                     "memory": {
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
@@ -324,21 +286,19 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
@@ -354,9 +314,7 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
@@ -383,21 +341,19 @@ class OCPProviderMap(ProviderMap):
                         "tag_column": "volume_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                         },
@@ -405,21 +361,19 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_cost(cost_model_rate_type="Supplementary"),
-                            "infra_raw": self.__cloud_infrastructure_cost(),
-                            "infra_usage": self.__cost_model_cost(cost_model_rate_type="Infrastructure"),
-                            "infra_markup": self.__markup_cost(),
-                            "infra_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost("Infrastructure"),
-                            "cost_raw": self.__cloud_infrastructure_cost(),
-                            "cost_usage": self.__cost_model_cost(),
-                            "cost_markup": self.__markup_cost(),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
@@ -434,9 +388,7 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
-                            "cost_total": self.__cloud_infrastructure_cost()
-                            + self.__markup_cost()
-                            + self.__cost_model_cost(),
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
                         "cost_units_key": "raw_currency",
@@ -482,3 +434,50 @@ class OCPProviderMap(ProviderMap):
             },
         }
         super().__init__(provider, report_type)
+
+    @cached_property
+    def cost_model_supplementary_cost(self):
+        """Return supplementary cost model costs."""
+        return self.__cost_model_cost(cost_model_rate_type="Supplementary")
+
+    @cached_property
+    def cost_model_infrastructure_cost(self):
+        """Return infrastructure cost model costs."""
+        return self.__cost_model_cost(cost_model_rate_type="Infrastructure")
+
+    @cached_property
+    def cost_model_cost(self):
+        """Return all cost model costs."""
+        return self.__cost_model_cost()
+
+    @cached_property
+    def cloud_infrastructure_cost(self):
+        """Return ORM term for cloud infra costs."""
+        return Sum(
+            Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
+
+    @cached_property
+    def cloud_infrastructure_cost_by_project(self):
+        """Return ORM term for cloud infra costs by project."""
+        return Sum(
+            Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
+            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
+
+    @cached_property
+    def markup_cost(self):
+        """Return ORM term for cloud infra markup."""
+        return Sum(
+            Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
+
+    @cached_property
+    def markup_cost_by_project(self):
+        """Return ORM term for cloud infra markup by project."""
+        return Sum(
+            Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
+            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
