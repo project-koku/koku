@@ -46,7 +46,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_model_cpu_cost,
     cost_model_memory_cost,
     cost_model_volume_cost,
-    monthly_cost_type
+    monthly_cost_type,
+    cost_category_id
 )
 WITH cte_volume_count AS (
     SELECT usage_start,
@@ -102,12 +103,15 @@ SELECT uuid_generate_v4(),
             THEN {{rate}}::decimal / vc.pvc_count
         ELSE 0
     END AS cost_model_volume_cost,
-    {{cost_type}} as monthly_cost_type
+    {{cost_type}} as monthly_cost_type,
+    max(cat.id) as cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN cte_volume_count AS vc
     ON lids.usage_start = vc.usage_start
         AND lids.cluster_id = vc.cluster_id
         AND lids.namespace = vc.namespace
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
+    ON lids.namespace LIKE any(cat.namespace)
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}

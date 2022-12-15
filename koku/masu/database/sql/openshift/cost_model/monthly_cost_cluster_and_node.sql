@@ -45,7 +45,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_model_cpu_cost,
     cost_model_memory_cost,
     cost_model_volume_cost,
-    monthly_cost_type
+    monthly_cost_type,
+    cost_category_id
 )
 SELECT uuid_generate_v4(),
     max(report_period_id) as report_period_id,
@@ -54,7 +55,7 @@ SELECT uuid_generate_v4(),
     'Pod' as data_source,
     usage_start,
     max(usage_end) as usage_end,
-    namespace,
+    lids.namespace,
     node,
     max(resource_id) as resource_id,
     pod_labels,
@@ -97,12 +98,15 @@ SELECT uuid_generate_v4(),
         ELSE 0
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
-    {{cost_type}} as monthly_cost_type
+    {{cost_type}} as monthly_cost_type,
+    max(cat.id) as cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
+    ON lids.namespace LIKE any(cat.namespace)
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
-    AND namespace IS NOT NULL
+    AND lids.namespace IS NOT NULL
     AND data_source = 'Pod'
-GROUP BY usage_start, source_uuid, cluster_id, node, namespace, pod_labels
+GROUP BY usage_start, source_uuid, cluster_id, node, lids.namespace, pod_labels
 ;
