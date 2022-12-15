@@ -45,16 +45,17 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_model_cpu_cost,
     cost_model_memory_cost,
     cost_model_volume_cost,
-    monthly_cost_type
+    monthly_cost_type,
+    cost_category_id
 )
 SELECT uuid_generate_v4(),
     max(report_period_id) as report_period_id,
     cluster_id,
     max(cluster_alias) as cluster_alias,
-    'Pod' as data_source,
+    data_source,
     usage_start,
     max(usage_end) as usage_end,
-    namespace,
+    lids.namespace,
     node,
     max(resource_id) as resource_id,
     pod_labels,
@@ -72,10 +73,10 @@ SELECT uuid_generate_v4(),
     max(node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    NULL as persistentvolumeclaim,
-    NULL as persistentvolume,
-    NULL as storageclass,
-    NULL as volume_labels,
+    persistentvolumeclaim,
+    max(persistentvolume) as persistentvolume,
+    max(storageclass) as storageclass,
+    volume_labels,
     max(persistentvolumeclaim_capacity_gigabyte) as persistentvolumeclaim_capacity_gigabyte,
     max(persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
     NULL as volume_request_storage_gigabyte_months,
@@ -93,11 +94,22 @@ SELECT uuid_generate_v4(),
     sum(coalesce(persistentvolumeclaim_usage_gigabyte_months, 0)) * {{volume_usage_rate}}
         + sum(coalesce(volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}
         as cost_model_volume_cost,
-    NULL as monthly_cost_type
+    NULL as monthly_cost_type,
+    max(cat.id) as cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
+    ON lids.namespace LIKE any(cat.namespace)
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
-    AND namespace IS NOT NULL
-GROUP BY usage_start, source_uuid, cluster_id, node, namespace, pod_labels
+    AND lids.namespace IS NOT NULL
+GROUP BY usage_start,
+    source_uuid,
+    cluster_id,
+    node,
+    lids.namespace,
+    data_source,
+    persistentvolumeclaim,
+    pod_labels,
+    volume_labels
 ;
