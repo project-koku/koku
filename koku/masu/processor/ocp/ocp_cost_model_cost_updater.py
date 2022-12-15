@@ -40,6 +40,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         super().__init__(schema, provider, None)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
+        self._is_amortized = enable_ocp_amortized_monthly_cost(self._schema)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
@@ -199,7 +200,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    if enable_ocp_amortized_monthly_cost(self._schema):
+                    if self._is_amortized:
                         if rate:
                             amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
                         else:
