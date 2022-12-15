@@ -66,7 +66,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         try:
             sql = pkgutil.get_data("hcs.database", sql_summary_file)
             sql = sql.decode("utf-8")
-            table = HCS_TABLE_MAP.get(provider.strip("-local"))
+            table = HCS_TABLE_MAP.get(provider)
 
             if not self.table_exists_trino(table):
                 raise HCSTableNotFoundError(table)

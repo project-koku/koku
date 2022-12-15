@@ -123,7 +123,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        self.assertAlmostEqual(result_cost_total, expected_cost_total, 6)
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
@@ -702,6 +702,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for line in query_output.get("data")[0].get("projects"):
             if line.get("project") != "Platform":
                 self.assertEqual(line["values"][0]["classification"], "project")
+            elif line.get("project") != "platform":
+                    self.assertEqual(line["values"][0]["classification"], "project")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         overall = result_cost_total - expected_cost_total
