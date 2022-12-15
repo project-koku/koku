@@ -28,7 +28,9 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
+from api.provider.models import Provider
 from api.query_handler import TruncDayString
+from api.report.ocp.provider_map_amortized import OCPProviderMap
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -47,6 +49,12 @@ class OCPReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs")
+        cls.cost_term = (
+            cls.provider_map.cloud_infrastructure_cost
+            + cls.provider_map.markup_cost
+            + cls.provider_map.cost_model_cost
+        )
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -615,183 +623,37 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             current_total = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
-                .aggregate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.cost_term)
                 .get("total")
             )
             current_total = current_total if current_total is not None else 0
 
             current_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
-                .annotate(**{"date": TruncDayString("usage_start")})
-                .values(*["date"])
                 .annotate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
                 )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
             )
 
             prev_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
                 .filter(usage_start__lte=last_month_end.date())
-                .annotate(**{"date": TruncDayString("usage_start")})
-                .values(*["date"])
                 .annotate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
                 )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
             )
 
         current_totals = {total.get("date"): total.get("total") for total in current_totals}
