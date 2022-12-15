@@ -450,7 +450,7 @@ class ReportQueryHandlerTest(IamTestCase):
         """Test execute group_by project query with category."""
         url = "?group_by[project]=*&category=*&filter[project]=platform"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPAzureCostView)
             handler = OCPAzureReportQueryHandler(query_params)
             query_output = handler.execute_query()
@@ -459,7 +459,7 @@ class ReportQueryHandlerTest(IamTestCase):
             for data_item in data:
                 projects_data = data_item.get("projects")
                 for project_item in projects_data:
-                    self.assertTrue(project_item.get("project"), "platform")
+                    self.assertTrue(project_item.get("project"), "Platform")
 
     def test_execute_search_by_project_w_filter(self):
         """Test execute group_by project query with category."""
@@ -480,7 +480,7 @@ class ReportQueryHandlerTest(IamTestCase):
         category = "test"
         url = f"?group_by[project]=*&category=*&filter[project]={category}"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPAzureCostView)
             handler = OCPAzureReportQueryHandler(query_params)
             query_output = handler.execute_query()
@@ -496,7 +496,7 @@ class ReportQueryHandlerTest(IamTestCase):
         category = "test"
         url = f"?group_by[project]=*&category=*&exclude[project]={category}"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPAzureCostView)
             query_params.parameters["exclude"] = OrderedDict([("project", [category])])
             handler = OCPAzureReportQueryHandler(query_params)
@@ -523,14 +523,14 @@ class ReportQueryHandlerTest(IamTestCase):
         """Test execute group_by project query with category."""
         url = "?group_by[project]=*&category=*&exclude[project]=Platform"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPAzureCostView)
-            query_params.parameters["exclude"] = OrderedDict([("project", ["platform"])])
+            query_params.parameters["exclude"] = OrderedDict([("project", ["Platform"])])
             handler = OCPAzureReportQueryHandler(query_params)
             query_output = handler.execute_query()
             data = query_output.get("data")
             self.assertIsNotNone(data)
-            self.assertNotIn("platform", data)
+            self.assertNotIn("Platform", data)
 
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label

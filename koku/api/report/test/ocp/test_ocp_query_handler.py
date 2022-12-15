@@ -734,7 +734,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test category error w/o project group by."""
         url = "?category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             with self.assertRaises(ValidationError):
                 self.mocked_query_params(url, OCPCostView)
 
