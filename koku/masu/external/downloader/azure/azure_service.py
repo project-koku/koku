@@ -104,16 +104,7 @@ class AzureService:
 
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
-            blob_list = container_client.list_blobs(name_starts_with=report_path)
-            for blob in blob_list:
-                if report_path in blob.name and not latest_report:
-                    latest_report = blob
-                elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
-                    latest_report = blob
-            if not latest_report:
-                message = f"No cost report found in container {container_name} for " f"path {report_path}."
-                raise AzureCostReportNotFound(message)
-            return latest_report
+            blob_list = list(container_client.list_blobs(name_starts_with=report_path))
         except (AdalError, AzureException, ClientException) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         except HttpResponseError as httpError:
@@ -132,6 +123,19 @@ class AzureService:
             error_msg = message + f" Azure Error: {httpError}."
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
+
+
+        for blob in blob_list:
+            if report_path in blob.name and not latest_report:
+                latest_report = blob
+            elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
+                latest_report = blob
+
+        if not latest_report:
+            message = f"No cost report found in container {container_name} for " f"path {report_path}."
+            raise AzureCostReportNotFound(message)
+
+        return latest_report
 
     def describe_cost_management_exports(self):
         """List cost management export."""
