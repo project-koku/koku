@@ -45,4 +45,6 @@ def get_exchange_rates(request):
 
         get_daily_currency_rates()
         exchange_rates = ExchangeRateDictionary.objects.all().first()
-    return Response(exchange_rates.currency_exchange_dictionary)
+        if exchange_rates:
+            return Response(exchange_rates.currency_exchange_dictionary)
+    return Response({})
