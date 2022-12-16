@@ -4,6 +4,8 @@
 #
 """Azure Service helpers."""
 import logging
+import typing as t
+
 from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
@@ -93,8 +95,7 @@ class AzureService:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         return file_path
 
-    def get_latest_cost_export_for_path(self, report_path, container_name):
-        """Get the latest cost export file from given storage account container."""
+    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> t.Optional[list[str], str]:
         latest_report = None
         if not container_name:
             message = "Unable to gather latest export as container name is not provided."
