@@ -158,8 +158,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "start": (report_path.split("/")[-1]).split("-")[0],
             "end": (report_path.split("/")[-1]).split("-")[1],
         }
+        manifest["reportKeys"] = report_name
+        if isinstance(report_name, str):
+            manifest["reportKeys"] = [report_name]
+
         manifest["billingPeriod"] = billing_period
-        manifest["reportKeys"] = [report_name]
         manifest["Compression"] = UNCOMPRESSED
 
         return manifest, blob.last_modified
