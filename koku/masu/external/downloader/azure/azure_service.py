@@ -95,7 +95,21 @@ class AzureService:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         return file_path
 
+    # FIXME: Cyclomatic complexity is now too high
     def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> t.Optional[list[str], str]:
+        """Get the latest cost export file from given storage account container.
+
+        A JSON manifest may be present if partitioning is enabled.
+
+        First, determine if a JSON manifest is present.
+
+            If there is a JSON manifest
+                Download it and get a list of blob['blobName']
+
+            Else
+                Return the last modified CSV file
+
+        """
         latest_report = None
         if not container_name:
             message = "Unable to gather latest export as container name is not provided."
@@ -123,6 +137,22 @@ class AzureService:
             error_msg = message + f" Azure Error: {httpError}."
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
+
+        blob_names = (blob.name for blob in blob_list)
+        # If partitioned exports are enabled, a JSON manifest will exist
+        if any(name.endswith(".json") for name in blob_names):
+            # A JSON manifest exists. Get that and process it.
+            for blob in blob_list:
+                if blob.name.lower().endswith(".json"):
+                    # TODO: Read the manifest data and return a list of blob names
+                    manifest_data = {
+                        "blobs": [
+                            {
+                                "blobName": "cost/partitioned/20221201-20221231/202212021442/ba09757f-50f7-4749-8b77-7ec690147bff/000001.csv",
+                            }
+                        ]
+                    }
+                    return [blob["blobName"] for blob in manifest_data["blobs"]]
 
 
         for blob in blob_list:
