@@ -11,6 +11,7 @@ from tempfile import NamedTemporaryFile
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import HttpResponseError
+from azure.storage.blob._models import BlobProperties
 from msrest.exceptions import ClientException
 
 from providers.azure.client import AzureClientFactory
@@ -95,8 +96,7 @@ class AzureService:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         return file_path
 
-    # FIXME: Cyclomatic complexity is now too high
-    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> t.Optional[list[str], str]:
+    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         """Get the latest cost export file from given storage account container.
 
         A JSON manifest may be present if partitioning is enabled.
@@ -104,7 +104,7 @@ class AzureService:
         First, determine if a JSON manifest is present.
 
             If there is a JSON manifest
-                Download it and get a list of blob['blobName']
+                Return that
 
             Else
                 Return the last modified CSV file
@@ -144,16 +144,7 @@ class AzureService:
             # A JSON manifest exists. Get that and process it.
             for blob in blob_list:
                 if blob.name.lower().endswith(".json"):
-                    # TODO: Read the manifest data and return a list of blob names
-                    manifest_data = {
-                        "blobs": [
-                            {
-                                "blobName": "cost/partitioned/20221201-20221231/202212021442/ba09757f-50f7-4749-8b77-7ec690147bff/000001.csv",
-                            }
-                        ]
-                    }
-                    return [blob["blobName"] for blob in manifest_data["blobs"]]
-
+                    return blob
 
         for blob in blob_list:
             if report_path in blob.name and not latest_report:

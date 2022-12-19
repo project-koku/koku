@@ -4,6 +4,7 @@
 #
 """Azure Report Downloader."""
 import datetime
+import json
 import logging
 import os
 
@@ -146,7 +147,28 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"Unable to find manifest. Error: {str(ex)}"
             LOG.info(log_json(self.tracing_id, msg, self.context))
             return manifest, None
+
         report_name = blob.name
+        manifest["reportKeys"] = [report_name]
+
+        # This is either a single CSV file or a JSON manifest containing the
+        # CSV file(s) to process.
+        if report_name.lower().endswith(".json"):
+            # Download the JSON file
+            try:
+                result = self.download_file(manifest)
+            except AzureReportDownloaderError as err:
+                msg = f"Unable to get report manifest. Reason: {str(err)}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                return "", self.empty_manifest, None
+
+            # Extract data from the JSON file
+            try:
+                with open(result[0]) as f:
+                    manifest_json = json.load(f)
+            except json.JSONDecodeError as err:
+                msg = f"Unable to open JSON manifest. Reason: {err}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
 
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
@@ -158,10 +180,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "start": (report_path.split("/")[-1]).split("-")[0],
             "end": (report_path.split("/")[-1]).split("-")[1],
         }
-        manifest["reportKeys"] = report_name
-        if isinstance(report_name, str):
-            manifest["reportKeys"] = [report_name]
-
         manifest["billingPeriod"] = billing_period
         manifest["Compression"] = UNCOMPRESSED
 
@@ -205,6 +223,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
             ]
             report_dict["files"] = files_list
+
         return report_dict
 
     @property
