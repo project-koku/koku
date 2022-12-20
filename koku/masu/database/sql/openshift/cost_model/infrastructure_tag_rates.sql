@@ -86,10 +86,8 @@ FROM (
             WHEN {{metric}}='storage_gb_usage_per_month' THEN sum(lids.persistentvolumeclaim_usage_gigabyte_months)
             WHEN {{metric}}='storage_gb_request_per_month' THEN sum(lids.volume_request_storage_gigabyte_months)
         END as usage,
-        max(cat.id) as cost_category_id
+        cost_category_id
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
-        ON lids.namespace LIKE any(cat.namespace)
     WHERE lids.{{labels_field | sqlsafe}} @> {{k_v_pair}}
         AND lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
@@ -105,5 +103,6 @@ FROM (
         lids.persistentvolumeclaim,
         lids.persistentvolume,
         lids.storageclass,
-        lids.source_uuid
+        lids.source_uuid,
+        lids.cost_category_id
 ) AS sub
