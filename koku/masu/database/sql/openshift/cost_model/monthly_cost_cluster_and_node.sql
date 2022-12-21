@@ -99,14 +99,17 @@ SELECT uuid_generate_v4(),
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
     {{cost_type}} as monthly_cost_type,
-    max(cat.id) as cost_category_id
+    cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
-    ON lids.namespace LIKE any(cat.namespace)
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
-    AND lids.namespace IS NOT NULL
+    AND namespace IS NOT NULL
     AND data_source = 'Pod'
-GROUP BY usage_start, source_uuid, cluster_id, node, lids.namespace, pod_labels
+    AND monthly_cost_type IS NULL
+    AND node_capacity_cpu_core_hours IS NOT NULL
+    AND node_capacity_cpu_core_hours != 0
+    AND cluster_capacity_cpu_core_hours IS NOT NULL
+    AND cluster_capacity_cpu_core_hours != 0
+GROUP BY usage_start, source_uuid, cluster_id, node, namespace, pod_labels, cost_category_id
 ;
