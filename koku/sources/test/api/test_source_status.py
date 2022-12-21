@@ -205,6 +205,30 @@ class SourcesStatusTest(IamTestCase):
                         mock_set_source_status.assert_called()
 
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
+    def test_push_status_second_gcp_table_discovery_validation_error(self, mock_set_source_status):
+        """Test that push_status catches validation error during `create_account` and pushes status."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            test_source_id = 1
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New GCP Mock Test Source",
+                source_type=Provider.PROVIDER_GCP,
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset", "table_id": "billtable"}},
+                status={"availability_status": "available", "availability_status_error": ""},
+                offset=1,
+            )
+
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    with patch.object(SourcesProviderCoordinator, "create_account", side_effect=ValidationError):
+                        status_obj = SourceStatus(test_source_id)
+                        status_obj.push_status()
+                        mock_set_source_status.assert_called()
+
+    @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
     def test_push_status_gcp_table_discovery_completed(self, mock_set_source_status):
         """Test that push_status for when GCP BigQuery table id is already known."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}

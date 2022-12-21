@@ -157,6 +157,7 @@ cte_volume_nodes AS (
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.pod,
+        sli.namespace,
         uli.node,
         uli.resource_id
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as sli
@@ -177,6 +178,7 @@ cte_volume_nodes AS (
           sli.persistentvolumeclaim,
           sli.persistentvolume,
           sli.pod,
+          sli.namespace,
           uli.node,
           uli.resource_id
 ),
@@ -378,6 +380,7 @@ FROM (
         ON vn.usage_start = date(sli.interval_start)
             AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
             AND vn.pod = sli.pod
+            AND vn.namespace = sli.namespace
     LEFT JOIN cte_shared_volume_node_count as nc
         ON nc.usage_start = date(sli.interval_start)
             AND nc.persistentvolume = sli.persistentvolume
@@ -416,8 +419,8 @@ FROM (
  * ====================================
 Developer Note: Add these to make it easier to verify
 What was selected from unallocated capacity.
-AND lids.namespace != 'Platform Unallocated Capacity'
-AND lids.namespace != 'Workers Unallocated Capacity'
+AND lids.namespace != 'Platform unallocated'
+AND lids.namespace != 'Worker unallocated'
  */
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -458,9 +461,9 @@ WITH cte_unallocated_capacity AS (
         max(lids.usage_start) as usage_start,
         max(lids.usage_end) as usage_end,
         CASE max(nodes.node_role)
-            WHEN 'master' THEN 'Platform Unallocated Capacity'
-            WHEN 'infra' THEN 'Platform Unallocated Capacity'
-            WHEN 'worker' THEN 'Workers Unallocated Capacity'
+            WHEN 'master' THEN 'Platform unallocated'
+            WHEN 'infra' THEN 'Platform unallocated'
+            WHEN 'worker' THEN 'Worker unallocated'
         END as namespace,
         lids.node,
         max(lids.resource_id) as resource_id,

@@ -12,6 +12,7 @@ from tenant_schemas.utils import tenant_context
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 LOG = logging.getLogger(__name__)
 
@@ -144,6 +145,22 @@ class TagQueryHandler(QueryHandler):
         end_filter = QueryFilter(field=f"{field_prefix}_start", operation="lte", parameter=end)
         return start_filter, end_filter
 
+    def _build_namespace_filters_from_category_list(self, category_list):
+        """
+        Create a mapping of category to namespaces.
+        """
+        category_filters = QueryFilterCollection()
+        namespace_query = OpenshiftCostCategory.objects.filter(name__in=category_list).values("namespace")
+        for row in namespace_query:
+            namespaces = row.get("namespace")
+            for namespace in namespaces:
+                namespace_formated = namespace.replace("%", "")  # django is doing `kube-\%%`
+                namespace_filter = QueryFilter(
+                    parameter=namespace_formated, **{"field": "namespace", "operation": "startswith"}
+                )
+                category_filters.add(namespace_filter)
+        return category_filters.compose(logical_operator="or")
+
     def _get_filter(self, delta=False):  # noqa: C901
         """Create dictionary for filter parameters.
 
@@ -196,6 +213,14 @@ class TagQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        category_list = (
+            self.parameters.get("category")
+            if self.parameters.get("category")
+            else self.parameters.get_filter("category")
+        )
+        if category_list:
+            composed_category_filters = self._build_namespace_filters_from_category_list(category_list)
+            composed_filters = composed_filters & composed_category_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
@@ -247,6 +272,12 @@ class TagQueryHandler(QueryHandler):
         exclusions.add(q_filter)
 
         composed_exclusions = exclusions.compose()
+        category_exclude = self.parameters.get_exclude("category")
+        if category_exclude:
+            composed_category_filters = self._build_namespace_filters_from_category_list(
+                self.parameters.get_exclude("category")
+            )
+            composed_exclusions = composed_exclusions | composed_category_filters
 
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions

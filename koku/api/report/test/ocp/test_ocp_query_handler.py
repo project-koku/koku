@@ -62,6 +62,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
+        self.plaform_filter = {"cost_category__name__icontains": "Platform"}
         self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29)}
         self.last_month_filter = {
             "usage_start__gte": self.dh.last_month_start,
@@ -122,7 +123,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        self.assertAlmostEqual(result_cost_total, expected_cost_total, 6)
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
@@ -546,7 +547,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         expected = [
             {"node": "alpha", "cluster": "cluster-2"},
             {"node": "bravo", "cluster": "cluster-3"},
-            {"node": "no-node", "cluster": "cluster-1"},
+            {"node": "No-node", "cluster": "cluster-1"},
             {"node": "oscar", "cluster": "cluster-4"},
         ]
         ordered_data = handler.order_by(unordered_data, order_fields)
@@ -683,31 +684,45 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that classification works as expected."""
         url = "?group_by[project]=*&category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPCostView)
             handler = OCPReportQueryHandler(query_params)
-            current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
-            expected_cost_total = current_totals.get("cost_total")
-            self.assertIsNotNone(expected_cost_total)
-            query_output = handler.execute_query()
-            self.assertIsNotNone(query_output.get("data"))
-            self.assertIsNotNone(query_output.get("total"))
-            total = query_output.get("total")
-            for line in query_output.get("data")[0].get("projects"):
-                if line.get("project") != "platform":
-                    self.assertEqual(line["values"][0]["classification"], "project")
-            result_cost_total = total.get("cost", {}).get("total", {}).get("value")
-            self.assertIsNotNone(result_cost_total)
-            self.assertEqual(result_cost_total, expected_cost_total)
+            with tenant_context(self.tenant):
+                current_totals = (
+                    OCPCostSummaryByProjectP.objects.filter(handler.query_filter)
+                    .annotate(**handler.annotations)
+                    .aggregate(**handler._mapper.report_type_map.get("aggregates"))
+                )
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        for line in query_output.get("data")[0].get("projects"):
+            if "openshift-" in line.get("project") or "kube-" in line.get("project"):
+                self.assertEqual(line["values"][0]["classification"], "project")
+            elif line.get("project") != "Platform":
+                self.assertEqual(line["values"][0]["classification"], "project")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        overall = result_cost_total - expected_cost_total
+        self.assertEqual(overall, 0)
 
     def test_group_by_project_w_classification_and_other(self):
         """Test that classification works as expected with Other."""
-        url = "?group_by[project]=*&category=*&filter[limit]=1"
+        cat_key = "Platform"
+        url = "?group_by[project]=*&category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = [cat_key]
             query_params = self.mocked_query_params(url, OCPCostView)
             handler = OCPReportQueryHandler(query_params)
-            current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+            with tenant_context(self.tenant):
+                current_totals = (
+                    OCPCostSummaryByProjectP.objects.filter(handler.query_filter)
+                    .annotate(**handler.annotations)
+                    .aggregate(**handler._mapper.report_type_map.get("aggregates"))
+                )
             expected_cost_total = current_totals.get("cost_total")
             self.assertIsNotNone(expected_cost_total)
             query_output = handler.execute_query()
@@ -715,23 +730,24 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertIsNotNone(query_output.get("total"))
             total = query_output.get("total")
             for line in query_output.get("data")[0].get("projects"):
-                if line["project"] == "platform":
-                    self.assertEqual(line["values"][0]["classification"], "category")
+                if line["project"] == "Platform":
+                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 elif line["project"] == "Other":
-                    self.assertEqual(line["values"][0]["classification"], "category")
+                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 elif line["project"] == "Others":
-                    self.assertEqual(line["values"][0]["classification"], "category")
+                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 else:
                     self.assertEqual(line["values"][0]["classification"], "project")
             result_cost_total = total.get("cost", {}).get("total", {}).get("value")
             self.assertIsNotNone(result_cost_total)
-            self.assertEqual(result_cost_total, expected_cost_total)
+            overall = result_cost_total - expected_cost_total
+            self.assertEqual(overall, 0)
 
     def test_category_error(self):
         """Test category error w/o project group by."""
         url = "?category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             with self.assertRaises(ValidationError):
                 self.mocked_query_params(url, OCPCostView)
 
@@ -826,7 +842,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     opt_value = None
                     for date_dict in overall_output.get("data", [{}]):
                         for element in date_dict.get(f"{exclude_opt}s"):
-                            if f"no-{exclude_opt}" != element.get(exclude_opt):
+                            if f"No-{exclude_opt}" != element.get(exclude_opt):
                                 opt_value = element.get(exclude_opt)
                                 break
                         if opt_value:
@@ -851,7 +867,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         grouping_list = date_dict.get(f"{exclude_opt}s", [])
                         self.assertIsNotNone(grouping_list)
                         for group_dict in grouping_list:
-                            if f"no-{exclude_opt}" != opt_value:
+                            if f"No-{exclude_opt}" != opt_value:
                                 self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
@@ -910,7 +926,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        if f"no-{group_tag}" in str(data):
+        if f"No-{group_tag}" in str(data):
             check_no_option = True
         returned_values = []
         for date in data:
@@ -927,7 +943,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             handler = OCPReportQueryHandler(query_params)
             data = handler.execute_query()
             if check_no_option:
-                self.assertIn(f"no-{group_tag}", str(data))
+                self.assertIn(f"No-{group_tag}", str(data))
             current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
             self.assertLess(current_total, previous_total)
             previous_total = current_total
@@ -949,7 +965,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    if "No-" not in exclude_option.get(ex_opt):
                         if not exclude_one:
                             exclude_one = exclude_option.get(ex_opt)
                         elif not exclude_two:
