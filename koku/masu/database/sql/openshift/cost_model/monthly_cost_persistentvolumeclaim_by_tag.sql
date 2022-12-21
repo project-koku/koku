@@ -102,14 +102,12 @@ SELECT uuid_generate_v4(),
     {{cost_model_memory_cost | sqlsafe}},
     {{cost_model_volume_cost | sqlsafe}},
     {{cost_type}} as monthly_cost_type,
-    max(cat.id) as cost_category_id
+    lids.cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN cte_volume_count AS vc
     ON lids.usage_start = vc.usage_start
         AND lids.cluster_id = vc.cluster_id
         AND lids.namespace = vc.namespace
-LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
-    ON lids.namespace LIKE any(cat.namespace)
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
@@ -117,5 +115,8 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.data_source = 'Storage'
     AND lids.volume_labels ? {{tag_key}}
     AND lids.infrastructure_monthly_cost_json IS NULL
-GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, lids.persistentvolumeclaim, lids.persistentvolume, lids.volume_labels, vc.pvc_count
+    AND monthly_cost_type IS NULL
+    AND persistentvolumeclaim_capacity_gigabyte_months IS NOT NULL
+    AND persistentvolumeclaim_capacity_gigabyte_months != 0
+GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, lids.persistentvolumeclaim, lids.persistentvolume, lids.volume_labels, vc.pvc_count, lids.cost_category_id
 ;
