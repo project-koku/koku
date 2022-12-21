@@ -95,10 +95,8 @@ SELECT uuid_generate_v4(),
         + sum(coalesce(volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}
         as cost_model_volume_cost,
     NULL as monthly_cost_type,
-    max(cat.id) as cost_category_id
+    cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category as cat
-    ON lids.namespace LIKE any(cat.namespace)
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
@@ -111,5 +109,6 @@ GROUP BY usage_start,
     data_source,
     persistentvolumeclaim,
     pod_labels,
-    volume_labels
+    volume_labels,
+    cost_category_id
 ;
