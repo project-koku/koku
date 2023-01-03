@@ -9,16 +9,15 @@ from .env import ENVIRONMENT
 
 LOG = logging.getLogger(__name__)
 
-BLOCK_LIST = [
+BLOCK_LIST = {
     "/api/cost-management/v1/status/",
     "/api/cost-management/v1/source-status/",
-]
+}
 
 
 def traces_sampler(sampling_context):
-    LOG.info(f"sampling_context: {sampling_context}")
-    transaction_ctx = sampling_context["transaction_context"]
-    if transaction_ctx["op"] == "http.server" and any(blocked in transaction_ctx["name"] for blocked in BLOCK_LIST):
+    wsgi_environ = sampling_context.get("wsgi_environ")
+    if wsgi_environ and wsgi_environ.get("RAW_URI") in BLOCK_LIST:
         # Drop this transaction, by setting its sample rate to 0%
         return 0
 
