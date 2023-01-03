@@ -161,3 +161,26 @@ def detect_type(report_path):
     else:
         report_type = "usage"
     return report_type
+
+
+def deduplicate_reports_for_oci(report_list):
+    """Deduplicate the reports using the manifest_id, start and end date."""
+    manifest_id_set = set()
+    reports_deduplicated = []
+    for report in report_list:
+        _manifest_id = report.get("manifest_id")
+        if _manifest_id and _manifest_id not in manifest_id_set:
+            reports_deduplicated.append(
+                {
+                    "manifest_id": _manifest_id,
+                    "tracing_id": report.get("tracing_id"),
+                    "schema_name": report.get("schema_name"),
+                    "provider_type": report.get("provider_type"),
+                    "provider_uuid": report.get("provider_uuid"),
+                    "start": report.get("start"),
+                    "end": report.get("end"),
+                    "invoice_month": None,
+                }
+            )
+            manifest_id_set.add(_manifest_id)
+    return reports_deduplicated

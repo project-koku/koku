@@ -56,6 +56,7 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
 from masu.util.gcp.common import deduplicate_reports_for_gcp
+from masu.util.oci.common import deduplicate_reports_for_oci
 
 
 LOG = logging.getLogger(__name__)
@@ -294,7 +295,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):
+def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):  # noqa C901
     """
     Summarize reports returned from line summary task.
 
@@ -316,6 +317,9 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
         ends = []
         if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
             reports_deduplicated += deduplicate_reports_for_gcp(report_list)
+        elif report and report.get("provider_type") in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
+            manifest_list = []
+            reports_deduplicated += deduplicate_reports_for_oci(report_list)
         else:
             for report in report_list:
                 if report.get("start") and report.get("end"):
