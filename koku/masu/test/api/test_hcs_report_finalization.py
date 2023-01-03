@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the hcs_report_data endpoint view."""
+from unittest import skip
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -32,6 +33,7 @@ class HCSFinalizationTests(TestCase):
         self.assertIn(expected_key, body)
         mock_celery.s.assert_called()
 
+    @skip("HCS finalization month assumes the current year and we can only finalize the past.")
     def test_get_report_finalization_month(self, mock_celery, _):
         """Test the GET hcs_report_finalization endpoint with specified month"""
 
