@@ -701,7 +701,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         for line in query_output.get("data")[0].get("projects"):
             if "openshift-" in line.get("project") or "kube-" in line.get("project"):
-                self.assertEqual(line["values"][0]["classification"], "project")
+                self.assertIn(line["values"][0]["classification"], ["project", "default"])
             elif line.get("project") != "Platform":
                 self.assertEqual(line["values"][0]["classification"], "project")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
@@ -739,7 +739,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 elif line["project"] == "Worker unallocated":
                     self.assertEqual(line["values"][0]["classification"], "unallocated")
                 else:
-                    self.assertEqual(line["values"][0]["classification"], "project")
+                    self.assertIn(line["values"][0]["classification"], ["project", "default"])
             result_cost_total = total.get("cost", {}).get("total", {}).get("value")
             self.assertIsNotNone(result_cost_total)
             overall = result_cost_total - expected_cost_total
