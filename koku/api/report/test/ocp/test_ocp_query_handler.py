@@ -733,9 +733,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 if line["project"] == "Platform":
                     self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
                 elif line["project"] == "Other":
-                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
+                    self.assertEqual(line["values"][0]["classification"], "category")
                 elif line["project"] == "Others":
-                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
+                    self.assertEqual(line["values"][0]["classification"], "category")
+                elif line["project"] == "Worker unallocated":
+                    self.assertEqual(line["values"][0]["classification"], "unallocated")
                 else:
                     self.assertEqual(line["values"][0]["classification"], "project")
             result_cost_total = total.get("cost", {}).get("total", {}).get("value")
