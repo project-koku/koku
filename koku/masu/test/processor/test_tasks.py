@@ -798,10 +798,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         )
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.enable_trino_processing", return_value=True)
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
-    def test_update_summary_tables_remove_expired_data_gcp(self, mock_accessor, mock_chain, _):
+    def test_update_summary_tables_remove_expired_data_gcp(self, mock_accessor, mock_chain):
         # COST-444: We use start & end date based off manifest
         provider = Provider.PROVIDER_GCP
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)

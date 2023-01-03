@@ -21,7 +21,6 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
 from koku.database import execute_delete_sql
-from masu.processor import enable_trino_processing
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -322,11 +321,8 @@ def provider_post_delete_callback(*args, **kwargs):
     LOG.debug("Deleting any related CostModelMap records")
     execute_delete_sql(CostModelMap.objects.filter(provider_uuid=provider.uuid))
 
-    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(
-        provider.uuid, provider.type, provider.customer.schema_name
-    ):
-        # Local import of task function to avoid potential import cycle.
-        from masu.celery.tasks import delete_archived_data
+    # Local import of task function to avoid potential import cycle.
+    from masu.celery.tasks import delete_archived_data
 
-        LOG.info("Deleting any archived data")
-        delete_archived_data.delay(provider.customer.schema_name, provider.type, provider.uuid)
+    LOG.info("Deleting any archived data")
+    delete_archived_data.delay(provider.customer.schema_name, provider.type, provider.uuid)

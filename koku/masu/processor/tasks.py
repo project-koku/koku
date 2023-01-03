@@ -39,7 +39,6 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderWarn
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_ocp_on_cloud_summary
 from masu.processor import disable_summary_processing
-from masu.processor import enable_trino_processing
 from masu.processor import is_large_customer
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -483,7 +482,7 @@ def update_summary_tables(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    if enable_trino_processing(provider_uuid, provider, schema_name) and provider in (
+    if provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,

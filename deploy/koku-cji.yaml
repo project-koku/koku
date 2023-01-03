@@ -36,12 +36,6 @@ objects:
           value: ${CJI_INVOCATION}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: CJI_TRUNC_TABLES
           value: ${CJI_TRUNC_TABLES}
         - name: CJI_TRUNC_PROVIDER_TYPES
@@ -109,12 +103,6 @@ parameters:
   value: 600m
 - name: UNLEASH_CACHE_DIR
   value: /tmp/unleash
-- name: ENABLE_TRINO_ACCOUNTS
-  value: ""
-- name: ENABLE_TRINO_SOURCES
-  value: ""
-- name: ENABLE_TRINO_SOURCE_TYPE
-  value: GCP
 - name: CJI_TRUNC_TABLES
   value: ""
 - name: CJI_TRUNC_PROVIDER_TYPES

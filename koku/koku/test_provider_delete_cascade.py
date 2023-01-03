@@ -139,13 +139,11 @@ class TestProviderDeleteSQL(IamTestCase):
 
         expected = "reporting_gcpcostentrybill"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
-        with patch("api.provider.provider_manager.enable_trino_processing") as enable_trino:
-            enable_trino.return_value = False
-            with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
-                pgcp.delete()
-                _log_output = "\n".join(_logger.output)
-                self.assertIn(expected, _log_output)
-                self.assertIn(expected2, _log_output)
+        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            pgcp.delete()
+            _log_output = "\n".join(_logger.output)
+            self.assertIn(expected, _log_output)
+            self.assertIn(expected2, _log_output)
 
         with schema_context(c.schema_name):
             self.assertEqual(GCPCostEntryBill.objects.filter(pk=gcpceb.pk).count(), 0)

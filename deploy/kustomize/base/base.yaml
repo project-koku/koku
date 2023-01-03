@@ -281,18 +281,6 @@ parameters:
   value: "True"
 - name: QE_SCHEMA
   value: ""
-- description: Sources to be processed with Trino
-  displayName: Sources to be processed with Trino
-  name: ENABLE_TRINO_SOURCES
-  value: ""
-- description: Accounts to be processed with Trino
-  displayName: Accounts to be processed with Trino
-  name: ENABLE_TRINO_ACCOUNTS
-  value: ""
-- description: Source Types to be processed with Trino
-  displayName: Source Types to be processed with Trino
-  name: ENABLE_TRINO_SOURCE_TYPE
-  value: ""
 
 - description: Report download schedule
   displayName: Report download schedule
