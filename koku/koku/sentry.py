@@ -17,7 +17,7 @@ BLOCK_LIST = [
 
 def traces_sampler(sampling_context):
     transaction_ctx = sampling_context["transaction_context"]
-    if transaction_ctx["op"] == "http.server" and transaction_ctx["name"] in BLOCK_LIST:
+    if transaction_ctx["op"] == "http.server" and any(blocked in transaction_ctx["name"] for blocked in BLOCK_LIST):
         # Drop this transaction, by setting its sample rate to 0%
         return 0
 
