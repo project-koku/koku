@@ -15,7 +15,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     infrastructure_usage_cost,
     {{labels_field | sqlsafe}},
-    monthly_cost_type
+    monthly_cost_type,
+    cost_category_id
 )
 SELECT uuid_generate_v4() as uuid,
     report_period_id,
@@ -40,7 +41,8 @@ SELECT uuid_generate_v4() as uuid,
             THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
     END as infrastructure_usage_cost,
     {{labels_field | sqlsafe}},
-    'Tag' as monthly_cost_type -- We are borrowing the monthly field here, although this is a daily usage cost
+    'Tag' as monthly_cost_type, -- We are borrowing the monthly field here, although this is a daily usage cost
+    cost_category_id
 FROM (
     SELECT lids.report_period_id,
         lids.cluster_id,
@@ -64,7 +66,8 @@ FROM (
             WHEN {{metric}}='memory_gb_effective_usage_per_hour' THEN sum(lids.pod_effective_usage_memory_gigabyte_hours)
             WHEN {{metric}}='storage_gb_usage_per_month' THEN sum(lids.persistentvolumeclaim_usage_gigabyte_months)
             WHEN {{metric}}='storage_gb_request_per_month' THEN sum(lids.volume_request_storage_gigabyte_months)
-        END as usage
+        END as usage,
+        lids.cost_category_id
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     WHERE lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
@@ -85,5 +88,6 @@ FROM (
         lids.persistentvolume,
         lids.storageclass,
         lids.source_uuid,
-        lids.{{labels_field | sqlsafe}}
+        lids.{{labels_field | sqlsafe}},
+        lids.cost_category_id
 ) AS sub

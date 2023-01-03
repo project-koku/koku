@@ -852,7 +852,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         """Test execute group_by project query with category."""
         url = "?group_by[project]=*&category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPGCPCostView)
             handler = OCPGCPReportQueryHandler(query_params)
             query_output = handler.execute_query()
@@ -861,7 +861,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             for data_item in data:
                 projects_data = data_item.get("projects")
                 for project_item in projects_data:
-                    if project_item.get("project") != "platform":
+                    if project_item.get("project") != "Platform":
                         self.assertTrue(project_item.get("values")[0].get("classification"), "project")
 
     def test_execute_query_by_filtered_cluster(self):

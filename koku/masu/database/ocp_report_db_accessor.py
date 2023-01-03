@@ -930,7 +930,23 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cost_mapping.get(metric_constants.PVC_DISTRIBUTION, default_cost),
         )
 
-    def populate_monthly_cost(
+    def _namespace_to_category_mapping(self, start_date, end_date, cluster_id):
+        """Creates a mapping of namespace to cost_category_id"""
+        cost_category_map = {}
+        with schema_context(self.schema):
+            cost_category_sql = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
+                )
+                .filter(namespace__isnull=False)
+                .filter(cost_category_id__isnull=False)
+                .values("namespace", "cost_category_id")
+            )
+            for cost_category in cost_category_sql:
+                cost_category_map[cost_category.get("namespace")] = cost_category.get("cost_category_id")
+        return cost_category_map
+
+    def populate_monthly_cost(  # noqa: C901
         self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias, distribution, provider_uuid
     ):
         """
@@ -957,6 +973,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # usage_start, usage_end are date types
         first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
         end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
+        cost_category_map = self._namespace_to_category_mapping(start_date, end_date, cluster_id)
 
         # Calculate monthly cost for each month from start date to end date
         for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
@@ -975,12 +992,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         rate,
                         distribution,
                         provider_uuid,
+                        cost_category_map,
                     )
             elif cost_type == "Cluster":
                 if rate is None:
                     self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
-                    # start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
                     self.upsert_monthly_cluster_cost_line_item(
                         first_curr_month,
                         first_next_month,
@@ -990,13 +1007,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         rate,
                         distribution,
                         provider_uuid,
+                        cost_category_map,
                     )
             elif cost_type == "PVC":
                 if rate is None:
                     self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
                     self.upsert_monthly_pvc_cost_line_item(
-                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, provider_uuid
+                        first_curr_month,
+                        first_next_month,
+                        cluster_id,
+                        cluster_alias,
+                        rate_type,
+                        rate,
+                        provider_uuid,
+                        cost_category_map,
                     )
 
     def populate_monthly_tag_cost(
@@ -1158,8 +1183,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     node_mappings[node_value] = initial_map
         return node_mappings
 
-    def upsert_monthly_node_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost, distribution, provider_uuid
+    def upsert_monthly_node_cost_line_item(  # noqa: C901
+        self,
+        start_date,
+        end_date,
+        cluster_id,
+        cluster_alias,
+        rate_type,
+        node_cost,
+        distribution,
+        provider_uuid,
+        cost_category_map,
     ):
         """Update or insert daily summary line item for node cost."""
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
@@ -1238,6 +1272,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         project_line_item.infrastructure_project_monthly_cost = monthly_cost
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         project_line_item.supplementary_project_monthly_cost = monthly_cost
+                    if cost_category_map.get(namespace):
+                        project_line_item.cost_category_id = cost_category_map.get(namespace)
                     project_line_item.save()
                     LOG.debug(log_statement)
 
@@ -1406,6 +1442,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         distribution = metric_constants.PVC_DISTRIBUTION
         unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        cost_category_map = self._namespace_to_category_mapping(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for pvc, node, namespace in unique_pvcs:
                 if rate_dict is not None:
@@ -1476,6 +1513,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     )
                                 monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
                                 line_item.supplementary_monthly_cost_json = monthly_cost
+                            if cost_category_map.get(namespace):
+                                line_item.cost_category_id = cost_category_map.get(namespace)
                             line_item.save()
 
     def get_cluster_to_node_distribution(self, start_date, end_date, cluster_id, distribution, cluster_cost):
@@ -1562,8 +1601,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
         return distributed_project_list
 
-    def upsert_monthly_cluster_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost, distribution, provider_uuid
+    def upsert_monthly_cluster_cost_line_item(  # noqa: C901
+        self,
+        start_date,
+        end_date,
+        cluster_id,
+        cluster_alias,
+        rate_type,
+        cluster_cost,
+        distribution,
+        provider_uuid,
+        cost_category_map,
     ):
         """
         Update or insert a daily summary line item for cluster cost.
@@ -1668,6 +1716,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         project_line_item.infrastructure_project_monthly_cost = monthly_cost
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         project_line_item.supplementary_project_monthly_cost = monthly_cost
+                    if cost_category_map.get(namespace):
+                        project_line_item.cost_category_id = cost_category_map.get(namespace)
                     project_line_item.save()
                     LOG.debug(log_statement)
 
@@ -1681,6 +1731,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         that contains the tag key:value pair,
         if it does then the price is added to the monthly cost.
         """
+        cost_category_map = self._namespace_to_category_mapping(start_date, end_date, cluster_id)
         distribution = metric_constants.PVC_DISTRIBUTION
         unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
@@ -1746,10 +1797,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                         )
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
                                     line_item.supplementary_monthly_cost_json = monthly_cost
+                                if cost_category_map.get(namespace):
+                                    line_item.cost_category_id = cost_category_map.get(namespace)
                                 line_item.save()
 
     def upsert_monthly_pvc_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost, provider_uuid
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost, provider_uuid, cost_category_map
     ):
         """Update or insert daily summary line item for pvc cost."""
         unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
@@ -1791,6 +1844,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.debug("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
+                if cost_category_map.get(namespace):
+                    line_item.cost_category_id = cost_category_map.get(namespace)
                 line_item.save()
                 # PVC to project Distribution
                 project_line_item = OCPUsageLineItemDailySummary.objects.filter(
@@ -1828,6 +1883,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.debug("PVC (%s) has a monthly project supplemenarty cost of %s.", pvc, pvc_cost)
                     project_line_item.supplementary_project_monthly_cost = monthly_cost
+                if cost_category_map.get(namespace):
+                    project_line_item.cost_category_id = cost_category_map.get(namespace)
                 project_line_item.save()
 
     def tag_upsert_monthly_cluster_cost_line_item(  # noqa: C901
