@@ -230,9 +230,6 @@ class ReportQueryHandler(QueryHandler):
                     custom_list = [random_name]
                 filter_list.remove(item)
                 filter_list = list(set(filter_list + custom_list))
-        if self._category and ReportQueryHandler.has_wildcard(filter_list):
-            # Overwrites the wildcard if category=Platform is passed
-            filter_list = self._category
         return filter_list
 
     def _check_for_operator_specific_filters(self, filter_collection):
