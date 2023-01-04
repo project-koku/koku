@@ -1021,9 +1021,9 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks)
+        return self._ranked_list(data, distinct_ranks, list(rank_annotations.keys()))
 
-    def _ranked_list(self, data_list, ranks):
+    def _ranked_list(self, data_list, ranks, rank_field):
         """Get list of ranked items less than top.
 
         Args:
@@ -1037,7 +1037,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = ["cost_units", "source_uuid"]
+        drop_columns = ["cost_units", "source_uuid"] + rank_field
         if self.is_openshift:
             drop_columns.append("clusters")
 
