@@ -390,7 +390,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_category_filter(self):
         """Test that we can filter by category on the tags endpoint"""
-        urls = ["?category=Platform", "?filter[category]=Platform"]
+        urls = ["?filter[category]=Platform"]
         for url in urls:
             with self.subTest(url=url):
                 with tenant_context(self.tenant):
