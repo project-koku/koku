@@ -396,3 +396,55 @@ class TestOCIUtils(MasuTestCase):
         expected_result = "cost"
         result = utils.detect_type(self.csv_file_path)
         self.assertEqual(result, expected_result)
+
+    def test_deduplicate_reports_for_oci(self):
+        """Test the deduplication of reports for OCI"""
+        expected_manifest_ids = [1, 2]
+        mocked_reports = [
+            {
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "ee89ec76-701a-4359-bf27-c97ea6742c83",
+                "manifest_id": 1,
+                "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202211",
+                "start": "2022-12-01",
+                "end": "2022-12-31",
+                "invoice_month": None,
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "ee89ec76-701a-4359-bf27-c97ea6742c83",
+                "manifest_id": 1,
+                "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202211",
+                "start": "2022-12-01",
+                "end": "2022-12-31",
+                "invoice_month": None,
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "ee89ec76-701a-4359-bf27-c97ea6742c83",
+                "manifest_id": 2,
+                "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202212",
+                "start": "2023-01-01",
+                "end": "2023-01-04",
+                "invoice_month": None,
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "ee89ec76-701a-4359-bf27-c97ea6742c83",
+                "manifest_id": 2,
+                "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202212",
+                "start": "2023-01-01",
+                "end": "2023-01-04",
+                "invoice_month": None,
+            },
+        ]
+        results = utils.deduplicate_reports_for_oci(mocked_reports)
+        result_manifest_ids = set()
+        for result in results:
+            result_manifest_ids.add(result.get("manifest_id"))
+        self.assertEqual(list(result_manifest_ids), expected_manifest_ids)
+        self.assertEqual(len(result_manifest_ids), len(expected_manifest_ids))

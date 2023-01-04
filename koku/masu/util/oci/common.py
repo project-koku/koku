@@ -164,7 +164,7 @@ def detect_type(report_path):
 
 
 def deduplicate_reports_for_oci(report_list):
-    """Deduplicate the reports using the manifest_id, start and end date."""
+    """Test deduplicating oci reports using the manifest_id"""
     manifest_id_set = set()
     reports_deduplicated = []
     for report in report_list:
