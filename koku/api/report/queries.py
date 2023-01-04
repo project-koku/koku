@@ -1021,9 +1021,9 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, list(rank_annotations.keys()))
+        return self._ranked_list(data, distinct_ranks, list(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks, rank_field):
+    def _ranked_list(self, data_list, ranks, rank_field=None):
         """Get list of ranked items less than top.
 
         Args:
@@ -1033,6 +1033,8 @@ class ReportQueryHandler(QueryHandler):
             List(Dict): List of data points meeting the rank criteria
 
         """
+        if not rank_field:
+            rank_field = []
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
