@@ -329,7 +329,7 @@ class ParamSerializer(BaseSerializer):
                 error = {"error": "Category may only be used as a filter for the tag endpoints."}
                 raise serializers.ValidationError(error)
 
-             if not data.get("group_by") or not data.get("group_by").get("project"):
+            if not data.get("group_by") or not data.get("group_by").get("project"):
                 error = {"error": "Category may not be used without a group_by project parameter"}
                 raise serializers.ValidationError(error)
 
