@@ -17,6 +17,7 @@ from api.report.aws.serializers import AWSFilterSerializer
 from api.report.aws.serializers import AWSGroupBySerializer
 from api.report.aws.serializers import AWSOrderBySerializer
 from api.report.aws.serializers import AWSQueryParamSerializer
+from api.report.ocp.serializers import OCPQueryParamSerializer
 from api.report.serializers import ParamSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.utils import DateHelper
@@ -531,6 +532,16 @@ class QueryParamSerializerTest(IamTestCase):
         serializer = AWSQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_invalid_category_usage(self):
+        """Test handling invalid category usage on tag endpoint."""
+        query_params = {"category": "Platform"}
+        req = Mock(path="/api/cost-management/v1/tags/openshift/")
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
+            serializer = OCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_invalid_cost_type(self):
         """Test failure while handling invalid cost_type."""
