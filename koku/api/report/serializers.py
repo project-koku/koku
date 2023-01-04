@@ -324,7 +324,7 @@ class ParamSerializer(BaseSerializer):
         """
         super().validate(data)
 
-        if data.get("category")
+        if data.get("category"):
             if "key_only" in data:
                 error = {"error": "Category may only be used as a filter for the tag endpoints."}
                 raise serializers.ValidationError(error)
