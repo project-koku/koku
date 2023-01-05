@@ -186,14 +186,14 @@
     displayName: Memory Request
     name: SOURCES_LISTENER_MEMORY_REQUEST
     required: true
-    value: 250Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SOURCES_LISTENER_MEMORY_LIMIT
     required: true
-    value: 500Mi
+    value: 750Mi
 - op: add
   path: /parameters/-
   value:

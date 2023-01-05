@@ -211,14 +211,14 @@
     displayName: Memory Request
     name: WORKER_HCS_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_HCS_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 700Mi
 - op: add
   path: /parameters/-
   value:
