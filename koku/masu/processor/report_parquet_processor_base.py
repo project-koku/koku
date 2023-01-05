@@ -126,6 +126,7 @@ class ReportParquetProcessorBase:
                 sql += ","
         if partition_map:
             # Add the specified partition columns
+            sql += ", "
             sql += ",".join([f"{item[0]} {item[1]} " for item in list(partition_map.items())])
             partition_column_str = ",".join([f"'{key}' " for key in partition_map.keys()])
             sql += (
