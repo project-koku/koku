@@ -220,7 +220,8 @@ class TagQueryHandler(QueryHandler):
         )
         if category_list:
             composed_category_filters = self._build_namespace_filters_from_category_list(category_list)
-            composed_filters = composed_filters & composed_category_filters
+            if composed_category_filters:
+                composed_filters = composed_filters & composed_category_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
