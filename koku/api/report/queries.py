@@ -1021,20 +1021,21 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, list(rank_annotations))
+        return self._ranked_list(data, distinct_ranks, set(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks, rank_field=None):
+    def _ranked_list(self, data_list, ranks, rank_fields=None):
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
+            rank_fields (Set): the fields on which ranking is performed.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
         """
-        if not rank_field:
-            rank_field = []
+        if not rank_fields:
+            rank_fields = set()
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
@@ -1077,9 +1078,10 @@ class ReportQueryHandler(QueryHandler):
         # Cross join ranks and days to get each field/rank for every day in th query
         ranks_by_day = rank_data_frame.merge(day_data_frame, how="cross")
 
-        # add the ranking column if it still exists in both dataframes
-        if rank_field and rank_field[0] in ranks_by_day.columns.intersection(data_frame.columns):
-            drop_columns.update(rank_field)
+        # add the ranking columns if they still exists in both dataframes
+        rank_fields.intersection_update(set(ranks_by_day.columns.intersection(data_frame.columns)))
+        if rank_fields:
+            drop_columns.update(rank_fields)
 
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
