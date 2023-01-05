@@ -152,6 +152,7 @@ WHERE not exists (
            WHERE rp.key = tv.key
              AND rp.value = tv.value
       )
+ON CONFLICT DO NOTHING
 ;
 
 
