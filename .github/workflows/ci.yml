@@ -26,7 +26,11 @@ jobs:
           SETUPTOOLS_USE_DISTUTILS: stdlib
 
       - name: Check clowdapp manifest
-        run: bash .github/scripts/check_clowdapp.sh
+        uses: nick-fields/retry@v2.8.3
+        with:
+          retry_wait_seconds: 120  # since unit tests take >10 min, this wait time + max attempts will still finish before unit tests
+          max_attempts: 3
+          command: bash .github/scripts/check_clowdapp.sh
 
   smokes-labeler:
     name: Smoke Test Label
