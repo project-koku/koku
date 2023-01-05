@@ -374,10 +374,17 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [{"field": "unit", "operation": "exact", "parameter": "GB-Mo"}],
+                        "filter": [],
                         "or_filter": [
-                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
+                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},  # all
+                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},  # all
+                            {
+                                "field": "product_code",
+                                "operation": "in",
+                                "parameter": ["Filestore", "Data Transfer"],
+                            },  # GCP
+                            {"field": "unit", "operation": "exact", "parameter": "gibibyte month"},  # GCP
+                            {"field": "unit", "operation": "exact", "parameter": "GB-Mo"},  # Azure, AWS
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
