@@ -238,12 +238,15 @@ def date_range_pair(start_date, end_date, step=5):
             yield start_date.date(), end_date.date()
 
 
-def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False):
+def get_path_prefix(
+    account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False, partition_daily=False
+):
     """Get the S3 bucket prefix"""
     path = None
     if start_date:
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        day = start_date.strftime("%d")
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
         if daily:
             path_prefix += "/daily"
@@ -253,6 +256,8 @@ def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type
                 f"{path_prefix}/{account}/{provider_type}/{report_type}"
                 f"/source={provider_uuid}/year={year}/month={month}"
             )
+        if partition_daily:
+            path += f"/day={day}"
     return path
 
 
