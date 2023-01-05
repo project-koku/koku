@@ -117,7 +117,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         for view, order_by in product(views, order_bys):
             with self.subTest((view, order_by)):
-                url = f"?group_by[project]=*&order_by[{order_by}]=desc"
+                url = f"?filter[limit]=5&filter[offset]=0&group_by[project]=*&order_by[{order_by}]=desc"
 
                 query_params = self.mocked_query_params(url, view)
                 handler = OCPReportQueryHandler(query_params)
