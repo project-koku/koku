@@ -6,7 +6,9 @@
 """Processor to filter cost data for OpenShift and store as parquet."""
 import logging
 from functools import cached_property
+from uuid import uuid4
 
+import pandas as pd
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
@@ -26,6 +28,13 @@ from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_mat
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
+
+GCP_PARTITION_MAP = {
+    "source": "varchar",
+    "year": "varchar",
+    "month": "varchar",
+    "day": "varchar",
+}
 
 
 class OCPCloudParquetReportProcessor(ParquetReportProcessor):
@@ -118,16 +127,33 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         # Add the OCP UUID in case multiple clusters are running on this cloud source.
         if self._provider_type == Provider.PROVIDER_GCP:
             if data_frame.first_valid_index() is not None:
-                parquet_base_filename = (
-                    f"{data_frame['invoice_month'].values[0]}{parquet_base_filename[parquet_base_filename.find('_'):]}"
-                )
-        file_name = f"{parquet_base_filename}_{file_number}_{PARQUET_EXT}"
+                parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{uuid4()}"
+        file_name = f"{parquet_base_filename}_{file_number}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
-        self.create_parquet_table(file_path, daily=True)
+        if self.provider_type == Provider.PROVIDER_GCP:
+            self.create_parquet_table(file_path, daily=True, partition_map=GCP_PARTITION_MAP)
+        else:
+            self.create_parquet_table(file_path, daily=True)
 
-    def process(self, parquet_base_filename, daily_data_frames):
-        """Filter data and convert to parquet."""
+    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
+        """Create a parquet file for daily aggregated data for each partition."""
+        date_fields = {
+            Provider.PROVIDER_AWS: "lineitem_usagestartdate",
+            Provider.PROVIDER_AZURE: "date",
+            Provider.PROVIDER_GCP: "usage_start_time",
+        }
+        date_field = date_fields[self.provider_type]
+        unique_usage_days = data_frame[date_field].unique()
+
+        for usage_day in unique_usage_days:
+            usage_date = pd.to_datetime(usage_day).date()
+            self.start_date = usage_date
+            df = data_frame[data_frame[date_field] == usage_day]
+            self.create_ocp_on_cloud_parquet(df, parquet_base_filename, file_number)
+
+    def get_ocp_provider_uuids(self):
+        """Get a list of provider UUIDs to process against."""
         ocp_provider_uuids = []
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             infra_provider_uuid = infra_tuple[0]
@@ -146,6 +172,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     )
                     continue
                 ocp_provider_uuids.append(ocp_provider_uuid)
+        return ocp_provider_uuids
+
+    def process(self, parquet_base_filename, daily_data_frames):
+        """Filter data and convert to parquet."""
+        ocp_provider_uuids = self.get_ocp_provider_uuids()
+
         # # Get OpenShift topology data
         if ocp_provider_uuids != []:
             with OCPReportDBAccessor(self.schema_name) as accessor:
@@ -176,4 +208,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                         daily_data_frame, cluster_topology, matched_tags
                     )
 
-                    self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, i)
+                    if self.provider_type == Provider.PROVIDER_GCP:
+                        self.create_partitioned_ocp_on_cloud_parquet(
+                            openshift_filtered_data_frame, parquet_base_filename, i
+                        )
+                    else:
+                        self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, i)
