@@ -17,7 +17,7 @@ BLOCK_LIST = {
 
 def traces_sampler(sampling_context):
     wsgi_environ = sampling_context.get("wsgi_environ")
-    if wsgi_environ and wsgi_environ.get("RAW_URI") in BLOCK_LIST:
+    if wsgi_environ and wsgi_environ.get("PATH_INFO") in BLOCK_LIST:
         # Drop this transaction, by setting its sample rate to 0%
         return 0
 
