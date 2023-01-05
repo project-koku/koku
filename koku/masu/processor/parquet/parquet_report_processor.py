@@ -406,14 +406,14 @@ class ParquetReportProcessor:
             LOG.warn(log_json(self.tracing_id, msg, self.error_context))
         return parquet_base_filename, daily_data_frames
 
-    def create_parquet_table(self, parquet_file, daily=False):
+    def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
         processor = self._set_report_processor(parquet_file, daily=daily)
         bill_date = self.start_date.replace(day=1)
         if not processor.schema_exists():
             processor.create_schema()
         if not processor.table_exists():
-            processor.create_table()
+            processor.create_table(partition_map=partition_map)
         if not daily:
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
@@ -515,10 +515,11 @@ class ParquetReportProcessor:
                     self.account,
                     self.provider_type,
                     self.provider_uuid,
-                    start_of_invoice,
+                    self.start_date,
                     Config.PARQUET_DATA_TYPE,
                     report_type=self.report_type,
                     daily=True,
+                    partition_daily=True,
                 )
             else:
                 return get_path_prefix(
