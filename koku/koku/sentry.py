@@ -22,7 +22,7 @@ def traces_sampler(sampling_context):
         return 0
 
     # Default sample rate for all others (replaces traces_sample_rate)
-    return 0.25
+    return 0.05
 
 
 if ENVIRONMENT.bool("KOKU_API_ENABLE_SENTRY", default=False):
