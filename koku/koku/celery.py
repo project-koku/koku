@@ -257,20 +257,15 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
-    LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
-    unleash_init_start = datetime.utcnow()
+    LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
-    LOG.info(
-        "UNLEASH_CLIENT initialized for celery worker in "
-        f"{(datetime.utcnow() - unleash_init_start).total_seconds()} seconds."
-    )
 
 
 @worker_process_shutdown.connect
 def shutdown_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
-    LOG.info("Shutting down UNLEASH_CLIENT for celery worker.")
+    LOG.debug("Shutting down UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.destroy()
 
 
