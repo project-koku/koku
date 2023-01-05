@@ -119,9 +119,7 @@ def main():
     logging.info(schemas)
 
     tables_to_drop = [
-        "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-        "reporting_ocpawscostlineitem_project_daily_summary_temp",
-        "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+        "gcp_openshift_daily",
     ]
     # columns_to_drop = ["ocp_matched"]
     # columns_to_add = {
