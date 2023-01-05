@@ -28,9 +28,10 @@ jobs:
       - name: Check clowdapp manifest
         uses: nick-fields/retry@v2.8.3
         with:
-          retry_wait_seconds: 120  # since unit tests take >10 min, this wait time + max attempts will still finish before unit tests
-          max_attempts: 3
           command: bash .github/scripts/check_clowdapp.sh
+          max_attempts: 3
+          retry_wait_seconds: 120  # since unit tests take >10 min, this wait time + max attempts will still finish before unit tests
+          timeout_minutes: 1
 
   smokes-labeler:
     name: Smoke Test Label
