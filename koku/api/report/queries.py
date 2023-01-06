@@ -1021,25 +1021,28 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks)
+        return self._ranked_list(data, distinct_ranks, set(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks):
+    def _ranked_list(self, data_list, ranks, rank_fields=None):
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
+            rank_fields (Set): the fields on which ranking is performed.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
         """
+        if not rank_fields:
+            rank_fields = set()
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = ["cost_units", "source_uuid"]
+        drop_columns = {"cost_units", "source_uuid"}
         if self.is_openshift:
-            drop_columns.append("clusters")
+            drop_columns.add("clusters")
 
         if not data_list:
             return data_list
@@ -1051,15 +1054,15 @@ class ReportQueryHandler(QueryHandler):
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
-            drop_columns.append("account_alias")
+            drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
-            drop_columns.append("usage_units")
+            drop_columns.add("usage_units")
         if "instance_type" in self._report_type and "count" in data_frame.columns:
             agg_fields.update({"count_units": ["max"]})
-            drop_columns.append("count_units")
+            drop_columns.add("count_units")
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
@@ -1074,6 +1077,11 @@ class ReportQueryHandler(QueryHandler):
 
         # Cross join ranks and days to get each field/rank for every day in th query
         ranks_by_day = rank_data_frame.merge(day_data_frame, how="cross")
+
+        # add the ranking columns if they still exists in both dataframes
+        rank_fields.intersection_update(set(ranks_by_day.columns.intersection(data_frame.columns)))
+        if rank_fields:
+            drop_columns.update(rank_fields)
 
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN

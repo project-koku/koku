@@ -7,6 +7,7 @@ import logging
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
+from itertools import product
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -108,6 +109,23 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(total.get("request", {}).get("value"), current_totals.get("request"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
         self.assertEqual(total.get("limit", {}).get("value"), current_totals.get("limit"))
+
+    def test_cpu_memory_order_bys(self):
+        """Test that cluster capacity returns capacity by cluster."""
+        views = [OCPCpuView, OCPMemoryView]
+        order_bys = ["usage", "request", "limit"]
+
+        for view, order_by in product(views, order_bys):
+            with self.subTest((view, order_by)):
+                url = f"?filter[limit]=5&filter[offset]=0&group_by[project]=*&order_by[{order_by}]=desc"
+
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                query_data = handler.execute_query()
+                self.assertIsNotNone(query_data.get("data"))
+                self.assertIsNotNone(query_data.get("total"))
+                total = query_data.get("total")
+                self.assertIsNotNone(total.get(order_by))
 
     def test_execute_sum_query_costs(self):
         """Test that the sum query runs properly for the costs endpoint."""
