@@ -437,7 +437,7 @@ class OCPGCPProviderMap(ProviderMap):
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [{"field": "unit", "operation": "icontains", "parameter": "gibibyte"}],
+                        "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
