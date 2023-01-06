@@ -151,10 +151,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_name = blob.name
         manifest["reportKeys"] = [report_name]
 
-        # This is either a single CSV file or a JSON manifest containing the
-        # CSV file(s) to process.
-        if report_name.lower().endswith(".json"):
-            # Download the JSON file
+        if blob.name.lower().endswith(".json"):
+            # This is a JSON manifest. Download it and extract the list of files.
             try:
                 result = self.download_file(manifest)
             except AzureReportDownloaderError as err:
@@ -169,6 +167,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except json.JSONDecodeError as err:
                 msg = f"Unable to open JSON manifest. Reason: {err}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
+
+            manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
 
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()

@@ -97,19 +97,8 @@ class AzureService:
         return file_path
 
     def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        """Get the latest cost export file from given storage account container.
+        """Get the latest cost export file or JSON manifest from given storage account container."""
 
-        A JSON manifest may be present if partitioning is enabled.
-
-        First, determine if a JSON manifest is present.
-
-            If there is a JSON manifest
-                Return that
-
-            Else
-                Return the last modified CSV file
-
-        """
         latest_report = None
         if not container_name:
             message = "Unable to gather latest export as container name is not provided."
@@ -134,14 +123,14 @@ class AzureService:
                     f" in container {container_name} for "
                     f"path {report_path}."
                 )
-            error_msg = message + f" Azure Error: {httpError}."
+            error_msg = f"{message} Azure Error: {httpError}."
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
         blob_names = (blob.name for blob in blob_list)
         # If partitioned exports are enabled, a JSON manifest will exist
         if any(name.endswith(".json") for name in blob_names):
-            # A JSON manifest exists. Get that and process it.
+            # A JSON manifest exists. Return the manifest blob.
             for blob in blob_list:
                 if blob.name.lower().endswith(".json"):
                     return blob
