@@ -207,14 +207,14 @@
     displayName: Memory Request
     name: WORKER_PRIORITY_MEMORY_REQUEST
     required: true
-    value: 500Mi
+    value: 400Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_PRIORITY_MEMORY_LIMIT
     required: true
-    value: 1000Mi
+    value: 750Mi
 - op: add
   path: /parameters/-
   value:
