@@ -12,7 +12,6 @@ from datetime import datetime
 from tarfile import TarFile
 from unittest.mock import patch
 
-from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
@@ -144,8 +143,9 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                             self.assertEqual(report_downloader.report_name, self.fake_report_name)
                             self.assertIsNone(report_downloader.report_prefix)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=False)
-    def test_download_bucket_with_prefix(self):
+    @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
+    def test_download_bucket_with_prefix(self, *args):
         """Test to verify that basic report downloading works."""
         fake_bucket = tempfile.mkdtemp()
         mytar = TarFile.open("./koku/masu/test/data/test_local_bucket_prefix.tar.gz")

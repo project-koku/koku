@@ -199,14 +199,6 @@ class TestCeleryTasks(MasuTestCase):
         self.assertIn("provider_type", str(e.exception))
         self.assertIn("provider_uuid", str(e.exception))
 
-    @patch("masu.util.aws.common.boto3.resource")
-    @override_settings(ENABLE_S3_ARCHIVING=False, ENABLE_PARQUET_PROCESSING=False)
-    def test_delete_archived_data_archiving_disabled_noop(self, mock_resource):
-        """Test that delete_archived_data returns early when feature is disabled."""
-        schema_name, provider_type, provider_uuid = fake.slug(), Provider.PROVIDER_AWS, fake.uuid4()
-        tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-        mock_resource.assert_not_called()
-
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.get_s3_resource")
     def test_deleted_archived_with_prefix_success(self, mock_resource):
@@ -240,17 +232,6 @@ class TestCeleryTasks(MasuTestCase):
 
         tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
         mock_delete.assert_called()
-
-    @override_settings(ENABLE_S3_ARCHIVING=False, ENABLE_PARQUET_PROCESSING=False)
-    def test_delete_archived_data_archiving_false(self):
-        """Test that delete_archived_data correctly interacts with AWS S3."""
-        schema_name = "org1234567"
-        provider_type = Provider.PROVIDER_AWS
-        provider_uuid = "00000000-0000-0000-0000-000000000001"
-
-        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
-            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-            self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
 
     @override_settings(ENABLE_S3_ARCHIVING=True, SKIP_MINIO_DATA_DELETION=True)
     def test_delete_archived_data_minio(self):

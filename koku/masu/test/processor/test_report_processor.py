@@ -79,9 +79,9 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path="/my/report/file",
             compression="GZIP",
-            provider=Provider.PROVIDER_AWS,
-            provider_uuid=self.aws_provider_uuid,
+            provider=Provider.PROVIDER_OCP,
+            provider_uuid=self.ocp_provider_uuid,
             manifest_id=None,
-            context={"request_id": 1, "tracing_id": 3},
+            context={"start_date": self.start_date, "request_id": 1, "tracing_id": 3},
         )
         self.assertIsNone(processor.ocp_on_cloud_processor)
