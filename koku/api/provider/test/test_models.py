@@ -109,7 +109,6 @@ class ProviderModelTest(MasuTestCase):
             self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
         )
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_no_archiving(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is not called if archiving is not enabled."""

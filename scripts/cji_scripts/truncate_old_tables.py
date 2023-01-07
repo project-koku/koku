@@ -31,7 +31,6 @@ class settings:
     UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
     UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
     UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=str(ROOT_DIR.path(".unleash")))
-    ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
 
 
 logging.basicConfig(
@@ -153,7 +152,6 @@ def decode_timedelta(delta):
 
 def handle_truncate(conn):
     LOG.info("Trino processing settings")
-    LOG.info(f"    ENABLE_PARQUET_PROCESSING = {settings.ENABLE_PARQUET_PROCESSING}")
     LOG.info(f"    CJI_TRUNC_PROVIDER_TYPES = {ENVIRONMENT.list('CJI_TRUNC_PROVIDER_TYPES')}")
     LOG.info(f"    CJI_TRUMC_TABLES = {ENVIRONMENT.list('CJI_TRUNC_TABLES')}")
 

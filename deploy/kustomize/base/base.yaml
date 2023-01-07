@@ -233,10 +233,6 @@ parameters:
   displayName: Enable S3 Archiving
   name: ENABLE_S3_ARCHIVING
   value: "false"
-- description: Enable Parquet Processing
-  displayName: Enable Parquet Processing
-  name: ENABLE_PARQUET_PROCESSING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
