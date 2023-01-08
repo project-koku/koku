@@ -244,9 +244,9 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
 
         last_reports = self.get_last_reports(assembly_id)
-        initial_ingest = True if last_reports == {"cost": "", "usage": ""} else False
-        usage_report = last_reports["usage"] if "usage" in last_reports else ""
-        cost_report = last_reports["cost"] if "cost" in last_reports else ""
+        initial_ingest = last_reports == {"cost": "", "usage": ""}
+        usage_report = last_reports.get("usage", "")
+        cost_report = last_reports.get("cost", "")
         # Collecting CUR's from OCI bucket
         usage_reports = self._collect_reports(prefix="reports/usage-csv", last_report=usage_report)
         cost_reports = self._collect_reports(prefix="reports/cost-csv", last_report=cost_report)
