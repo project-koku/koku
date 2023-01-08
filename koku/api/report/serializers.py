@@ -324,10 +324,13 @@ class ParamSerializer(BaseSerializer):
         """
         super().validate(data)
 
-        if data.get("category") and ("key_only" not in data.keys()):
-            # allow category to be passed in without group by for the tags endpoint
-            if data.get("category") and (not data.get("group_by") or not data.get("group_by").get("project")):
-                error = {"error": ("Category may not be used without a group_by project parameter")}
+        if data.get("category"):
+            if "key_only" in data:
+                error = {"error": "Category may only be used as a filter for the tag endpoints."}
+                raise serializers.ValidationError(error)
+
+            if not data.get("group_by") or not data.get("group_by").get("project"):
+                error = {"error": "Category may not be used without a group_by project parameter"}
                 raise serializers.ValidationError(error)
 
         if not data.get("currency"):
@@ -382,8 +385,6 @@ class ParamSerializer(BaseSerializer):
         Raises:
             (ValidationError): if field inputs are invalid
         """
-        # Categories should always be capitalized
-        value = [item.title() for item in value]
         categories = None
         db_categories = OpenshiftCostCategory.objects.values_list("name", flat=True).distinct()
         if ReportQueryHandler.has_wildcard(value):

@@ -389,31 +389,18 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertEqual(filters._filters, expected)
 
     def test_category_filter(self):
-        """Test that we can filter by category on the tags endpoint"""
-        urls = ["?category=Platform", "?filter[category]=Platform"]
-        for url in urls:
-            with self.subTest(url=url):
+        """Test that we can filter by category on the tags endpoint."""
+        categories = {
+            "Platform": [
+                {"enabled": True, "key": "app", "values": ["mobile", "temperature"]},
+                {"enabled": True, "key": "storageclass", "values": ["Ruby"]},
+            ],
+            "FAKE_CATEGORY": [],
+        }
+        for category in categories.keys():
+            with self.subTest(category=category):
                 with tenant_context(self.tenant):
-                    query_params = self.mocked_query_params(url, OCPTagView)
+                    query_params = self.mocked_query_params(f"?filter[category]={category}", OCPTagView)
                     handler = OCPTagQueryHandler(query_params)
-                    access = ["my-ocp-cluster-2"]
-                    filt = [
-                        {"field": "report_period__cluster_id", "operation": "in", "composition_key": "cluster_filter"},
-                        {
-                            "field": "report_period__cluster_alias",
-                            "operation": "in",
-                            "composition_key": "cluster_filter",
-                        },
-                    ]
-                    filters = QueryFilterCollection()
-                    handler.set_access_filters(access, filt, filters)
-                    expected = []
-                    expected.append(
-                        QueryFilter(field="report_period__cluster_id", operation="in", parameter=["my-ocp-cluster-2"])
-                    )
-                    expected.append(
-                        QueryFilter(
-                            field="report_period__cluster_alias", operation="in", parameter=["my-ocp-cluster-2"]
-                        )
-                    )
-                    self.assertEqual(filters._filters, expected)
+                    result_value = handler.execute_query().get("data")
+                    self.assertEqual(result_value, categories[category])
