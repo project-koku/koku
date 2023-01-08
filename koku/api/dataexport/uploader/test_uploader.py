@@ -5,7 +5,6 @@ from unittest.mock import patch
 import faker
 from django.conf import settings
 from django.test import TestCase
-from django.test.utils import override_settings
 
 from api.dataexport.uploader import AwsS3Uploader
 
@@ -16,7 +15,6 @@ class DummyException(Exception):
     """Dummy exception for testing."""
 
 
-@override_settings(ENABLE_S3_ARCHIVING=True)
 class AwsS3UploaderTest(TestCase):
     """AwsS3Uploader test case."""
 
