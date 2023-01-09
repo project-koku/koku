@@ -51,17 +51,13 @@ def hcs_report_finalization(request):
         today = datetime.date.today()
         finalization_month = today.replace(day=1)
 
-        if month is not None:
-            finalization_month = finalization_month.replace(month=int(month))
-        else:
+        if not month and not year:
             finalization_month = finalization_month - datetime.timedelta(days=1)
-
-        if year is not None:
-            if month is None:
-                errmsg = "you must provide 'month' when providing 'year'"
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-
-            finalization_month = finalization_month.replace(year=int(year))
+        elif not month or not year:
+            errmsg = "you must provide both 'month' and 'year' together."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            finalization_month = finalization_month.replace(month=int(month), year=int(year))
 
         if finalization_month >= DateHelper().this_month_start.date():
             errmsg = "finalization can only be run on past months"
