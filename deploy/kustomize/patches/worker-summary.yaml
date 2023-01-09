@@ -209,14 +209,14 @@
     displayName: Memory Request
     name: WORKER_SUMMARY_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_SUMMARY_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 750Mi
 - op: add
   path: /parameters/-
   value:
