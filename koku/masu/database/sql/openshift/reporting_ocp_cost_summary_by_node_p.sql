@@ -56,7 +56,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
         sum(cost_model_cpu_cost) as cost_model_cpu_cost,
         sum(cost_model_memory_cost) as cost_model_memory_cost,
         sum(cost_model_volume_cost) as cost_model_volume_cost,
-        max(cost_model_rate_type) as cost_model_rate_type,
+        cost_model_rate_type,
         {{source_uuid}}::uuid as source_uuid,
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency
@@ -64,5 +64,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
-    GROUP BY usage_start, cluster_id, cluster_alias, node
+    GROUP BY usage_start, cluster_id, cluster_alias, node, cost_model_rate_type
 ;
