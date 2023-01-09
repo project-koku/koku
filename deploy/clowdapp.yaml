@@ -3036,11 +3036,11 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 750Mi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
@@ -3258,11 +3258,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 400Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
-  value: 1000Mi
+  value: 750Mi
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
@@ -3306,11 +3306,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 750Mi
 - displayName: CPU Request
   name: WORKER_SUMMARY_CPU_REQUEST
   required: true
@@ -3330,11 +3330,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_HCS_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: WORKER_HCS_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 700Mi
 - displayName: CPU Request
   name: WORKER_HCS_CPU_REQUEST
   required: true

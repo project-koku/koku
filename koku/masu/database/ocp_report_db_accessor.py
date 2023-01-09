@@ -24,6 +24,7 @@ from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django.db.models.functions.comparison import NullIf
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
@@ -1655,7 +1656,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 .values("node")
                 .annotate(
                     distributed_cost=ExpressionWrapper(
-                        Sum(node_column) / Sum(cluster_column) * cluster_cost, output_field=DecimalField()
+                        Sum(node_column) / NullIf(Sum(cluster_column), 0) * cluster_cost, output_field=DecimalField()
                     )
                 )
             )
