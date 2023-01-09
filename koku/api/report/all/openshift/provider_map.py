@@ -383,6 +383,8 @@ class OCPAllProviderMap(ProviderMap):
                                 "operation": "in",
                                 "parameter": ["Filestore", "Data Transfer"],
                             },  # GCP Specific
+                            {"field": "unit", "operation": "exact", "parameter": "gibibyte month"}
+                            # Because of the way django build the query its needed here as well
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
@@ -497,6 +499,11 @@ class OCPAllProviderMap(ProviderMap):
                         "or_filter": [
                             {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
                             {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
+                            {
+                                "field": "product_code",
+                                "operation": "in",
+                                "parameter": ["Filestore", "Data Transfer"],
+                            },  # GCP Specific
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
