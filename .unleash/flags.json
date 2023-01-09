@@ -126,7 +126,7 @@
                 {
                     "name": "schema-strategy",
                     "parameters": {
-                        "schema-name": ""
+                        "schema-name": "org1234567"
                     }
                 }
             ],
