@@ -10,7 +10,6 @@ IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
-IQE_IMAGE_TAG="cost-management-9a37f38e"
 
 # Get bonfire helper scripts
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
@@ -24,8 +23,6 @@ set -x
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 export NAMESPACE=$(bonfire namespace reserve --duration 6h)
 SMOKE_NAMESPACE=$NAMESPACE
-GIT_COMMIT="9a59f88fe2ad7725e563f4f361bff70791f00dde"
-IMAGE_TAG="9a59f88"
 
 oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
 oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
