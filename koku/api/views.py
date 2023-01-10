@@ -41,6 +41,8 @@ from api.report.gcp.openshift.view import OCPGCPStorageView
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
+from api.report.hcs.view import HCSDetailView
+from api.report.hcs.view import HCSView
 from api.report.oci.view import OCICostView
 from api.report.oci.view import OCIInstanceTypeView
 from api.report.oci.view import OCIStorageView

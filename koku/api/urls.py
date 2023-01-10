@@ -42,6 +42,8 @@ from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
 from api.views import get_exchange_rates
+from api.views import HCSDetailView
+from api.views import HCSView
 from api.views import metrics
 from api.views import OCICostForecastView
 from api.views import OCICostView
@@ -335,6 +337,8 @@ urlpatterns = [
         ),
         name="reports-openshift-azure-instance-type",
     ),
+    path("reports/hcs/", HCSView.as_view(), name="reports-hcs"),
+    path("reports/hcs/<provider>/", HCSDetailView.as_view(), name="reports-hcs-detail"),
     path("settings/", SettingsView.as_view(), name="settings"),
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
