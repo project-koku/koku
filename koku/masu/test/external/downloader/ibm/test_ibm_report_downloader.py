@@ -127,11 +127,9 @@ class IBMDownloadHelpers(MasuTestCase):
             with open(full_path) as temp_file:
                 self.assertEqual(expected_text, temp_file.read())
 
-    @patch("masu.external.downloader.ibm.ibm_report_downloader.settings")
     @patch("masu.external.downloader.ibm.ibm_report_downloader.get_path_prefix")
     @patch("masu.external.downloader.ibm.ibm_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives(self, copy_local_mock, get_path_prefix_mock, settings_mock):
-        settings_mock.ENABLE_S3_ARCHIVING = True
+    def test_create_daily_archives(self, *args):
         dh = DateHelper()
         filename = FAKE.file_name(extension="csv")
         full_local_file = f"{FAKE.file_path()}/{filename}"

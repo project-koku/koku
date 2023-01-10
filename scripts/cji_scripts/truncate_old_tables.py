@@ -7,7 +7,6 @@ import datetime
 import logging
 import os
 import sys
-import time
 from decimal import Decimal
 
 import psycopg2
@@ -32,10 +31,6 @@ class settings:
     UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
     UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
     UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=str(ROOT_DIR.path(".unleash")))
-    ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
-    ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
-    ENABLE_TRINO_ACCOUNTS = ENVIRONMENT.list("ENABLE_TRINO_ACCOUNTS", default=[])
-    ENABLE_TRINO_SOURCE_TYPE = ENVIRONMENT.list("ENABLE_TRINO_SOURCE_TYPE", default=[])
 
 
 logging.basicConfig(
@@ -47,35 +42,6 @@ LOG = logging.getLogger("truncate_old_tables")
 
 
 UNLEASH_CLIENT = new_unleash_client(settings)
-
-
-def trino_enabled_env(source_uuid, source_type, account):  # noqa
-    if account and not account.startswith("acct"):
-        account = f"acct{account}"
-
-    context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
-    LOG.info(f"Trino enabled SETTINGS check: {context}")
-    res = bool(
-        settings.ENABLE_PARQUET_PROCESSING
-        or source_uuid in settings.ENABLE_TRINO_SOURCES
-        or source_type in settings.ENABLE_TRINO_SOURCE_TYPE
-        or account in settings.ENABLE_TRINO_ACCOUNTS
-    )
-    LOG.info(f"    Trino {'enabled' if res else 'disabled'}")
-
-    return res
-
-
-def trino_enabled_unleash(source_uuid, source_type, account):  # noqa
-    if account and not account.startswith("acct"):
-        account = f"acct{account}"
-
-    context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
-    LOG.info(f"Trino enabled UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-trino-processor", context))
-    LOG.info(f"    Trino {'enabled' if res else 'disabled'}")
-
-    return res
 
 
 def connect():
@@ -124,38 +90,8 @@ select p."uuid" as source_uuid,
     return res
 
 
-def get_trino_enabled_accounts(conn):
-    enabled_accounts = []
-    unleash_res = None
-    unleash_request = 0
-    unleash_limit = 100
-
-    for account, sources in get_account_info(conn).items():
-        if unleash_request >= unleash_limit:
-            time.sleep(1)
-            unleash_request = 0
-
-        enabled_flags = []
-        for source in sources:
-            env_res = trino_enabled_env(source.source_uuid, source.source_type, account)
-            if not env_res:
-                unleash_res = trino_enabled_unleash(source.source_uuid, source.source_type, account)
-                unleash_request += 1
-
-            enabled_flags.append(env_res or unleash_res)
-            # Assumes unleash is set at the schema level
-            if unleash_res:
-                break
-
-        if all(enabled_flags):
-            enabled_accounts.append(account)
-
-    LOG.info(f"Found {len(enabled_accounts)} Trino-enabled accounts")
-    return enabled_accounts
-
-
 def validate_tables(conn):
-    accounts = get_trino_enabled_accounts(conn)
+    accounts = get_account_info(conn).keys()
     if not accounts:
         return ()
 
@@ -216,10 +152,6 @@ def decode_timedelta(delta):
 
 def handle_truncate(conn):
     LOG.info("Trino processing settings")
-    LOG.info(f"    ENABLE_PARQUET_PROCESSING = {settings.ENABLE_PARQUET_PROCESSING}")
-    LOG.info(f"    ENABLE_TRINO_SOURCES = {settings.ENABLE_TRINO_SOURCES}")
-    LOG.info(f"    ENABLE_TRINO_ACCOUNTS = {settings.ENABLE_TRINO_ACCOUNTS}")
-    LOG.info(f"    ENABLE_TRINO_SOURCE_TYPE = {settings.ENABLE_TRINO_SOURCE_TYPE}")
     LOG.info(f"    CJI_TRUNC_PROVIDER_TYPES = {ENVIRONMENT.list('CJI_TRUNC_PROVIDER_TYPES')}")
     LOG.info(f"    CJI_TRUMC_TABLES = {ENVIRONMENT.list('CJI_TRUNC_TABLES')}")
 
