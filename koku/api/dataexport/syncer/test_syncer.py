@@ -13,7 +13,6 @@ from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
 from django.conf import settings
 from django.test import TestCase
-from django.test.utils import override_settings
 
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
@@ -22,7 +21,6 @@ from masu.test import MasuTestCase
 fake = faker.Faker()
 
 
-@override_settings(ENABLE_S3_ARCHIVING=True)
 class AwsS3SyncerTest(TestCase):
     """AwsS3Syncer test case without pre-loaded test data."""
 
@@ -61,7 +59,6 @@ class AwsS3SyncerTest(TestCase):
         mock_copy_from.assert_not_called()
 
 
-@override_settings(ENABLE_S3_ARCHIVING=True)
 class AwsS3SyncerTestWithData(MasuTestCase):
     """AwsS3Syncer test case with pre-loaded masu test data."""
 

@@ -4,6 +4,7 @@
 #
 """Test HCS csv_file_handler."""
 import logging
+from unittest.mock import patch
 
 from dateutil import parser
 
@@ -33,7 +34,8 @@ class TestHCSCSVFileHandler(HCSTestCase):
         self.assertEqual(fh._provider, "AWS")
         self.assertEqual(fh._provider_uuid, "cabfdddb-4ed5-421e-a041-311b75daf235")
 
-    def test_write_df_to_csv(self):
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_write_df_to_csv(self, *args):
         data = {"x": "123", "y": "456", "z": "456"}
         with self.assertLogs("hcs.csv_file_handler", "INFO") as _logs:
             fh = CSVFileHandler(self.schema, self.provider, self.provider_uuid)

@@ -10,9 +10,6 @@ IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
-IQE_IMAGE_TAG="cost-management-9a37f38e"
-GIT_COMMIT="9a59f88fe2ad7725e563f4f361bff70791f00dde"
-IMAGE_TAG="9a59f88"
 
 # Get bonfire helper scripts
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
