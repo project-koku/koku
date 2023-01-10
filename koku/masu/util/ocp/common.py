@@ -112,6 +112,7 @@ POD_AGG = {
     "node_capacity_cpu_core_seconds": ["sum"],
     "node_capacity_memory_bytes": ["max"],
     "node_capacity_memory_byte_seconds": ["sum"],
+    "node_role": ["max"],
 }
 
 NODE_LABEL_COLUMNS = {
@@ -466,7 +467,9 @@ def ocp_generate_daily_data(data_frame, report_type):
     group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
     group_bys.append(pd.Grouper(key="interval_start", freq="D"))
     aggs = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("agg", {}))
-    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
+    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(
+        {k: v for k, v in aggs.items() if k in data_frame.columns}
+    )
 
     columns = daily_data_frame.columns.droplevel(1)
     daily_data_frame.columns = columns
