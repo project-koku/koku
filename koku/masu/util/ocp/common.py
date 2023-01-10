@@ -35,7 +35,7 @@ class OCPReportTypes(Enum):
     NAMESPACE_LABELS = 4
 
 
-STORAGE_COLUMNS = [
+STORAGE_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "interval_start",
@@ -51,7 +51,7 @@ STORAGE_COLUMNS = [
     "persistentvolumeclaim_usage_byte_seconds",
     "persistentvolume_labels",
     "persistentvolumeclaim_labels",
-]
+}
 
 STORAGE_GROUP_BY = [
     "namespace",
@@ -72,7 +72,7 @@ STORAGE_AGG = {
     "persistentvolumeclaim_usage_byte_seconds": ["sum"],
 }
 
-CPU_MEM_USAGE_COLUMNS = [
+CPU_MEM_USAGE_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "pod",
@@ -92,7 +92,7 @@ CPU_MEM_USAGE_COLUMNS = [
     "node_capacity_memory_bytes",
     "node_capacity_memory_byte_seconds",
     "pod_labels",
-]
+}
 
 POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
 
@@ -114,28 +114,28 @@ POD_AGG = {
     "node_capacity_memory_byte_seconds": ["sum"],
 }
 
-NODE_LABEL_COLUMNS = [
+NODE_LABEL_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "node",
     "interval_start",
     "interval_end",
     "node_labels",
-]
+}
 
 NODE_GROUP_BY = ["node", "node_labels"]
 
 NODE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 
 
-NAMESPACE_LABEL_COLUMNS = [
+NAMESPACE_LABEL_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "interval_start",
     "interval_end",
     "namespace",
     "namespace_labels",
-]
+}
 
 NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
 
@@ -362,12 +362,11 @@ def detect_type(report_path):
     """
     Detects the OCP report type.
     """
-    sorted_columns = sorted(pd.read_csv(report_path, nrows=0).columns)
+    columns = pd.read_csv(report_path, nrows=0).columns
     for report_type, report_def in REPORT_TYPES.items():
-        report_columns = sorted(report_def.get("columns"))
-        report_enum = report_def.get("enum")
-        if report_columns == sorted_columns:
-            return report_type, report_enum
+        report_columns = report_def.get("columns")
+        if report_columns.issubset(columns):
+            return report_type, report_def.get("enum")
     return None, OCPReportTypes.UNKNOWN
 
 
