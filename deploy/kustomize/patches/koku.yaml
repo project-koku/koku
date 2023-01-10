@@ -79,14 +79,6 @@
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
