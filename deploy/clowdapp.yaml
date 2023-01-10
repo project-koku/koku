@@ -79,14 +79,6 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -252,16 +244,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_API_ENABLE_SENTRY
@@ -448,8 +432,6 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
@@ -610,16 +592,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1134,16 +1108,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1325,16 +1291,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1518,16 +1476,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1709,16 +1659,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1902,16 +1844,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2093,16 +2027,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2286,16 +2212,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2481,16 +2399,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2813,10 +2723,6 @@ parameters:
   displayName: Enable S3 Archiving
   name: ENABLE_S3_ARCHIVING
   value: "false"
-- description: Enable Parquet Processing
-  displayName: Enable Parquet Processing
-  name: ENABLE_PARQUET_PROCESSING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
@@ -2857,18 +2763,6 @@ parameters:
   name: AUTO_DATA_INGEST
   value: "True"
 - name: QE_SCHEMA
-  value: ""
-- description: Sources to be processed with Trino
-  displayName: Sources to be processed with Trino
-  name: ENABLE_TRINO_SOURCES
-  value: ""
-- description: Accounts to be processed with Trino
-  displayName: Accounts to be processed with Trino
-  name: ENABLE_TRINO_ACCOUNTS
-  value: ""
-- description: Source Types to be processed with Trino
-  displayName: Source Types to be processed with Trino
-  name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
 - description: Report download schedule
   displayName: Report download schedule

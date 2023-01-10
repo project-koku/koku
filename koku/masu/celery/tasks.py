@@ -36,7 +36,6 @@ from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnit
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_purge_trino_files
-from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -95,10 +94,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
             messages.append(message)
         raise TypeError("purge_trino_files() %s", ", ".join(messages))
 
-    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
-        LOG.info("Skipping purge_trino_files. Upload feature is disabled.")
-        return
-    elif settings.SKIP_MINIO_DATA_DELETION:
+    if settings.SKIP_MINIO_DATA_DELETION:
         LOG.info("Skipping purge_trino_files. MinIO in use.")
         return
     else:
@@ -211,10 +207,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
             messages.append(message)
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
-    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
-        LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
-        return
-    elif settings.SKIP_MINIO_DATA_DELETION:
+    if settings.SKIP_MINIO_DATA_DELETION:
         LOG.info("Skipping delete_archived_data. MinIO in use.")
         return
     else:
