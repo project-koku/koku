@@ -46,7 +46,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
     -- Get data for this month or last month
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
-        AND (service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer') OR unit = 'gibibyte month')
+        AND service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
         AND invoice_month = {{invoice_month}}
         AND cluster_id = {{cluster_id}}
         AND source_uuid = {{source_uuid}}::uuid
