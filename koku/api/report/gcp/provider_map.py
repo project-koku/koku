@@ -433,6 +433,17 @@ class GCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
+                        "conditionals": {
+                            GCPCostEntryLineItemDailySummary: {
+                                "filter": [
+                                    {
+                                        "field": "service_alias",
+                                        "operation": "in",
+                                        "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
+                                    },
+                                ],
+                            },
+                        },
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
