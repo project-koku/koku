@@ -159,7 +159,7 @@ class TagQueryHandler(QueryHandler):
         """
         category_filters = QueryFilterCollection()
         namespace_query = OpenshiftCostCategory.objects.filter(name__in=category_list).values("namespace")
-        if not namespace_query:
+        if not namespace_query and "*" not in category_list:
             raise NoNamespacesForCategory(f"No namespaces for category: {category_list}")
         for row in namespace_query:
             namespaces = row.get("namespace")
@@ -230,7 +230,8 @@ class TagQueryHandler(QueryHandler):
         )
         if category_list:
             composed_category_filters = self._build_namespace_filters_from_category_list(category_list)
-            composed_filters = composed_filters & composed_category_filters
+            if composed_category_filters:
+                composed_filters = composed_filters & composed_category_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
