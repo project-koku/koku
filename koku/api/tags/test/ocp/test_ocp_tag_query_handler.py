@@ -396,6 +396,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 {"enabled": True, "key": "storageclass", "values": ["Ruby"]},
             ],
             "FAKE_CATEGORY": [],
+            "*": [],
         }
         for category in categories.keys():
             with self.subTest(category=category):
@@ -403,4 +404,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
                     query_params = self.mocked_query_params(f"?filter[category]={category}", OCPTagView)
                     handler = OCPTagQueryHandler(query_params)
                     result_value = handler.execute_query().get("data")
-                    self.assertEqual(result_value, categories[category])
+                    if category == "*":
+                        self.assertNotEqual(result_value, categories[category])
+                    else:
+                        self.assertEqual(result_value, categories[category])
