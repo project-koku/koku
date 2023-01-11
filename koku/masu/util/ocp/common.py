@@ -494,7 +494,7 @@ def ocp_generate_daily_data(data_frame, report_type):
     new_cols = report.get("new_required_columns")
     for col in new_cols:
         if col not in daily_data_frame:
-            daily_data_frame[col] = ""
+            daily_data_frame[col] = None
 
     return daily_data_frame
 
