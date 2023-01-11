@@ -94,6 +94,10 @@ CPU_MEM_USAGE_COLUMNS = {
     "pod_labels",
 }
 
+CPU_MEM_USAGE_NEWV_COLUMNS = {
+    "node_role",
+}
+
 POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
 
 POD_AGG = {
@@ -148,24 +152,28 @@ REPORT_TYPES = {
         "enum": OCPReportTypes.STORAGE,
         "group_by": STORAGE_GROUP_BY,
         "agg": STORAGE_AGG,
+        "new_required_columns": [],
     },
     "pod_usage": {
         "columns": CPU_MEM_USAGE_COLUMNS,
         "enum": OCPReportTypes.CPU_MEM_USAGE,
         "group_by": POD_GROUP_BY,
         "agg": POD_AGG,
+        "new_required_columns": CPU_MEM_USAGE_NEWV_COLUMNS,
     },
     "node_labels": {
         "columns": NODE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NODE_LABELS,
         "group_by": NODE_GROUP_BY,
         "agg": NODE_AGG,
+        "new_required_columns": [],
     },
     "namespace_labels": {
         "columns": NAMESPACE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NAMESPACE_LABELS,
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
+        "new_required_columns": [],
     },
 }
 
@@ -464,9 +472,11 @@ def ocp_generate_daily_data(data_frame, report_type):
 
     if data_frame.empty:
         return data_frame
-    group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
+
+    report = REPORT_TYPES.get(report_type, {})
+    group_bys = copy.deepcopy(report.get("group_by", []))
     group_bys.append(pd.Grouper(key="interval_start", freq="D"))
-    aggs = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("agg", {}))
+    aggs = report.get("agg", {})
     daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(
         {k: v for k, v in aggs.items() if k in data_frame.columns}
     )
@@ -475,6 +485,11 @@ def ocp_generate_daily_data(data_frame, report_type):
     daily_data_frame.columns = columns
 
     daily_data_frame.reset_index(inplace=True)
+
+    new_cols = report.get("new_required_columns")
+    for col in new_cols:
+        if col not in daily_data_frame:
+            daily_data_frame[col] = ""
 
     return daily_data_frame
 
