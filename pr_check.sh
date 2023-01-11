@@ -11,8 +11,6 @@ DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
-ENABLE_PARQUET_PROCESSING="true"
-
 LABELS_DIR="$WORKSPACE/github_labels"
 
 export IQE_PLUGINS="cost_management"
@@ -40,7 +38,6 @@ function build_image() {
 }
 
 function run_smoke_tests() {
-    run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
 
@@ -76,7 +73,6 @@ function run_smoke_tests() {
         --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
         --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
         --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
-        --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --no-single-replicas \
@@ -84,14 +80,6 @@ function run_smoke_tests() {
         --timeout 600
 
     source $CICD_ROOT/cji_smoke_test.sh
-}
-
-function run_trino_smoke_tests() {
-    if check_for_labels "disable-trino-smoke-tests"
-    then
-        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to FALSE"
-        ENABLE_PARQUET_PROCESSING="false"
-    fi
 }
 
 function run_test_filter_expression {

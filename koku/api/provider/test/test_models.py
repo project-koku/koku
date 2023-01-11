@@ -8,8 +8,7 @@ from unittest.mock import call
 from unittest.mock import patch
 from uuid import UUID
 
-from django.core.validators import ValidationError
-from django.test.utils import override_settings
+from django.core.exceptions import ValidationError
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -76,7 +75,6 @@ class SourcesModelTest(MasuTestCase):
 class ProviderModelTest(MasuTestCase):
     """Test case with pre-loaded data for the Provider model."""
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_instance(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon instance delete."""
@@ -86,7 +84,6 @@ class ProviderModelTest(MasuTestCase):
             self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
         )
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data):
         """Assert the cost models are deleted upon provider instance delete."""
@@ -109,16 +106,6 @@ class ProviderModelTest(MasuTestCase):
             self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
         )
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=False)
-    @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_single_provider_no_archiving(self, mock_delete_archived_data):
-        """Assert the delete_archived_data task is not called if archiving is not enabled."""
-        with patch("api.provider.provider_manager.settings", ENABLE_S3_ARCHIVING=False):
-            with tenant_context(self.tenant):
-                self.aws_provider.delete()
-        mock_delete_archived_data.delay.assert_not_called()
-
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_skips_delete_archived_data_if_customer_is_none(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is not called if Customer is None."""
@@ -133,7 +120,6 @@ class ProviderModelTest(MasuTestCase):
         # restore filters on logging
         logging.disable(logging.CRITICAL)
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon queryset delete."""

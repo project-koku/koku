@@ -233,10 +233,6 @@ parameters:
   displayName: Enable S3 Archiving
   name: ENABLE_S3_ARCHIVING
   value: "false"
-- description: Enable Parquet Processing
-  displayName: Enable Parquet Processing
-  name: ENABLE_PARQUET_PROCESSING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
@@ -280,18 +276,6 @@ parameters:
   name: AUTO_DATA_INGEST
   value: "True"
 - name: QE_SCHEMA
-  value: ""
-- description: Sources to be processed with Trino
-  displayName: Sources to be processed with Trino
-  name: ENABLE_TRINO_SOURCES
-  value: ""
-- description: Accounts to be processed with Trino
-  displayName: Accounts to be processed with Trino
-  name: ENABLE_TRINO_ACCOUNTS
-  value: ""
-- description: Source Types to be processed with Trino
-  displayName: Source Types to be processed with Trino
-  name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
 
 - description: Report download schedule
