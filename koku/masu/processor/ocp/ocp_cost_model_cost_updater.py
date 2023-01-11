@@ -50,6 +50,17 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution
 
+    @property
+    def is_amortized(self):
+        """Whether the cost model calculations use amortized monthly costs."""
+        return self._is_amortized
+
+    @is_amortized.setter
+    def is_amortized(self, is_amortized_override):
+        if is_amortized_override is True:
+            self._is_amortized = is_amortized_override
+            return
+
     @staticmethod
     def _normalize_tier(input_tier):
         """Normalize a tier for tiered rate calculations.
@@ -200,7 +211,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    if self._is_amortized:
+                    if self.is_amortized:
                         if rate:
                             amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
                         else:
@@ -331,7 +342,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            if self._is_amortized:
+            if self.is_amortized:
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.INFRASTRUCTURE_COST_TYPE,
                     self._infra_rates,
