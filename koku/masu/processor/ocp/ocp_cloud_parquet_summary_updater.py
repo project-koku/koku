@@ -10,13 +10,17 @@ from dateutil import parser
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from api.provider.models import Provider
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import summarize_ocp_on_gcp_by_node
-from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
+from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -32,8 +36,52 @@ from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 LOG = logging.getLogger(__name__)
 
 
-class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
+class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
     """Class to update OCP report summary data."""
+
+    def get_infra_map(self, start_date, end_date):
+        """Get the map of cloud source and associated OpenShift clusters."""
+        infra_map = self.get_infra_map_from_providers()
+        openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
+
+        if self._provider.type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids:
+            infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
+        elif self._provider.type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids:
+            # When running for an Infrastructure provider we want all
+            # of the matching clusters to run
+            infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
+
+        return infra_map
+
+    def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
+        """Populate the summary tables for reporting.
+
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+            ocp_provider_uuid (str) The OpenShift source UUID.
+            infra_tuple (tuple) A tuple of (Cloud provider source UUID, Source type)
+
+        Returns
+            None
+
+        """
+        if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+        elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+        elif infra_provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+
+        # Update markup for OpenShift tables
+        with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
+            OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(start_date, end_date)
+
+        # Update the UI tables for the OpenShift provider
+        with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            ocp_accessor.populate_ui_summary_tables(
+                start_date, end_date, ocp_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+            )
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""

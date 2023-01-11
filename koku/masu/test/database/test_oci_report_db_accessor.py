@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCIReportDBAccessor utility object."""
-import datetime
 import decimal
 from unittest.mock import patch
 
@@ -203,13 +202,3 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCI_CUR_TABLE_MAP)
-
-    def test_get_cost_entry_bills_by_date(self):
-        """Test that get bills by date functions correctly."""
-        table_name = OCI_CUR_TABLE_MAP["bill"]
-        with schema_context(self.schema):
-            today = datetime.datetime.utcnow()
-            bill_start = today.replace(day=1).date()
-            bill_id = self.accessor._get_db_obj_query(table_name).filter(billing_period_start=bill_start).first().id
-            bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
-            self.assertEqual(bill_id, bills[0].id)
