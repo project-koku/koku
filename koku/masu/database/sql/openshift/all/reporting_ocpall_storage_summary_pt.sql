@@ -56,7 +56,8 @@ SELECT {{source_type}},
    AND (product_family LIKE '%%Storage%%' OR
         product_code LIKE '%%Storage%%' OR
         product_code IN ('Filestore', 'Data Transfer'))
-  AND (unit = 'GB-Mo' OR unit = 'gibibyte month')
+   AND (unit = 'GB-Mo' OR
+        unit = 'gibibyte month')
  GROUP
     BY usage_start,
        usage_account_id,
