@@ -174,7 +174,7 @@ def execute(presto_conn, sql, params=None):
     presto_cur = _execute(presto_cur, presto_stmt)
     results = _fetchall(presto_cur)
     if presto_cur.description is None:
-        columns = None
+        columns = []
     else:
         columns = [col[0] for col in presto_cur.description]
 
