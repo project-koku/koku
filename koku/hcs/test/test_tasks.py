@@ -227,7 +227,7 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "WARNING") as _logs:
             collect_hcs_report_finalization(provider_type=self.aws_provider_type, month=10)
-            expected_errmsg = "you must provide both 'month' and 'year' together."
+            expected_errmsg = "month and year must be provided together."
             self.assertIn(expected_errmsg, _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")

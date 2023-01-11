@@ -54,7 +54,7 @@ def hcs_report_finalization(request):
         if not month and not year:
             finalization_month = finalization_month - datetime.timedelta(days=1)
         elif not month or not year:
-            errmsg = "you must provide both 'month' and 'year' together."
+            errmsg = "month and year must be provided together."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         else:
             finalization_month = finalization_month.replace(month=int(month), year=int(year))

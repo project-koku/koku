@@ -37,7 +37,7 @@ class HCSFinalizationTests(TestCase):
         params = {
             "month": 1,
         }
-        expected_errmsg = "you must provide both 'month' and 'year' together."
+        expected_errmsg = "month and year must be provided together."
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
         errmsg = body.get("Error")
@@ -77,7 +77,7 @@ class HCSFinalizationTests(TestCase):
         params = {
             "year": 2001,
         }
-        expected_errmsg = "you must provide both 'month' and 'year' together."
+        expected_errmsg = "month and year must be provided together."
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
         errmsg = body.get("Error")

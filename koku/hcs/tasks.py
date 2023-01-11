@@ -253,7 +253,7 @@ def collect_hcs_report_finalization(  # noqa: C901
     if month and year:
         finalization_date = finalization_date.replace(year=int(year), month=int(month)) + relativedelta(months=1)
     elif month or year:
-        LOG.warning(log_json(tracing_id, "you must provide both 'month' and 'year' together."))
+        LOG.warning(log_json(tracing_id, "month and year must be provided together."))
         return
 
     end_date = finalization_date - datetime.timedelta(days=1)
