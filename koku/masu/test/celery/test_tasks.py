@@ -189,7 +189,6 @@ class TestCeleryTasks(MasuTestCase):
         afterRows = ExchangeRates.objects.count()
         self.assertEqual(afterRows, 5)
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
         """Test that delete_archived_data raises an exception when given bad inputs."""
         schema_name, provider_type, provider_uuid = "", "", ""
@@ -199,15 +198,6 @@ class TestCeleryTasks(MasuTestCase):
         self.assertIn("provider_type", str(e.exception))
         self.assertIn("provider_uuid", str(e.exception))
 
-    @patch("masu.util.aws.common.boto3.resource")
-    @override_settings(ENABLE_S3_ARCHIVING=False, ENABLE_PARQUET_PROCESSING=False)
-    def test_delete_archived_data_archiving_disabled_noop(self, mock_resource):
-        """Test that delete_archived_data returns early when feature is disabled."""
-        schema_name, provider_type, provider_uuid = fake.slug(), Provider.PROVIDER_AWS, fake.uuid4()
-        tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-        mock_resource.assert_not_called()
-
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.get_s3_resource")
     def test_deleted_archived_with_prefix_success(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
@@ -230,7 +220,6 @@ class TestCeleryTasks(MasuTestCase):
         mock_bucket.objects.filter.assert_has_calls([call(Prefix=expected_prefix), call(Prefix=expected_prefix)])
         self.assertIn("Found 1 objects after attempting", captured_logs.output[-1])
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     def test_delete_archived_data_success(self, mock_delete):
         """Test that delete_archived_data correctly interacts with AWS S3."""
@@ -241,18 +230,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
         mock_delete.assert_called()
 
-    @override_settings(ENABLE_S3_ARCHIVING=False, ENABLE_PARQUET_PROCESSING=False)
-    def test_delete_archived_data_archiving_false(self):
-        """Test that delete_archived_data correctly interacts with AWS S3."""
-        schema_name = "org1234567"
-        provider_type = Provider.PROVIDER_AWS
-        provider_uuid = "00000000-0000-0000-0000-000000000001"
-
-        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
-            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-            self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
-
-    @override_settings(ENABLE_S3_ARCHIVING=True, SKIP_MINIO_DATA_DELETION=True)
+    @override_settings(SKIP_MINIO_DATA_DELETION=True)
     def test_delete_archived_data_minio(self):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "org1234567"
@@ -263,7 +241,6 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.OCPReportDBAccessor.delete_hive_partitions_by_source")
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     def test_delete_archived_data_ocp_delete_trino_partitions(self, mock_delete, mock_delete_partitions):
@@ -452,28 +429,18 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertRaises(TypeError):
             tasks.purge_s3_files(None, None, None, None)
 
-    @patch("masu.celery.tasks.enable_trino_processing", return_value=False)
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
-    @patch("masu.celery.tasks.deleted_archived_with_prefix")
-    def test_purge_s3_files_failed_enable_trino(self, delete_call, _, __):
-        """Test that the scheduled task calls the orchestrator."""
-        tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
-        delete_call.assert_not_called()
-
-    @patch("masu.celery.tasks.enable_trino_processing", return_value=True)
     @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     @override_settings(SKIP_MINIO_DATA_DELETION=True)
-    def test_purge_s3_files_skipped_minio_true(self, delete_call, _, __):
+    def test_purge_s3_files_skipped_minio_true(self, delete_call, *args):
         """Test that the scheduled task calls the orchestrator."""
         tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         delete_call.assert_not_called()
 
-    @patch("masu.celery.tasks.enable_trino_processing", return_value=True)
     @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     @override_settings(SKIP_MINIO_DATA_DELETION=False)
-    def test_purge_s3_files_success(self, delete_call, _, __):
+    def test_purge_s3_files_success(self, delete_call, *args):
         """Test that the scheduled task calls the orchestrator."""
         tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         delete_call.assert_called()
