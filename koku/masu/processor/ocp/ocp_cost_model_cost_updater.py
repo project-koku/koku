@@ -567,7 +567,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
             self._update_tag_usage_costs(start_date, end_date)
             self._update_tag_usage_default_costs(start_date, end_date)
-            if self._is_amortized:
+            if self.is_amortized:
                 self._update_monthly_tag_based_cost_amortized(start_date, end_date)
             else:
                 self._update_monthly_tag_based_cost(start_date, end_date)
