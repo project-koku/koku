@@ -83,16 +83,16 @@ SELECT uuid_generate_v4(),
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     {{rate_type}} as cost_model_rate_type,
-    sum(coalesce(pod_usage_cpu_core_hours, 0)) * coalesce({{cpu_usage_rate}}, 0)
-        + sum(coalesce(pod_usage_memory_gigabyte_hours, 0)) * coalesce({{cpu_request_rate}}, 0)
-        + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * coalesce({{cpu_effective_rate}}, 0)
+    sum(coalesce(pod_usage_cpu_core_hours, 0)) * {{cpu_usage_rate}}
+        + sum(coalesce(pod_usage_memory_gigabyte_hours, 0)) * {{cpu_request_rate}}
+        + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{cpu_effective_rate}}
         as cost_model_cpu_cost,
-    sum(coalesce(pod_usage_cpu_core_hours, 0)) * coalesce({{memory_usage_rate}}, 0)
-        + sum(coalesce(pod_request_memory_gigabyte_hours, 0)) * coalesce({{memory_request_rate}}, 0)
-        + sum(coalesce(pod_effective_usage_memory_gigabyte_hours, 0)) * coalesce({{memory_effective_rate}}, 0)
+    sum(coalesce(pod_usage_cpu_core_hours, 0)) * {{memory_usage_rate}}
+        + sum(coalesce(pod_request_memory_gigabyte_hours, 0)) * {{memory_request_rate}}
+        + sum(coalesce(pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_effective_rate}}
         as cost_model_memory_cost,
-    sum(coalesce(persistentvolumeclaim_usage_gigabyte_months, 0)) * coalesce({{volume_usage_rate}}, 0)
-        + sum(coalesce(volume_request_storage_gigabyte_months, 0)) * coalesce({{volume_request_rate}}, 0)
+    sum(coalesce(persistentvolumeclaim_usage_gigabyte_months, 0)) * {{volume_usage_rate}}
+        + sum(coalesce(volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}
         as cost_model_volume_cost,
     NULL as monthly_cost_type,
     cost_category_id
