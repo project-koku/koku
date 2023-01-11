@@ -39,7 +39,6 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderWarn
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_ocp_on_cloud_summary
 from masu.processor import disable_summary_processing
-from masu.processor import enable_trino_processing
 from masu.processor import is_large_customer
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -483,7 +482,7 @@ def update_summary_tables(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    if enable_trino_processing(provider_uuid, provider, schema_name) and provider in (
+    if provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
@@ -683,7 +682,14 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False, tracing_id=None
+    schema_name,
+    provider_uuid,
+    start_date=None,
+    end_date=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
+    is_amortized=None,
 ):
     """Update usage charge information.
 
@@ -712,6 +718,7 @@ def update_cost_model_costs(
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
+                is_amortized=is_amortized,
             ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
@@ -731,7 +738,7 @@ def update_cost_model_costs(
     try:
         updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
-            updater.update_cost_model_costs(start_date, end_date)
+            updater.update_cost_model_costs(start_date, end_date, is_amortized=is_amortized)
         if provider_uuid:
             ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     except Exception as ex:

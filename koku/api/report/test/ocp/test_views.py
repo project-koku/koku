@@ -543,8 +543,10 @@ class OCPReportViewTest(IamTestCase):
         self.assertNotEqual(total, Decimal(0))
         self.assertAlmostEqual(total, expected_total, 6)
 
-    def test_execute_query_ocp_costs_with_delta(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_ocp_costs_with_delta(self, mock_unleash):
         """Test that deltas work for costs."""
+        mock_unleash.return_value = True
         url = reverse("reports-openshift-costs")
         client = APIClient()
         params = {
