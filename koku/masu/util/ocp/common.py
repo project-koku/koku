@@ -146,6 +146,11 @@ NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
 
 NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 
+
+# new_required_columns are columns that appear in new operator reports.
+# today, we cannot guarantee that all reports received will contain all
+# of these new columns, so this field is used to add the necessary columns
+# to the data frames.
 REPORT_TYPES = {
     "storage_usage": {
         "columns": STORAGE_COLUMNS,
