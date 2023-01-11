@@ -133,10 +133,6 @@ def enable_ocp_amortized_monthly_cost(account):
     account = convert_account(account)
 
     context = {"schema": account}
-    res = bool(
-        UNLEASH_CLIENT.is_enabled(
-            "cost-management.backend.enable-ocp-amortized-monthly-cost", context, fallback_development_true
-        )
-    )
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context))
 
     return res
