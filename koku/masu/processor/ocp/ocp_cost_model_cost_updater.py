@@ -289,17 +289,15 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     if self.is_amortized:
                         if rate:
                             amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
-                        else:
-                            amortized_rate = 0.0
-                        report_accessor.populate_monthly_cost_sql(
-                            cost_type,
-                            rate_type,
-                            amortized_rate,
-                            start_date,
-                            end_date,
-                            self._distribution,
-                            self._provider_uuid,
-                        )
+                            report_accessor.populate_monthly_cost_sql(
+                                cost_type,
+                                rate_type,
+                                amortized_rate,
+                                start_date,
+                                end_date,
+                                self._distribution,
+                                self._provider_uuid,
+                            )
                     else:
                         report_accessor.populate_monthly_cost(
                             cost_type,
