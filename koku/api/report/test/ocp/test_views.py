@@ -513,7 +513,9 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_costs_group_by_project(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_ocp_costs_group_by_project(self, mock_unleash):
+        mock_unleash.return_value = True
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -918,8 +920,10 @@ class OCPReportViewTest(IamTestCase):
             if values:
                 self.assertEqual(len(values), 1)
 
-    def test_execute_query_with_tag_filter(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_with_tag_filter(self, mock_unleash):
         """Test that data is filtered by tag key."""
+        mock_unleash.return_value = True
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -969,8 +973,10 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_costs_query_with_tag_filter(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_costs_query_with_tag_filter(self, mock_unleash):
         """Test that data is filtered by tag key."""
+        mock_unleash.return_value = True
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1010,8 +1016,10 @@ class OCPReportViewTest(IamTestCase):
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
-    def test_execute_query_with_wildcard_tag_filter(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_with_wildcard_tag_filter(self, mock_unleash):
         """Test that data is filtered to include entries with tag key."""
+        mock_unleash.return_value = True
         url = "?filter[type]=pod&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
