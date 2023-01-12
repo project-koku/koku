@@ -499,6 +499,7 @@ SELECT pds.gcp_uuid,
 FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
     ON pds.gcp_uuid = r.gcp_uuid
+WHERE pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (
