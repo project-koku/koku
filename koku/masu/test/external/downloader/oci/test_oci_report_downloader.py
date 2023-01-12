@@ -109,39 +109,32 @@ class OCIReportDownloaderTest(MasuTestCase):
         self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)
 
     def test_collect_reports(self):
-        """Test _collect_reports returns list of reports"""
-        filenames = [
-            "test_cost_this_month.csv",
-            "test_usage_this_month.csv",
-            "test_cost_last_month.csv",
-            "test_usage_last_month.csv",
-        ]
+        """Test _collect_reports returns list of cost or usage reports"""
         # cost reports
         cost_report = MagicMock()
-        cost_report.name = filenames[0]
+        cost_report.name = "test_cost_report.csv"
         cost_report.time_created = self.dh._now
         cost_reports = MagicMock()
         cost_reports.data.objects = [cost_report]
-        cost_reports = [cost_report]
+
         # usage reports
         usage_report = MagicMock()
-        usage_report.name = filenames[1]
+        usage_report.name = "test_usage_report.csv"
         usage_report.time_created = self.dh._now
         usage_reports = MagicMock()
-        usage_reports.data.objects = [usage_report]
-        oci_curs = {"cost": cost_report, "usage": usage_report}
-        oci_report_type_prefix = {"cost": "reports/cost-csv", "usage": "reports/usage-csv"}
+        usage_reports.data.objects = [cost_report]
 
+        cost_usage_reports = {"cost": cost_reports, "usage": usage_reports}
+        report_prefix = {"cost": "reports/cost-csv", "usage": "reports/usage-csv"}
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
         downloader._oci_client.list_objects = MagicMock()
-        last_reports = {"cost": "", "usage": ""}
+        mock_list_objects = downloader._oci_client.list_objects
 
-        for report_type in oci_curs.keys():
-            downloader._oci_client.list_objects.return_value = oci_curs.get(report_type)
-            returned_reports = downloader._collect_reports(
-                prefix=oci_report_type_prefix.get(report_type, ""), last_report=last_reports.get(report_type, "")
-            )
-            self.assertEqual(returned_reports, oci_curs.get(report_type))
+        for rpt_type, rpt_list in cost_usage_reports.items():
+            mock_list_objects.return_value = rpt_list
+            returned_reports = downloader._collect_reports(prefix=report_prefix.get(rpt_type, ""))
+            mock_list_objects.assert_called()
+            self.assertEqual(returned_reports, rpt_list)
 
     @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
     def test_extract_names(self, mock_collect_reports):
