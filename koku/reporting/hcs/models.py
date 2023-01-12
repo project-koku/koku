@@ -1,9 +1,14 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import models
+from django.db import transaction
+
+LOG = logging.getLogger(__name__)
 
 
 class HCSReport(models.Model):
@@ -22,3 +27,14 @@ class HCSReport(models.Model):
             f"Processing completed: {self.completed_timestamp}\n"
             f"Processing task ID: {self.task_uuid}\n"
         )
+
+    def ingest(data):
+        if settings.AUTO_DATA_INGEST:
+            # Local import of task function to avoid potential import cycle.
+            from masu.celery.tasks import check_report_updates
+
+            LOG.info(f"Starting HCS data ingest task for Provider {data.get('provider')}")
+            # Start check_report_updates task after Provider has been committed.
+            transaction.on_commit(
+                lambda: check_report_updates.s(provider_uuid=data.get("provider")).set(queue="priority").apply_async()
+            )

@@ -74,6 +74,7 @@ class HCSView(APIView):
         serializer = HCSReportSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
+            HCSReport.ingest(data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
