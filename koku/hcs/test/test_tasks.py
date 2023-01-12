@@ -6,14 +6,15 @@
 import logging
 import uuid
 from datetime import timedelta
-from unittest import skip
 from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 import hcs.tasks as tasks
 from api.utils import DateHelper
+from hcs.tasks import collect_hcs_report_data
 from hcs.tasks import collect_hcs_report_data_from_manifest
+from hcs.tasks import collect_hcs_report_finalization
 from hcs.tasks import get_start_and_end_from_manifest_id
 from hcs.tasks import should_finalize
 from hcs.test import HCSTestCase
@@ -38,8 +39,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_dates(self, mock_ehp, mock_report):
         """Test with start and end dates provided"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -53,8 +52,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_no_start_date(self, mock_ehp, mock_report):
         """Test no start or end dates provided"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -64,8 +61,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_no_tracing_id(self, mock_ehp, mock_report):
         """Test that tracing_id is added to log output when not provided"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -75,8 +70,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_tracing_id(self, mock_ehp, mock_report):
         """Test that tracing_id can be overridden"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = True
         test_id = str(uuid.uuid4())
 
@@ -89,8 +82,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_no_end_date(self, mock_ehp, mock_report):
         """Test no start date provided"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -101,8 +92,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_invalid_provider(self, mock_ehp, mock_report):
         """Test invalid provider"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = False
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -113,8 +102,6 @@ class TestHCSTasks(HCSTestCase):
 
     def test_get_report_schema_no_acct_prefix(self, mock_ehp, mock_report):
         """Test no schema name prefix provided"""
-        from hcs.tasks import collect_hcs_report_data
-
         mock_ehp.return_value = True
         collect_hcs_report_data("10001", self.aws_provider_type, str(self.aws_provider.uuid), self.yesterday)
 
@@ -197,7 +184,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization(self, rd, mock_ehp, mock_report):
         """Test report finalization"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -213,7 +199,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_tracing_id(self, rd, mock_ehp, mock_report):
         """Test report finalization tracing_id provided"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
         test_id = str(uuid.uuid4())
@@ -226,7 +211,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_no_tracing_id(self, rd, mock_ehp, mock_report):
         """Test report finalization tracing_id not provided"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -235,24 +219,20 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("tracing_id", _logs.output[0])
 
-    @skip("HCS finalization month assumes the current year and we can only finalize the past.")
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_month(self, rd, mock_ehp, mock_report):
-        """Test finalization providing month"""
-        from hcs.tasks import collect_hcs_report_finalization
+        """Test finalization providing month but no year fails since both are required."""
 
         mock_ehp.return_value = True
-        start_date = "2022-10-01"
-        end_date = "2022-10-31"
 
-        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+        with self.assertLogs("hcs.tasks", "WARNING") as _logs:
             collect_hcs_report_finalization(provider_type=self.aws_provider_type, month=10)
-            self.assertIn(f"dates: {start_date} - {end_date}", _logs.output[0])
+            expected_errmsg = "month and year must be provided together."
+            self.assertIn(expected_errmsg, _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_monthyear(self, rd, mock_ehp, mock_report):
         """Test finalization providing year and month"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
         start_date = "2021-10-01"
@@ -265,7 +245,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_report_finalization_provider_type(self, rd, mock_ehp, mock_report):
         """Test finalization with providing provider_type"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -278,7 +257,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_negative(self, rd, mock_ehp, mock_report):
         """Test finalization with providing a bogus provider_type"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
         p_type = "BOGUS"
@@ -291,7 +269,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_uuid(self, rd, mock_ehp, mock_report):
         """Test finalization with providing a provider_uuid"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -304,7 +281,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_uuid_negative(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given bad provider_uuid"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
         p_u = "11111111-0000-1111-0000-111111111111"
@@ -317,7 +293,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name_and_provider_type(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given schema_name and provider_type"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -334,7 +309,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given schema_name"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -347,7 +321,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_no_acct_prefix(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given schema_name when no 'acct' prefix is given"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -360,7 +333,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_org_schema(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given schema_name when no 'acct' prefix is given"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -373,7 +345,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name_negative(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given bad schema_name"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         schema_name = "acct10001123"
         mock_ehp.return_value = False
@@ -386,7 +357,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_type_and_provider_uuid(self, rd, mock_ehp, mock_report):
         """Test hcs finalization negative test when supplying both provider_type & provider_uuid arguments"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
@@ -400,7 +370,6 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name_and_provider_uuid(self, rd, mock_ehp, mock_report):
         """Test hcs finalization for a given bad schema_name"""
-        from hcs.tasks import collect_hcs_report_finalization
 
         mock_ehp.return_value = True
 
