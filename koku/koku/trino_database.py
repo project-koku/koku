@@ -171,10 +171,12 @@ def execute(presto_conn, sql, params=None):
     # and only returns the SQL with parameters formatted inline.
     presto_stmt = sql_mogrify(sql, params)
     presto_cur = _cursor(presto_conn)
-    LOG.debug(f"Executing PRESTO SQL: {presto_stmt}")
     presto_cur = _execute(presto_cur, presto_stmt)
     results = _fetchall(presto_cur)
-    columns = [col[0] for col in presto_cur.description]
+    if presto_cur.description is None:
+        columns = []
+    else:
+        columns = [col[0] for col in presto_cur.description]
 
     return results, columns
 
