@@ -251,7 +251,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.line_item_daily_table, get_model("GCPCostEntryLineItemDaily"))
         self.assertEqual(self.accessor.line_item_table, get_model("GCPCostEntryLineItem"))
 
     def test_table_map(self):

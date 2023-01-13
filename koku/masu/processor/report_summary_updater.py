@@ -139,10 +139,7 @@ class ReportSummaryUpdater:
         LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
 
-        if invoice_month:
-            start_date, end_date = self._updater.update_daily_tables(start_date, end_date, invoice_month)
-        else:
-            start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
+        start_date, end_date = self._updater.update_daily_tables(start_date, end_date, invoice_month=invoice_month)
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
         msg = f"Daily summary completed for source {self._provider_uuid}"
@@ -169,10 +166,7 @@ class ReportSummaryUpdater:
         LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
         LOG.info(log_json(tracing_id, f"Using invoice month: {invoice_month}"))
 
-        if invoice_month:
-            start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month)
-        else:
-            start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
+        start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
         msg = f"Summary processing completed for source {self._provider_uuid} start: {start_date} - end: {end_date}"
         LOG.info(log_json(self._tracing_id, msg))
