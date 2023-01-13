@@ -32,22 +32,6 @@ class ReportProcessorTest(MasuTestCase):
         mock_parquet_process.assert_called()
         mock_ocp_cloud_process.assert_called()
 
-    def test_aws_remove_processed_files(self):
-        """Test to remove_processed_files for AWS."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path="/my/report/file",
-            compression="GZIP",
-            provider=Provider.PROVIDER_AWS,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        try:
-            processor.remove_processed_files("/my/report/file")
-        except Exception:
-            self.fail("unexpected error")
-
     def test_set_processor_parquet(self):
         """Test that the Parquet class is returned."""
         processor = ReportProcessor(

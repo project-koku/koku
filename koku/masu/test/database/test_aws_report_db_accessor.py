@@ -418,28 +418,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         result = self.accessor._convert_value(value, float)
         self.assertIsNone(result)
 
-    def test_get_cost_entry_bills(self):
-        """Test that bills are returned in a dict."""
-        table_name = AWS_CUR_TABLE_MAP["bill"]
-        with schema_context(self.schema):
-            bill = self.accessor._get_db_obj_query(table_name).first()
-            expected_key = (bill.bill_type, bill.payer_account_id, bill.billing_period_start, bill.provider_id)
-            # expected = {expected_key: bill.id}
-
-            bill_map = self.accessor.get_cost_entry_bills()
-            self.assertIn(expected_key, bill_map)
-            self.assertEqual(bill_map[expected_key], bill.id)
-
-    def test_get_cost_entry_bills_by_date(self):
-        """Test that get bills by date functions correctly."""
-        table_name = AWS_CUR_TABLE_MAP["bill"]
-        with schema_context(self.schema):
-            today = datetime.datetime.utcnow()
-            bill_start = today.replace(day=1).date()
-            bill_id = self.accessor._get_db_obj_query(table_name).filter(billing_period_start=bill_start).first().id
-            bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
-            self.assertEqual(bill_id, bills[0].id)
-
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
         with schema_context(self.schema):
@@ -465,75 +443,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
             cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
             self.assertEqual(cost_entries.count(), 0)
-
-    def test_get_cost_entry_query_for_billid(self):
-        """Test that gets a cost entry query given a bill id."""
-        table_name = "reporting_awscostentrybill"
-        with schema_context(self.schema):
-            # Verify that the line items for the test bill_id are returned
-            bill_id = self.accessor._get_db_obj_query(table_name).first().id
-
-            cost_entry_query = self.accessor.get_cost_entry_query_for_billid(bill_id)
-            self.assertEqual(cost_entry_query.first().bill_id, bill_id)
-
-            # Verify that no line items are returned for a missing bill_id
-            wrong_bill_id = bill_id + 5
-            cost_entry_query = self.accessor.get_cost_entry_query_for_billid(wrong_bill_id)
-            self.assertEqual(cost_entry_query.count(), 0)
-
-    def test_get_cost_entries(self):
-        """Test that a dict of cost entries are returned."""
-        table_name = "reporting_awscostentry"
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(table_name)
-            count = query.count()
-            first_entry = query.first()
-            cost_entries = self.accessor.get_cost_entries()
-            self.assertIsInstance(cost_entries, dict)
-            self.assertEqual(len(cost_entries.keys()), count)
-            self.assertIn(first_entry.id, cost_entries.values())
-
-    def test_get_products(self):
-        """Test that a dict of products are returned."""
-        table_name = "reporting_awscostentryproduct"
-        query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            count = query.count()
-            first_entry = query.first()
-            products = self.accessor.get_products()
-
-            self.assertIsInstance(products, dict)
-            self.assertEqual(len(products.keys()), count)
-            expected_key = (first_entry.sku, first_entry.product_name, first_entry.region)
-            self.assertIn(expected_key, products)
-
-    def test_get_pricing(self):
-        """Test that a dict of pricing is returned."""
-        table_name = "reporting_awscostentrypricing"
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(table_name)
-            count = query.count()
-            first_entry = query.first()
-
-            pricing = self.accessor.get_pricing()
-
-            self.assertIsInstance(pricing, dict)
-            self.assertEqual(len(pricing.keys()), count)
-            self.assertIn(first_entry.id, pricing.values())
-
-    def test_get_reservations(self):
-        """Test that a dict of reservations are returned."""
-        table_name = AWS_CUR_TABLE_MAP["reservation"]
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(table_name)
-            count = query.count()
-            first_entry = query.first()
-
-            reservations = self.accessor.get_reservations()
-
-            self.assertIsInstance(reservations, dict)
-            self.assertEqual(len(reservations.keys()), count)
-            self.assertIn(first_entry.reservation_arn, reservations)
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
@@ -791,7 +700,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
         self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
         self.assertEqual(self.accessor.cost_entry_table, get_model("AWSCostEntry"))
-        self.assertEqual(self.accessor.line_item_daily_table, get_model("AWSCostEntryLineItemDaily"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
