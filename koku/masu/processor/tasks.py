@@ -294,7 +294,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):  # noqa C901
+def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):
     """
     Summarize reports returned from line summary task.
 
@@ -311,14 +311,18 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
             reports_by_source[report.get("provider_uuid")].append(report)
 
     reports_deduplicated = []
+    dedup_func_map = {
+        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
+        Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
+    }
     for source, report_list in reports_by_source.items():
         starts = []
         ends = []
-        if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            reports_deduplicated += deduplicate_reports_for_gcp(report_list)
-        elif report and report.get("provider_type") in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
-            manifest_list = []
-            reports_deduplicated += deduplicate_reports_for_oci(report_list)
+        if report and report.get("provider_type") in dedup_func_map:
+            dedup_func = dedup_func_map.get(report.get("provider_type"))
+            reports_deduplicated.extend(dedup_func(report_list))
         else:
             for report in report_list:
                 if report.get("start") and report.get("end"):
