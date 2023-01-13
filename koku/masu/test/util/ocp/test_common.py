@@ -278,3 +278,31 @@ class OCPUtilTests(MasuTestCase):
                     expected = "ERROR:masu.util.ocp.common:Unable to extract manifest data"
                     utils.get_report_details(manifest_path)
                     self.assertIn(expected, logger.output[0])
+
+    def test_detect_type_pod_usage(self):
+        "Test that we detect the correct report type from csv"
+        expected_result = "pod_usage"
+        test_table = [
+            copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS),
+            copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS).union(utils.CPU_MEM_USAGE_NEWV_COLUMNS),
+        ]
+        for test in test_table:
+            with self.subTest(test=test):
+                with patch("masu.util.ocp.common.pd.read_csv") as mock_csv:
+                    mock_csv.return_value.columns = test
+                    result, _ = utils.detect_type("")
+                    self.assertEqual(result, expected_result)
+
+    def test_detect_type(self):
+        "Test that we detect the correct report type from csv"
+        test_table = {
+            "storage_usage": copy.deepcopy(utils.STORAGE_COLUMNS),
+            "node_labels": copy.deepcopy(utils.NODE_LABEL_COLUMNS),
+            "namespace_labels": copy.deepcopy(utils.NAMESPACE_LABEL_COLUMNS),
+        }
+        for expected, test in test_table.items():
+            with self.subTest(test=test):
+                with patch("masu.util.ocp.common.pd.read_csv") as mock_csv:
+                    mock_csv.return_value.columns = test
+                    result, _ = utils.detect_type("")
+                    self.assertEqual(result, expected)

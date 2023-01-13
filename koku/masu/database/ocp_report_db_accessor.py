@@ -100,12 +100,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).order_by("-interval_start").first()
 
-    def get_current_usage_period(self):
+    def get_current_usage_period(self, provider_uuid):
         """Get the most recent usage report period object."""
-        table_name = self._table_map["report_period"]
-
         with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).order_by("-report_period_start").first()
+            return (
+                OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid).order_by("-report_period_start").first()
+            )
 
     def get_usage_periods_by_date(self, start_date):
         """Return all report period entries for the specified start date."""
@@ -2587,11 +2587,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             SELECT ocp.node,
                 ocp.resource_id,
                 max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-                CASE
+                coalesce(max(ocp.node_role), CASE
                     WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
                     WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
-                END as node_role
+                END) as node_role
             FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
                 ON ocp.node = nl.node
