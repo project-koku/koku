@@ -44,13 +44,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         infra_map = self.get_infra_map_from_providers()
         openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
 
-        if self._provider.type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids:
+        if (self._provider.type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
+            self._provider.type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
+        ):
             infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
-        elif self._provider.type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids:
-            # When running for an Infrastructure provider we want all
-            # of the matching clusters to run
-            infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
-
         return infra_map
 
     def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
