@@ -418,16 +418,27 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
-            monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
-                cost_model_rate_type="Infrastructure",
-                monthly_cost_type__isnull=False,
-                cluster_id=self.cluster_id,
-                report_period=usage_period,
-            ).first()
+            monthly_costs = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    cost_model_rate_type="Infrastructure",
+                    monthly_cost_type="Node",
+                    cluster_id=self.cluster_id,
+                    usage_start=start_date,
+                )
+                .values("node")
+                .annotate(
+                    **{
+                        "cpu_cost": Sum("cost_model_cpu_cost"),
+                        "memory_cost": Sum("cost_model_memory_cost"),
+                        "volume_cost": Sum("cost_model_volume_cost"),
+                    }
+                )
+            )
 
-            self.assertNotEqual(monthly_cost_row.cost_model_cpu_cost, 0)
-            self.assertEqual(monthly_cost_row.cost_model_memory_cost, 0)
-            self.assertEqual(monthly_cost_row.cost_model_volume_cost, 0)
+            for row in monthly_costs:
+                self.assertNotEqual(row.get("cpu_cost"), 0)
+                self.assertEqual(row.get("memory_cost"), 0)
+                self.assertEqual(row.get("volume_cost"), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_infrastructure_cluster_distribution(self, mock_cost_accessor):
