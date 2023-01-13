@@ -206,7 +206,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     """
                 )
             if default_rate_dict:
-                rate_value = default_rate_dict.get("tag_key", {}).get("default_value", 0)
+                rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
                 rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
                 cpu_statement_list.append(
                     f"""
@@ -245,7 +245,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     """
                 )
             if default_rate_dict:
-                rate_value = default_rate_dict.get("tag_key", {}).get("default_value", 0)
+                rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
                 rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
                 volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
             volume_statement_list.append("END as cost_model_volume_cost")
