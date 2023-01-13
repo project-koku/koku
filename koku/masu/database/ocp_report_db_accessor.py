@@ -2054,11 +2054,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             SELECT ocp.node,
                 ocp.resource_id,
                 max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-                CASE
+                coalesce(max(ocp.node_role), CASE
                     WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
                     WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
-                END as node_role
+                END) as node_role
             FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
                 ON ocp.node = nl.node

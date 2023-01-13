@@ -1,0 +1,30 @@
+name: Regular base image update check
+on:
+  schedule:
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install skopeo
+        run: sudo apt-get install -y skopeo
+      - name: Check change
+        run: |
+          BASE_IMAGE="registry.access.redhat.com/ubi8/ubi-minimal:latest" skopeo inspect "docker://${BASE_IMAGE}" | grep -Po '(?<="Digest": ")([^"]+)' > .baseimagedigest
+          docker run --rm --entrypoint sh -u 0 quay.io/cloudservices/koku:latest -c \
+            'yum upgrade -y --security > /dev/null; rpm -qa | sort | sha256sum' \
+            >> .baseimagedigest
+      - name: Do change if the digest changed
+        run: |
+          git config user.name 'Update-a-Bot'
+          git config user.email 'insights@redhat.com'
+          git add .baseimagedigest
+          git commit -m "chore(image): update and rebuild image" || echo "No new changes"
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: 'chore(image): update base image'
