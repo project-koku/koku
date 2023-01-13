@@ -325,8 +325,10 @@ SELECT aws.uuid as aws_uuid,
         ON aws.lineitem_usagestartdate = ocp.usage_start
             AND (
                 (strpos(aws.resourcetags, 'openshift_project') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
+                    OR (strpos(aws.resourcetags, 'namespace') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
                     OR (strpos(aws.resourcetags, 'openshift_node') != 0 AND strpos(aws.resourcetags, lower(ocp.node)) != 0)
                     OR (strpos(aws.resourcetags, 'openshift_cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
+                    OR (strpos(aws.resourcetags, 'cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
@@ -472,6 +474,7 @@ JOIN cte_rankings as r
     ON pds.aws_uuid = r.aws_uuid
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON pds.usage_account_id = aa.account_id
+WHERE pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
