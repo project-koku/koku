@@ -172,7 +172,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_get_current_usage_period(self):
         """Test that the most recent usage period is returned."""
-        current_report_period = self.accessor.get_current_usage_period()
+        current_report_period = self.accessor.get_current_usage_period(self.ocp_provider_uuid)
         self.assertIsNotNone(current_report_period.report_period_start)
         self.assertIsNotNone(current_report_period.report_period_end)
 

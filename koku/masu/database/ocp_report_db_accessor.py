@@ -100,12 +100,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).order_by("-interval_start").first()
 
-    def get_current_usage_period(self):
+    def get_current_usage_period(self, provider_uuid):
         """Get the most recent usage report period object."""
-        table_name = self._table_map["report_period"]
-
         with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).order_by("-report_period_start").first()
+            return (
+                OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid).order_by("-report_period_start").first()
+            )
 
     def get_usage_periods_by_date(self, start_date):
         """Return all report period entries for the specified start date."""

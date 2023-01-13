@@ -389,7 +389,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
 
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -412,9 +412,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.distribution = "cpu"
-        usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
+        start_date = usage_period.report_period_start.date()
+        end_date = usage_period.report_period_end.date() - relativedelta(days=1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
@@ -422,6 +422,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 cost_model_rate_type="Infrastructure",
                 monthly_cost_type__isnull=False,
                 cluster_id=self.cluster_id,
+                report_period=usage_period,
             ).first()
 
             self.assertNotEqual(monthly_cost_row.cost_model_cpu_cost, 0)
@@ -482,7 +483,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = supplementary_rates
         mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -507,7 +508,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = supplementary_rates
         mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -617,7 +618,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.distribution = "cpu"
 
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -654,7 +655,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         }
         mock_cost_accessor.return_value.__enter__.return_value.distribution = distribution
 
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -699,7 +700,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         }
         mock_cost_accessor.return_value.__enter__.return_value.distribution = distribution
 
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -729,7 +730,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = supplementary_rates
 
-        usage_period = self.accessor.get_current_usage_period()
+        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
