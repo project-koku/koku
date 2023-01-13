@@ -13,12 +13,14 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 
+from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
+from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -777,3 +779,157 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._delete_tag_usage_costs(start_date, end_date, "")
         self.assertLogs("masu.processor.ocp", level="WARNING")
+
+    def test_build_node_tag_rate_case_statement_str(self):
+        """Make sure a correct SQL CASE statement is generated."""
+        tag_key = "app"
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        cost_rate = dh.days_in_month(start_date)
+        management_rate = cost_rate * 2
+        default_rate = cost_rate * 3
+        tag_rate_dict = {tag_key: {"cost": cost_rate, "management": management_rate}}
+        default_rate_dict = {tag_key: {"default_value": default_rate}}
+
+        cost_rate_amor = get_amortized_monthly_cost_model_rate(cost_rate, start_date)
+        management_rate_amor = get_amortized_monthly_cost_model_rate(management_rate, start_date)
+        default_rate_amor = get_amortized_monthly_cost_model_rate(default_rate, start_date)
+
+        expected_case_strs = (
+            f"""
+            CASE
+            WHEN pod_labels->>'app'='cost' AND 'cpu' = 'cpu'
+                THEN sum(pod_effective_usage_cpu_core_hours)
+                    / max(node_capacity_cpu_core_hours)
+                    * {cost_rate_amor}::decimal
+            WHEN pod_labels->>'app'='management' AND 'cpu' = 'cpu'
+                THEN sum(pod_effective_usage_cpu_core_hours)
+                    / max(node_capacity_cpu_core_hours)
+                    * {management_rate_amor}::decimal
+            ELSE sum(pod_effective_usage_cpu_core_hours)
+                / max(node_capacity_cpu_core_hours)
+                * {default_rate_amor}::decimal
+            END as cost_model_cpu_cost
+            """,
+            f"""
+            CASE
+            WHEN pod_labels->>'app'='cost' AND 'cpu' = 'memory'
+                THEN sum(pod_effective_usage_memory_gigabyte_hours)
+                    / max(node_capacity_memory_gigabyte_hours)
+                    * {cost_rate_amor}::decimal
+            WHEN pod_labels->>'app'='management' AND 'cpu' = 'memory'
+                THEN sum(pod_effective_usage_memory_gigabyte_hours)
+                    / max(node_capacity_memory_gigabyte_hours)
+                    * {management_rate_amor}::decimal
+            ELSE sum(pod_effective_usage_memory_gigabyte_hours)
+                / max(node_capacity_memory_gigabyte_hours)
+                * {default_rate_amor}::decimal
+            END as cost_model_memory_cost
+        """,
+            "NULL as cost_model_volume_cost",
+        )
+
+        case_dict = self.updater._build_node_tag_rate_case_statement_str(
+            tag_rate_dict, start_date, default_rate_dict=default_rate_dict
+        )
+
+        for actual, expected in zip(case_dict.get(tag_key), expected_case_strs):
+            self.assertEqual(actual.replace("\n", "").replace(" ", ""), expected.replace("\n", "").replace(" ", ""))
+
+    def test_build_volume_tag_rate_case_statement_str(self):
+        """Make sure a correct SQL CASE statement is generated."""
+        tag_key = "app"
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        cost_rate = dh.days_in_month(start_date)
+        management_rate = cost_rate * 2
+        default_rate = cost_rate * 3
+        tag_rate_dict = {tag_key: {"cost": cost_rate, "management": management_rate}}
+        default_rate_dict = {tag_key: {"default_value": default_rate}}
+
+        cost_rate_amor = get_amortized_monthly_cost_model_rate(cost_rate, start_date)
+        management_rate_amor = get_amortized_monthly_cost_model_rate(management_rate, start_date)
+        default_rate_amor = get_amortized_monthly_cost_model_rate(default_rate, start_date)
+
+        expected_case_strs = (
+            "NULL as cost_model_cpu_cost",
+            "NULL as cost_model_memory_cost",
+            f"""
+            CASE
+            WHEN volume_labels->>'app'='cost'
+                THEN {cost_rate_amor}::decimal / vc.pvc_count
+            WHEN volume_labels->>'app'='management'
+                THEN {management_rate_amor}::decimal / vc.pvc_count
+            ELSE {default_rate_amor}::decimal / vc.pvc_count
+            END as cost_model_volume_cost
+            """,
+        )
+
+        case_dict = self.updater._build_volume_tag_rate_case_statement_str(
+            tag_rate_dict, start_date, default_rate_dict=default_rate_dict
+        )
+
+        for actual, expected in zip(case_dict.get(tag_key), expected_case_strs):
+            self.assertEqual(actual.replace("\n", "").replace(" ", ""), expected.replace("\n", "").replace(" ", ""))
+
+    def test_update_monthly_tag_based_cost_amortized(self):
+        """Test that monthly tag costs are amortized."""
+        node_tag_key = "app"
+        pvc_tag_key = "storageclass"
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        rate_one = dh.days_in_month(start_date)
+        rate_two = rate_one * 2
+        node_tag_rate_dict = {node_tag_key: {"banking": rate_one, "weather": rate_two}}
+        pvc_tag_rate_dict = {pvc_tag_key: {"Pearl": rate_one, "Diamond": rate_two}}
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater.is_amortized = True
+        updater._tag_supplementary_rates = {"node_cost_per_month": node_tag_rate_dict}
+        updater._tag_infra_rates = {"pvc_cost_per_month": pvc_tag_rate_dict}
+
+        distribution_choices = (
+            {"metric": metric_constants.CPU_DISTRIBUTION, "column": "cost_model_cpu_cost"},
+            {"metric": metric_constants.MEMORY_DISTRIBUTION, "column": "cost_model_memory_cost"},
+        )
+        for distribution_choice in distribution_choices:
+            distribution = distribution_choice.get("metric")
+            column = distribution_choice.get("column")
+            with self.subTest(distribution=distribution, column=column):
+                updater._distribution = distribution
+                with schema_context(self.schema):
+                    OCPUsageLineItemDailySummary.objects.filter(monthly_cost_type__isnull=False).delete()
+                    node_line_item_count = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node"
+                    ).count()
+
+                    self.assertEqual(node_line_item_count, 0)
+
+                    pvc_line_items = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="PVC"
+                    ).count()
+
+                    self.assertEqual(pvc_line_items, 0)
+
+                updater._update_monthly_tag_based_cost_amortized(start_date, end_date)
+
+                with schema_context(self.schema):
+                    node_line_items = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node"
+                    ).all()
+
+                    self.assertNotEqual(len(node_line_items), 0)
+
+                    for item in node_line_items:
+                        self.assertNotEqual(getattr(item, column), 0)
+
+                    pvc_line_items = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="PVC"
+                    ).all()
+
+                    self.assertNotEqual(len(pvc_line_items), 0)
+
+                    for item in pvc_line_items:
+                        self.assertNotEqual(item.cost_model_volume_cost, 0)
