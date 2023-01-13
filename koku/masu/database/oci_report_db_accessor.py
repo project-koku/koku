@@ -43,25 +43,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return OCICostEntryLineItemDailySummary
 
-    def get_cost_entry_bills(self):
-        """Get all cost entry bill objects."""
-        table_name = OCICostEntryBill
-        with schema_context(self.schema):
-            columns = ["id", "bill_type", "payer_account_id", "billing_period_start", "provider_id"]
-            bills = self._get_db_obj_query(table_name).values(*columns)
-            return {
-                (bill["bill_type"], bill["payer_account_id"], bill["billing_period_start"], bill["provider_id"]): bill[
-                    "id"
-                ]
-                for bill in bills
-            }
-
-    def get_cost_entry_bills_by_date(self, start_date):
-        """Return a cost entry bill for the specified start date."""
-        table_name = OCICostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
-
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = OCICostEntryBill
@@ -88,14 +69,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
             return cost_entry_bill_query
-
-    def get_summary_query_for_billid(self, bill_id):
-        """Get the OCI cost summary item for a given bill query."""
-        table_name = OCICostEntryLineItemDailySummary
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
-            return summary_item_query
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
