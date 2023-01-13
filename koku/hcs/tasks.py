@@ -250,15 +250,11 @@ def collect_hcs_report_finalization(  # noqa: C901
     finalization_date = DateAccessor().today()
     finalization_date = finalization_date.replace(day=1)
 
-    if month is not None:
-        finalization_date = finalization_date.replace(month=int(month)) + relativedelta(months=1)
-
-    if year is not None:
-        if month is None:
-            LOG.warning(log_json(tracing_id, "you must provide 'month' when providing 'year'"))
-            return
-
+    if month and year:
         finalization_date = finalization_date.replace(year=int(year), month=int(month)) + relativedelta(months=1)
+    elif month or year:
+        LOG.warning(log_json(tracing_id, "month and year must be provided together."))
+        return
 
     end_date = finalization_date - datetime.timedelta(days=1)
     start_date = finalization_date - datetime.timedelta(days=end_date.day)
@@ -312,7 +308,9 @@ def collect_hcs_report_finalization(  # noqa: C901
 
 
 def get_all_accepted_providers():
-    providers = Provider.objects.filter(type__in=HCS_ACCEPTED_PROVIDERS, active=True).all()
+    providers = Provider.objects.filter(
+        type__in=HCS_ACCEPTED_PROVIDERS, active=True, data_updated_timestamp__gte=DateHelper().last_month_start
+    ).all()
     if not providers:
         LOG.warning("no valid providers found")
         return

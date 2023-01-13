@@ -36,7 +36,7 @@ class OCPReportTypes(Enum):
     NAMESPACE_LABELS = 4
 
 
-STORAGE_COLUMNS = [
+STORAGE_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "interval_start",
@@ -52,7 +52,7 @@ STORAGE_COLUMNS = [
     "persistentvolumeclaim_usage_byte_seconds",
     "persistentvolume_labels",
     "persistentvolumeclaim_labels",
-]
+}
 
 STORAGE_GROUP_BY = [
     "namespace",
@@ -73,7 +73,7 @@ STORAGE_AGG = {
     "persistentvolumeclaim_usage_byte_seconds": ["sum"],
 }
 
-CPU_MEM_USAGE_COLUMNS = [
+CPU_MEM_USAGE_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "pod",
@@ -93,7 +93,11 @@ CPU_MEM_USAGE_COLUMNS = [
     "node_capacity_memory_bytes",
     "node_capacity_memory_byte_seconds",
     "pod_labels",
-]
+}
+
+CPU_MEM_USAGE_NEWV_COLUMNS = {
+    "node_role",
+}
 
 POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
 
@@ -113,59 +117,69 @@ POD_AGG = {
     "node_capacity_cpu_core_seconds": ["sum"],
     "node_capacity_memory_bytes": ["max"],
     "node_capacity_memory_byte_seconds": ["sum"],
+    "node_role": ["max"],
 }
 
-NODE_LABEL_COLUMNS = [
+NODE_LABEL_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "node",
     "interval_start",
     "interval_end",
     "node_labels",
-]
+}
 
 NODE_GROUP_BY = ["node", "node_labels"]
 
 NODE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 
 
-NAMESPACE_LABEL_COLUMNS = [
+NAMESPACE_LABEL_COLUMNS = {
     "report_period_start",
     "report_period_end",
     "interval_start",
     "interval_end",
     "namespace",
     "namespace_labels",
-]
+}
 
 NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
 
 NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 
+
+# new_required_columns are columns that appear in new operator reports.
+# today, we cannot guarantee that all reports received will contain all
+# of these new columns, so this field is used to add the necessary columns
+# to the data frames.
 REPORT_TYPES = {
     "storage_usage": {
         "columns": STORAGE_COLUMNS,
         "enum": OCPReportTypes.STORAGE,
         "group_by": STORAGE_GROUP_BY,
         "agg": STORAGE_AGG,
+        "new_required_columns": [],
     },
     "pod_usage": {
         "columns": CPU_MEM_USAGE_COLUMNS,
         "enum": OCPReportTypes.CPU_MEM_USAGE,
         "group_by": POD_GROUP_BY,
         "agg": POD_AGG,
+        "new_required_columns": CPU_MEM_USAGE_NEWV_COLUMNS,
     },
     "node_labels": {
         "columns": NODE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NODE_LABELS,
         "group_by": NODE_GROUP_BY,
         "agg": NODE_AGG,
+        "new_required_columns": [],
     },
     "namespace_labels": {
         "columns": NAMESPACE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NAMESPACE_LABELS,
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
+        "new_required_columns": [],
     },
 }
 
@@ -363,12 +377,11 @@ def detect_type(report_path):
     """
     Detects the OCP report type.
     """
-    sorted_columns = sorted(pd.read_csv(report_path, nrows=0).columns)
+    columns = pd.read_csv(report_path, nrows=0).columns
     for report_type, report_def in REPORT_TYPES.items():
-        report_columns = sorted(report_def.get("columns"))
-        report_enum = report_def.get("enum")
-        if report_columns == sorted_columns:
-            return report_type, report_enum
+        report_columns = report_def.get("columns")
+        if report_columns.issubset(columns):
+            return report_type, report_def.get("enum")
     return None, OCPReportTypes.UNKNOWN
 
 
@@ -465,15 +478,24 @@ def ocp_generate_daily_data(data_frame, report_type):
 
     if data_frame.empty:
         return data_frame
-    group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
+
+    report = REPORT_TYPES.get(report_type, {})
+    group_bys = copy.deepcopy(report.get("group_by", []))
     group_bys.append(pd.Grouper(key="interval_start", freq="D"))
-    aggs = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("agg", {}))
-    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
+    aggs = report.get("agg", {})
+    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(
+        {k: v for k, v in aggs.items() if k in data_frame.columns}
+    )
 
     columns = daily_data_frame.columns.droplevel(1)
     daily_data_frame.columns = columns
 
     daily_data_frame.reset_index(inplace=True)
+
+    new_cols = report.get("new_required_columns")
+    for col in new_cols:
+        if col not in daily_data_frame:
+            daily_data_frame[col] = None
 
     return daily_data_frame
 
