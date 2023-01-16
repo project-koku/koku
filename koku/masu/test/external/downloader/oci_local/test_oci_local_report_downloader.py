@@ -140,7 +140,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._prepare_monthly_files"
     )
     def test_get_manifest_for_date_no_month_reports(self, mock_prepare_monthly_files, mock_extract_names):
-        """Test OCI-local don't create manifest record if no monthly reports downloaded."""
+        """Test OCI-local does not create manifest record if no monthly reports downloaded."""
         test_file_list = []
         mock_prepare_monthly_files.return_value = {self.dh.this_month_start: []}
         mock_extract_names.return_value = []

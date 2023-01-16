@@ -164,23 +164,12 @@ def detect_type(report_path):
 
 
 def deduplicate_reports_for_oci(report_list):
-    """Remove deduplicate oci manifests"""
-    manifest_id_set = set()
+    """Remove duplicate oci manifests"""
     reports_deduplicated = []
+    manifest_id_set = set()
     for report in report_list:
         _manifest_id = report.get("manifest_id")
         if _manifest_id and _manifest_id not in manifest_id_set:
-            reports_deduplicated.append(
-                {
-                    "manifest_id": _manifest_id,
-                    "tracing_id": report.get("tracing_id"),
-                    "schema_name": report.get("schema_name"),
-                    "provider_type": report.get("provider_type"),
-                    "provider_uuid": report.get("provider_uuid"),
-                    "start": report.get("start"),
-                    "end": report.get("end"),
-                    "invoice_month": None,
-                }
-            )
+            reports_deduplicated.append(report)
             manifest_id_set.add(_manifest_id)
     return reports_deduplicated

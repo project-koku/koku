@@ -321,7 +321,9 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
         starts = []
         ends = []
         if report and report.get("provider_type") in dedup_func_map:
-            dedup_func = dedup_func_map.get(report.get("provider_type"))
+            provider_type = report.get("provider_type")
+            manifest_list = [] if "oci" in provider_type.lower() else manifest_list
+            dedup_func = dedup_func_map.get(provider_type)
             reports_deduplicated.extend(dedup_func(report_list))
         else:
             for report in report_list:
