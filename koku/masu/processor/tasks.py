@@ -689,7 +689,6 @@ def update_cost_model_costs(
     queue_name=None,
     synchronous=False,
     tracing_id=None,
-    is_amortized=None,
 ):
     """Update usage charge information.
 
@@ -718,7 +717,6 @@ def update_cost_model_costs(
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-                is_amortized=is_amortized,
             ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
@@ -738,7 +736,7 @@ def update_cost_model_costs(
     try:
         updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
-            updater.update_cost_model_costs(start_date, end_date, is_amortized=is_amortized)
+            updater.update_cost_model_costs(start_date, end_date)
         if provider_uuid:
             ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     except Exception as ex:
