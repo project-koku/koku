@@ -447,4 +447,3 @@ class TestOCIUtils(MasuTestCase):
             manifest.get("manifest_id") for manifest in manifest_list if manifest.get("manifest_id")
         }
         self.assertEqual(list(result_manifest_ids), expected_manifest_ids)
-        self.assertEqual(len(result_manifest_ids), len(expected_manifest_ids))
