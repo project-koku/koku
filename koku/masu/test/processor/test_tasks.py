@@ -212,7 +212,6 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_proc.remove_processed_files.assert_not_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
@@ -248,7 +247,6 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_proc.remove_processed_files.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()

@@ -147,6 +147,6 @@ class OCPCloudUpdaterBase:
         the other of infrastructrure provider UUIDS.
 
         """
-        openshift_provider_uuids = [key for key in infra_map]
+        openshift_provider_uuids = list(infra_map)
         infra_provider_uuids = [value[0] for value in infra_map.values()]
         return openshift_provider_uuids, infra_provider_uuids
