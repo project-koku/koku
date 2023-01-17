@@ -106,19 +106,3 @@ class ReportProcessor:
             raise db_exc from o_err
         except Exception as err:
             raise ReportProcessorError(str(err)) from err
-
-    def remove_processed_files(self, path):
-        """
-        Remove temporary cost usage report files..
-
-        Args:
-            (String) path - local path to most recent report file.
-
-        Returns:
-            [String] - List of files that were removed.
-
-        """
-        try:
-            return self._processor.remove_temp_cur_files(path)
-        except Exception as err:
-            raise ReportProcessorError(str(err)) from err

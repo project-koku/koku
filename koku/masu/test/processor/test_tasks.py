@@ -212,7 +212,6 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_proc.remove_processed_files.assert_not_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
@@ -248,7 +247,6 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_proc.remove_processed_files.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
@@ -1075,6 +1073,33 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 end_date,
                 synchronous=True,
             )
+
+    @patch(
+        "masu.processor.tasks.disable_ocp_on_cloud_summary",
+        return_value=True,
+    )
+    def test_update_openshift_on_cloud_unleash_gated(self, _):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        expecte_msg = f"OCP on Cloud summary disabled for {self.schema}."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocp_on_aws_ocp_provider.uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
+            statement_found = False
+            for log in logger.output:
+                if expecte_msg in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
