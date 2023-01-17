@@ -133,6 +133,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         # Get matching tags
         matched_tags = get_cached_matching_tags(self.schema_name, self.provider_type)
         if matched_tags:
+            LOG.info("Retreived matching tags from cache.")
             return matched_tags
         if self.has_enabled_ocp_labels:
             enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
