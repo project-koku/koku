@@ -146,14 +146,14 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
             month_file_names = self._extract_names(month)
             files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_file_names]
-            if len(files_list) > 0:
+            if files_list:
                 manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(month_file_names), dh._now)
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id
                 monthly_report["compression"] = manifest_dict.get("compression", "")
                 monthly_report["files"] = files_list
                 report_manifests_list.append(monthly_report)
-        LOG.info(f"Report Manifests List: {str(report_manifests_list)}")
+        LOG.info(f"Report Manifests List: {report_manifests_list}")
         return report_manifests_list
 
     def _generate_monthly_pseudo_manifest(self, start_date):

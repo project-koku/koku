@@ -303,7 +303,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
             month_file_names = self._extract_names(assembly_id, month)
             files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_file_names]
-            if len(files_list) > 0:
+            if files_list:
                 manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(month_file_names), dh._now)
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id
