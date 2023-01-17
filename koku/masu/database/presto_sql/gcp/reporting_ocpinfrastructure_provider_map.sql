@@ -61,4 +61,4 @@
     FROM cte_gcp_resource_name AS gcp
     JOIN cte_ocp_nodes AS ocp
         ON strpos(gcp.resource_name, ocp.node) != 0
-;
+{% endif %}

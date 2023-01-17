@@ -272,21 +272,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
             end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        infra_sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
-            "schema": self.schema,
-            "aws_provider_uuid": aws_provider_uuid,
-            "ocp_provider_uuid": ocp_provider_uuid,
-            "azure_provider_uuid": azure_provider_uuid,
-            "gcp_provider_uuid": gcp_provider_uuid,
-            "resource_level": resource_level,
-        }
         for source_type, check_flag in check_flags.items():
             db_results = {}
             if check_flag:
+                infra_sql_params = {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "year": start_date.strftime("%Y"),
+                    "month": start_date.strftime("%m"),
+                    "schema": self.schema,
+                    "aws_provider_uuid": aws_provider_uuid,
+                    "ocp_provider_uuid": ocp_provider_uuid,
+                    "azure_provider_uuid": azure_provider_uuid,
+                    "gcp_provider_uuid": gcp_provider_uuid,
+                    "resource_level": resource_level,
+                }
                 infra_sql = pkgutil.get_data(
                     "masu.database", f"presto_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
                 )

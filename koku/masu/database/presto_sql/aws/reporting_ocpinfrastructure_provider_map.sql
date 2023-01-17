@@ -33,4 +33,3 @@ SELECT DISTINCT ocp.source as ocp_uuid,
 FROM cte_aws_resource_ids AS aws
 JOIN cte_ocp_resource_ids AS ocp
     ON strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
-;

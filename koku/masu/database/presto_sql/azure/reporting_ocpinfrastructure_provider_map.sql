@@ -31,4 +31,3 @@ SELECT DISTINCT ocp.source as ocp_uuid,
 FROM cte_azure_instances AS azure
 JOIN cte_ocp_nodes AS ocp
     ON ocp.node = azure.instance
-;
