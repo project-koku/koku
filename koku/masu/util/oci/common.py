@@ -161,3 +161,15 @@ def detect_type(report_path):
     else:
         report_type = "usage"
     return report_type
+
+
+def deduplicate_reports_for_oci(report_list):
+    """Remove duplicate oci manifests"""
+    reports_deduplicated = []
+    manifest_id_set = set()
+    for report in report_list:
+        _manifest_id = report.get("manifest_id")
+        if _manifest_id and _manifest_id not in manifest_id_set:
+            reports_deduplicated.append(report)
+            manifest_id_set.add(_manifest_id)
+    return reports_deduplicated

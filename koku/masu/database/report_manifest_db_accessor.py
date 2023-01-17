@@ -65,15 +65,16 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest_list:
             bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
+                if not manifest.manifest_completed_datetime:
+                    manifest.manifest_completed_datetime = completed_datetime
+                    manifest.save()
                 msg = (
                     f"Marking manifest {manifest.id} "
                     f"\nassembly_id {manifest.assembly_id} "
                     f"\nfor provider {manifest.provider_id} "
-                    f"\nmanifest_completed_datetime: {completed_datetime}."
+                    f"\nmanifest_completed_datetime: {manifest.manifest_completed_datetime}."
                 )
                 LOG.info(msg)
-                manifest.manifest_completed_datetime = completed_datetime
-                manifest.save()
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""
