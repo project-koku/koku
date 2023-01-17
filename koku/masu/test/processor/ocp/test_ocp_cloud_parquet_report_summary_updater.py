@@ -9,10 +9,12 @@ from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.db import connection
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
@@ -609,3 +611,59 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
                     if found_it:
                         break
                 self.assertTrue(found_it)
+
+    def test_get_infra_map_from_providers(self):
+        """Test that an infrastructure map is returned."""
+        updater = OCPCloudParquetReportSummaryUpdater(
+            schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
+        )
+
+        expected_mapping = (self.aws_provider_uuid, Provider.PROVIDER_AWS_LOCAL)
+        infra_map = updater.get_infra_map_from_providers()
+        self.assertEqual(len(infra_map.keys()), 1)
+        self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
+        self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
+
+        infra_map = updater.get_infra_map_from_providers()
+
+        self.assertEqual(len(infra_map.keys()), 1)
+        self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
+        self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
+
+    def test_partition_handler_str_table(self):
+        new_table_sql = f"""
+create table {self.schema}._eek_pt0 (usage_start date not null, id int) partition by range (usage_start);
+"""
+        with schema_context(self.schema):
+            with connection.cursor() as cur:
+                cur.execute(new_table_sql)
+
+            partable = get_model("PartitionedTable")
+            default_part = partable(
+                schema_name=self.schema,
+                table_name="_eek_pt0_default",
+                partition_of_table_name="_eek_pt0",
+                partition_type=partable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": True},
+                active=True,
+            )
+            default_part.save()
+
+            ocrsu = OCPCloudParquetReportSummaryUpdater(self.schema, self.ocp_on_aws_ocp_provider, None)
+            num_eek = partable.objects.filter(schema_name=self.schema, partition_of_table_name="_eek_pt0").count()
+            self.assertEqual(num_eek, 1)
+
+            ocrsu._handle_partitions(self.schema, "_eek_pt0", datetime.date(1970, 10, 1), datetime.date(1970, 12, 1))
+            eek_p = partable.objects.filter(
+                schema_name=self.schema, partition_of_table_name="_eek_pt0", partition_parameters__default=False
+            ).all()
+            self.assertEqual(len(eek_p), 3)
+
+            eek_p.delete()
+            default_part.delete()
+
+            with connection.cursor() as cur:
+                cur.execute(f"drop table {self.schema}._eek_pt0 ;")

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDBAccessor utility object."""
-import datetime
 import decimal
 from unittest import skip
 from unittest.mock import patch
@@ -18,7 +17,6 @@ from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
-from koku.database import get_model
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -70,133 +68,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
         meter_id = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
         self.creator.create_azure_cost_entry_line_item(bill_id, product_id, meter_id)
 
-    def test_get_cost_entry_bills(self):
-        """Test that Azure bills are returned in a dict."""
-        table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        with schema_context(self.schema):
-            bill = self.accessor._get_db_obj_query(table_name).first()
-            expected_key = (bill.billing_period_start, bill.provider_id)
-            bill_map = self.accessor.get_cost_entry_bills()
-            self.assertIn(expected_key, bill_map)
-            self.assertEqual(bill_map[expected_key], bill.id)
-
-    def test_get_products(self):
-        """Test that a dict of Azure products are returned."""
-        table_name = AZURE_REPORT_TABLE_MAP["product"]
-        query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            count = query.count()
-            first_entry = query.first()
-            products = self.accessor.get_products()
-
-            self.assertIsInstance(products, dict)
-            self.assertEqual(len(products.keys()), count)
-            expected_key = (
-                first_entry.instance_id,
-                first_entry.instance_type,
-                first_entry.service_tier,
-                first_entry.service_name,
-            )
-            self.assertIn(expected_key, products)
-
-    def test_get_meters(self):
-        """Test that a dict of Azure meters are returned."""
-        table_name = AZURE_REPORT_TABLE_MAP["meter"]
-        query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            count = query.count()
-            first_entry = query.first()
-            meters = self.accessor.get_meters()
-
-            self.assertIsInstance(meters, dict)
-            self.assertEqual(len(meters.keys()), count)
-            expected_key = first_entry.meter_id
-            self.assertIn(expected_key, meters)
-
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date=self.dh.this_month_start)
         with schema_context(self.schema):
             self.assertEqual(len(bills), 1)
-
-    def test_populate_line_item_daily_summary_table(self):
-        """Test that the daily summary table is populated."""
-        summary_table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
-        with schema_context(self.schema):
-            bill_ids = [str(bill.id) for bill in bills.all()]
-
-        table_name = AZURE_REPORT_TABLE_MAP["line_item"]
-        line_item_table = getattr(self.accessor.report_schema, table_name)
-        tag_query = self.accessor._get_db_obj_query(table_name)
-        possible_keys = []
-        possible_values = []
-        with schema_context(self.schema):
-            for item in tag_query:
-                possible_keys += list(item.tags.keys())
-                possible_values += list(item.tags.values())
-
-            li_entry = line_item_table.objects.all().aggregate(Min("usage_date"), Max("usage_date"))
-            start_date = li_entry["usage_date__min"]
-            end_date = li_entry["usage_date__max"]
-
-        start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
-        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
-
-        query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
-            query.delete()
-            initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
-        with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = summary_entry["usage_start__min"]
-            result_end_date = summary_entry["usage_start__max"]
-
-            self.assertEqual(result_start_date, start_date)
-            self.assertEqual(result_end_date, end_date)
-
-            entry = query.order_by("-uuid")
-
-            summary_columns = [
-                "usage_start",
-                "usage_quantity",
-                "pretax_cost",
-                "cost_entry_bill_id",
-                "meter_id",
-                "tags",
-            ]
-
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry.first(), column))
-
-            found_keys = []
-            found_values = []
-            for item in query.all():
-                found_keys += list(item.tags.keys())
-                found_values += list(item.tags.values())
-
-            self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
-            self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
-
-    def test_get_cost_entry_bills_by_date(self):
-        """Test that get bills by date functions correctly."""
-        table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        with schema_context(self.schema):
-            today = datetime.datetime.utcnow()
-            bill_start = today.replace(day=1).date()
-            bill_count = (
-                self.accessor._get_db_obj_query(table_name)
-                .filter(billing_period_start=self.dh.this_month_start)
-                .count()
-            )
-            bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
-            self.assertEqual(bills.count(), bill_count)
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
@@ -451,7 +327,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.line_item_daily_table, get_model("AzureCostEntryLineItemDaily"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AZURE_REPORT_TABLE_MAP)

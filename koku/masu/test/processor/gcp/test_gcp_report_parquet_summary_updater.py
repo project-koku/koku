@@ -73,7 +73,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         )
 
         with self.assertLogs("masu.processor.gcp.gcp_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str, invoice_month)
+            start, end = self.updater.update_daily_tables(start_str, end_str, invoice_month=invoice_month)
             self.assertIn(expected_log, logger.output)
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
@@ -113,7 +113,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month[0])
+        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=invoice_month[0])
         mock_delete.assert_called_with(
             self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )

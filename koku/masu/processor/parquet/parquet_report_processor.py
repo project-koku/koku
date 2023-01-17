@@ -571,7 +571,3 @@ class ParquetReportProcessor:
             os.remove(self.report_file)
 
         return parquet_base_filename, daily_data_frames
-
-    def remove_temp_cur_files(self, report_path):
-        """Remove processed files."""
-        pass
