@@ -1079,6 +1079,33 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 synchronous=True,
             )
 
+    @patch(
+        "masu.processor.tasks.disable_ocp_on_cloud_summary",
+        return_value=True,
+    )
+    def test_update_openshift_on_cloud_unleash_gated(self, _):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        expecte_msg = f"OCP on Cloud summary disabled for {self.schema}."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocp_on_aws_ocp_provider.uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
+            statement_found = False
+            for log in logger.output:
+                if expecte_msg in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
+
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     def test_update_summary_tables(self, mock_updater, mock_complete):

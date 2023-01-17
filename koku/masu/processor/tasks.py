@@ -582,6 +582,10 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
+    if disable_ocp_on_cloud_summary(schema_name):
+        msg = f"OCP on Cloud summary disabled for {schema_name}."
+        LOG.info(msg)
+        return
     if isinstance(start_date, str):
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
