@@ -67,7 +67,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         infra_map = updater.get_infra_map_from_providers()
         openshift_provider_uuids, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
 
-        if self.provider_type in Provider.CLOUD_PROVIDER_LIST and self.provider_uuid not in infra_provider_uuids:
+        if self.provider_type in Provider.CLOUD_PROVIDER_LIST and str(self.provider_uuid) not in infra_provider_uuids:
             # When running for an Infrastructure provider we want all
             # of the matching clusters to run
             infra_map = updater._generate_ocp_infra_map_from_sql_trino(self.start_date, self.end_date)
