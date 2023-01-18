@@ -116,3 +116,17 @@ def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
 
     for source_type in non_local_providers:
         invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
+
+
+def get_cached_matching_tags(schema_name, provider_type):
+    """Return cached OCP on Cloud matched tags if exists."""
+    cache = caches["default"]
+    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
+    return cache.get(cache_key)
+
+
+def set_cached_matching_tags(schema_name, provider_type, matched_tags):
+    """Return cached OCP on Cloud matched tags if exists."""
+    cache = caches["default"]
+    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
+    cache.set(cache_key, matched_tags)
