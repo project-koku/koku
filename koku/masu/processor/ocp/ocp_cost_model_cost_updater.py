@@ -13,7 +13,9 @@ from api.metrics import constants as metric_constants
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_ocp_amortized_monthly_cost
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
@@ -38,6 +40,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         super().__init__(schema, provider, None)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
+        self._is_amortized = enable_ocp_amortized_monthly_cost(self._schema)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
@@ -46,6 +49,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution
+
+    @property
+    def is_amortized(self):
+        """Whether the cost model calculations use amortized monthly costs."""
+        return self._is_amortized
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -197,17 +205,30 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    report_accessor.populate_monthly_cost(
-                        cost_type,
-                        rate_type,
-                        rate,
-                        start_date,
-                        end_date,
-                        self._cluster_id,
-                        self._cluster_alias,
-                        self._distribution,
-                        self._provider_uuid,
-                    )
+                    if self.is_amortized:
+                        if rate:
+                            amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
+                            report_accessor.populate_monthly_cost_sql(
+                                cost_type,
+                                rate_type,
+                                amortized_rate,
+                                start_date,
+                                end_date,
+                                self._distribution,
+                                self._provider_uuid,
+                            )
+                    else:
+                        report_accessor.populate_monthly_cost(
+                            cost_type,
+                            rate_type,
+                            rate,
+                            start_date,
+                            end_date,
+                            self._cluster_id,
+                            self._cluster_alias,
+                            self._distribution,
+                            self._provider_uuid,
+                        )
 
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
@@ -313,9 +334,27 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_accessor.populate_usage_costs(
-                self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
-            )
+            if self.is_amortized:
+                report_accessor.populate_usage_costs_new_columns(
+                    metric_constants.INFRASTRUCTURE_COST_TYPE,
+                    self._infra_rates,
+                    start_date,
+                    end_date,
+                    self._cluster_id,
+                    self._provider.uuid,
+                )
+                report_accessor.populate_usage_costs_new_columns(
+                    metric_constants.SUPPLEMENTARY_COST_TYPE,
+                    self._supplementary_rates,
+                    start_date,
+                    end_date,
+                    self._cluster_id,
+                    self._provider.uuid,
+                )
+            else:
+                report_accessor.populate_usage_costs(
+                    self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+                )
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""

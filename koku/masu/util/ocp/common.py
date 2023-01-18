@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 
 import ciso8601
@@ -511,3 +512,11 @@ def match_openshift_labels(tag_dict, matched_tags):
             tag = json.dumps(lower_tag).replace("{", "").replace("}", "")
             tag_matches.append(tag)
     return ",".join(tag_matches)
+
+
+def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
+    """Given a monthly rate, determine the per-day amortized rate."""
+
+    days_in_month = dh().days_in_month(start_date)
+
+    return Decimal(monthly_rate) / days_in_month

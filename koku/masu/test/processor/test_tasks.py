@@ -650,6 +650,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        mock_cost_model.return_value.__enter__.return_value.distribution = "cpu"
         # We need to bypass the None check for cost model in update_cost_model_costs
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
@@ -697,7 +698,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id, data_source="Storage", infrastructure_raw_cost__isnull=True
+                cluster_id=cluster_id,
+                data_source="Storage",
+                infrastructure_raw_cost__isnull=True,
+                cost_model_rate_type__isnull=True,
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
