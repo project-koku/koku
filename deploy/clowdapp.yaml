@@ -2906,11 +2906,11 @@ parameters:
 - displayName: Memory Request
   name: KOKU_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 900Mi
 - displayName: Memory Limit
   name: KOKU_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 1200Mi
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
@@ -2954,11 +2954,11 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 350Mi
+  value: 600Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
-  value: 700Mi
+  value: 800Mi
 - displayName: CPU Request
   name: MASU_CPU_REQUEST
   required: true
@@ -3056,11 +3056,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_CELERY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 750Mi
 - displayName: CPU Request
   name: WORKER_CELERY_CPU_REQUEST
   required: true
@@ -3080,7 +3080,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_COST_MODEL_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 400Mi
 - displayName: Memory Limit
   name: WORKER_COST_MODEL_MEMORY_LIMIT
   required: true
@@ -3128,7 +3128,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_OCP_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 400Mi
 - displayName: Memory Limit
   name: WORKER_OCP_MEMORY_LIMIT
   required: true
@@ -3176,7 +3176,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_REFRESH_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 350Mi
 - displayName: Memory Limit
   name: WORKER_REFRESH_MEMORY_LIMIT
   required: true
