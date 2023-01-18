@@ -55,6 +55,7 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
 from masu.util.gcp.common import deduplicate_reports_for_gcp
+from masu.util.oci.common import deduplicate_reports_for_oci
 
 
 LOG = logging.getLogger(__name__)
@@ -310,11 +311,20 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
             reports_by_source[report.get("provider_uuid")].append(report)
 
     reports_deduplicated = []
+    dedup_func_map = {
+        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
+        Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
+    }
     for source, report_list in reports_by_source.items():
         starts = []
         ends = []
-        if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            reports_deduplicated += deduplicate_reports_for_gcp(report_list)
+        if report and report.get("provider_type") in dedup_func_map:
+            provider_type = report.get("provider_type")
+            manifest_list = [] if "oci" in provider_type.lower() else manifest_list
+            dedup_func = dedup_func_map.get(provider_type)
+            reports_deduplicated.extend(dedup_func(report_list))
         else:
             for report in report_list:
                 if report.get("start") and report.get("end"):
@@ -572,6 +582,10 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
+    if disable_ocp_on_cloud_summary(schema_name):
+        msg = f"OCP on Cloud summary disabled for {schema_name}."
+        LOG.info(msg)
+        return
     if isinstance(start_date, str):
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
@@ -689,7 +703,6 @@ def update_cost_model_costs(
     queue_name=None,
     synchronous=False,
     tracing_id=None,
-    is_amortized=None,
 ):
     """Update usage charge information.
 
@@ -718,7 +731,6 @@ def update_cost_model_costs(
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-                is_amortized=is_amortized,
             ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
@@ -738,7 +750,7 @@ def update_cost_model_costs(
     try:
         updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
-            updater.update_cost_model_costs(start_date, end_date, is_amortized=is_amortized)
+            updater.update_cost_model_costs(start_date, end_date)
         if provider_uuid:
             ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     except Exception as ex:

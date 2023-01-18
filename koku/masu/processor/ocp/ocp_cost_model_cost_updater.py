@@ -55,12 +55,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Whether the cost model calculations use amortized monthly costs."""
         return self._is_amortized
 
-    @is_amortized.setter
-    def is_amortized(self, is_amortized_override):
-        if is_amortized_override is True:
-            self._is_amortized = is_amortized_override
-            return
-
     @staticmethod
     def _normalize_tier(input_tier):
         """Normalize a tier for tiered rate calculations.

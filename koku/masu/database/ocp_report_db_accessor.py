@@ -31,6 +31,7 @@ from trino.exceptions import TrinoExternalError
 
 import koku.trino_database as trino_db
 from api.metrics import constants as metric_constants
+from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import JSONBBuildObject
 from koku.database import SQLScriptAtomicExecutorMixin
@@ -263,39 +264,49 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if not any([check_aws, check_azure, check_gcp]):
             return {}
 
+        check_flags = {
+            Provider.PROVIDER_AWS.lower(): check_aws,
+            Provider.PROVIDER_AZURE.lower(): check_azure,
+            Provider.PROVIDER_GCP.lower(): check_gcp,
+        }
+
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
             end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        infra_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpinfrastructure_provider_map.sql")
-        infra_sql = infra_sql.decode("utf-8")
-        infra_sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
-            "schema": self.schema,
-            "aws_provider_uuid": aws_provider_uuid,
-            "ocp_provider_uuid": ocp_provider_uuid,
-            "azure_provider_uuid": azure_provider_uuid,
-            "gcp_provider_uuid": gcp_provider_uuid,
-            "check_aws": check_aws,
-            "check_azure": check_azure,
-            "check_gcp": check_gcp,
-            "resource_level": resource_level,
-        }
-        infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
-        results = self._execute_presto_raw_sql_query(
-            self.schema,
-            infra_sql,
-            bind_params=infra_sql_params,
-            log_ref="reporting_ocpinfrastructure_provider_map.sql",
-        )
-        db_results = {}
-        for entry in results:
-            # This dictionary is keyed on an OpenShift provider UUID
-            # and the tuple contains
-            # (Infrastructure Provider UUID, Infrastructure Provider Type)
-            db_results[entry[0]] = (entry[1], entry[2])
+        for source_type, check_flag in check_flags.items():
+            db_results = {}
+            if check_flag:
+                infra_sql_params = {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "year": start_date.strftime("%Y"),
+                    "month": start_date.strftime("%m"),
+                    "schema": self.schema,
+                    "aws_provider_uuid": aws_provider_uuid,
+                    "ocp_provider_uuid": ocp_provider_uuid,
+                    "azure_provider_uuid": azure_provider_uuid,
+                    "gcp_provider_uuid": gcp_provider_uuid,
+                    "resource_level": resource_level,
+                }
+                infra_sql = pkgutil.get_data(
+                    "masu.database", f"presto_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
+                )
+                infra_sql = infra_sql.decode("utf-8")
+                infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
+                results = self._execute_presto_raw_sql_query(
+                    self.schema,
+                    infra_sql,
+                    bind_params=infra_sql_params,
+                    log_ref="reporting_ocpinfrastructure_provider_map.sql",
+                )
+                for entry in results:
+                    # This dictionary is keyed on an OpenShift provider UUID
+                    # and the tuple contains
+                    # (Infrastructure Provider UUID, Infrastructure Provider Type)
+                    db_results[entry[0]] = (entry[1], entry[2])
+                if db_results:
+                    # An OCP cluster can only run on a single source, so stop here if we found a match
+                    return db_results
         return db_results
 
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
@@ -1850,14 +1861,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
-            "cpu_usage_rate": Decimal(rates.get("cpu_core_usage_per_hour", 0)),
-            "cpu_request_rate": Decimal(rates.get("cpu_core_request_per_hour", 0)),
-            "cpu_effective_rate": Decimal(rates.get("cpu_core_effective_usage_per_hour", 0)),
-            "memory_usage_rate": Decimal(rates.get("memory_gb_usage_per_hour", 0)),
-            "memory_request_rate": Decimal(rates.get("memory_gb_request_per_hour", 0)),
-            "memory_effective_rate": Decimal(rates.get("memory_gb_effective_usage_per_hour", 0)),
-            "volume_usage_rate": Decimal(rates.get("storage_gb_usage_per_month", 0)),
-            "volume_request_rate": Decimal(rates.get("storage_gb_request_per_month", 0)),
+            "cpu_usage_rate": rates.get("cpu_core_usage_per_hour", 0),
+            "cpu_request_rate": rates.get("cpu_core_request_per_hour", 0),
+            "cpu_effective_rate": rates.get("cpu_core_effective_usage_per_hour", 0),
+            "memory_usage_rate": rates.get("memory_gb_usage_per_hour", 0),
+            "memory_request_rate": rates.get("memory_gb_request_per_hour", 0),
+            "memory_effective_rate": rates.get("memory_gb_effective_usage_per_hour", 0),
+            "volume_usage_rate": rates.get("storage_gb_usage_per_month", 0),
+            "volume_request_rate": rates.get("storage_gb_request_per_month", 0),
             "rate_type": rate_type,
         }
         cost_model_usage_sql, cost_model_usage_sql_params = self.jinja_sql.prepare_query(
