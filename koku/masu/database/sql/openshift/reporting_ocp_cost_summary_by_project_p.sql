@@ -16,6 +16,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     infrastructure_project_monthly_cost,
     supplementary_usage_cost,
     supplementary_project_monthly_cost,
+    cost_model_cpu_cost,
+    cost_model_memory_cost,
+    cost_model_volume_cost,
+    cost_model_rate_type,
     source_uuid,
     cost_category_id,
     raw_currency
@@ -48,6 +52,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
             'memory', sum(((coalesce(supplementary_project_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
             'pvc', sum(((coalesce(supplementary_project_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
         ) as supplementary_project_monthly_cost,
+        sum(cost_model_cpu_cost) as cost_model_cpu_cost,
+        sum(cost_model_memory_cost) as cost_model_memory_cost,
+        sum(cost_model_volume_cost) as cost_model_volume_cost,
+        cost_model_rate_type,
         {{source_uuid}}::uuid as source_uuid,
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency
@@ -55,5 +63,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
-    GROUP BY usage_start, cluster_id, cluster_alias, namespace
+    GROUP BY usage_start, cluster_id, cluster_alias, namespace, cost_model_rate_type
 ;

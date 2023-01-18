@@ -51,6 +51,7 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
@@ -92,12 +93,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return OCPUsageLineItemDailySummary
 
-    def get_current_usage_period(self):
+    def get_current_usage_period(self, provider_uuid):
         """Get the most recent usage report period object."""
-        table_name = self._table_map["report_period"]
-
         with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).order_by("-report_period_start").first()
+            return (
+                OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid).order_by("-report_period_start").first()
+            )
 
     def get_usage_period_by_dates_and_cluster(self, start_date, end_date, cluster_id):
         """Return all report period entries for the specified start date."""
@@ -558,6 +559,60 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cost_mapping.get(metric_constants.MEMORY_DISTRIBUTION, default_cost),
             Value(metric_constants.PVC_DISTRIBUTION),
             cost_mapping.get(metric_constants.PVC_DISTRIBUTION, default_cost),
+        )
+
+    def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
+        """
+        Populate the monthly cost of a customer.
+
+        There are three types of monthly rates Node, Cluster & PVC.
+
+        args:
+            cost_type (str): Contains the type of monthly cost. ex: "Node"
+            rate_type(str): Contains the metric name. ex: "node_cost_per_month"
+            rate (decimal): Contains the rate amount ex: 100.0
+            node_cost (Decimal): The node cost per month
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            cluster_id (str): The id of the cluster
+            cluster_alias: The name of the cluster
+            distribution: Choice of monthly distribution ex. memory
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        if cost_type in ("Node", "Cluster"):
+            summary_sql = pkgutil.get_data(
+                "masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql"
+            )
+        elif cost_type == "PVC":
+            summary_sql = pkgutil.get_data(
+                "masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql"
+            )
+
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "rate": rate,
+            "cost_type": cost_type,
+            "rate_type": rate_type,
+            "distribution": distribution,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info("Populating monthly cost from %s to %s.", start_date, end_date)
+        self._execute_raw_sql_query(
+            table_name,
+            summary_sql,
+            start_date,
+            end_date,
+            bind_params=list(summary_sql_params),
+            operation="INSERT",
         )
 
     def _namespace_to_category_mapping(self, start_date, end_date, cluster_id):
@@ -1734,6 +1789,48 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+
+    def populate_usage_costs_new_columns(self, rate_type, rates, start_date, end_date, cluster_id, provider_uuid):
+        """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
+        # NOTE: This method will replace populate_usage_costs and will be renamed to match
+        #       once fully switched over.
+        # Cast start_date and end_date to date object, if they aren't already
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        cost_model_usage_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/usage_costs.sql")
+
+        cost_model_usage_sql = cost_model_usage_sql.decode("utf-8")
+        usage_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "cpu_usage_rate": rates.get("cpu_core_usage_per_hour", 0),
+            "cpu_request_rate": rates.get("cpu_core_request_per_hour", 0),
+            "cpu_effective_rate": rates.get("cpu_core_effective_usage_per_hour", 0),
+            "memory_usage_rate": rates.get("memory_gb_usage_per_hour", 0),
+            "memory_request_rate": rates.get("memory_gb_request_per_hour", 0),
+            "memory_effective_rate": rates.get("memory_gb_effective_usage_per_hour", 0),
+            "volume_usage_rate": rates.get("storage_gb_usage_per_month", 0),
+            "volume_request_rate": rates.get("storage_gb_request_per_month", 0),
+            "rate_type": rate_type,
+        }
+        cost_model_usage_sql, cost_model_usage_sql_params = self.jinja_sql.prepare_query(
+            cost_model_usage_sql, usage_sql_params
+        )
+        LOG.info("Populating %s usage cost from %s to %s.", rate_type, start_date, end_date)
+        self._execute_raw_sql_query(
+            table_name,
+            cost_model_usage_sql,
+            start_date,
+            end_date,
+            bind_params=list(cost_model_usage_sql_params),
+            operation="INSERT",
+        )
 
     def populate_usage_costs(self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
