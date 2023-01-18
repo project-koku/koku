@@ -771,8 +771,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             with self.assertRaises(ValidationError):
                 self.mocked_query_params(url, OCPCostView)
 
-    def test_ocp_date_order_by_cost_desc(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_ocp_date_order_by_cost_desc(self, mock_amortized):
         """Test that order of every other date matches the order of the `order_by` date."""
+        mock_amortized.return_value = True
         tested = False
         yesterday = self.dh.yesterday.date()
         url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
@@ -846,8 +848,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_exclude_functionality(self, mock_unleash, _):
         """Test that the exclude feature works for all options."""
+        mock_unleash.return_value = True
         exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")  # Tested separately
         exclude_opts.remove("category")

@@ -696,7 +696,13 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False, tracing_id=None
+    schema_name,
+    provider_uuid,
+    start_date=None,
+    end_date=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
 ):
     """Update usage charge information.
 
