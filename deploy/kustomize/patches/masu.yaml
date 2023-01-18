@@ -203,14 +203,14 @@
     displayName: Memory Request
     name: MASU_MEMORY_REQUEST
     required: true
-    value: 350Mi
+    value: 600Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: MASU_MEMORY_LIMIT
     required: true
-    value: 700Mi
+    value: 800Mi
 - op: add
   path: /parameters/-
   value:

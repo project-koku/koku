@@ -201,7 +201,7 @@
     displayName: Memory Request
     name: WORKER_COST_MODEL_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 400Mi
 - op: add
   path: /parameters/-
   value:
