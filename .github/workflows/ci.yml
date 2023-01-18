@@ -26,7 +26,12 @@ jobs:
           SETUPTOOLS_USE_DISTUTILS: stdlib
 
       - name: Check clowdapp manifest
-        run: bash .github/scripts/check_clowdapp.sh
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          retry_on: error
+          command: bash .github/scripts/check_clowdapp.sh
 
   smokes-labeler:
     name: Smoke Test Label
