@@ -87,7 +87,7 @@ class CostModelCostUpdater:
             end_date = ciso8601.parse_datetime(end_date).date()
         return start_date, end_date
 
-    def update_cost_model_costs(self, start_date=None, end_date=None, is_amortized=None):
+    def update_cost_model_costs(self, start_date=None, end_date=None):
         """
         Update usage charge information.
 
