@@ -50,11 +50,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution
 
-    @property
-    def is_amortized(self):
-        """Whether the cost model calculations use amortized monthly costs."""
-        return self._is_amortized
-
     @staticmethod
     def _normalize_tier(input_tier):
         """Normalize a tier for tiered rate calculations.
@@ -175,54 +170,103 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
         LOG.info("Finished updating markup.")
 
-    def _build_node_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}):
-        """Given a tag key, value, and rate return a CASE SQL statement."""
+    def _build_node_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}, unallocated=False):
+        """Given a tag key, value, and rate return a CASE SQL statement for tag based monthly SQL."""
         case_dict = {}
+        cpu_distribution_term = """
+            sum(pod_effective_usage_cpu_core_hours)
+                / max(node_capacity_cpu_core_hours)
+        """
+        memory_distribution_term = """
+            sum(pod_effective_usage_memory_gigabyte_hours)
+                / max(node_capacity_memory_gigabyte_hours)
+        """
+
+        if unallocated is True:
+            cpu_distribution_term = """
+                (max(node_capacity_cpu_core_hours) - sum(pod_effective_usage_cpu_core_hours))
+                    / max(node_capacity_cpu_core_hours)
+            """
+            memory_distribution_term = """
+                (max(node_capacity_memory_gigabyte_hours) - sum(pod_effective_usage_memory_gigabyte_hours))
+                    / max(node_capacity_memory_gigabyte_hours)
+            """
+
         for tag_key, tag_value_rates in rate_dict.items():
             cpu_statement_list = ["CASE"]
             memory_statement_list = ["CASE"]
             for tag_value, rate_value in tag_value_rates.items():
+                label_condition = f"pod_labels->>'{tag_key}'='{tag_value}'"
+                if unallocated is True:
+                    label_condition_list = ["pod_labels = '{", f'"{tag_key}": "{tag_value}"', "}'"]
+                    label_condition = "".join(label_condition_list)
                 rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
                 cpu_statement_list.append(
                     f"""
-                        WHEN pod_labels->>'{tag_key}'='{tag_value}' AND '{self._distribution}' = 'cpu'
-                            THEN sum(pod_effective_usage_cpu_core_hours)
-                                / max(node_capacity_cpu_core_hours)
+                        WHEN {label_condition}
+                            THEN {cpu_distribution_term}
                                 * {rate}::decimal
                     """
                 )
                 memory_statement_list.append(
                     f"""
-                        WHEN pod_labels->>'{tag_key}'='{tag_value}' AND '{self._distribution}' = 'memory'
-                            THEN sum(pod_effective_usage_memory_gigabyte_hours)
-                                / max(node_capacity_memory_gigabyte_hours)
+                        WHEN {label_condition}
+                            THEN {memory_distribution_term}
                                 * {rate}::decimal
                     """
                 )
             if default_rate_dict:
                 rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
                 rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                # The SQL file already filters results that have the tag key
                 cpu_statement_list.append(
                     f"""
-                        ELSE sum(pod_effective_usage_cpu_core_hours)
-                            / max(node_capacity_cpu_core_hours)
+                        ELSE {cpu_distribution_term}
                             * {rate}::decimal
                     """
                 )
                 memory_statement_list.append(
                     f"""
-                        ELSE sum(pod_effective_usage_memory_gigabyte_hours)
-                            / max(node_capacity_memory_gigabyte_hours)
+                        ELSE {memory_distribution_term}
                             * {rate}::decimal
                     """
                 )
             cpu_statement_list.append("END as cost_model_cpu_cost")
             memory_statement_list.append("END as cost_model_memory_cost")
-            case_dict[tag_key] = (
-                "\n".join(cpu_statement_list),
-                "\n".join(memory_statement_list),
-                "NULL as cost_model_volume_cost",
-            )
+            if self._distribution == metric_constants.CPU_DISTRIBUTION:
+                case_dict[tag_key] = (
+                    "\n".join(cpu_statement_list),
+                    "NULL::decimal as cost_model_memory_cost",
+                    "NULL::decimal as cost_model_volume_cost",
+                )
+            elif self._distribution == metric_constants.MEMORY_DISTRIBUTION:
+                case_dict[tag_key] = (
+                    "NULL::decimal as cost_model_cpu_cost",
+                    "\n".join(memory_statement_list),
+                    "NULL::decimal as cost_model_volume_cost",
+                )
+        return case_dict
+
+    def _build_labels_case_statement_str(self, rate_dict, label_type, default_rate=None):
+        """Build a CASE statement to set pod or volume labels for tag base monthly SQL."""
+        case_dict = {}
+        for tag_key, tag_value_rates in rate_dict.items():
+            statement_list = ["CASE"]
+            for tag_value in tag_value_rates:
+                statement_list.append(
+                    f"""
+                        WHEN {label_type}->>'{tag_key}'='{tag_value}'
+                            THEN '{{"{tag_key}": "{tag_value}"}}'
+                    """
+                )
+            if default_rate:
+                statement_list.append(
+                    f"""
+                    ELSE '{{"{tag_key}": "' || cast({label_type}->>'{tag_key}' as text) || '"}}'
+                    """
+                )
+            statement_list.append(f"END as {label_type}")
+            case_dict[tag_key] = "\n".join(statement_list)
         return case_dict
 
     def _build_volume_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}):
@@ -280,7 +324,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    if self.is_amortized:
+                    if self._is_amortized:
                         if rate:
                             amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
                             report_accessor.populate_monthly_cost_sql(
@@ -397,17 +441,33 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             key_rate_dict = self._build_node_tag_rate_case_statement_str(
                                 rate_dict, start_date, default_rate_dict
                             )
+                            unallocated_key_rate_dict = self._build_node_tag_rate_case_statement_str(
+                                rate_dict, start_date, default_rate_dict, unallocated=True
+                            )
+                            labels = self._build_labels_case_statement_str(
+                                rate_dict, "pod_labels", default_rate=default_rate_dict
+                            )
                         elif cost_type == "PVC":
                             key_rate_dict = self._build_volume_tag_rate_case_statement_str(
                                 rate_dict, start_date, default_rate_dict
                             )
+                            labels = self._build_labels_case_statement_str(
+                                rate_dict, "volume_labels", default_rate=default_rate_dict
+                            )
 
                         for tag_key, case_statements in key_rate_dict.items():
+                            unallocated_case_statements = unallocated_key_rate_dict.get(tag_key, {})
+                            label_case_statements = labels.get(tag_key)
+                            case_dict = {
+                                "allocated": case_statements,
+                                "unallocated": unallocated_case_statements,
+                                "labels": label_case_statements,
+                            }
                             report_accessor.populate_monthly_tag_cost_sql(
                                 cost_type,
                                 rate_type,
                                 tag_key,
-                                case_statements,
+                                case_dict,
                                 start_date,
                                 end_date,
                                 self._distribution,
@@ -469,7 +529,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            if self.is_amortized:
+            if self._is_amortized:
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.INFRASTRUCTURE_COST_TYPE,
                     self._infra_rates,
@@ -559,7 +619,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
             self._update_tag_usage_costs(start_date, end_date)
             self._update_tag_usage_default_costs(start_date, end_date)
-            if self.is_amortized:
+            if self._is_amortized:
                 self._update_monthly_tag_based_cost_amortized(start_date, end_date)
             else:
                 self._update_monthly_tag_based_cost(start_date, end_date)
