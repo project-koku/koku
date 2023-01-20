@@ -605,7 +605,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "distribution": distribution,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        LOG.info("Populating monthly cost from %s to %s.", start_date, end_date)
+        LOG.info("Populating monthly %s %s cost from %s to %s.", rate_type, cost_type, start_date, end_date)
         self._execute_raw_sql_query(
             table_name,
             summary_sql,
@@ -710,7 +710,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
 
     def populate_monthly_tag_cost_sql(  # noqa: C901
-        self, cost_type, rate_type, tag_key, case_statements, start_date, end_date, distribution, provider_uuid
+        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -723,7 +723,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             report_period_id = report_period.id
 
-        cpu_case, memory_case, volume_case = case_statements
+        cpu_case, memory_case, volume_case = case_dict.get("allocated")
+        labels = case_dict.get("labels")
 
         if cost_type == "Node":
             summary_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
@@ -746,12 +747,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "rate_type": rate_type,
             "distribution": distribution,
             "tag_key": tag_key,
+            "labels": labels,
         }
-        LOG.info(summary_sql_params)
+
+        if case_dict.get("unallocated"):
+            unallocated_cpu_case, unallocated_memory_case, unallocated_volume_case = case_dict.get("unallocated")
+            summary_sql_params["unallocated_cost_model_cpu_cost"] = unallocated_cpu_case
+            summary_sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
+            summary_sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
+
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        LOG.info("Populating monthly tag cost from %s to %s.", start_date, end_date)
-        LOG.info(summary_sql)
-        LOG.info(summary_sql_params)
+        LOG.info("Populating monthly %s %s tag cost from %s to %s.", rate_type, cost_type, start_date, end_date)
         self._execute_raw_sql_query(
             table_name,
             summary_sql,
