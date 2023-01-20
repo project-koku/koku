@@ -102,7 +102,5 @@ class CostModelCostUpdater:
         start_date, end_date = self._format_dates(start_date, end_date)
 
         if self._updater:
-            if isinstance(self._updater, OCPCostModelCostUpdater):
-                self._updater.is_amortized = is_amortized
             self._updater.update_summary_cost_model_costs(start_date, end_date)
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
