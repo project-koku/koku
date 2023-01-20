@@ -287,3 +287,6 @@ FROM cte_unallocated AS uc
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
     ON uc.namespace LIKE ANY(cat.namespace)
 ;
+
+DROP TABLE label_filtered_daily_summary
+;

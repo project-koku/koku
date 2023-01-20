@@ -795,14 +795,13 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         management_rate_amor = get_amortized_monthly_cost_model_rate(management_rate, start_date)
         default_rate_amor = get_amortized_monthly_cost_model_rate(default_rate, start_date)
 
-        expected_case_strs = (
-            f"""
+        cpu_case_str = f"""
             CASE
-            WHEN pod_labels->>'app'='cost' AND 'cpu' = 'cpu'
+            WHEN pod_labels->>'app'='cost'
                 THEN sum(pod_effective_usage_cpu_core_hours)
                     / max(node_capacity_cpu_core_hours)
                     * {cost_rate_amor}::decimal
-            WHEN pod_labels->>'app'='management' AND 'cpu' = 'cpu'
+            WHEN pod_labels->>'app'='management'
                 THEN sum(pod_effective_usage_cpu_core_hours)
                     / max(node_capacity_cpu_core_hours)
                     * {management_rate_amor}::decimal
@@ -810,14 +809,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 / max(node_capacity_cpu_core_hours)
                 * {default_rate_amor}::decimal
             END as cost_model_cpu_cost
-            """,
-            f"""
+        """
+        memory_case_str = f"""
             CASE
-            WHEN pod_labels->>'app'='cost' AND 'cpu' = 'memory'
+            WHEN pod_labels->>'app'='cost'
                 THEN sum(pod_effective_usage_memory_gigabyte_hours)
                     / max(node_capacity_memory_gigabyte_hours)
                     * {cost_rate_amor}::decimal
-            WHEN pod_labels->>'app'='management' AND 'cpu' = 'memory'
+            WHEN pod_labels->>'app'='management'
                 THEN sum(pod_effective_usage_memory_gigabyte_hours)
                     / max(node_capacity_memory_gigabyte_hours)
                     * {management_rate_amor}::decimal
@@ -825,10 +824,27 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 / max(node_capacity_memory_gigabyte_hours)
                 * {default_rate_amor}::decimal
             END as cost_model_memory_cost
-        """,
-            "NULL as cost_model_volume_cost",
+        """
+        expected_case_strs = (
+            cpu_case_str,
+            "NULL::decimal as cost_model_memory_cost",
+            "NULL::decimal as cost_model_volume_cost",
         )
 
+        case_dict = self.updater._build_node_tag_rate_case_statement_str(
+            tag_rate_dict, start_date, default_rate_dict=default_rate_dict
+        )
+
+        for actual, expected in zip(case_dict.get(tag_key), expected_case_strs):
+            self.assertEqual(actual.replace("\n", "").replace(" ", ""), expected.replace("\n", "").replace(" ", ""))
+
+        expected_case_strs = (
+            "NULL::decimal as cost_model_cpu_cost",
+            memory_case_str,
+            "NULL::decimal as cost_model_volume_cost",
+        )
+
+        self.updater._distribution = metric_constants.MEMORY_DISTRIBUTION
         case_dict = self.updater._build_node_tag_rate_case_statement_str(
             tag_rate_dict, start_date, default_rate_dict=default_rate_dict
         )
@@ -852,8 +868,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         default_rate_amor = get_amortized_monthly_cost_model_rate(default_rate, start_date)
 
         expected_case_strs = (
-            "NULL as cost_model_cpu_cost",
-            "NULL as cost_model_memory_cost",
+            "NULL::decimal as cost_model_cpu_cost",
+            "NULL::decimal as cost_model_memory_cost",
             f"""
             CASE
             WHEN volume_labels->>'app'='cost'
