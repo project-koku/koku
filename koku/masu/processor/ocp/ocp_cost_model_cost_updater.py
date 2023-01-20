@@ -288,8 +288,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
             volume_statement_list.append("END as cost_model_volume_cost")
             case_dict[tag_key] = (
-                "NULL as cost_model_cpu_cost",
-                "NULL as cost_model_memory_cost",
+                "NULL::decimal as cost_model_cpu_cost",
+                "NULL::decimal as cost_model_memory_cost",
                 "\n".join(volume_statement_list),
             )
         return case_dict
