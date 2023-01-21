@@ -198,8 +198,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             for tag_value, rate_value in tag_value_rates.items():
                 label_condition = f"pod_labels->>'{tag_key}'='{tag_value}'"
                 if unallocated is True:
-                    label_condition_list = ["pod_labels = '{", f'"{tag_key}": "{tag_value}"', "}'"]
-                    label_condition = "".join(label_condition_list)
+                    label_condition = f'pod_labels = \'{{"{tag_key}": "{tag_value}"}}\''
                 rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
                 cpu_statement_list.append(
                     f"""
