@@ -39,10 +39,8 @@ generators:
   - OCIDatabaseGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
-      start_date: 2022-12-01
-      consumed_quantity: 27891
-      end_date: 2023-01-02
       unit_price: 0.171
+      consumed_quantity: 27891
       currency: USD
       compartment_name: richardprice
       tenant_id: ocid1.tenancy.oc1..EfjkUPxyZSYLvd
