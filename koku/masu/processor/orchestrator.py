@@ -346,15 +346,15 @@ class Orchestrator:
         dh = DateHelper()
         start_date = dh.today
         account["report_month"] = start_date
-        # try:
-        _, reports_tasks_queued = self.start_manifest_processing(**account)
-        LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
-        # except ReportDownloaderError as err:
-        #     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-        # except Exception as err:
-        #     # Broad exception catching is important here because any errors thrown can
-        #     # block all subsequent account processing.
-        #     LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+        try:
+            _, reports_tasks_queued = self.start_manifest_processing(**account)
+            LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
+        except ReportDownloaderError as err:
+            LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+        except Exception as err:
+            # Broad exception catching is important here because any errors thrown can
+            # block all subsequent account processing.
+            LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
 
         return
 
