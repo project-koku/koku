@@ -103,7 +103,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.bucket = bucket
         report_defs = defs.get("ReportDefinitions", [])
         report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
-
         if not report:
             raise MasuProviderError("Cost and Usage Report definition not found.")
 
@@ -177,6 +176,10 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
+        # Checking if initial ingest is for a HCS manifest DO NOT PROCESS
+        if "Parquet" == self.report.get("Compression"):
+            LOG.info("Skipping ingest since data is Parquet compressed and likely for HCS")
+            return "", self.empty_manifest, None
         manifest = f"{self._get_report_path(date_time)}/{self.report_name}-Manifest.json"
         msg = f"Will attempt to download manifest: {manifest}"
         LOG.info(log_json(self.tracing_id, msg, self.context))

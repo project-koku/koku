@@ -69,7 +69,7 @@ class HCSView(APIView):
         """Handle posted HCS reports."""
         data = {
             "provider": request.data.get("provider"),
-            "report_location": request.data.get("report_location"),
+            "reports_list": request.data.get("reports_list"),
         }
         serializer = HCSReportSerializer(data=data)
         if serializer.is_valid():

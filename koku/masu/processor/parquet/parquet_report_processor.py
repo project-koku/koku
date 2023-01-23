@@ -434,41 +434,41 @@ class ParquetReportProcessor:
         msg = f"Running convert_csv_to_parquet on file {csv_filename}."
         LOG.info(log_json(self.tracing_id, msg, self.error_context))
 
-        try:
-            col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
-            csv_converters = {
-                col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-            }
-            csv_converters.update({col: str for col in col_names if col not in csv_converters})
-            with pd.read_csv(
-                csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
-            ) as reader:
-                for i, data_frame in enumerate(reader):
-                    if data_frame.empty:
-                        continue
-                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
-                    parquet_file = f"{self.local_path}/{parquet_filename}"
-                    if self.post_processor:
-                        data_frame = self.post_processor(data_frame)
-                        if isinstance(data_frame, tuple):
-                            data_frame, data_frame_tag_keys = data_frame
-                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
-                            unique_keys.update(data_frame_tag_keys)
-                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                    if self.daily_data_processor is not None:
-                        daily_data_frames.append(self.daily_data_processor(data_frame))
-                    success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
-                    if not success:
-                        return parquet_base_filename, daily_data_frames, False
-            if self.create_table and not self.presto_table_exists.get(self.report_type):
-                self.create_parquet_table(parquet_file)
-            create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
-        except Exception as err:
-            msg = (
-                f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
-            )
-            LOG.warn(log_json(self.tracing_id, msg, self.error_context))
-            return parquet_base_filename, daily_data_frames, False
+        # try:
+        col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
+        csv_converters = {
+            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
+        }
+        csv_converters.update({col: str for col in col_names if col not in csv_converters})
+        with pd.read_csv(
+            csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+        ) as reader:
+            for i, data_frame in enumerate(reader):
+                if data_frame.empty:
+                    continue
+                parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
+                parquet_file = f"{self.local_path}/{parquet_filename}"
+                if self.post_processor:
+                    data_frame = self.post_processor(data_frame)
+                    if isinstance(data_frame, tuple):
+                        data_frame, data_frame_tag_keys = data_frame
+                        LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
+                        unique_keys.update(data_frame_tag_keys)
+                        LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                if self.daily_data_processor is not None:
+                    daily_data_frames.append(self.daily_data_processor(data_frame))
+                success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
+                if not success:
+                    return parquet_base_filename, daily_data_frames, False
+        if self.create_table and not self.presto_table_exists.get(self.report_type):
+            self.create_parquet_table(parquet_file)
+        create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
+        # except Exception as err:
+        #     msg = (
+        #         f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
+        #     )
+        #     LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+        #     return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
 

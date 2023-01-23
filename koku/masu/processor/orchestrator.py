@@ -57,6 +57,7 @@ class Orchestrator:
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.queue_name = queue_name
+        self.hcs_reports = kwargs.get("hcs_reports")
         self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
@@ -162,6 +163,7 @@ class Orchestrator:
             provider_type=provider_type,
             provider_uuid=provider_uuid,
             report_name=None,
+            hcs_reports=self.hcs_reports,
         )
         # only gcp returns more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
@@ -241,6 +243,7 @@ class Orchestrator:
                         provider_uuid,
                         report_month,
                         report_context,
+                        hcs_reports=self.hcs_reports,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
@@ -268,13 +271,14 @@ class Orchestrator:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
 
-            if provider_type in [
+            if self.hcs_reports:
+                self.prepare_continious_report_sources(account, provider_uuid)
+            elif provider_type in [
                 Provider.PROVIDER_OCI,
                 Provider.PROVIDER_OCI_LOCAL,
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
-
                 self.prepare_continious_report_sources(account, provider_uuid)
             else:
                 self.prepare_monthly_report_sources(account, provider_uuid)
@@ -342,15 +346,15 @@ class Orchestrator:
         dh = DateHelper()
         start_date = dh.today
         account["report_month"] = start_date
-        try:
-            _, reports_tasks_queued = self.start_manifest_processing(**account)
-            LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
-        except ReportDownloaderError as err:
-            LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-        except Exception as err:
-            # Broad exception catching is important here because any errors thrown can
-            # block all subsequent account processing.
-            LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+        # try:
+        _, reports_tasks_queued = self.start_manifest_processing(**account)
+        LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
+        # except ReportDownloaderError as err:
+        #     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+        # except Exception as err:
+        #     # Broad exception catching is important here because any errors thrown can
+        #     # block all subsequent account processing.
+        #     LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
 
         return
 
