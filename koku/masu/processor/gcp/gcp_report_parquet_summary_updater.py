@@ -41,7 +41,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date, invoice_month):
+    def update_daily_tables(self, start_date, end_date, **kwargs):
         """Populate the daily tables for reporting.
 
         Args:
@@ -57,7 +57,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date, invoice_month):
+    def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
         Args:
@@ -68,6 +68,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             (str, str) A start date and end date.
 
         """
+        invoice_month = kwargs.get("invoice_month")
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:

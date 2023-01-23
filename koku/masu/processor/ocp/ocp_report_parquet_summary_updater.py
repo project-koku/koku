@@ -77,7 +77,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 start_date = min_timestamp.date()
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date, end_date, **kwargs):
         """Populate the daily tables for reporting.
 
         Args:
@@ -93,7 +93,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
         Args:

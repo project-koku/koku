@@ -53,7 +53,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date, end_date, **kwargs):
         """Populate the daily tables for reporting.
 
         Args:
@@ -69,7 +69,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
         Args:
