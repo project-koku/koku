@@ -2,7 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""HCS Local Report Downloader."""
+"""Minimalist Report Downloader."""
 import logging
 import os
 import uuid
@@ -24,22 +24,22 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-class HCSReportDownloaderNoFileError(Exception):
-    """HCS Report Downloader error for missing file."""
+class MinimalReportDownloaderNoFileError(Exception):
+    """Minimal Report Downloader error for missing file."""
 
 
-class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
+class MinimalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
-    HCS Cost and Usage Report Downloader.
+    Minimal Cost and Usage Report Downloader.
     """
 
-    def __init__(self, customer_name, credentials, hcs_reports, **kwargs):
+    def __init__(self, customer_name, credentials, minimal_reports, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            hcs_reports      (list of strings) List of HCS reports for processing
+            minimal_reports      (list of strings) List of Minimal reports for processing
 
         """
         super().__init__(**kwargs)
@@ -47,7 +47,7 @@ class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         arn = credentials.get("role_arn")
         self.customer_name = customer_name.replace(" ", "_")
         self._provider_uuid = kwargs.get("provider_uuid")
-        self.hcs_reports = hcs_reports
+        self.minimal_reports = minimal_reports
 
         LOG.debug("Connecting to AWS...")
         session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
@@ -57,7 +57,7 @@ class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
-        For HCS we don't care about the dates since these are manually posted files.
+        For Minimal we don't care about the dates since these are manually posted files.
 
         Args:
             date (Date): The starting datetime object
@@ -91,7 +91,7 @@ class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Generate a dict representing an analog to other providers "manifest" files.
 
-        HCS does not produce a manifest file for monthly periods. So we check for
+        Minimal does not produce a manifest file for monthly periods. So we check for
         files in the bucket based on what the customer posts.
 
         Args:
@@ -109,7 +109,7 @@ class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "assembly_id": uuid.uuid4(),
             "compression": UNCOMPRESSED,
             "start_date": date,
-            "file_names": self.hcs_reports,
+            "file_names": self.minimal_reports,
         }
         LOG.info(f"Manifest Data: {str(manifest_data)}")
         return manifest_data
@@ -128,7 +128,7 @@ class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         bucket = key.split("/")[0]
         s3_file = key.split(f"{bucket}/")[-1]
         s3_filename = key.split("/")[-1]
-        directory_path = f"{DATA_DIR}/{self.customer_name}/hcs/aws/{bucket}"
+        directory_path = f"{DATA_DIR}/{self.customer_name}/minimal-reports/aws/{bucket}"
         local_s3_filename = utils.get_local_file_name(key)
 
         msg = f"Local S3 filename: {s3_filename}"
@@ -147,7 +147,7 @@ class HCSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if ex.response["Error"]["Code"] == "NoSuchKey":
                 msg = f"Unable to find {s3_filename} in S3 Bucket: {bucket}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
-                raise HCSReportDownloaderNoFileError(msg)
+                raise MinimalReportDownloaderNoFileError(msg)
 
         msg = f"Downloading key: {s3_file} to file path: {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))

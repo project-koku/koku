@@ -25,7 +25,7 @@ def _get_report_files(
     provider_uuid,
     report_month,
     report_context,
-    hcs_reports=None,
+    minimal_reports=None,
 ):
     """
     Task to download a Report.
@@ -83,7 +83,7 @@ def _get_report_files(
         provider_type=provider_type,
         provider_uuid=provider_uuid,
         report_name=None,
-        hcs_reports=hcs_reports,
+        minimal_reports=minimal_reports,
         account=download_acct,
         tracing_id=tracing_id,
     )

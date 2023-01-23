@@ -140,7 +140,7 @@ def get_report_files(  # noqa: C901
     provider_uuid,
     report_month,
     report_context,
-    hcs_reports=None,
+    minimal_reports=None,
     tracing_id=None,
 ):
     """
@@ -190,7 +190,7 @@ def get_report_files(  # noqa: C901
                 provider_uuid,
                 month,
                 report_context,
-                hcs_reports,
+                minimal_reports,
             )
         except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
             worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()

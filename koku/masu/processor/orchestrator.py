@@ -57,7 +57,7 @@ class Orchestrator:
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.queue_name = queue_name
-        self.hcs_reports = kwargs.get("hcs_reports")
+        self.minimal_reports = kwargs.get("minimal_reports")
         self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
@@ -163,7 +163,7 @@ class Orchestrator:
             provider_type=provider_type,
             provider_uuid=provider_uuid,
             report_name=None,
-            hcs_reports=self.hcs_reports,
+            minimal_reports=self.minimal_reports,
         )
         # only gcp returns more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
@@ -243,7 +243,7 @@ class Orchestrator:
                         provider_uuid,
                         report_month,
                         report_context,
-                        hcs_reports=self.hcs_reports,
+                        minimal_reports=self.minimal_reports,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
@@ -271,7 +271,7 @@ class Orchestrator:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
 
-            if self.hcs_reports:
+            if self.minimal_reports:
                 self.prepare_continious_report_sources(account, provider_uuid)
             elif provider_type in [
                 Provider.PROVIDER_OCI,
