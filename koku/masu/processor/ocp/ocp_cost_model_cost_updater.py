@@ -50,11 +50,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution
 
-    @property
-    def is_amortized(self):
-        """Whether the cost model calculations use amortized monthly costs."""
-        return self._is_amortized
-
     @staticmethod
     def _normalize_tier(input_tier):
         """Normalize a tier for tiered rate calculations.
@@ -175,6 +170,129 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
         LOG.info("Finished updating markup.")
 
+    def _build_node_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}, unallocated=False):
+        """Given a tag key, value, and rate return a CASE SQL statement for tag based monthly SQL."""
+        case_dict = {}
+        cpu_distribution_term = """
+            sum(pod_effective_usage_cpu_core_hours)
+                / max(node_capacity_cpu_core_hours)
+        """
+        memory_distribution_term = """
+            sum(pod_effective_usage_memory_gigabyte_hours)
+                / max(node_capacity_memory_gigabyte_hours)
+        """
+
+        if unallocated is True:
+            cpu_distribution_term = """
+                (max(node_capacity_cpu_core_hours) - sum(pod_effective_usage_cpu_core_hours))
+                    / max(node_capacity_cpu_core_hours)
+            """
+            memory_distribution_term = """
+                (max(node_capacity_memory_gigabyte_hours) - sum(pod_effective_usage_memory_gigabyte_hours))
+                    / max(node_capacity_memory_gigabyte_hours)
+            """
+
+        for tag_key, tag_value_rates in rate_dict.items():
+            cpu_statement_list = ["CASE"]
+            memory_statement_list = ["CASE"]
+            for tag_value, rate_value in tag_value_rates.items():
+                label_condition = f"pod_labels->>'{tag_key}'='{tag_value}'"
+                if unallocated is True:
+                    label_condition = f'pod_labels = \'{{"{tag_key}": "{tag_value}"}}\''
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                cpu_statement_list.append(
+                    f"""
+                        WHEN {label_condition}
+                            THEN {cpu_distribution_term}
+                                * {rate}::decimal
+                    """
+                )
+                memory_statement_list.append(
+                    f"""
+                        WHEN {label_condition}
+                            THEN {memory_distribution_term}
+                                * {rate}::decimal
+                    """
+                )
+            if default_rate_dict:
+                rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                # The SQL file already filters results that have the tag key
+                cpu_statement_list.append(
+                    f"""
+                        ELSE {cpu_distribution_term}
+                            * {rate}::decimal
+                    """
+                )
+                memory_statement_list.append(
+                    f"""
+                        ELSE {memory_distribution_term}
+                            * {rate}::decimal
+                    """
+                )
+            cpu_statement_list.append("END as cost_model_cpu_cost")
+            memory_statement_list.append("END as cost_model_memory_cost")
+            if self._distribution == metric_constants.CPU_DISTRIBUTION:
+                case_dict[tag_key] = (
+                    "\n".join(cpu_statement_list),
+                    "NULL::decimal as cost_model_memory_cost",
+                    "NULL::decimal as cost_model_volume_cost",
+                )
+            elif self._distribution == metric_constants.MEMORY_DISTRIBUTION:
+                case_dict[tag_key] = (
+                    "NULL::decimal as cost_model_cpu_cost",
+                    "\n".join(memory_statement_list),
+                    "NULL::decimal as cost_model_volume_cost",
+                )
+        return case_dict
+
+    def _build_labels_case_statement(self, rate_dict, label_type, default_rate=None):
+        """Build a CASE statement to set pod or volume labels for tag base monthly SQL."""
+        case_dict = {}
+        for tag_key, tag_value_rates in rate_dict.items():
+            statement_list = ["CASE"]
+            for tag_value in tag_value_rates:
+                statement_list.append(
+                    f"""
+                        WHEN {label_type}->>'{tag_key}'='{tag_value}'
+                            THEN '{{"{tag_key}": "{tag_value}"}}'
+                    """
+                )
+            if default_rate:
+                statement_list.append(
+                    f"""
+                    ELSE '{{"{tag_key}": "' || cast({label_type}->>'{tag_key}' as text) || '"}}'
+                    """
+                )
+            statement_list.append(f"END as {label_type}")
+            case_dict[tag_key] = "\n".join(statement_list)
+        return case_dict
+
+    def _build_volume_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}):
+        """Given a tag key, value, and rate return a CASE SQL statement."""
+        case_dict = {}
+        for tag_key, tag_value_rates in rate_dict.items():
+            volume_statement_list = ["CASE"]
+            for tag_value, rate_value in tag_value_rates.items():
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                volume_statement_list.append(
+                    f"""
+                        WHEN volume_labels->>'{tag_key}'='{tag_value}'
+                            THEN {rate}::decimal / vc.pvc_count
+                    """
+                )
+            if default_rate_dict:
+                rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
+                rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
+                volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
+            volume_statement_list.append("END as cost_model_volume_cost")
+            case_dict[tag_key] = (
+                "NULL::decimal as cost_model_cpu_cost",
+                "NULL::decimal as cost_model_memory_cost",
+                "\n".join(volume_statement_list),
+            )
+        return case_dict
+
     def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
@@ -205,7 +323,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    if self.is_amortized:
+                    if self._is_amortized:
                         if rate:
                             amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
                             report_accessor.populate_monthly_cost_sql(
@@ -245,14 +363,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                             if not self._tag_infra_rates.get(rate_term, {}):
                                 continue
-                            rate = self._tag_infra_rates.get(rate_term)
+                            rate_dict = self._tag_infra_rates.get(rate_term)
                         else:
                             if not self._tag_supplementary_rates.get(rate_term, {}):
                                 continue
-                            rate = self._tag_supplementary_rates.get(rate_term)
+                            rate_dict = self._tag_supplementary_rates.get(rate_term)
 
                         log_msg = "Updating"
-                        if rate is None:
+                        if rate_dict is None:
                             log_msg = "Removing"
 
                         LOG.info(
@@ -270,7 +388,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         report_accessor.populate_monthly_tag_cost(
                             cost_type,
                             rate_type,
-                            rate,
+                            rate_dict,
                             start_date,
                             end_date,
                             self._cluster_id,
@@ -278,6 +396,92 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             self._distribution,
                             self._provider_uuid,
                         )
+
+        except OCPCostModelCostUpdaterError as error:
+            LOG.error("Unable to update monthly costs. Error: %s", str(error))
+
+    def _get_all_monthly_tag_based_case_statements(self, openshift_resource_type, rates, default_rates, start_date):
+        """Call and organize cost, unallocated, and label case statements."""
+        cost_case_statements = {}
+        combined_case_statements = {}
+        if openshift_resource_type == "Node":
+            cost_case_statements = self._build_node_tag_cost_case_statements(rates, start_date, default_rates)
+            unallocated_cost_case_statements = self._build_node_tag_cost_case_statements(
+                rates, start_date, default_rates, unallocated=True
+            )
+            labels_case_statement = self._build_labels_case_statement(rates, "pod_labels", default_rate=default_rates)
+        elif openshift_resource_type == "PVC":
+            cost_case_statements = self._build_volume_tag_cost_case_statements(rates, start_date, default_rates)
+            # No unallocated cost for volumes
+            unallocated_cost_case_statements = {}
+            labels_case_statement = self._build_labels_case_statement(
+                rates, "volume_labels", default_rate=default_rates
+            )
+
+        for tag_key in cost_case_statements:
+            combined_case_statements[tag_key] = {
+                "cost": cost_case_statements.get(tag_key, {}),
+                "unallocated": unallocated_cost_case_statements.get(tag_key, {}),
+                "labels": labels_case_statement.get(tag_key, {}),
+            }
+        return combined_case_statements
+
+    def _update_monthly_tag_based_cost_amortized(self, start_date, end_date):  # noqa: C901
+        """Update the monthly cost for a period of time based on tag rates."""
+        try:
+            with OCPReportDBAccessor(self._schema) as report_accessor:
+                for (
+                    openshift_resource_type,
+                    monthly_cost_metric,
+                ) in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
+                    # openshift_resource_type i.e. Cluster, Node, PVC
+                    # monthly_cost_metric i.e. node_cost_per_month, cluster_cost_per_month, pvc_cost_per_month
+                    if monthly_cost_metric == metric_constants.OCP_CLUSTER_MONTH:
+                        # Cluster monthly rates do not support tag based rating
+                        continue
+
+                    for cost_model_cost_type in (
+                        metric_constants.INFRASTRUCTURE_COST_TYPE,
+                        metric_constants.SUPPLEMENTARY_COST_TYPE,
+                    ):
+                        if cost_model_cost_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                            rates = self._tag_infra_rates.get(monthly_cost_metric, {})
+                            default_rates = self._tag_default_infra_rates.get(monthly_cost_metric, {})
+                        elif cost_model_cost_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                            rates = self._tag_supplementary_rates.get(monthly_cost_metric, {})
+                            default_rates = self._tag_default_supplementary_rates.get(monthly_cost_metric, {})
+
+                        if not rates:
+                            # The cost model has no rates for this metric
+                            continue
+
+                        LOG.info(
+                            "Updating tag based monthly %s cost for"
+                            "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
+                            openshift_resource_type,
+                            self._schema,
+                            self._provider.type,
+                            self._provider.name,
+                            self._provider_uuid,
+                            start_date,
+                            end_date,
+                        )
+
+                        per_tag_key_case_statements = self._get_all_monthly_tag_based_case_statements(
+                            openshift_resource_type, rates, default_rates, start_date
+                        )
+
+                        for tag_key, case_statements in per_tag_key_case_statements.items():
+                            report_accessor.populate_monthly_tag_cost_sql(
+                                openshift_resource_type,
+                                cost_model_cost_type,
+                                tag_key,
+                                case_statements,
+                                start_date,
+                                end_date,
+                                self._distribution,
+                                self._provider_uuid,
+                            )
 
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
@@ -334,7 +538,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            if self.is_amortized:
+            if self._is_amortized:
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.INFRASTRUCTURE_COST_TYPE,
                     self._infra_rates,
@@ -424,8 +628,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
             self._update_tag_usage_costs(start_date, end_date)
             self._update_tag_usage_default_costs(start_date, end_date)
-            self._update_monthly_tag_based_cost(start_date, end_date)
-            self._update_monthly_tag_based_default_cost(start_date, end_date)
+            if self._is_amortized:
+                self._update_monthly_tag_based_cost_amortized(start_date, end_date)
+            else:
+                self._update_monthly_tag_based_cost(start_date, end_date)
+                self._update_monthly_tag_based_default_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)

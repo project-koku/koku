@@ -605,7 +605,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "distribution": distribution,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        LOG.info("Populating monthly cost from %s to %s.", start_date, end_date)
+        LOG.info("Populating monthly %s %s cost from %s to %s.", rate_type, cost_type, start_date, end_date)
         self._execute_raw_sql_query(
             table_name,
             summary_sql,
@@ -708,6 +708,64 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         provider_uuid,
                         cost_category_map,
                     )
+
+    def populate_monthly_tag_cost_sql(  # noqa: C901
+        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
+    ):
+        """
+        Update or insert daily summary line item for node cost.
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        cpu_case, memory_case, volume_case = case_dict.get("cost")
+        labels = case_dict.get("labels")
+
+        if cost_type == "Node":
+            summary_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
+        elif cost_type == "PVC":
+            summary_sql = pkgutil.get_data(
+                "masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql"
+            )
+
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "cost_model_cpu_cost": cpu_case,
+            "cost_model_memory_cost": memory_case,
+            "cost_model_volume_cost": volume_case,
+            "cost_type": cost_type,
+            "rate_type": rate_type,
+            "distribution": distribution,
+            "tag_key": tag_key,
+            "labels": labels,
+        }
+
+        if case_dict.get("unallocated"):
+            unallocated_cpu_case, unallocated_memory_case, unallocated_volume_case = case_dict.get("unallocated")
+            summary_sql_params["unallocated_cost_model_cpu_cost"] = unallocated_cpu_case
+            summary_sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
+            summary_sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
+
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info("Populating monthly %s %s tag cost from %s to %s.", rate_type, cost_type, start_date, end_date)
+        self._execute_raw_sql_query(
+            table_name,
+            summary_sql,
+            start_date,
+            end_date,
+            bind_params=list(summary_sql_params),
+            operation="INSERT",
+        )
 
     def populate_monthly_tag_cost(
         self,
@@ -1953,8 +2011,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         # define the rates so the loop can operate on both rate types
         rate_types = [
-            {"rates": infrastructure_rates, "sql_file": "sql/infrastructure_tag_rates.sql"},
-            {"rates": supplementary_rates, "sql_file": "sql/supplementary_tag_rates.sql"},
+            {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
+            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
         if isinstance(start_date, str):
@@ -2036,8 +2094,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         # define the rates so the loop can operate on both rate types
         rate_types = [
-            {"rates": infrastructure_rates, "sql_file": "sql/default_infrastructure_tag_rates.sql"},
-            {"rates": supplementary_rates, "sql_file": "sql/default_supplementary_tag_rates.sql"},
+            {
+                "rates": infrastructure_rates,
+                "sql_file": "sql/openshift/cost_model/default_infrastructure_tag_rates.sql",
+            },
+            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
         if isinstance(start_date, str):
