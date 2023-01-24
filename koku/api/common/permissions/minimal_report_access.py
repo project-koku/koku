@@ -2,7 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Defines the Settings Access Permissions class."""
+"""Defines the Access Permissions class for posting minimal reports."""
 from django.conf import settings
 from rest_framework import permissions
 
