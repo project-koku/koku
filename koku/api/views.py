@@ -17,6 +17,8 @@ from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
 from api.forecast.views import OCPCostForecastView
 from api.forecast.views import OCPGCPCostForecastView
+from api.ingress.minimal_report.view import MinimalReportDetailView
+from api.ingress.minimal_report.view import MinimalReportView
 from api.metrics.views import metrics
 from api.openapi.view import openapi
 from api.organizations.aws.view import AWSOrgView
@@ -41,8 +43,6 @@ from api.report.gcp.openshift.view import OCPGCPStorageView
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
-from api.report.minimal_report.view import MinimalReportDetailView
-from api.report.minimal_report.view import MinimalReportView
 from api.report.oci.view import OCICostView
 from api.report.oci.view import OCIInstanceTypeView
 from api.report.oci.view import OCIStorageView

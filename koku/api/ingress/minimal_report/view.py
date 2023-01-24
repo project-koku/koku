@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common.permissions.minimal_report_access import MinimalReportAccessPermission
-from api.report.minimal_report.serializers import MinimalReportSerializer
+from api.ingress.minimal_report.serializers import MinimalReportSerializer
 from reporting.minimal_report.models import MinimalReport
 
 LOG = logging.getLogger(__name__)
