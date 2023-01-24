@@ -125,7 +125,10 @@ class MinimalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
-        bucket = key.split("/")[0]
+        if key.startswith("s3://"):
+            bucket = key.split("/")[2]
+        else:
+            bucket = key.split("/")[0]
         s3_file = key.split(f"{bucket}/")[-1]
         s3_filename = key.split("/")[-1]
         directory_path = f"{DATA_DIR}/{self.customer_name}/minimal-reports/aws/{bucket}"

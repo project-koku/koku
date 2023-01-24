@@ -203,14 +203,14 @@ class AWSProviderTestCase(TestCase):
 
     @patch("providers.aws.provider.boto3.client")
     def test_check_cost_report_access_compression_error(self, mock_boto3_client):
-        """Test _check_cost_report_access success."""
+        """Test _check_cost_report_access errors with invalid compression."""
         test_bucket = "test-bucket"
         s3_client = Mock()
         s3_client.describe_report_definitions.return_value = {
             "ReportDefinitions": [
                 {
                     "ReportName": FAKE.word(),
-                    "Compression": "Parquet",
+                    "Compression": "Fake",
                     "AdditionalSchemaElements": ["RESOURCES"],
                     "S3Bucket": test_bucket,
                     "S3Region": "us-east-1",
