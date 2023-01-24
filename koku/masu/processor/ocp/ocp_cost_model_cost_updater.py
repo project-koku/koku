@@ -170,7 +170,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
         LOG.info("Finished updating markup.")
 
-    def _build_node_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}, unallocated=False):
+    def _build_node_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}, unallocated=False):
         """Given a tag key, value, and rate return a CASE SQL statement for tag based monthly SQL."""
         case_dict = {}
         cpu_distribution_term = """
@@ -246,7 +246,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 )
         return case_dict
 
-    def _build_labels_case_statement_str(self, rate_dict, label_type, default_rate=None):
+    def _build_labels_case_statement(self, rate_dict, label_type, default_rate=None):
         """Build a CASE statement to set pod or volume labels for tag base monthly SQL."""
         case_dict = {}
         for tag_key, tag_value_rates in rate_dict.items():
@@ -268,7 +268,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             case_dict[tag_key] = "\n".join(statement_list)
         return case_dict
 
-    def _build_volume_tag_rate_case_statement_str(self, rate_dict, start_date, default_rate_dict={}):
+    def _build_volume_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}):
         """Given a tag key, value, and rate return a CASE SQL statement."""
         case_dict = {}
         for tag_key, tag_value_rates in rate_dict.items():
@@ -400,34 +400,65 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
 
+    def _get_all_monthly_tag_based_case_statements(self, openshift_resource_type, rates, default_rates, start_date):
+        """Call and organize cost, unallocated, and label case statements."""
+        cost_case_statements = {}
+        combined_case_statements = {}
+        if openshift_resource_type == "Node":
+            cost_case_statements = self._build_node_tag_cost_case_statements(rates, start_date, default_rates)
+            unallocated_cost_case_statements = self._build_node_tag_cost_case_statements(
+                rates, start_date, default_rates, unallocated=True
+            )
+            labels_case_statement = self._build_labels_case_statement(rates, "pod_labels", default_rate=default_rates)
+        elif openshift_resource_type == "PVC":
+            cost_case_statements = self._build_volume_tag_cost_case_statements(rates, start_date, default_rates)
+            # No unallocated cost for volumes
+            unallocated_cost_case_statements = {}
+            labels_case_statement = self._build_labels_case_statement(
+                rates, "volume_labels", default_rate=default_rates
+            )
+
+        for tag_key in cost_case_statements:
+            combined_case_statements[tag_key] = {
+                "cost": cost_case_statements.get(tag_key, {}),
+                "unallocated": unallocated_cost_case_statements.get(tag_key, {}),
+                "labels": labels_case_statement.get(tag_key, {}),
+            }
+        return combined_case_statements
+
     def _update_monthly_tag_based_cost_amortized(self, start_date, end_date):  # noqa: C901
         """Update the monthly cost for a period of time based on tag rates."""
         try:
             with OCPReportDBAccessor(self._schema) as report_accessor:
-                for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
-                    for rate_type in [
+                for (
+                    openshift_resource_type,
+                    monthly_cost_metric,
+                ) in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
+                    # openshift_resource_type i.e. Cluster, Node, PVC
+                    # monthly_cost_metric i.e. node_cost_per_month, cluster_cost_per_month, pvc_cost_per_month
+                    if monthly_cost_metric == metric_constants.OCP_CLUSTER_MONTH:
+                        # Cluster monthly rates do not support tag based rating
+                        continue
+
+                    for cost_model_cost_type in (
                         metric_constants.INFRASTRUCTURE_COST_TYPE,
                         metric_constants.SUPPLEMENTARY_COST_TYPE,
-                    ]:
-                        if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                            if not self._tag_infra_rates.get(rate_term, {}):
-                                continue
-                            rate_dict = self._tag_infra_rates.get(rate_term)
-                            default_rate_dict = None
-                            if self._tag_default_infra_rates.get(rate_term):
-                                default_rate_dict = self._tag_default_infra_rates.get(rate_term)
-                        else:
-                            if not self._tag_supplementary_rates.get(rate_term, {}):
-                                continue
-                            rate_dict = self._tag_supplementary_rates.get(rate_term)
-                            default_rate_dict = None
-                            if self._tag_default_supplementary_rates.get(rate_term):
-                                default_rate_dict = self._tag_default_supplementary_rates.get(rate_term)
+                    ):
+                        if cost_model_cost_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                            rates = self._tag_infra_rates.get(monthly_cost_metric, {})
+                            default_rates = self._tag_default_infra_rates.get(monthly_cost_metric, {})
+                        elif cost_model_cost_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                            rates = self._tag_supplementary_rates.get(monthly_cost_metric, {})
+                            default_rates = self._tag_default_supplementary_rates.get(monthly_cost_metric, {})
+
+                        if not rates:
+                            # The cost model has no rates for this metric
+                            continue
 
                         LOG.info(
                             "Updating tag based monthly %s cost for"
                             "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
-                            cost_type,
+                            openshift_resource_type,
                             self._schema,
                             self._provider.type,
                             self._provider.name,
@@ -436,37 +467,16 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             end_date,
                         )
 
-                        if cost_type == "Node":
-                            key_rate_dict = self._build_node_tag_rate_case_statement_str(
-                                rate_dict, start_date, default_rate_dict
-                            )
-                            unallocated_key_rate_dict = self._build_node_tag_rate_case_statement_str(
-                                rate_dict, start_date, default_rate_dict, unallocated=True
-                            )
-                            labels = self._build_labels_case_statement_str(
-                                rate_dict, "pod_labels", default_rate=default_rate_dict
-                            )
-                        elif cost_type == "PVC":
-                            key_rate_dict = self._build_volume_tag_rate_case_statement_str(
-                                rate_dict, start_date, default_rate_dict
-                            )
-                            labels = self._build_labels_case_statement_str(
-                                rate_dict, "volume_labels", default_rate=default_rate_dict
-                            )
+                        per_tag_key_case_statements = self._get_all_monthly_tag_based_case_statements(
+                            openshift_resource_type, rates, default_rates, start_date
+                        )
 
-                        for tag_key, case_statements in key_rate_dict.items():
-                            unallocated_case_statements = unallocated_key_rate_dict.get(tag_key, {})
-                            label_case_statements = labels.get(tag_key)
-                            case_dict = {
-                                "allocated": case_statements,
-                                "unallocated": unallocated_case_statements,
-                                "labels": label_case_statements,
-                            }
+                        for tag_key, case_statements in per_tag_key_case_statements.items():
                             report_accessor.populate_monthly_tag_cost_sql(
-                                cost_type,
-                                rate_type,
+                                openshift_resource_type,
+                                cost_model_cost_type,
                                 tag_key,
-                                case_dict,
+                                case_statements,
                                 start_date,
                                 end_date,
                                 self._distribution,
