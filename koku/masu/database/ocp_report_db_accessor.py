@@ -723,7 +723,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             report_period_id = report_period.id
 
-        cpu_case, memory_case, volume_case = case_dict.get("allocated")
+        cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
 
         if cost_type == "Node":
