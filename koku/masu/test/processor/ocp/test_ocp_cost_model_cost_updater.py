@@ -780,7 +780,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._delete_tag_usage_costs(start_date, end_date, "")
         self.assertLogs("masu.processor.ocp", level="WARNING")
 
-    def test_build_node_tag_rate_case_statement_str(self):
+    def test_build_node_tag_cost_case_statements(self):
         """Make sure a correct SQL CASE statement is generated."""
         tag_key = "app"
         dh = DateHelper()
@@ -831,7 +831,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             "NULL::decimal as cost_model_volume_cost",
         )
 
-        case_dict = self.updater._build_node_tag_rate_case_statement_str(
+        case_dict = self.updater._build_node_tag_cost_case_statements(
             tag_rate_dict, start_date, default_rate_dict=default_rate_dict
         )
 
@@ -845,14 +845,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         )
 
         self.updater._distribution = metric_constants.MEMORY_DISTRIBUTION
-        case_dict = self.updater._build_node_tag_rate_case_statement_str(
+        case_dict = self.updater._build_node_tag_cost_case_statements(
             tag_rate_dict, start_date, default_rate_dict=default_rate_dict
         )
 
         for actual, expected in zip(case_dict.get(tag_key), expected_case_strs):
             self.assertEqual(actual.replace("\n", "").replace(" ", ""), expected.replace("\n", "").replace(" ", ""))
 
-    def test_build_volume_tag_rate_case_statement_str(self):
+    def test_build_volume_tag_cost_case_statements(self):
         """Make sure a correct SQL CASE statement is generated."""
         tag_key = "app"
         dh = DateHelper()
@@ -881,7 +881,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             """,
         )
 
-        case_dict = self.updater._build_volume_tag_rate_case_statement_str(
+        case_dict = self.updater._build_volume_tag_cost_case_statements(
             tag_rate_dict, start_date, default_rate_dict=default_rate_dict
         )
 
