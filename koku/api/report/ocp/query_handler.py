@@ -225,8 +225,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         return self._format_query_response()
 
-    def get_cluster_capacity(self, query_data):  # noqa: C901
-        """Calculate cluster capacity for all nodes over the date range."""
+    def get_cluster_capacity(self, query_data):
+        if self._report_type == "volume":
+            return self.get_cluster_capacity_volume_report(query_data)
+        else:
+            return self.get_cluster_capacity_cpu_mem(query_data)
+
+    def get_cluster_capacity_cpu_mem(self, query_data):  # noqa: C901
+        """Calculate cluster capacity for all nodes over the date range for a cpu or memory report."""
         annotations = self._mapper.report_type_map.get("capacity_aggregate")
         if not annotations:
             return query_data, {}
@@ -290,6 +296,73 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         row[cap_key] = capacity_by_month.get(row_date, Decimal(0))
 
         return query_data, {cap_key: total_capacity}
+
+    def get_cluster_capacity_volume_report(self, query_data):  # noqa: C901
+        """
+        Calculate volume capacity over the date range for a volume report.
+        Returns:
+            a tuple of query_data with updated capacitys and total capacity
+        """
+        gb_opts = self._get_group_by()
+        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
+        annotations = self._mapper.report_type_map.get("capacity_aggregate")
+        cap_key = list(annotations.keys())[0]
+        total_capacity = Decimal(0)
+
+        q_table = self._mapper.query_table
+        LOG.debug(f"Using query table: {q_table}")
+        query = q_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
+        query_group_by = ["usage_start"]
+        if gb_opts:
+            for gb_opt in gb_opts:
+                query_group_by.append(GB_MAP.get(gb_opt))
+        daily_total_capacity = defaultdict(Decimal)
+        capacity_by_group_by = defaultdict(Decimal)
+        capacity_by_group_by_month = defaultdict(lambda: defaultdict(Decimal))
+        daily_capacity_by_group_by = defaultdict(lambda: defaultdict(Decimal))
+        capacity_by_month = defaultdict(Decimal)
+        total_capacity = Decimal(0)
+
+        with tenant_context(self.tenant):
+            cap_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in cap_data:
+                usage_start = entry.get("usage_start", "")
+                month = entry.get("usage_start", "").month
+                if isinstance(usage_start, datetime.date):
+                    usage_start = usage_start.isoformat()
+                cap_value = entry.get(cap_key, 0)
+                if cap_value is None:
+                    cap_value = 0
+                gb_key = tuple(entry.get(GB_MAP.get(gb_opt)) for gb_opt in gb_opts)
+                capacity_by_group_by[gb_key] += cap_value
+                capacity_by_group_by_month[month][gb_key] += cap_value
+                daily_total_capacity[usage_start] += cap_value
+                daily_capacity_by_group_by[usage_start][gb_key] = cap_value
+                total_capacity += cap_value
+
+            for row in query_data:
+                gb_key = tuple(row.get(gb_opt) for gb_opt in gb_opts)
+                if self.resolution == "daily":
+                    date = row.get("date")
+                    if gb_opts:
+                        row[cap_key] = daily_capacity_by_group_by.get(date, {}).get(gb_key, Decimal(0))
+                    else:
+                        row[cap_key] = daily_total_capacity.get(date, Decimal(0))
+                elif self.resolution == "monthly":
+                    if not self.parameters.get("start_date"):
+                        if gb_opts:
+                            row[cap_key] = capacity_by_group_by.get(gb_key, Decimal(0))
+                        else:
+                            row[cap_key] = total_capacity
+                    else:
+                        row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
+                        if gb_opts:
+                            row[cap_key] = capacity_by_group_by_month.get(row_date, {}).get(gb_key, Decimal(0))
+                        else:
+                            row[cap_key] = capacity_by_month.get(row_date, Decimal(0))
+            return query_data, {cap_key: total_capacity}
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
