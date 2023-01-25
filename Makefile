@@ -287,6 +287,7 @@ endif
 docker-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
 	$(PREFIX) make clear-testing
+	$(PREFIX) make clear-trino-data
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f unleash

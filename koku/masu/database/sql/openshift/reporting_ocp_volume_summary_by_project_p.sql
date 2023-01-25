@@ -20,6 +20,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
     infrastructure_monthly_cost_json,
     supplementary_usage_cost,
     supplementary_monthly_cost_json,
+    cost_model_cpu_cost,
+    cost_model_memory_cost,
+    cost_model_volume_cost,
+    cost_model_rate_type,
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     persistentvolumeclaim_capacity_gigabyte_months,
@@ -58,6 +62,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
             'memory', sum(((coalesce(supplementary_monthly_cost_json, '{"memory": 0}'::jsonb))->>'memory')::decimal),
             'pvc', sum(((coalesce(supplementary_monthly_cost_json, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
         ) as supplementary_monthly_cost_json,
+        sum(cost_model_cpu_cost) as cost_model_cpu_cost,
+        sum(cost_model_memory_cost) as cost_model_memory_cost,
+        sum(cost_model_volume_cost) as cost_model_volume_cost,
+        cost_model_rate_type,
         sum(volume_request_storage_gigabyte_months) as volume_request_storage_gigabyte_months,
         sum(persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months,
         sum(persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
@@ -69,5 +77,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Storage'
-    GROUP BY usage_start, cluster_id, cluster_alias, namespace
+    GROUP BY usage_start, cluster_id, cluster_alias, namespace, cost_model_rate_type
 ;

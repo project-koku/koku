@@ -116,6 +116,24 @@
             "createdAt": "2022-08-29T11:50:00.756Z"
         },
         {
+            "name": "cost-management.backend.enable-ocp-amortized-monthly-cost",
+            "description": "",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    }
+                }
+            ],
+            "variants": [],
+            "createdAt": "2022-12-09T19:41:51.178Z"
+        },
+        {
             "name": "cost-management.backend.enable-ocp-savings-plan-cost",
             "description": "Whether to use AWS savings plan cost for OCP raw cost",
             "type": "permission",

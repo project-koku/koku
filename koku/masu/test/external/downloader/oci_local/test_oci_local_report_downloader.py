@@ -44,8 +44,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        dh = DateHelper()
-        self.start_date = dh.this_month_start
+        self.dh = DateHelper()
         self.etag = "reports_cost-csv_0001000000603747.csv"
         test_report = "./koku/masu/test/data/oci/reports_cost-csv_0001000000603747.csv"
         self.local_storage = tempfile.mkdtemp()
@@ -112,22 +111,47 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         expected_exception = exp.exception
         self.assertIn(err_msg, expected_exception.args[0])
 
+    @patch("masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._extract_names")
     @patch(
         "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._prepare_monthly_files"
     )
-    def test_get_manifest_for_date(self, mock_prepare_monthly_files):
+    def test_get_manifest_for_date(self, mock_prepare_monthly_files, mock_extract_names):
         """Test OCI-local get manifest."""
-        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date.strftime("%Y-%m"))])
-        mock_prepare_monthly_files.return_value = {self.start_date: []}
-        report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
+        start_date = self.dh.this_month_start
+        file_month_year = start_date.strftime("%Y-%m")
+        cost_report = f"report_cost-{file_month_year}.csv"
+        usage_report = f"report_usage-{file_month_year}.csv"
+        test_file_list = [cost_report, usage_report]
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(file_month_year)])
+        mock_prepare_monthly_files.return_value = {start_date: []}
+        mock_extract_names.return_value = test_file_list
+        report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(start_date)
         result_report_dict = report_manifests_list[0]
         self.assertEqual(result_report_dict.get("assembly_id", ""), expected_assembly_id)
         mock_prepare_monthly_files.assert_called_once()
-        result_files = result_report_dict.get("files", [])
-        self.assertIsNotNone(result_files)
-        self.assertIsInstance(result_files, list)
-        for file in result_files:
-            self.assertEqual(file["key"], self.csv_file_name)
+        mock_extract_names.assert_called_once()
+        expected_file_list = result_report_dict.get("files", [])
+        self.assertIsInstance(expected_file_list, list)
+        for file in expected_file_list:
+            self.assertIn(file["key"], test_file_list)
+
+    @patch("masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._extract_names")
+    @patch(
+        "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._prepare_monthly_files"
+    )
+    def test_get_manifest_for_date_no_month_reports(self, mock_prepare_monthly_files, mock_extract_names):
+        """Test OCI-local does not create manifest record if no monthly reports downloaded."""
+        test_file_list = []
+        mock_prepare_monthly_files.return_value = {self.dh.this_month_start: []}
+        mock_extract_names.return_value = []
+        report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(
+            self.dh.last_month_start
+        )
+        mock_prepare_monthly_files.assert_called_once()
+        mock_extract_names.assert_called_once()
+        self.assertIsInstance(report_manifests_list, list)
+        self.assertEqual(len(report_manifests_list), 0)
+        self.assertEqual(len(report_manifests_list), len(test_file_list))
 
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
@@ -135,7 +159,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         patch_string = "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader._generate_monthly_pseudo_manifest"  # noqa: E501
         with patch(patch_string) as patch_manifest:
             patch_manifest.side_effect = [None]
-            report = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
+            report = self.oci_local_report_downloader.get_manifest_context_for_date(self.dh.this_month_start)
             self.assertEqual(report, {})
 
     def test_delete_manifest_file_warning(self):
@@ -162,7 +186,8 @@ class OCILocalReportDownloaderTest(MasuTestCase):
     def test_extract_names(self):
         """Test _extract_names returns month filenames."""
 
-        date_str = self.start_date.strftime("%Y-%m")
+        start_date = self.dh.this_month_start
+        date_str = start_date.strftime("%Y-%m")
         cost_report_name = f"report_cost-0001_{date_str}.csv"
         usage_report_name = f"report_cost-0001_{date_str}.csv"
         expected_filenames = [cost_report_name, usage_report_name]
@@ -170,7 +195,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
             mockwalk.return_value = [
                 ("", (), expected_filenames),
             ]
-            filenames = self.oci_local_report_downloader._extract_names(self.start_date)
+            filenames = self.oci_local_report_downloader._extract_names(start_date)
         self.assertEqual(filenames, expected_filenames)
 
     def test_extract_names_error(self):
@@ -185,16 +210,18 @@ class OCILocalReportDownloaderTest(MasuTestCase):
             }
         )
         with self.assertRaises(Exception) as exp:
-            self.oci_local_report_downloader._extract_names(self.start_date)
+            self.oci_local_report_downloader._extract_names(self.dh.this_month_start)
         expected_exception = exp.exception
         self.assertIn(err_msg, expected_exception.args[0])
 
     def test_generate_monthly_pseudo_manifest(self):
         """Test generating the monthly manifest."""
-        result_manifest_data = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
+        result_manifest_data = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(
+            self.dh.this_month_start
+        )
         self.assertEqual(result_manifest_data.get("compression"), UNCOMPRESSED)
         self.assertEqual(result_manifest_data.get("assembly_id"), "")
-        self.assertEqual(self.start_date, result_manifest_data.get("start_date"))
+        self.assertEqual(self.dh.this_month_start, result_manifest_data.get("start_date"))
 
     def test_remove_manifest_file(self):
         """Test remove manifest file."""
@@ -207,9 +234,8 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         Test _prepare_monthly_files returns a pseudo dictionary of monthly files.
         """
 
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         result_monthly_files_dict = self.oci_local_report_downloader._prepare_monthly_files(start_date, end_date)
         expected_monthly_files_dict = {start_date.date(): []}
         self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)

@@ -13,7 +13,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolume,
     storageclass,
     source_uuid,
-    infrastructure_usage_cost,
+    supplementary_usage_cost,
+    cost_model_cpu_cost,
+    cost_model_memory_cost,
+    cost_model_volume_cost,
+    cost_model_rate_type,
     {{labels_field | sqlsafe}},
     monthly_cost_type,
     cost_category_id
@@ -39,7 +43,23 @@ SELECT uuid_generate_v4() as uuid,
             THEN jsonb_build_object('cpu', 0.0, 'memory', coalesce(({{rate}}::numeric * usage), 0.0), 'storage', 0.0)
         WHEN {{usage_type}} = 'storage'
             THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
-    END as infrastructure_usage_cost,
+    END as supplementary_usage_cost,
+    CASE
+        WHEN {{usage_type}} = 'cpu'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_cpu_cost,
+    CASE
+        WHEN {{usage_type}} = 'memory'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_memory_cost,
+    CASE
+        WHEN {{usage_type}} = 'storage'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_volume_cost,
+    'Supplementary' as cost_model_rate_type,
     {{k_v_pair}}::jsonb as {{labels_field | sqlsafe}},
     'Tag' as monthly_cost_type, -- We are borrowing the monthly field here, although this is a daily usage cost
     cost_category_id
@@ -66,7 +86,7 @@ FROM (
             WHEN {{metric}}='storage_gb_usage_per_month' THEN sum(lids.persistentvolumeclaim_usage_gigabyte_months)
             WHEN {{metric}}='storage_gb_request_per_month' THEN sum(lids.volume_request_storage_gigabyte_months)
         END as usage,
-        cost_category_id
+        lids.cost_category_id
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     WHERE lids.{{labels_field | sqlsafe}} @> {{k_v_pair}}
         AND lids.cluster_id = {{cluster_id}}
