@@ -193,7 +193,7 @@ enable_ocp_tags() {
   log-info "Enabling OCP tags..."
   RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
   --request POST \
-  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application"]}' \
+  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application", "instance-type"]}' \
   ${MASU_URL_PREFIX}/v1/enabled_tags/)
   STATUS_CODE=${RESPONSE: -3}
   DATA=${RESPONSE:: -3}
