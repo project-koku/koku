@@ -340,7 +340,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if cap_value is None:
                     cap_value = 0
                 gb_key = tuple(
-                    entry.get(GB_MAP.get(gb_opt)) if gb_opt in GB_MAP.keys() else gb_opt for gb_opt in gb_opts
+                    entry.get(GB_MAP.get(gb_opt)) if gb_opt in GB_MAP.keys() else entry.get(gb_opt)
+                    for gb_opt in gb_opts
                 )
                 capacity_by_group_by[gb_key] += cap_value
                 capacity_by_group_by_month[month][gb_key] += cap_value
