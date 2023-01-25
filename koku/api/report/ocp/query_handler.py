@@ -308,7 +308,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             a tuple of query_data with updated capacitys and total capacity
         """
         gb_opts = self._get_group_by()
-        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
+        GB_MAP = {"project": "namespace", "cluster": "cluster_id"}
         annotations = self._mapper.report_type_map.get("capacity_aggregate")
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
@@ -321,7 +321,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_group_by = ["usage_start"]
         if gb_opts:
             for gb_opt in gb_opts:
-                query_group_by.append(GB_MAP.get(gb_opt))
+                query_group_by.append(GB_MAP.get(gb_opt) if gb_opt in GB_MAP.keys() else gb_opt)
         daily_total_capacity = defaultdict(Decimal)
         capacity_by_group_by = defaultdict(Decimal)
         capacity_by_group_by_month = defaultdict(lambda: defaultdict(Decimal))
@@ -339,7 +339,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 cap_value = entry.get(cap_key, 0)
                 if cap_value is None:
                     cap_value = 0
-                gb_key = tuple(entry.get(GB_MAP.get(gb_opt)) for gb_opt in gb_opts)
+                gb_key = tuple(
+                    entry.get(GB_MAP.get(gb_opt)) if gb_opt in GB_MAP.keys() else gb_opt for gb_opt in gb_opts
+                )
                 capacity_by_group_by[gb_key] += cap_value
                 capacity_by_group_by_month[month][gb_key] += cap_value
                 daily_total_capacity[usage_start] += cap_value
