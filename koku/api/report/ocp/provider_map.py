@@ -2097,8 +2097,8 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
+                            "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                         },
-                        "capacity_aggregate": {"capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months")},
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
                             "sup_raw": Value(0, output_field=DecimalField()),
