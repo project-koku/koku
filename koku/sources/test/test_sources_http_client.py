@@ -243,7 +243,12 @@ class SourcesHTTPClientTest(TestCase):
                         "storage_account": storage_account,
                     }
                 },
-                "expected": {"resource_group": resource_group, "storage_account": storage_account},
+                "expected": {
+                    "resource_group": resource_group,
+                    "storage_account": storage_account,
+                    "export_name": None,
+                    "scope": None,
+                },
             },
             {
                 "source-type": Provider.PROVIDER_GCP,
