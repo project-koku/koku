@@ -2,22 +2,22 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Minimal Report Serializers."""
+"""Post Report Serializers."""
 import logging
 
 from rest_framework import serializers
 
 from api.common import error_obj
-from reporting.minimal_report.models import MinimalReport
+from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
 
 PROVIDER_LIST = ["aws", "aws-local"]
 
 
-class MinimalReportSerializer(serializers.ModelSerializer):
+class ReportSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MinimalReport
+        model = IngressReports
         fields = ["uuid", "created_timestamp", "completed_timestamp", "reports_list", "source"]
 
     def validate(self, data):

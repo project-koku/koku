@@ -5,7 +5,7 @@
 """Models for cost entry tables."""
 # flake8: noqa
 from reporting.currency.models import CurrencySettings
-from reporting.minimal_report.models import MinimalReport
+from reporting.ingress.models import IngressReports
 from reporting.partition.models import PartitionedTable
 from reporting.provider.all.openshift.models import OCPAllComputeSummaryPT
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP

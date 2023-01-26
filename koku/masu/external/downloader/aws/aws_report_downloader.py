@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import struct
+import uuid
 
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -18,6 +19,7 @@ from api.provider.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
+from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
@@ -45,7 +47,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, ingress_reports, report_name=None, **kwargs):
         """
         Constructor.
 
@@ -108,6 +110,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self.report = report.pop()
         self.s3_client = session.client("s3")
+        self.ingress_reports = ingress_reports
 
     @property
     def manifest_date_format(self):
@@ -307,28 +310,71 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
-        if manifest == self.empty_manifest:
-            return report_dict
-        manifest_dict = self._prepare_db_manifest_record(manifest)
-        self._remove_manifest_file(manifest_file)
+        if self.ingress_reports:
+            manifest_dict = self._generate_monthly_pseudo_manifest(date)
+            if manifest_dict:
+                assembly_id = ":".join([str(self._provider_uuid), str(date)])
+                manifest_id = self._process_manifest_db_record(
+                    assembly_id,
+                    date.strftime("%Y-%m-%d"),
+                    len(manifest_dict.get("file_names")),
+                    date,
+                )
+                report_dict["assembly_id"] = assembly_id
+                files_list = [
+                    {"key": key, "local_file": self.get_local_file_for_report(key)}
+                    for key in manifest_dict.get("file_names")
+                ]
+        else:
+            manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
+            if manifest == self.empty_manifest:
+                return report_dict
+            manifest_dict = self._prepare_db_manifest_record(manifest)
+            self._remove_manifest_file(manifest_file)
 
-        if manifest_dict:
-            manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"),
-                manifest_dict.get("billing_start"),
-                manifest_dict.get("num_of_files"),
-                manifest_timestamp,
-            )
-
-            report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest.get("assemblyId")
-            report_dict["compression"] = self.report.get("Compression")
-            files_list = [
-                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
-            ]
-            report_dict["files"] = files_list
+            if manifest_dict:
+                manifest_id = self._process_manifest_db_record(
+                    manifest_dict.get("assembly_id"),
+                    manifest_dict.get("billing_start"),
+                    manifest_dict.get("num_of_files"),
+                    manifest_timestamp,
+                )
+                report_dict["assembly_id"] = manifest.get("assemblyId")
+                files_list = [
+                    {"key": key, "local_file": self.get_local_file_for_report(key)}
+                    for key in manifest.get("reportKeys")
+                ]
+        report_dict["manifest_id"] = manifest_id
+        report_dict["compression"] = self.report.get("Compression")
+        report_dict["files"] = files_list
         return report_dict
+
+    def _generate_monthly_pseudo_manifest(self, date):
+        """
+        Generate a dict representing an analog to other providers "manifest" files.
+
+        No manifest file for monthly periods. So we check for
+        files in the bucket based on what the customer posts.
+
+        Args:
+            report_data: Where reports are stored
+
+        Returns:
+            Manifest-like dict with keys and value placeholders
+                assembly_id - (String): empty string
+                compression - (String): Report compression format
+                start_date - (Datetime): billing period start date
+                file_names - (list): list of filenames.
+        """
+
+        manifest_data = {
+            "assembly_id": uuid.uuid4(),
+            "compression": UNCOMPRESSED,
+            "start_date": date,
+            "file_names": self.ingress_reports,
+        }
+        LOG.info(f"Manifest Data: {str(manifest_data)}")
+        return manifest_data
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

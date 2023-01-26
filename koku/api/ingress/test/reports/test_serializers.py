@@ -7,12 +7,12 @@ from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.ingress.minimal_report.serializers import MinimalReportSerializer
+from api.ingress.report.serializers import ReportSerializer
 from api.provider.models import Provider
-from reporting.minimal_report.models import MinimalReport
+from reporting.report.models import Report
 
 
-class MinimalReportSerializerTest(IamTestCase):
+class ReportSerializerTest(IamTestCase):
     """Tests for the exclude serializer."""
 
     def setUp(self):
@@ -25,29 +25,29 @@ class MinimalReportSerializerTest(IamTestCase):
     def tearDown(self):
         """Clean up test cases."""
         with tenant_context(self.tenant):
-            MinimalReport.objects.all().delete()
+            Report.objects.all().delete()
 
     def test_invalid_source_type(self):
         """Test minimal report with invalid source type."""
-        minimal_reports = {
+        reports = {
             "source": self.ocp_provider.uuid,
             "reports_list": ["test-file"],
         }
         with tenant_context(self.tenant):
-            serializer = MinimalReportSerializer(data=minimal_reports)
+            serializer = ReportSerializer(data=reports)
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
 
     def test_valid_data(self):
         """Test minimal report valid entries."""
-        minimal_reports = {
+        reports = {
             "source": self.aws_provider.uuid,
             "reports_list": ["test-file"],
         }
         with tenant_context(self.tenant):
             instance = None
-            serializer = MinimalReportSerializer(data=minimal_reports)
+            serializer = ReportSerializer(data=reports)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
-            self.assertTrue(instance.source.uuid, minimal_reports.get("source"))
-            self.assertTrue(instance.reports_list, minimal_reports.get("reports_list"))
+            self.assertTrue(instance.source.uuid, reports.get("source"))
+            self.assertTrue(instance.reports_list, reports.get("reports_list"))

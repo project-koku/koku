@@ -20,7 +20,6 @@ from masu.external.downloader.azure_local.azure_local_report_downloader import A
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
-from masu.external.downloader.minimal_report.minimal_report_downloader import MinimalReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
@@ -44,7 +43,7 @@ class ReportDownloader:
         provider_uuid,
         report_name=None,
         account=None,
-        minimal_reports=None,
+        ingress_reports=None,
         tracing_id="no_tracing_id",
     ):
         """Set the downloader based on the backend cloud provider."""
@@ -57,7 +56,7 @@ class ReportDownloader:
         self.tracing_id = tracing_id
         self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
-        self.minimal_reports = minimal_reports
+        self.ingress_reports = ingress_reports
         if self.account is None:
             # Existing schema will start with acct and we strip that prefix for use later
             # new customers include the org prefix in case an org-id and an account number might overlap
@@ -104,16 +103,6 @@ class ReportDownloader:
             Provider.PROVIDER_IBM: IBMReportDownloader,
             Provider.PROVIDER_OCP: OCPReportDownloader,
         }
-        if self.minimal_reports:
-            return MinimalReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                provider_uuid=self.provider_uuid,
-                tracing_id=self.tracing_id,
-                account=self.account,
-                provider_type=self.provider_type,
-                minimal_reports=self.minimal_reports,
-            )
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
                 customer_name=self.customer_name,
@@ -124,6 +113,7 @@ class ReportDownloader:
                 tracing_id=self.tracing_id,
                 account=self.account,
                 provider_type=self.provider_type,
+                ingress_reports=self.ingress_reports,
             )
         return None
 

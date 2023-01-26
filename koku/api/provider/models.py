@@ -319,6 +319,7 @@ select ftn.nspname as "table_schema",
          ft.relname ~ %(type_fregex)s or
          ft.relname ~ %(ocptype_fregex)s or
          ft.relname ~ %(rpt_common_fregex)s or
+         ft.relname ~ %(rpt_ingress_fregex)s or
          ft.relname ~ %(api_fregex)s
        )
  order
@@ -340,6 +341,7 @@ select ftn.nspname as "table_schema",
                 "type_fregex": f"_{self._normalized_type}",
                 "ocptype_fregex": f"_ocp({self._normalized_type}|all)",
                 "rpt_common_fregex": "^reporting_common_",
+                "rpt_ingress_fregex": "^reporting_ingress_reports",
                 "api_fregex": "^api_",
                 "ui_table_sregex": f"^reporting_{self._normalized_type}_",
                 "ui_table_sval": 1,

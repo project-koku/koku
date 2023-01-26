@@ -12,7 +12,7 @@ from django.db import transaction
 LOG = logging.getLogger(__name__)
 
 
-class MinimalReport(models.Model):
+class IngressReports(models.Model):
     uuid = models.UUIDField(default=uuid4)
     created_timestamp = models.DateTimeField(auto_now_add=True)
     completed_timestamp = models.DateTimeField(null=True)
@@ -34,11 +34,11 @@ class MinimalReport(models.Model):
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
-            LOG.info(f"Starting Minimal data ingest task for Provider {data.get('source')}")
+            LOG.info(f"Starting data ingest task for Provider {data.get('source')}")
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(
                 lambda: check_report_updates.s(
-                    provider_uuid=data.get("source"), minimal_reports=data.get("reports_list")
+                    provider_uuid=data.get("source"), ingress_reports=data.get("reports_list")
                 )
                 .set(queue="priority")
                 .apply_async()
