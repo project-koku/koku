@@ -14,6 +14,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     storageclass,
     source_uuid,
     infrastructure_usage_cost,
+    cost_model_cpu_cost,
+    cost_model_memory_cost,
+    cost_model_volume_cost,
+    cost_model_rate_type,
     {{labels_field | sqlsafe}},
     monthly_cost_type,
     cost_category_id
@@ -40,6 +44,22 @@ SELECT uuid_generate_v4() as uuid,
         WHEN {{usage_type}} = 'storage'
             THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
     END as infrastructure_usage_cost,
+    CASE
+        WHEN {{usage_type}} = 'cpu'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_cpu_cost,
+    CASE
+        WHEN {{usage_type}} = 'memory'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_memory_cost,
+    CASE
+        WHEN {{usage_type}} = 'storage'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_volume_cost,
+    'Infastructure' as cost_model_rate_type,
     {{labels_field | sqlsafe}},
     'Tag' as monthly_cost_type, -- We are borrowing the monthly field here, although this is a daily usage cost
     cost_category_id

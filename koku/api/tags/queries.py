@@ -17,6 +17,10 @@ from reporting.provider.ocp.models import OpenshiftCostCategory
 LOG = logging.getLogger(__name__)
 
 
+class NoNamespacesForCategory(Exception):
+    """Returns an empty dictionary."""
+
+
 class TagQueryHandler(QueryHandler):
     """Handles tag queries and responses.
 
@@ -69,8 +73,12 @@ class TagQueryHandler(QueryHandler):
         if not self.parameters.get("start_date") and not self.parameters.get("end_date"):
             self._set_start_and_end_dates()
         # super() needs to be called before calling _get_filter()
-        self.query_filter = self._get_filter()
-        if parameters.kwargs.get("key"):
+        try:
+            self.query_filter = self._get_filter()
+        except NoNamespacesForCategory as err_msg:
+            LOG.debug(err_msg)
+            self.query_filter = None
+        if parameters.kwargs.get("key") and self.query_filter:
             self.key = parameters.kwargs.get("key")
             if not self.parameters.get_filter("value"):
                 self.query_filter = self._get_key_filter()
@@ -151,6 +159,8 @@ class TagQueryHandler(QueryHandler):
         """
         category_filters = QueryFilterCollection()
         namespace_query = OpenshiftCostCategory.objects.filter(name__in=category_list).values("namespace")
+        if not namespace_query and "*" not in category_list:
+            raise NoNamespacesForCategory(f"No namespaces for category: {category_list}")
         for row in namespace_query:
             namespaces = row.get("namespace")
             for namespace in namespaces:
@@ -445,6 +455,9 @@ class TagQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
+        if not self.query_filter:
+            self.query_data = []
+            return self._format_query_response()
         if self.parameters.get("key_only"):
             tag_data = self.get_tag_keys()
             query_data = sorted(tag_data, reverse=self.order_direction == "desc")

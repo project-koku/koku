@@ -94,6 +94,8 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
         cache_key_prefixes = (AZURE_CACHE_PREFIX, OPENSHIFT_AZURE_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
     elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         cache_key_prefixes = (GCP_CACHE_PREFIX, OPENSHIFT_GCP_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
+    elif source_type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+        cache_key_prefixes = (OCI_CACHE_PREFIX,)
 
     for cache_key_prefix in cache_key_prefixes:
         invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
@@ -114,3 +116,31 @@ def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
 
     for source_type in non_local_providers:
         invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
+
+
+def get_cached_matching_tags(schema_name, provider_type):
+    """Return cached OCP on Cloud matched tags if exists."""
+    cache = caches["default"]
+    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
+    return cache.get(cache_key)
+
+
+def set_cached_matching_tags(schema_name, provider_type, matched_tags):
+    """Return cached OCP on Cloud matched tags if exists."""
+    cache = caches["default"]
+    cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
+    cache.set(cache_key, matched_tags)
+
+
+def get_cached_infra_map(schema_name, provider_type, provider_uuid):
+    """Return cached OCP on Cloud infra-map if exists."""
+    cache = caches["default"]
+    cache_key = f"OCP-on-{provider_type}:{schema_name}:{provider_uuid}:infra-map"
+    return cache.get(cache_key)
+
+
+def set_cached_infra_map(schema_name, provider_type, provider_uuid, infra_map):
+    """Return cached OCP on Cloud infra-map if exists."""
+    cache = caches["default"]
+    cache_key = f"OCP-on-{provider_type}:{schema_name}:{provider_uuid}:infra-map"
+    cache.set(cache_key, infra_map)

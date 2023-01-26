@@ -10,7 +10,6 @@ import os
 import shutil
 
 import pandas as pd
-from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -19,7 +18,6 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
@@ -76,27 +74,23 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
-
-    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
-        if context.get("version"):
-            daily_files = [{"filepath": filepath, "filename": filename}]
-        else:
-            daily_files = divide_csv_daily(filepath, filename)
-        for daily_file in daily_files:
-            # Push to S3
-            s3_csv_path = get_path_prefix(
-                account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
-            )
-            copy_local_report_file_to_s3_bucket(
-                tracing_id,
-                s3_csv_path,
-                daily_file.get("filepath"),
-                daily_file.get("filename"),
-                manifest_id,
-                start_date,
-                context,
-            )
-            daily_file_names.append(daily_file.get("filepath"))
+    if context.get("version"):
+        daily_files = [{"filepath": filepath, "filename": filename}]
+    else:
+        daily_files = divide_csv_daily(filepath, filename)
+    for daily_file in daily_files:
+        # Push to S3
+        s3_csv_path = get_path_prefix(account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+        copy_local_report_file_to_s3_bucket(
+            tracing_id,
+            s3_csv_path,
+            daily_file.get("filepath"),
+            daily_file.get("filename"),
+            manifest_id,
+            start_date,
+            context,
+        )
+        daily_file_names.append(daily_file.get("filepath"))
     return daily_file_names
 
 

@@ -111,8 +111,6 @@ def drop_table_by_partition(table, partition_column, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for OCP/GCP additional cost fields")
-
     logging.info("fetching schemas")
     schemas = get_schemas()
     logging.info("Running against the following schemas")
@@ -130,6 +128,9 @@ def main():
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
         # logging.info(f"*** Adding column to tables for schema {schema} ***")
+        # add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+        # CONNECT_PARAMS)
+        # add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
         logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
         drop_tables(tables_to_drop, CONNECT_PARAMS)
 

@@ -5,8 +5,6 @@
 """Masu Processor."""
 import logging
 
-from django.conf import settings
-
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
@@ -17,22 +15,6 @@ from masu.util.common import convert_account
 LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
-
-
-def enable_trino_processing(source_uuid, source_type, account):  # noqa
-    """Helper to determine if source is enabled for Trino."""
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
-
-    context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
-    LOG.info(f"enable_trino_processing context: {context}")
-    return bool(
-        settings.ENABLE_PARQUET_PROCESSING
-        or source_uuid in settings.ENABLE_TRINO_SOURCES
-        or source_type in settings.ENABLE_TRINO_SOURCE_TYPE
-        or account in settings.ENABLE_TRINO_ACCOUNTS
-        or UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-trino-processor", context)
-    )
 
 
 def enable_purge_trino_files(account):
@@ -124,5 +106,15 @@ def enable_ocp_savings_plan_cost(account):
             "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
         )
     )
+
+    return res
+
+
+def enable_ocp_amortized_monthly_cost(account):
+    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
+    account = convert_account(account)
+
+    context = {"schema": account}
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context))
 
     return res

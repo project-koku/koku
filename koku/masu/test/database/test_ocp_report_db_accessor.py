@@ -40,8 +40,6 @@ from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
-from reporting.models import OCPUsageReport
-from reporting.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -81,57 +79,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.creator.create_ocp_storage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
         self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report, node=node)
 
-    def _populate_storage_summary(self, cluster_id=None):
-        """Generate storage summary data."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        if cluster_id is None:
-            cluster_id = self.cluster_id
-        for _ in range(25):
-            pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-            namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-            self.creator.create_ocp_usage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
-            self.creator.create_ocp_storage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
-        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-
-        self.accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_storage_line_item_daily_summary_table(
-            start_date, end_date, cluster_id, self.provider_uuid
-        )
-
-    def _populate_pod_summary(self):
-        """Generate pod summary data."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-
-        cluster_id = "testcluster"
-        for _ in range(25):
-            self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
-
-        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, self.ocp_provider_uuid)
-        return (start_date, end_date)
-
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
@@ -163,33 +110,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for column in missing_columns:
                 self.assertFalse(column in result)
 
-    def test_get_current_usage_report(self):
-        """Test that the most recent usage report is returned."""
-        current_report = self.accessor.get_current_usage_report()
-        self.assertIsNotNone(current_report.interval_start)
-        self.assertIsNotNone(current_report.interval_end)
-        self.assertIsNotNone(current_report.report_period_id)
-
     def test_get_current_usage_period(self):
         """Test that the most recent usage period is returned."""
-        current_report_period = self.accessor.get_current_usage_period()
+        current_report_period = self.accessor.get_current_usage_period(self.ocp_provider_uuid)
         self.assertIsNotNone(current_report_period.report_period_start)
         self.assertIsNotNone(current_report_period.report_period_end)
-
-    def test_get_usage_periods_by_date(self):
-        """Test that report periods are returned by date filter."""
-        period_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        prev_period_start = period_start - relativedelta.relativedelta(months=1)
-        reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid, period_date=period_start)
-        prev_reporting_period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid, period_date=prev_period_start
-        )
-
-        with schema_context(self.schema):
-            periods = self.accessor.get_usage_periods_by_date(period_start.date())
-            self.assertIn(reporting_period, periods)
-            periods = self.accessor.get_usage_periods_by_date(prev_period_start.date())
-            self.assertIn(prev_reporting_period, periods)
 
     def test_get_usage_period_by_dates_and_cluster(self):
         """Test that report periods are returned by dates & cluster filter."""
@@ -235,290 +160,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):
             self.assertEqual(period.provider_id, provider_uuid)
-
-    def test_populate_line_item_daily_table(self):
-        """Test that the line item daily table populates."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        daily_table = getattr(self.accessor.report_schema, daily_table_name)
-
-        for _ in range(25):
-            self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
-
-        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(daily_table_name)
-        with schema_context(self.schema):
-            initial_count = query.count()
-
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-
-        self.assertNotEqual(query.count(), initial_count)
-
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_start__max"]
-
-        self.assertEqual(result_start_date, start_date.date())
-        self.assertEqual(result_end_date, end_date.date())
-
-        with schema_context(self.schema):
-            entry = query.first()
-
-            summary_columns = [
-                "cluster_id",
-                "namespace",
-                "node",
-                "node_capacity_cpu_core_seconds",
-                "node_capacity_cpu_cores",
-                "node_capacity_memory_byte_seconds",
-                "node_capacity_memory_bytes",
-                "pod",
-                "pod_labels",
-                "pod_limit_cpu_core_seconds",
-                "pod_limit_memory_byte_seconds",
-                "pod_request_cpu_core_seconds",
-                "pod_request_memory_byte_seconds",
-                "pod_usage_cpu_core_seconds",
-                "pod_usage_memory_byte_seconds",
-                "total_seconds",
-                "usage_end",
-                "usage_start",
-            ]
-
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry, column))
-
-    def test_get_usage_period_on_or_before_date(self):
-        """Test that gets a query for usage report periods before a date."""
-        with schema_context(self.schema):
-            # Verify that the result is returned for cutoff_date == report_period_start
-            cutoff_date = DateHelper().this_month_start
-            report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=cutoff_date).count()
-            usage_period = self.accessor.get_usage_period_on_or_before_date(cutoff_date)
-            self.assertEqual(usage_period.count(), report_period_count)
-            self.assertLess(usage_period.first().report_period_start, cutoff_date)
-
-            # Verify that the result is returned for a date later than cutoff_date
-            later_cutoff = cutoff_date + relativedelta.relativedelta(months=+1)
-            # later_cutoff = later_date.replace(month=later_date.month, day=15)
-            report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=later_cutoff).count()
-            usage_period = self.accessor.get_usage_period_on_or_before_date(later_cutoff)
-            self.assertEqual(usage_period.count(), report_period_count)
-            self.assertLessEqual(usage_period.first().report_period_start, cutoff_date)
-
-            # Verify that no results are returned for a date earlier than cutoff_date
-            earlier_date = cutoff_date + relativedelta.relativedelta(months=-5)
-            earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
-            usage_period = self.accessor.get_usage_period_on_or_before_date(earlier_cutoff)
-            self.assertEqual(usage_period.count(), 0)
-
-    def test_get_pod_cpu_core_hours(self):
-        """Test that gets pod cpu usage/request."""
-        start_date, end_date = self._populate_pod_summary()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-        # Verify that the line items for the test cluster_id are returned
-        cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
-        reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
-        )
-
-        expected_usage_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
-        expected_request_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
-        cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date, cluster_id)
-        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(start_date, end_date, cluster_id)
-
-        self.assertEqual(len(cpu_usage_query.keys()), len(expected_usage_reports.keys()))
-        self.assertEqual(len(cpu_request_query.keys()), len(expected_request_reports.keys()))
-
-        # Verify that no line items are returned for an incorrect cluster_id
-        wrong_cluster_id = cluster_id + "bad"
-        cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date, wrong_cluster_id)
-        self.assertEqual(len(cpu_usage_query.keys()), 0)
-        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(start_date, end_date, wrong_cluster_id)
-        self.assertEqual(len(cpu_request_query.keys()), 0)
-
-    def test_get_pod_cpu_core_hours_no_cluster_id(self):
-        """Test that gets pod cpu usage/request without cluster id."""
-        start_date, end_date = self._populate_pod_summary()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        # Verify that the line items for the test cluster_id are returned
-        reports = (
-            self.accessor._get_db_obj_query(table_name)
-            .filter(usage_start__gte=start_date, usage_end__lte=end_date, data_source="Pod")
-            .all()
-        )
-
-        expected_usage_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
-        expected_request_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
-        cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date)
-        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(start_date, end_date)
-
-        self.assertEqual(len(cpu_usage_query.keys()), len(expected_usage_reports.keys()))
-        self.assertEqual(len(cpu_request_query.keys()), len(expected_request_reports.keys()))
-
-    def test_get_pod_memory_gigabyte_hours(self):
-        """Test that gets pod memory usage/request."""
-        start_date, end_date = self._populate_pod_summary()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-        # Verify that the line items for the test cluster_id are returned
-        cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
-        reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
-        )
-
-        expected_usage_reports = {entry.uuid: entry.pod_usage_memory_gigabyte_hours for entry in reports}
-        expected_request_reports = {entry.uuid: entry.pod_request_memory_gigabyte_hours for entry in reports}
-        mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours(start_date, end_date, cluster_id)
-        mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(start_date, end_date, cluster_id)
-
-        self.assertEqual(len(mem_usage_query.keys()), len(expected_usage_reports.keys()))
-        self.assertEqual(len(mem_request_query.keys()), len(expected_request_reports.keys()))
-
-        # Verify that no line items are returned for an incorrect cluster_id
-        wrong_cluster_id = cluster_id + "bad"
-        mem_usage_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date, wrong_cluster_id)
-        self.assertEqual(len(mem_usage_query.keys()), 0)
-        mem_request_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date, wrong_cluster_id)
-        self.assertEqual(len(mem_request_query.keys()), 0)
-
-    def test_get_pod_memory_gigabyte_hours_no_cluster_id(self):
-        """Test that gets pod memory usage/request without cluster id."""
-        start_date, end_date = self._populate_pod_summary()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-        # Verify that the line items for the test cluster_id are returned
-        reports = (
-            self.accessor._get_db_obj_query(table_name)
-            .filter(usage_start__gte=start_date, usage_end__lte=end_date, data_source="Pod")
-            .all()
-        )
-
-        expected_usage_reports = {entry.uuid: entry.pod_usage_memory_gigabyte_hours for entry in reports}
-        expected_request_reports = {entry.uuid: entry.pod_request_memory_gigabyte_hours for entry in reports}
-        mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours(start_date, end_date)
-        mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(start_date, end_date)
-
-        self.assertEqual(len(mem_usage_query.keys()), len(expected_usage_reports.keys()))
-        self.assertEqual(len(mem_request_query.keys()), len(expected_request_reports.keys()))
-
-    def test_get_volume_gigabyte_months(self):
-        """Test that gets pod volume usage/request."""
-        start_date, end_date = self._populate_pod_summary()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-        # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).filter(cluster_id=self.cluster_id, data_source="Storage")
-
-        expected_usage_reports = {entry.uuid: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
-        expected_request_reports = {entry.uuid: entry.volume_request_storage_gigabyte_months for entry in reports}
-        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(
-            start_date, end_date, self.cluster_id
-        )
-        vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months(
-            start_date, end_date, self.cluster_id
-        )
-
-        self.assertEqual(len(vol_usage_query.keys()), len(expected_usage_reports.keys()))
-        self.assertEqual(len(vol_request_query.keys()), len(expected_request_reports.keys()))
-
-        # Verify that no line items are returned for an incorrect cluster_id
-        wrong_cluster_id = self.cluster_id + "bad"
-        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(
-            start_date, end_date, wrong_cluster_id
-        )
-        self.assertEqual(len(vol_usage_query.keys()), 0)
-        vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months(
-            start_date, end_date, wrong_cluster_id
-        )
-        self.assertEqual(len(vol_request_query.keys()), 0)
-
-    def test_get_volume_gigabyte_months_no_cluster_id(self):
-        """Test that gets pod volume usage/request without cluster id."""
-        start_date, end_date = self._populate_pod_summary()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-        # Verify that the line items for the test cluster_id are returned
-        reports = (
-            self.accessor._get_db_obj_query(table_name)
-            .filter(usage_start__gte=start_date, usage_end__lte=end_date, data_source="Storage")
-            .all()
-        )
-
-        expected_usage_reports = {entry.uuid: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
-        expected_request_reports = {entry.uuid: entry.volume_request_storage_gigabyte_months for entry in reports}
-        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(start_date, end_date)
-        vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months(start_date, end_date)
-
-        self.assertEqual(len(vol_usage_query.keys()), len(expected_usage_reports.keys()))
-        self.assertEqual(len(vol_request_query.keys()), len(expected_request_reports.keys()))
-
-    def test_get_daily_usage_query_for_clusterid(self):
-        """Test that daily usage getter is correct."""
-        self._populate_pod_summary()
-        daily_usage = self.accessor.get_daily_usage_query_for_clusterid(self.cluster_id)
-        self.assertEqual(daily_usage.count(), 26)
-
-    def test_get_summary_usage_query_for_clusterid(self):
-        """Test that daily usage summary getter is correct."""
-        daily_usage_summary = self.accessor.get_summary_usage_query_for_clusterid(self.cluster_id)
-        with schema_context(self.schema):
-            self.assertEqual(daily_usage_summary.count(), 0)
-        self._populate_pod_summary()
-        with schema_context(self.schema):
-            self.assertEqual(daily_usage_summary.count(), 26)
-
-    def test_get_storage_item_query_report_period_id(self):
-        """Test that get_storage_item_query_report_period_id is correct."""
-        storage_line_item = self.accessor.get_storage_item_query_report_period_id(self.reporting_period.id)
-        with schema_context(self.schema):
-            self.assertEqual(storage_line_item.count(), 1)
-        self._populate_storage_summary()
-        with schema_context(self.schema):
-            self.assertEqual(storage_line_item.count(), 26)
-
-    def test_get_daily_storage_item_query_cluster_id(self):
-        """Test that get_daily_storage_item_query_cluster_id is correct."""
-        with schema_context(self.schema):
-            storage_line_item = self.accessor.get_daily_storage_item_query_cluster_id(self.cluster_id)
-            self.assertEqual(storage_line_item.count(), 0)
-        self._populate_storage_summary()
-        with schema_context(self.schema):
-            self.assertEqual(storage_line_item.count(), 26)
-
-    def test_get_storage_summary_query_cluster_id(self):
-        """Test that get_storage_summary_query_cluster_id is correct."""
-        storage_summary = self.accessor.get_storage_summary_query_cluster_id(self.cluster_id)
-        with schema_context(self.schema):
-            self.assertEqual(storage_summary.count(), 0)
-        self._populate_storage_summary()
-        with schema_context(self.schema):
-            self.assertEqual(storage_summary.count(), 26)
-
-    def test_get_report_periods(self):
-        """Test that report_periods getter is correct."""
-        with schema_context(self.schema):
-            periods = self.accessor.get_report_periods()
-            self.assertEqual(len(periods), OCPUsageReportPeriod.objects.count())
-
-    def test_get_reports(self):
-        """Test that the report getter is correct."""
-        with schema_context(self.schema):
-            reports = self.accessor.get_reports()
-            self.assertEqual(len(reports), OCPUsageReport.objects.count())
 
     def test_populate_monthly_cost_node_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
@@ -2973,7 +2614,7 @@ select * from eek where val1 in {{report_period_id}} ;
                 report_period_id=report_period_id,
             ).count()
 
-        self.assertEqual(initial_non_raw_count, 0)
+        self.assertNotEqual(initial_non_raw_count, 0)
         self.assertEqual(new_non_raw_count, 0)
         self.assertEqual(initial_raw_count, new_raw_count)
 

@@ -39,7 +39,6 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderWarn
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_ocp_on_cloud_summary
 from masu.processor import disable_summary_processing
-from masu.processor import enable_trino_processing
 from masu.processor import is_large_customer
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -56,6 +55,7 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
 from masu.util.gcp.common import deduplicate_reports_for_gcp
+from masu.util.oci.common import deduplicate_reports_for_oci
 
 
 LOG = logging.getLogger(__name__)
@@ -311,11 +311,20 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
             reports_by_source[report.get("provider_uuid")].append(report)
 
     reports_deduplicated = []
+    dedup_func_map = {
+        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
+        Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
+    }
     for source, report_list in reports_by_source.items():
         starts = []
         ends = []
-        if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            reports_deduplicated += deduplicate_reports_for_gcp(report_list)
+        if report and report.get("provider_type") in dedup_func_map:
+            provider_type = report.get("provider_type")
+            manifest_list = [] if "oci" in provider_type.lower() else manifest_list
+            dedup_func = dedup_func_map.get(provider_type)
+            reports_deduplicated.extend(dedup_func(report_list))
         else:
             for report in report_list:
                 if report.get("start") and report.get("end"):
@@ -483,7 +492,7 @@ def update_summary_tables(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    if enable_trino_processing(provider_uuid, provider, schema_name) and provider in (
+    if provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
@@ -573,6 +582,10 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
+    if disable_ocp_on_cloud_summary(schema_name):
+        msg = f"OCP on Cloud summary disabled for {schema_name}."
+        LOG.info(msg)
+        return
     if isinstance(start_date, str):
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
@@ -683,7 +696,13 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False, tracing_id=None
+    schema_name,
+    provider_uuid,
+    start_date=None,
+    end_date=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
 ):
     """Update usage charge information.
 

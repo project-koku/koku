@@ -11,7 +11,6 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pandas as pd
-from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
@@ -283,7 +282,6 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest.operator_errors, expected_errors)
         self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
-    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")
