@@ -237,6 +237,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        if self.ingress_reports:
+            key = key.split(f"{self.bucket}/")[-1]
+
         s3_filename = key.split("/")[-1]
         directory_path = f"{DATA_DIR}/{self.customer_name}/aws/{self.bucket}"
 
@@ -313,7 +316,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if self.ingress_reports:
             manifest_dict = self._generate_monthly_pseudo_manifest(date)
             if manifest_dict:
-                assembly_id = ":".join([str(self._provider_uuid), str(date)])
+                assembly_id = manifest_dict.get("assembly_id")
                 manifest_id = self._process_manifest_db_record(
                     assembly_id,
                     date.strftime("%Y-%m-%d"),

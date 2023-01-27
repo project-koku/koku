@@ -198,40 +198,40 @@ def get_report_files(  # noqa: C901
             LOG.warning(log_json(tracing_id, str(err), context))
             return
 
+        stmt = (
+            f"Reports to be processed: "
+            f" schema_name: {customer_name} "
+            f" provider: {provider_type} "
+            f" provider_uuid: {provider_uuid}"
+        )
+        if report_dict:
+            stmt += f" file: {report_dict['file']}"
+            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] and report_dict.get(
+                "invoice_month"
+            ):
+                stmt += f" Invoice_month: {report_dict['invoice_month']}"
+            LOG.info(log_json(tracing_id, stmt, context))
+        else:
+            WorkerCache().remove_task_from_cache(cache_key)
             stmt = (
-                f"Reports to be processed: "
+                f"No report to be processed: "
                 f" schema_name: {customer_name} "
                 f" provider: {provider_type} "
                 f" provider_uuid: {provider_uuid}"
             )
-            if report_dict:
-                stmt += f" file: {report_dict['file']}"
-                if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] and report_dict.get(
-                    "invoice_month"
-                ):
-                    stmt += f" Invoice_month: {report_dict['invoice_month']}"
-                LOG.info(log_json(tracing_id, stmt, context))
-            else:
-                WorkerCache().remove_task_from_cache(cache_key)
-                stmt = (
-                    f"No report to be processed: "
-                    f" schema_name: {customer_name} "
-                    f" provider: {provider_type} "
-                    f" provider_uuid: {provider_uuid}"
-                )
-                LOG.info(log_json(tracing_id, stmt, context))
-                return
+            LOG.info(log_json(tracing_id, stmt, context))
+            return
 
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": report_dict.get("manifest_id"),
-                "tracing_id": tracing_id,
-                "start": report_dict.get("start"),
-                "end": report_dict.get("end"),
-                "invoice_month": report_dict.get("invoice_month"),
-            }
+        report_meta = {
+            "schema_name": schema_name,
+            "provider_type": provider_type,
+            "provider_uuid": provider_uuid,
+            "manifest_id": report_dict.get("manifest_id"),
+            "tracing_id": tracing_id,
+            "start": report_dict.get("start"),
+            "end": report_dict.get("end"),
+            "invoice_month": report_dict.get("invoice_month"),
+        }
 
         try:
             stmt = (
