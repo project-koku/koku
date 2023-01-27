@@ -58,6 +58,7 @@ PRESTO_REQUIRED_COLUMNS = (
     "pricing/publicOnDemandRate",
     "lineItem/ResourceId",
     "resourceTags",
+    "costCategory",
     "savingsPlan/SavingsPlanEffectiveCost",
 )
 
