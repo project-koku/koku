@@ -6,6 +6,8 @@
 import logging
 
 from api.provider.models import Provider
+from koku.cache import get_cached_infra_map
+from koku.cache import set_cached_infra_map
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -101,6 +103,10 @@ class OCPCloudUpdaterBase:
             infra_map (dict) The OCP infrastructure map.
 
         """
+        cache_infra_map = get_cached_infra_map(self._schema, self._provider.type, self._provider_uuid)
+        if cache_infra_map:
+            LOG.info("Retrieved matching infra map from cache.")
+            return cache_infra_map
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
             with OCPReportDBAccessor(self._schema) as accessor:
@@ -126,6 +132,7 @@ class OCPCloudUpdaterBase:
         # Save to DB
         self.set_provider_infra_map(infra_map)
 
+        set_cached_infra_map(self._schema, self._provider.type, self._provider_uuid, infra_map)
         return infra_map
 
     def set_provider_infra_map(self, infra_map):
