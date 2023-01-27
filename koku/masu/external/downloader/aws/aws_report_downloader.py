@@ -179,9 +179,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        # Checking if initial ingest is for a HCS manifest DO NOT PROCESS
+        # Checking if initial ingest is Parquet compressed DO NOT PROCESS
         if "Parquet" == self.report.get("Compression"):
-            LOG.info("Skipping ingest since data is Parquet compressed and likely for HCS")
+            LOG.info("Skipping ingest since data is Parquet compressed and likely awaiting ingress report")
             return "", self.empty_manifest, None
         manifest = f"{self._get_report_path(date_time)}/{self.report_name}-Manifest.json"
         msg = f"Will attempt to download manifest: {manifest}"

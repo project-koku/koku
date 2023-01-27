@@ -23,10 +23,10 @@ class IngressReports(models.Model):
         """Get the string representation."""
         return (
             f"Source UUID: {self.source}\n"
-            f"AWS bucket location: {self.reports_list}\n"
+            f"Report location: {self.reports_list}\n"
             f"Created time: {self.created_timestamp}\n"
             f"Processing completed: {self.completed_timestamp}\n"
-            f"Processing task ID: {self.uuid}\n"
+            f"Processing ID: {self.uuid}\n"
         )
 
     def ingest(data):
@@ -38,7 +38,9 @@ class IngressReports(models.Model):
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(
                 lambda: check_report_updates.s(
-                    provider_uuid=data.get("source"), ingress_reports=data.get("reports_list")
+                    provider_uuid=data.get("source"),
+                    ingress_reports=data.get("reports_list"),
+                    ingress_report_id=data.get("ingress_report_id"),
                 )
                 .set(queue="priority")
                 .apply_async()

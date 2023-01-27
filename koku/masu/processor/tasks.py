@@ -28,6 +28,7 @@ from api.utils import get_months_in_date_range
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -296,7 +297,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):
+def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_id=None):
     """
     Summarize reports returned from line summary task.
 
@@ -367,6 +368,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
                         report.get("provider_uuid"),
                         start_date=month[0],
                         end_date=month[1],
+                        ingress_report_id=ingress_report_id,
                         manifest_id=report.get("manifest_id"),
                         queue_name=queue_name,
                         tracing_id=tracing_id,
@@ -381,6 +383,7 @@ def update_summary_tables(  # noqa: C901
     provider,
     provider_uuid,
     start_date,
+    ingress_report_id=None,
     end_date=None,
     manifest_id=None,
     queue_name=None,
@@ -440,6 +443,7 @@ def update_summary_tables(  # noqa: C901
                 provider_uuid,
                 start_date,
                 end_date=end_date,
+                ingress_report_id=ingress_report_id,
                 manifest_id=manifest_id,
                 invoice_month=invoice_month,
                 queue_name=queue_name,
@@ -553,7 +557,12 @@ def update_summary_tables(  # noqa: C901
         stmt = f"update_cost_model_costs skipped. schema_name: {schema_name}, provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = mark_manifest_complete.s(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+            schema_name,
+            provider,
+            provider_uuid=provider_uuid,
+            manifest_list=manifest_list,
+            ingress_report_id=ingress_report_id,
+            tracing_id=tracing_id,
         ).set(queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE)
 
     chain(linked_tasks).apply_async()
@@ -773,6 +782,7 @@ def mark_manifest_complete(  # noqa: C901
     schema_name,
     provider_type,
     provider_uuid="",
+    ingress_report_id=None,
     synchronous=False,
     queue_name=None,
     tracing_id=None,
@@ -781,19 +791,23 @@ def mark_manifest_complete(  # noqa: C901
     """Mark a manifest and provider as complete"""
     stmt = (
         f"mark_manifest_complete called with args: "
-        f" schema_name: {schema_name}, "
-        f" provider_type: {provider_type}, "
-        f" provider_uuid: {provider_uuid}, "
-        f" synchronous: {synchronous}, "
-        f" queue_name: {queue_name}, "
-        f" tracing_id: {tracing_id}"
-        f" manifest_list: {manifest_list}"
+        f"schema_name: {schema_name}, "
+        f"provider_type: {provider_type}, "
+        f"provider_uuid: {provider_uuid}, "
+        f"ingress_report_id: {ingress_report_id}, "
+        f"synchronous: {synchronous}, "
+        f"queue_name: {queue_name}, "
+        f"tracing_id: {tracing_id}, "
+        f"manifest_list: {manifest_list}"
     )
     LOG.info(log_json(tracing_id, stmt))
     if provider_uuid:
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     with ReportManifestDBAccessor() as manifest_accessor:
         manifest_accessor.mark_manifests_as_completed(manifest_list)
+    if ingress_report_id:
+        with IngressReportDBAccessor(schema_name) as ingressreport_accessor:
+            ingressreport_accessor.mark_ingress_report_as_completed(ingress_report_id)
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
