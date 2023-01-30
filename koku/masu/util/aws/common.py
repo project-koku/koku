@@ -33,7 +33,73 @@ from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 LOG = logging.getLogger(__name__)
 
 
-def get_assume_role_session(arn, session="MasuSession"):
+# pylint: disable=too-few-public-methods
+class AwsArn:
+    """
+    Object representing an AWS ARN.
+
+    See also:
+        https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
+
+    General ARN formats:
+        arn:partition:service:region:account-id:resource
+        arn:partition:service:region:account-id:resourcetype/resource
+        arn:partition:service:region:account-id:resourcetype:resource
+
+    Example ARNs:
+        <!-- Elastic Beanstalk application version -->
+        arn:aws:elasticbeanstalk:us-east-1:123456789012:environment/My App/foo
+        <!-- IAM user name -->
+        arn:aws:iam::123456789012:user/David
+        <!-- Amazon RDS instance used for tagging -->
+        arn:aws:rds:eu-west-1:123456789012:db:mysql-db
+        <!-- Object in an Amazon S3 bucket -->
+        arn:aws:s3:::my_corporate_bucket/exampleobject.png
+
+    """
+
+    arn_regex = re.compile(
+        r"^arn:(?P<partition>\w+):(?P<service>\w+):"
+        r"(?P<region>\w+(?:-\w+)+)?:"
+        r"(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)"
+        r"(?P<resource_separator>[:/])?(?P<resource>.*)"
+    )
+
+    partition = None
+    service = None
+    region = None
+    account_id = None
+    resource_type = None
+    resource_separator = None
+    resource = None
+
+    def __init__(self, arn):
+        """
+        Parse ARN string into its component pieces.
+
+        Args:
+            arn (str): Amazon Resource Name
+
+        """
+        match = False
+        self.arn = arn
+        if arn:
+            match = self.arn_regex.match(arn)
+
+        if not match:
+            raise SyntaxError(f"Invalid ARN: {arn}")
+
+        for key, val in match.groupdict().items():
+            setattr(self, key, val)
+
+    def __repr__(self):
+        """Return the ARN itself."""
+        return self.arn
+
+
+def get_assume_role_session(
+    arn: AwsArn, session: str = "MasuSession", region: str = "us-east-1"
+) -> boto3.session.Session:
     """
     Assume a Role and obtain session credentials for the given role.
 
@@ -55,7 +121,7 @@ def get_assume_role_session(arn, session="MasuSession"):
         aws_access_key_id=response["Credentials"]["AccessKeyId"],
         aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
         aws_session_token=response["Credentials"]["SessionToken"],
-        region_name="us-east-1",
+        region_name=region,
     )
 
 
@@ -578,67 +644,3 @@ def get_column_converters():
         "pricing/publicondemandrate": safe_float,
         "savingsplan/savingsplaneffectivecost": safe_float,
     }
-
-
-# pylint: disable=too-few-public-methods
-class AwsArn:
-    """
-    Object representing an AWS ARN.
-
-    See also:
-        https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
-
-    General ARN formats:
-        arn:partition:service:region:account-id:resource
-        arn:partition:service:region:account-id:resourcetype/resource
-        arn:partition:service:region:account-id:resourcetype:resource
-
-    Example ARNs:
-        <!-- Elastic Beanstalk application version -->
-        arn:aws:elasticbeanstalk:us-east-1:123456789012:environment/My App/foo
-        <!-- IAM user name -->
-        arn:aws:iam::123456789012:user/David
-        <!-- Amazon RDS instance used for tagging -->
-        arn:aws:rds:eu-west-1:123456789012:db:mysql-db
-        <!-- Object in an Amazon S3 bucket -->
-        arn:aws:s3:::my_corporate_bucket/exampleobject.png
-
-    """
-
-    arn_regex = re.compile(
-        r"^arn:(?P<partition>\w+):(?P<service>\w+):"
-        r"(?P<region>\w+(?:-\w+)+)?:"
-        r"(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)"
-        r"(?P<resource_separator>[:/])?(?P<resource>.*)"
-    )
-
-    partition = None
-    service = None
-    region = None
-    account_id = None
-    resource_type = None
-    resource_separator = None
-    resource = None
-
-    def __init__(self, arn):
-        """
-        Parse ARN string into its component pieces.
-
-        Args:
-            arn (str): Amazon Resource Name
-
-        """
-        match = False
-        self.arn = arn
-        if arn:
-            match = self.arn_regex.match(arn)
-
-        if not match:
-            raise SyntaxError(f"Invalid ARN: {arn}")
-
-        for key, val in match.groupdict().items():
-            setattr(self, key, val)
-
-    def __repr__(self):
-        """Return the ARN itself."""
-        return self.arn
