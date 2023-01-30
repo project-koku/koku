@@ -419,11 +419,11 @@ SELECT pds.aws_uuid,
     usage_amount / aws_uuid_count as usage_amount,
     currency_code,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * unblended_cost
         ELSE unblended_cost / aws_uuid_count
     END as unblended_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
