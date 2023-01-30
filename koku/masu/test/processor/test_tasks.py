@@ -800,6 +800,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 provider,
                 provider_uuid=provider_aws_uuid,
                 manifest_list=[manifest_id],
+                ingress_report_id=None,
                 tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
