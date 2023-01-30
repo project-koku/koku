@@ -47,7 +47,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, credentials, data_source, ingress_reports=None, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
         """
         Constructor.
 
