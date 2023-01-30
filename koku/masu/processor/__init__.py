@@ -8,14 +8,13 @@ import logging
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
-from masu.external import PARQUET_COMPRESSED
 from masu.external import UNCOMPRESSED
 from masu.util.common import convert_account
 
 
 LOG = logging.getLogger(__name__)
 
-ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED, PARQUET_COMPRESSED)
+ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
 def enable_purge_trino_files(account):

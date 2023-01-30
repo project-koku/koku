@@ -62,6 +62,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
+        self.storage_only = (data_source.get("storage-only"), False)
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
@@ -87,26 +88,32 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         LOG.debug("Connecting to AWS...")
         session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
-        self.cur = session.client("cur")
 
-        # fetch details about the report from the cloud provider
-        defs = self.cur.describe_report_definitions()
-        if not report_name:
-            report_names = []
-            for report in defs.get("ReportDefinitions", []):
-                if bucket == report.get("S3Bucket"):
-                    report_names.append(report["ReportName"])
+        # Checking for storage only source
+        if self.storage_only:
+            LOG.info("Skipping ingest as source is storage-only and requires ingress reports")
+            report = [""]
+        else:
+            self.cur = session.client("cur")
 
-            # FIXME: Get the first report in the bucket until Koku can specify
-            # which report the user wants
-            if report_names:
-                report_name = report_names[0]
-        self.report_name = report_name
-        self.bucket = bucket
-        report_defs = defs.get("ReportDefinitions", [])
-        report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
-        if not report:
-            raise MasuProviderError("Cost and Usage Report definition not found.")
+            # fetch details about the report from the cloud provider
+            defs = self.cur.describe_report_definitions()
+            if not report_name:
+                report_names = []
+                for report in defs.get("ReportDefinitions", []):
+                    if bucket == report.get("S3Bucket"):
+                        report_names.append(report["ReportName"])
+
+                # FIXME: Get the first report in the bucket until Koku can specify
+                # which report the user wants
+                if report_names:
+                    report_name = report_names[0]
+            self.report_name = report_name
+            self.bucket = bucket
+            report_defs = defs.get("ReportDefinitions", [])
+            report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
+            if not report:
+                raise MasuProviderError("Cost and Usage Report definition not found.")
 
         self.report = report.pop()
         self.s3_client = session.client("s3")
@@ -179,10 +186,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        # Checking if initial ingest is Parquet compressed DO NOT PROCESS
-        if "Parquet" == self.report.get("Compression"):
-            LOG.info("Skipping ingest since data is Parquet compressed and likely awaiting ingress report")
-            return "", self.empty_manifest, None
         manifest = f"{self._get_report_path(date_time)}/{self.report_name}-Manifest.json"
         msg = f"Will attempt to download manifest: {manifest}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
@@ -329,6 +332,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     for key in manifest_dict.get("file_names")
                 ]
         else:
+            # Skip download for storage only source
+            if self.storage_only:
+                return report_dict
             manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
             if manifest == self.empty_manifest:
                 return report_dict

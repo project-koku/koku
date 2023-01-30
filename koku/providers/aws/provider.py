@@ -124,6 +124,8 @@ class AWSProvider(ProviderInterface):
             message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
+        storage_only = data_source.get("storage-only")
+
         creds = _get_sts_access(credential_name)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
@@ -137,9 +139,13 @@ class AWSProvider(ProviderInterface):
             internal_message = f"Bucket {storage_resource_name} could not be found with {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        _check_cost_report_access(credential_name, creds, bucket=storage_resource_name)
+        if storage_only == "True":
+            # Limited bucket access without CUR
+            return True
+        else:
+            _check_cost_report_access(credential_name, creds, bucket=storage_resource_name)
 
-        return True
+            return True
 
     def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""

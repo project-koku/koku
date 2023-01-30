@@ -10,7 +10,6 @@ LISTEN_INGEST = "listen-ingest"
 # Compression formats
 UNCOMPRESSED = "PLAIN"
 GZIP_COMPRESSED = "GZIP"
-PARQUET_COMPRESSED = "Parquet"
 
 # Valid AWS Regions from https://docs.aws.amazon.com/general/latest/gr/rande.html
 AWS_REGIONS = [
