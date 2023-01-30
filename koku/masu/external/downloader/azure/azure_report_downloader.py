@@ -15,7 +15,6 @@ from api.provider.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.azure.azure_service import AzureBlobExtension
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -23,6 +22,7 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure import common as utils
+from masu.util.azure.common import AzureBlobExtension
 from masu.util.common import extract_uuids_from_string
 from masu.util.common import get_path_prefix
 from masu.util.common import month_date_range

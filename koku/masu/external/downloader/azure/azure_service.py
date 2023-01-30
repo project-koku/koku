@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Service helpers."""
-import enum
 import logging
-import typing as t
 from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
@@ -14,6 +12,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.storage.blob._models import BlobProperties
 from msrest.exceptions import ClientException
 
+from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
 
 LOG = logging.getLogger(__name__)
@@ -29,12 +28,6 @@ class AzureCostReportNotFound(Exception):
     """Raised when Azure cost report is not found."""
 
     pass
-
-
-class AzureBlobExtension(enum.Enum):
-    manifest = "_manifest.json"
-    csv = ".csv"
-    json = ".json"
 
 
 class AzureService:
