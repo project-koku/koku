@@ -15,6 +15,7 @@ from api.provider.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.azure.azure_service import AzureBlobExtension
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -142,33 +143,44 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_path = self._get_report_path(date_time)
         manifest = {}
         try:
-            blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+            container_client = self._azure_client._cloud_storage_account.get_container_client(self.container_name)
+            blob_names = container_client.list_blob_names(name_starts_with=report_path)
         except AzureCostReportNotFound as ex:
-            msg = f"Unable to find manifest. Error: {str(ex)}"
+            msg = f"Unable to find manifest. Error: {ex}"
             LOG.info(log_json(self.tracing_id, msg, self.context))
             return manifest, None
 
-        report_name = blob.name
-        manifest["reportKeys"] = [report_name]
+        if any(name.endswith(AzureBlobExtension.manifest.value) for name in blob_names):
+            json_manifest_blob = self._azure_client._get_latest_manifest_for_path(report_path, self.container_name)
+            report_name = json_manifest_blob.name
+            last_modified = json_manifest_blob.last_modified
+            LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
 
-        if blob.name.lower().endswith(".json"):
-            # This is a JSON manifest. Download it and extract the list of files.
+            # Download the manifest and extract the list of files.
             try:
-                result = self.download_file(manifest)
+                manifest_tmp = self._azure_client.download_file(
+                    report_name, self.container_name, suffix=AzureBlobExtension.json.value
+                )
             except AzureReportDownloaderError as err:
-                msg = f"Unable to get report manifest. Reason: {str(err)}"
+                msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 return "", self.empty_manifest, None
 
             # Extract data from the JSON file
             try:
-                with open(result[0]) as f:
+                with open(manifest_tmp) as f:
                     manifest_json = json.load(f)
             except json.JSONDecodeError as err:
                 msg = f"Unable to open JSON manifest. Reason: {err}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                raise AzureReportDownloaderError(msg)
 
             manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
+        else:
+            cost_export_blob = self._azure_client._get_latest_cost_export_for_path(report_path, self.container_name)
+            report_name = cost_export_blob.name
+            last_modified = cost_export_blob.last_modified
+            LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
+            manifest["reportKeys"] = [report_name]
 
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
@@ -183,7 +195,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest["billingPeriod"] = billing_period
         manifest["Compression"] = UNCOMPRESSED
 
-        return manifest, blob.last_modified
+        return manifest, last_modified
 
     def get_manifest_context_for_date(self, date):
         """
@@ -200,6 +212,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
+        # rdb.set_trace()
         manifest_dict = {}
         report_dict = {}
         manifest, manifest_timestamp = self._get_manifest(date)
@@ -260,7 +273,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         file_creation_date = None
         try:
-            blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
+            blob = self._azure_client.get_file_for_key(key, self.container_name)
             etag = blob.etag
             file_creation_date = blob.last_modified
         except AzureCostReportNotFound as ex:
@@ -270,7 +283,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
+        blob = self._azure_client.download_file(key, self.container_name, destination=full_file_path)
         # Push to S3
         s3_csv_path = get_path_prefix(
             self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
