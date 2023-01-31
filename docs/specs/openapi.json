@@ -3343,7 +3343,7 @@
                 }
             }
         },
-        "/resource-types/oci-tenant-ids/": {
+        "/resource-types/oci-payer-tenant-ids/": {
             "get": {
                 "tags": [
                     "Resource Type"
