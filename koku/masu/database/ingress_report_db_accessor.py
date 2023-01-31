@@ -24,10 +24,10 @@ class IngressReportDBAccessor(KokuDBAccess):
         self._table = IngressReports
         self.date_accessor = DateAccessor()
 
-    def get_ingress_reports_for_provider(self, provider_uuid):
-        """Get the ingress reports associated with the provided provider."""
+    def get_ingress_reports_for_source(self, source_uuid):
+        """Get the ingress reports associated with the provided source uuid."""
         query = self._get_db_obj_query()
-        return query.filter(provider_id=provider_uuid).first()
+        return query.filter(source=source_uuid).first()
 
     def get_ingress_report_by_id(self, ingress_report_id):
         """Get the ingress report by id."""

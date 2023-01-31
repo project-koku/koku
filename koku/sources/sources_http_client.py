@@ -30,12 +30,15 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_OCI_LOCAL: ["bucket", "bucket_namespace", "bucket_region"],
 }
 APP_OPT_EXTRA_FEILD_MAP = {
+    Provider.PROVIDER_OCP: [],
     Provider.PROVIDER_AWS: ["storage-only"],
     Provider.PROVIDER_AWS_LOCAL: ["storage-only"],
     Provider.PROVIDER_AZURE: ["storage-only"],
     Provider.PROVIDER_AZURE_LOCAL: ["storage-only"],
     Provider.PROVIDER_GCP: ["storage-only"],
     Provider.PROVIDER_GCP_LOCAL: ["storage-only"],
+    Provider.PROVIDER_OCI: [],
+    Provider.PROVIDER_OCI_LOCAL: [],
 }
 AUTH_TYPES = {
     Provider.PROVIDER_OCP: "token",
