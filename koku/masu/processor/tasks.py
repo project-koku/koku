@@ -297,7 +297,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_id=None):
+def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None):
     """
     Summarize reports returned from line summary task.
 
@@ -368,7 +368,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
                         report.get("provider_uuid"),
                         start_date=month[0],
                         end_date=month[1],
-                        ingress_report_id=ingress_report_id,
+                        ingress_report_uuid=ingress_report_uuid,
                         manifest_id=report.get("manifest_id"),
                         queue_name=queue_name,
                         tracing_id=tracing_id,
@@ -385,7 +385,7 @@ def update_summary_tables(  # noqa: C901
     start_date,
     end_date=None,
     manifest_id=None,
-    ingress_report_id=None,
+    ingress_report_uuid=None,
     queue_name=None,
     synchronous=False,
     tracing_id=None,
@@ -443,7 +443,7 @@ def update_summary_tables(  # noqa: C901
                 provider_uuid,
                 start_date,
                 end_date=end_date,
-                ingress_report_id=ingress_report_id,
+                ingress_report_uuid=ingress_report_uuid,
                 manifest_id=manifest_id,
                 invoice_month=invoice_month,
                 queue_name=queue_name,
@@ -561,7 +561,7 @@ def update_summary_tables(  # noqa: C901
             provider,
             provider_uuid=provider_uuid,
             manifest_list=manifest_list,
-            ingress_report_id=ingress_report_id,
+            ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
         ).set(queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE)
 
@@ -782,7 +782,7 @@ def mark_manifest_complete(  # noqa: C901
     schema_name,
     provider_type,
     provider_uuid="",
-    ingress_report_id=None,
+    ingress_report_uuid=None,
     synchronous=False,
     queue_name=None,
     tracing_id=None,
@@ -794,7 +794,7 @@ def mark_manifest_complete(  # noqa: C901
         f"schema_name: {schema_name}, "
         f"provider_type: {provider_type}, "
         f"provider_uuid: {provider_uuid}, "
-        f"ingress_report_id: {ingress_report_id}, "
+        f"ingress_report_uuid: {ingress_report_uuid}, "
         f"synchronous: {synchronous}, "
         f"queue_name: {queue_name}, "
         f"tracing_id: {tracing_id}, "
@@ -805,9 +805,9 @@ def mark_manifest_complete(  # noqa: C901
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     with ReportManifestDBAccessor() as manifest_accessor:
         manifest_accessor.mark_manifests_as_completed(manifest_list)
-    if ingress_report_id:
+    if ingress_report_uuid:
         with IngressReportDBAccessor(schema_name) as ingressreport_accessor:
-            ingressreport_accessor.mark_ingress_report_as_completed(ingress_report_id)
+            ingressreport_accessor.mark_ingress_report_as_completed(ingress_report_uuid)
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)

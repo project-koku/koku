@@ -73,7 +73,7 @@ class ReportsView(APIView):
         serializer = ReportSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            data["ingress_report_id"] = serializer.data.get("uuid")
+            data["ingress_report_uuid"] = serializer.data.get("uuid")
             IngressReports.ingest(data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 

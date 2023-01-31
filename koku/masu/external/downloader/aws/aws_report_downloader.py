@@ -9,7 +9,6 @@ import logging
 import os
 import shutil
 import struct
-import uuid
 
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -62,6 +61,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
+        self.bucket = bucket
         self.storage_only = data_source.get("storage-only")
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
@@ -78,7 +78,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
                 self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                self.bucket = bucket
                 session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
                 self.s3_client = session.client("s3")
                 return
@@ -109,7 +108,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 if report_names:
                     report_name = report_names[0]
             self.report_name = report_name
-            self.bucket = bucket
             report_defs = defs.get("ReportDefinitions", [])
             report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
             if not report:
@@ -141,11 +139,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         size_ok = False
 
         try:
-            s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
+            s3fileobj = self.s3_client.get_object(Bucket=self.bucket, Key=s3key)
             size = int(s3fileobj.get("ContentLength", -1))
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "AccessDenied":
-                msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
+                msg = f"Unable to access S3 Bucket {self.bucket}: (AccessDenied)"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
@@ -164,9 +162,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         ext = os.path.splitext(s3key)[1]
         if ext == ".gz" and check_inflate and size_ok and size > 0:
             # isize block is the last 4 bytes of the file; see: RFC1952
-            resp = self.s3_client.get_object(
-                Bucket=self.report.get("S3Bucket"), Key=s3key, Range=f"bytes={size - 4}-{size}"
-            )
+            resp = self.s3_client.get_object(Bucket=self.bucket, Key=s3key, Range=f"bytes={size - 4}-{size}")
             isize = struct.unpack("<I", resp["Body"].read(4))[0]
             if isize > free_space:
                 size_ok = False
@@ -256,16 +252,16 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         s3_etag = None
         file_creation_date = None
         try:
-            s3_file = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=key)
+            s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
             s3_etag = s3_file.get("ETag")
             file_creation_date = s3_file.get("LastModified")
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
-                msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
+                msg = f"Unable to find {s3_filename} in S3 Bucket: {self.bucket}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             if ex.response["Error"]["Code"] == "AccessDenied":
-                msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
+                msg = f"Unable to access S3 Bucket {self.bucket}: (AccessDenied)"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
@@ -280,7 +276,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading key: {key} to file path: {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg, self.context))
-            self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
+            self.s3_client.download_file(self.bucket, key, full_file_path)
             # Push to S3
             s3_csv_path = get_path_prefix(
                 self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
@@ -327,6 +323,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     date,
                 )
                 report_dict["assembly_id"] = assembly_id
+                report_dict["compression"] = manifest_dict.get("compression")
                 files_list = [
                     {"key": key, "local_file": self.get_local_file_for_report(key)}
                     for key in manifest_dict.get("file_names")
@@ -349,12 +346,12 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     manifest_timestamp,
                 )
                 report_dict["assembly_id"] = manifest.get("assemblyId")
+                report_dict["compression"] = self.report.get("Compression")
                 files_list = [
                     {"key": key, "local_file": self.get_local_file_for_report(key)}
                     for key in manifest.get("reportKeys")
                 ]
         report_dict["manifest_id"] = manifest_id
-        report_dict["compression"] = self.report.get("Compression")
         report_dict["files"] = files_list
         return report_dict
 
@@ -377,7 +374,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
 
         manifest_data = {
-            "assembly_id": uuid.uuid4(),
+            "assembly_id": "",
             "compression": UNCOMPRESSED,
             "start_date": date,
             "file_names": self.ingress_reports,

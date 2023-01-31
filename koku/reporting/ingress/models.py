@@ -40,7 +40,7 @@ class IngressReports(models.Model):
                 lambda: check_report_updates.s(
                     provider_uuid=data.get("source"),
                     ingress_reports=data.get("reports_list"),
-                    ingress_report_id=data.get("ingress_report_id"),
+                    ingress_report_uuid=data.get("ingress_report_uuid"),
                 )
                 .set(queue="priority")
                 .apply_async()

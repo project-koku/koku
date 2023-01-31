@@ -58,7 +58,7 @@ class Orchestrator:
         self.provider_uuid = provider_uuid
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
-        self.ingress_report_id = kwargs.get("ingress_report_id")
+        self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
@@ -255,7 +255,7 @@ class Orchestrator:
                 reports_tasks_queued = True
                 hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
                 summary_task = summarize_reports.s(
-                    manifest_list=manifest_list, ingress_report_id=self.ingress_report_id
+                    manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
                 async_id = chord(report_tasks, group(summary_task, hcs_task))()
             else:

@@ -29,17 +29,17 @@ class IngressReportDBAccessor(KokuDBAccess):
         query = self._get_db_obj_query()
         return query.filter(source=source_uuid).first()
 
-    def get_ingress_report_by_id(self, ingress_report_id):
+    def get_ingress_report_by_uuid(self, ingress_report_uuid):
         """Get the ingress report by id."""
         with schema_context(self._schema):
             query = self._get_db_obj_query()
-            return query.filter(uuid=ingress_report_id).first()
+            return query.filter(uuid=ingress_report_uuid).first()
 
-    def mark_ingress_report_as_completed(self, ingress_report_id):
+    def mark_ingress_report_as_completed(self, ingress_report_uuid):
         """Update the completed timestamp for ingress reports."""
         completed_datetime = self.date_accessor.today_with_timezone("UTC")
-        if ingress_report_id:
-            ingress_report = self._get_db_obj_query().filter(uuid=ingress_report_id).first()
+        if ingress_report_uuid:
+            ingress_report = self._get_db_obj_query().filter(uuid=ingress_report_uuid).first()
             if not ingress_report.completed_timestamp:
                 ingress_report.completed_timestamp = completed_datetime
                 ingress_report.save()

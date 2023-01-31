@@ -52,21 +52,21 @@ class IngressReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
 
-            ingress_report_id = self.ingress_report_dict.get("uuid")
+            ingress_report_uuid = self.ingress_report_dict.get("uuid")
             source_uuid = self.ingress_report_dict.get("source")
             ingress_report = self.ingress_report_accessor.get_ingress_reports_for_source(source_uuid=source_uuid)
 
         self.assertIsNotNone(ingress_report)
         self.assertEqual(added_ingress_report, ingress_report)
-        self.assertEqual(str(ingress_report.uuid), ingress_report_id)
+        self.assertEqual(str(ingress_report.uuid), ingress_report_uuid)
         self.assertEqual(ingress_report.source, source_uuid)
         self.assertEqual(ingress_report.reports_list, self.ingress_report_dict.get("reports_list"))
 
-    def test_get_ingress_report_by_id(self):
+    def test_get_ingress_report_by_uuid(self):
         """Test that the right ingress report is returned by id."""
         with schema_context(self.schema):
             added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
-            ingress_report = self.ingress_report_accessor.get_ingress_report_by_id(
+            ingress_report = self.ingress_report_accessor.get_ingress_report_by_uuid(
                 self.ingress_report_dict.get("uuid")
             )
         self.assertIsNotNone(ingress_report)
@@ -75,6 +75,6 @@ class IngressReportDBAccessorTest(MasuTestCase):
     def test_mark_ingress_report_as_completed_none_report(self):
         """Test to mark ingress report complete with None report."""
         try:
-            self.ingress_report_accessor.mark_ingress_report_as_completed(ingress_report_id=None)
+            self.ingress_report_accessor.mark_ingress_report_as_completed(ingress_report_uuid=None)
         except Exception as err:
             self.fail(f"Test failed with error: {err}")
