@@ -29,6 +29,14 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_OCI: ["bucket", "bucket_namespace", "bucket_region"],
     Provider.PROVIDER_OCI_LOCAL: ["bucket", "bucket_namespace", "bucket_region"],
 }
+APP_OPT_EXTRA_FEILD_MAP = {
+    Provider.PROVIDER_AWS: ["storage-only"],
+    Provider.PROVIDER_AWS_LOCAL: ["storage-only"],
+    Provider.PROVIDER_AZURE: ["storage-only"],
+    Provider.PROVIDER_AZURE_LOCAL: ["storage-only"],
+    Provider.PROVIDER_GCP: ["storage-only"],
+    Provider.PROVIDER_GCP_LOCAL: ["storage-only"],
+}
 AUTH_TYPES = {
     Provider.PROVIDER_OCP: "token",
     Provider.PROVIDER_AWS: "arn",
@@ -174,12 +182,13 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
         app_settings = applications_data.get("extra") or {}
         required_extras = APP_EXTRA_FIELD_MAP[source_type]
+        optional_extras = APP_OPT_EXTRA_FEILD_MAP[source_type]
         if any(k not in app_settings for k in required_extras):
             raise SourcesHTTPClientError(
                 f"missing application data for source: {self._source_id}. "
                 f"expected: {required_extras}, got: {list(app_settings.keys())}"
             )
-        return {k: app_settings.get(k) for k in required_extras}
+        return {k: app_settings.get(k) for k in required_extras + optional_extras}
 
     def get_credentials(self, source_type, app_type_id):
         """Get the source credentials."""

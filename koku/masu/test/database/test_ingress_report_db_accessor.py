@@ -21,7 +21,7 @@ class IngressReportDBAccessorTest(IamTestCase):
         super().setUp()
         self.schema = self.schema_name
         self.billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        self.report_dict = {
+        self.ingress_report_dict = {
             "uuid": "1234",
             "created_timestamp": "today",
             "complete_timestamp": "tomorrow",
@@ -40,7 +40,7 @@ class IngressReportDBAccessorTest(IamTestCase):
 
     def test_initializer(self):
         """Test the initializer."""
-        accessor = IngressReportDBAccessor()
+        accessor = IngressReportDBAccessor(self.schema)
         self.assertIsNotNone(accessor._table)
 
     def test_get_ingress_report_by_source(self):
