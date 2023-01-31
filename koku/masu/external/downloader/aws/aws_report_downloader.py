@@ -62,7 +62,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
-        self.storage_only = (data_source.get("storage-only"), False)
+        self.storage_only = data_source.get("storage-only")
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):

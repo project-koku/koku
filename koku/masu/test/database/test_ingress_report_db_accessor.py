@@ -28,7 +28,7 @@ class IngressReportDBAccessorTest(IamTestCase):
             "reports_list": ["test"],
             "source": "source_uuid",
         }
-        self.ingress_report_accessor = IngressReportDBAccessor()
+        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
 
     def tearDown(self):
         """Tear down the test class."""
@@ -48,15 +48,15 @@ class IngressReportDBAccessorTest(IamTestCase):
         with schema_context(self.schema):
             added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
 
-            assembly_id = self.ingress_report_dict.get("assembly_id")
-            provider_uuid = self.ingress_report_dict.get("provider_uuid")
-            ingress_report = self.ingress_report_accessor.get_ingress_report(assembly_id, provider_uuid)
+            ingress_report_id = self.ingress_report_dict.get("uuid")
+            source_uuid = self.ingress_report_dict.get("source")
+            ingress_report = self.ingress_report_accessor.get_ingress_report(ingress_report_id, source_uuid)
 
         self.assertIsNotNone(ingress_report)
         self.assertEqual(added_ingress_report, ingress_report)
-        self.assertEqual(ingress_report.assembly_id, assembly_id)
-        self.assertEqual(ingress_report.provider_id, provider_uuid)
-        self.assertEqual(ingress_report.num_total_files, self.ingress_report_dict.get("num_total_files"))
+        self.assertEqual(ingress_report.ingress_report_id, ingress_report_id)
+        self.assertEqual(ingress_report.source_uuid, source_uuid)
+        self.assertEqual(ingress_report.reports_list, self.ingress_report_dict.get("reports_list"))
 
     def test_get_ingress_report_by_id(self):
         """Test that the right ingress report is returned by id."""
@@ -66,8 +66,8 @@ class IngressReportDBAccessorTest(IamTestCase):
         self.assertIsNotNone(ingress_report)
         self.assertEqual(added_ingress_report, ingress_report)
 
-    def test_mark_ingress_report_as_completed(self):
-        """Test to mark ingress report complete."""
+    def test_mark_ingress_report_as_completed_none_report(self):
+        """Test to mark ingress report complete with None report."""
         try:
             self.ingress_report_accessor.mark_ingress_reports_as_completed(None)
         except Exception as err:
