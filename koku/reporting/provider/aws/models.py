@@ -231,6 +231,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["product_code"], name="summary_product_code_idx"),
             models.Index(fields=["usage_account_id"], name="summary_usage_account_id_idx"),
             GinIndex(fields=["tags"], name="tags_idx"),
+            GinIndex(fields=["cost_category"], name="cost_category_idx"),
             models.Index(fields=["account_alias"], name="summary_account_alias_idx"),
             models.Index(fields=["product_family"], name="summary_product_family_idx"),
             models.Index(fields=["instance_type"], name="summary_instance_type_idx"),
@@ -277,6 +278,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
+    cost_category = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
