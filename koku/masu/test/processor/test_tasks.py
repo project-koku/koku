@@ -394,7 +394,8 @@ class ProcessReportFileTests(MasuTestCase):
         mock_update_summary.s = Mock()
 
         report_meta = {}
-        report_meta["start_date"] = str(DateHelper().today)
+        report_meta["start"] = str(DateHelper().today)
+        report_meta["end"] = str(DateHelper().today)
         report_meta["schema_name"] = self.schema
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
@@ -403,7 +404,7 @@ class ProcessReportFileTests(MasuTestCase):
 
         summarize_reports(reports_to_summarize)
 
-        mock_update_summary.s.assert_called()
+        mock_update_summary.s.assert_called_once()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
