@@ -527,7 +527,7 @@ class ParquetReportProcessor:
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
-        if self._provider_type == Provider.PROVIDER_GCP:
+        if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             # We need to determine the parquet file path based off
             # of the start of the invoice month and usage start for GCP.
             s3_path = self._determin_s3_path_for_gcp(file_type, file_name)
