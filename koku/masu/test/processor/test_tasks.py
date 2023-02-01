@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import time
 from datetime import date
+from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from unittest import skip
@@ -405,6 +406,40 @@ class ProcessReportFileTests(MasuTestCase):
         summarize_reports(reports_to_summarize)
 
         mock_update_summary.s.assert_called_once()
+
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_summarize_reports_processing_list_no_dates_month_middle(self, mock_update_summary):
+        """Test that the summarize_reports task is called once when a processing list
+        of reports with no start or end date provided."""
+        mock_update_summary.s = Mock()
+
+        reports_to_summarize = [{"manifest_id": id} for id in range(1, 5)]
+
+        current_date = datetime.now()
+        with patch(
+            "masu.external.date_accessor.DateAccessor.today",
+            return_value=datetime(current_date.year, current_date.month, 15),
+        ):
+            summarize_reports(reports_to_summarize)
+
+        mock_update_summary.s.assert_called_once()
+
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_summarize_reports_processing_list_no_dates_month_begin(self, mock_update_summary):
+        """Test that the summarize_reports task is called as expected when a processing list
+        of reports with no start or end date provided on the first of the month"""
+        mock_update_summary.s = Mock()
+
+        reports_to_summarize = [{"manifest_id": id} for id in range(1, 5)]
+
+        current_date = datetime.now()
+        with patch(
+            "masu.external.date_accessor.DateAccessor.today",
+            return_value=datetime(current_date.year, current_date.month, 1),
+        ):
+            summarize_reports(reports_to_summarize)
+
+        assert mock_update_summary.s.call_count == 2
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
