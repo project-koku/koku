@@ -9,7 +9,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Provider
-from reporting.ingress.report.models import IngressReports
+from reporting.ingress.models import IngressReports
 
 
 class IngressReportsSerializerTest(IamTestCase):
