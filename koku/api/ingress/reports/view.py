@@ -11,13 +11,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.ingress.reports.serializers import ReportSerializer
+from api.ingress.reports.serializers import IngressReportsSerializer
 from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
 
 
-class ReportsDetailView(APIView):
+class IngressReportsDetailView(APIView):
     """
     View to fetch report details for specific source
     """
@@ -46,11 +46,11 @@ class ReportsDetailView(APIView):
         if not report_instance:
             return Response({"Error": "Provider uuid not found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = ReportSerializer(report_instance, many=True)
+        serializer = IngressReportsSerializer(report_instance, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class ReportsView(APIView):
+class IngressReportsView(APIView):
     """
     View to interact with settings for a customer.
     """
@@ -62,7 +62,7 @@ class ReportsView(APIView):
         Return list of sources.
         """
         reports = IngressReports.objects.filter()
-        serializer = ReportSerializer(reports, many=True)
+        serializer = IngressReportsSerializer(reports, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -71,8 +71,8 @@ class ReportsView(APIView):
             "source": request.data.get("source"),
             "reports_list": request.data.get("reports_list"),
         }
-        serializer = ReportSerializer(data=data)
-        if serializer.is_valid():
+        serializer = IngressReportsSerializer(data=data)
+        if serializer.is_valid(raise_exception=True):
             serializer.save()
             data["ingress_report_uuid"] = serializer.data.get("uuid")
             IngressReports.ingest(data)

@@ -16,6 +16,7 @@ from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
+from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
 
 LOG = logging.getLogger(__name__)
@@ -153,3 +154,19 @@ class AWSProvider(ProviderInterface):
     def infra_key_list_implementation(self, infrastructure_type, schema_name):
         """Return a list of cluster ids on the given infrastructure type."""
         return []
+
+    def is_file_reachable(self, source_uuid, reports_list):
+        """Verify that report files are accessible in S3."""
+        account = AccountsAccessor().get_accounts(source_uuid)[0]
+        arn = account.get("credentials").get("role_arn")
+        bucket = account.get("data_source").get("bucket")
+        creds = _get_sts_access(arn)
+        s3_client = boto3.client("s3", **creds)
+        for report in reports_list:
+            try:
+                s3_client.get_object(Bucket=bucket, Key=report)
+            except ClientError as ex:
+                if ex.response["Error"]["Code"] == "NoSuchKey":
+                    key = ProviderErrors.AWS_REPORT_NOT_FOUND
+                    internal_message = f"File {report} could not be found within bucket {bucket}."
+                    raise serializers.ValidationError(error_obj(key, internal_message))

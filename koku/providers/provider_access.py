@@ -161,3 +161,25 @@ class ProviderAccessor:
             raise ProviderAccessorError(str(error))
 
         return keys
+
+    def check_file_access(self, source_uuid, reports_list):
+        """
+        Return the state of ingress reports.
+
+        Args:
+            source_uuid (string): source uuid
+            reports_list (List): list of report files
+
+        Returns:
+            bool
+
+        Raises:
+            ValidationError: Error string
+
+        """
+        self.check_service()
+        LOG.info(f"Validating if ingress reports are accessible for source {source_uuid}.")
+        reachable_status = self.service.is_file_reachable(source_uuid, reports_list)
+        LOG.info(f"Ingress report validation complete for source {source_uuid}.")
+
+        return reachable_status

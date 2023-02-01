@@ -42,6 +42,8 @@ from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
 from api.views import get_exchange_rates
+from api.views import IngressReportsDetailView
+from api.views import IngressReportsView
 from api.views import metrics
 from api.views import OCICostForecastView
 from api.views import OCICostView
@@ -81,8 +83,6 @@ from api.views import OCPProjectsView
 from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
-from api.views import ReportsDetailView
-from api.views import ReportsView
 from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
@@ -337,8 +337,8 @@ urlpatterns = [
         ),
         name="reports-openshift-azure-instance-type",
     ),
-    path("ingress/reports/", ReportsView.as_view(), name="reports"),
-    path("ingress/reports/<source>/", ReportsDetailView.as_view(), name="reports-detail"),
+    path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
+    path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
     path("settings/", SettingsView.as_view(), name="settings"),
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),

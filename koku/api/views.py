@@ -17,8 +17,8 @@ from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
 from api.forecast.views import OCPCostForecastView
 from api.forecast.views import OCPGCPCostForecastView
-from api.ingress.reports.view import ReportsDetailView
-from api.ingress.reports.view import ReportsView
+from api.ingress.reports.view import IngressReportsDetailView
+from api.ingress.reports.view import IngressReportsView
 from api.metrics.views import metrics
 from api.openapi.view import openapi
 from api.organizations.aws.view import AWSOrgView

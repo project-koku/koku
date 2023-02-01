@@ -7,12 +7,12 @@ from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.ingress.report.serializers import ReportSerializer
+from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Provider
-from reporting.report.models import Report
+from reporting.ingress.report.models import IngressReports
 
 
-class ReportSerializerTest(IamTestCase):
+class IngressReportsSerializerTest(IamTestCase):
     """Tests for the exclude serializer."""
 
     def setUp(self):
@@ -25,7 +25,7 @@ class ReportSerializerTest(IamTestCase):
     def tearDown(self):
         """Clean up test cases."""
         with tenant_context(self.tenant):
-            Report.objects.all().delete()
+            IngressReports.objects.all().delete()
 
     def test_invalid_source_type(self):
         """Test minimal report with invalid source type."""
@@ -34,7 +34,7 @@ class ReportSerializerTest(IamTestCase):
             "reports_list": ["test-file"],
         }
         with tenant_context(self.tenant):
-            serializer = ReportSerializer(data=reports)
+            serializer = IngressReportsSerializer(data=reports)
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
 
@@ -46,7 +46,7 @@ class ReportSerializerTest(IamTestCase):
         }
         with tenant_context(self.tenant):
             instance = None
-            serializer = ReportSerializer(data=reports)
+            serializer = IngressReportsSerializer(data=reports)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             self.assertTrue(instance.source.uuid, reports.get("source"))

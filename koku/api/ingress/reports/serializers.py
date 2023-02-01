@@ -8,6 +8,7 @@ import logging
 from rest_framework import serializers
 
 from api.common import error_obj
+from providers.provider_access import ProviderAccessor
 from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ LOG = logging.getLogger(__name__)
 PROVIDER_LIST = ["aws", "aws-local"]
 
 
-class ReportSerializer(serializers.ModelSerializer):
+class IngressReportsSerializer(serializers.ModelSerializer):
     class Meta:
         model = IngressReports
         fields = ["uuid", "created_timestamp", "completed_timestamp", "reports_list", "source"]
@@ -26,6 +27,8 @@ class ReportSerializer(serializers.ModelSerializer):
         """
         source_type = data.get("source").type
         if source_type.lower() in PROVIDER_LIST:
+            interface = ProviderAccessor(source_type)
+            interface.check_file_access(str(data.get("source").uuid), data.get("reports_list"))
             return data
         key = "source_type"
         message = f"Invalid source_type, {source_type}, provided."
