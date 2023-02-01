@@ -33,10 +33,11 @@ class ReportsDetailView(APIView):
         except IngressReports.DoesNotExist:
             return None
 
-    def get(self, request, source, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         """
         Return reports for source.
         """
+        source = kwargs["source"]
         try:
             UUID(source)
         except ValueError:

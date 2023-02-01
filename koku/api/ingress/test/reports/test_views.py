@@ -3,37 +3,82 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Report Views."""
+import uuid
+
 from django.urls import reverse
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
+from masu.external.date_accessor import DateAccessor
+from masu.test import MasuTestCase
 
 FAKE = Faker()
 
 
-class ReportViewTest(IamTestCase):
+class ReportsViewTest(MasuTestCase):
     """report view test cases."""
 
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-
+        self.schema = self.schema_name
+        self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
-
-        self.report = {
-            "uuid": "8245313d-e61a-4c2a-91b2-92c1430c55c1",
-            "created_timestamp": "2023-01-24T12:10:10.736585Z",
+        self.ingress_report_dict = {
+            "uuid": str(uuid.uuid4()),
+            "created_timestamp": self.start,
             "completed_timestamp": None,
-            "reports_list": ["s3://my-bucket/January-2023-awscost.csv.gz"],
-            "source": self.aws_provider.uuid,
+            "reports_list": ["test"],
+            "source": self.aws_provider,
         }
+        ingress_report_accessor = IngressReportDBAccessor(self.schema)
+        self.added_ingress_report = ingress_report_accessor.add(**self.ingress_report_dict)
 
     def test_get_view(self):
-        """Test that posted reports are viewable."""
+        """Test to get posted reports."""
         url = reverse("reports")
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_source_view(self):
+        """Test to get reports for a particular source."""
+        url = f"/api/v1/ingress/reports/{self.aws_provider.uuid}/"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()[0].get("source"), str(self.aws_provider.uuid))
+
+    def test_get_invalid_uuid_reports(self):
+        """Test to get reports for a invalid source."""
+        url = "/api/v1/ingress/reports/invalid/"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_non_existant_source_reports(self):
+        """Test to get reports for a non existant source."""
+        url = f"/api/v1/ingress/reports/{self.ingress_report_dict.get('uuid')}/"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_invalid_ingress_reports(self):
+        """Test to post invalid reports."""
+        url = reverse("reports")
+        post_data = {"source": str(self.aws_provider.uuid), "reports_list": "bad.csv"}
+        client = APIClient()
+        response = client.post(url, data=post_data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_ingress_reports(self):
+        """Test to post reports for a particular source."""
+        url = reverse("reports")
+        post_data = {"source": f"{self.aws_provider.uuid}", "reports_list": ["test.csv", "test.csv"]}
+        client = APIClient()
+        response = client.post(url, data=post_data, format="json", **self.headers)
+        self.assertEqual(response.json().get("source"), str(self.aws_provider.uuid))
+        self.assertEqual(response.json().get("reports_list"), post_data.get("reports_list"))
