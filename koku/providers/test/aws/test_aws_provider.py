@@ -280,7 +280,7 @@ class AWSProviderTestCase(TestCase):
         provider_interface = AWSProvider()
         try:
             credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
-            data_source = {"bucket": "bucket_name", "storage-only": "True"}
+            data_source = {"bucket": "bucket_name", "storage-only": True}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
