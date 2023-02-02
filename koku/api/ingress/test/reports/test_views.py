@@ -77,7 +77,9 @@ class ReportsViewTest(MasuTestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     def test_post_ingress_reports(self, mock_get_sts_access):
         """Test to post reports for a particular source."""

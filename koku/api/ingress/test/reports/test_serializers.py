@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Minimal Serializer."""
+from unittest.mock import patch
+
+from faker import Faker
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
@@ -10,6 +13,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Provider
 from reporting.ingress.models import IngressReports
+
+FAKE = Faker()
 
 
 class IngressReportsSerializerTest(IamTestCase):
@@ -38,7 +43,13 @@ class IngressReportsSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
 
-    def test_valid_data(self):
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
+    )
+    def test_valid_data(self, mock_get_sts_access):
         """Test minimal report valid entries."""
         reports = {
             "source": self.aws_provider.uuid,
