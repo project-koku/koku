@@ -4,6 +4,7 @@
 #
 """Test Report Views."""
 import uuid
+from unittest.mock import patch
 
 from django.urls import reverse
 from faker import Faker
@@ -74,15 +75,15 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    # @patch(
-    #     "providers.aws.provider._get_sts_access",
-    #     return_value=dict(aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None),
-    # )
-    # def test_post_ingress_reports(self, mock_get_sts_access):
-    #     """Test to post reports for a particular source."""
-    #     url = reverse("reports")
-    #     post_data = {"source": f"{self.aws_provider.uuid}", "reports_list": ["test.csv", "test.csv"]}
-    #     client = APIClient()
-    #     response = client.post(url, data=post_data, format="json", **self.headers)
-    #     self.assertEqual(response.json().get("source"), str(self.aws_provider.uuid))
-    #     self.assertEqual(response.json().get("reports_list"), post_data.get("reports_list"))
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None),
+    )
+    def test_post_ingress_reports(self, mock_get_sts_access):
+        """Test to post reports for a particular source."""
+        url = reverse("reports")
+        post_data = {"source": f"{self.aws_provider.uuid}", "reports_list": ["test.csv", "test.csv"]}
+        client = APIClient()
+        response = client.post(url, data=post_data, format="json", **self.headers)
+        self.assertEqual(response.json().get("source"), str(self.aws_provider.uuid))
+        self.assertEqual(response.json().get("reports_list"), post_data.get("reports_list"))
