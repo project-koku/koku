@@ -185,13 +185,17 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
         app_settings = applications_data.get("extra") or {}
         required_extras = APP_EXTRA_FIELD_MAP[source_type]
-        optional_extras = APP_OPT_EXTRA_FEILD_MAP[source_type]
         if any(k not in app_settings for k in required_extras):
             raise SourcesHTTPClientError(
                 f"missing application data for source: {self._source_id}. "
                 f"expected: {required_extras}, got: {list(app_settings.keys())}"
             )
-        return {k: app_settings.get(k) for k in required_extras + optional_extras}
+        optional_extras = APP_OPT_EXTRA_FEILD_MAP[source_type]
+        opt_include = []
+        for opt in optional_extras:
+            if opt in app_settings:
+                opt_include.append(opt)
+        return {k: app_settings.get(k) for k in required_extras + opt_include}
 
     def get_credentials(self, source_type, app_type_id):
         """Get the source credentials."""

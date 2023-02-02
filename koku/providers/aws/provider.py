@@ -16,7 +16,6 @@ from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
 
 LOG = logging.getLogger(__name__)
@@ -155,11 +154,10 @@ class AWSProvider(ProviderInterface):
         """Return a list of cluster ids on the given infrastructure type."""
         return []
 
-    def is_file_reachable(self, source_uuid, reports_list):
+    def is_file_reachable(self, source, reports_list):
         """Verify that report files are accessible in S3."""
-        account = AccountsAccessor().get_accounts(source_uuid)[0]
-        arn = account.get("credentials").get("role_arn")
-        bucket = account.get("data_source").get("bucket")
+        arn = source.authentication.credentials.get("arn")
+        bucket = source.billing_source.data_source.get("bucket")
         creds = _get_sts_access(arn)
         s3_client = boto3.client("s3", **creds)
         for report in reports_list:

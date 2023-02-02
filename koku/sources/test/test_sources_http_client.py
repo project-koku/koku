@@ -232,7 +232,12 @@ class SourcesHTTPClientTest(TestCase):
             {
                 "source-type": Provider.PROVIDER_AWS,
                 "json": {"extra": {"bucket": bucket}},
-                "expected": {"bucket": bucket, "storage-only": None},
+                "expected": {"bucket": bucket},
+            },
+            {
+                "source-type": Provider.PROVIDER_AWS,
+                "json": {"extra": {"bucket": bucket, "storage-only": "True"}},
+                "expected": {"bucket": bucket, "storage-only": "True"},
             },
             {
                 "source-type": Provider.PROVIDER_AZURE,
@@ -245,14 +250,13 @@ class SourcesHTTPClientTest(TestCase):
                 },
                 "expected": {
                     "resource_group": resource_group,
-                    "storage-only": None,
                     "storage_account": storage_account,
                 },
             },
             {
                 "source-type": Provider.PROVIDER_GCP,
                 "json": {"extra": {"dataset": dataset}},
-                "expected": {"dataset": dataset, "storage-only": None},
+                "expected": {"dataset": dataset},
             },
         ]
         for test in table:
