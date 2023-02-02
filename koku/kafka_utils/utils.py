@@ -120,7 +120,7 @@ def extract_from_header(headers, header_type):
     for header in headers:
         if header_type in header:
             for item in header:
-                if item == header_type:
+                if item == header_type or item is None:
                     continue
                 else:
                     return item.decode("ascii")
