@@ -26,12 +26,18 @@ class AzureClientFactory:
         client_id (str): Service Principal Application ID
         client_secret (str): Service Principal Password
         cloud (str): Cloud selector, must be one of ['china', 'germany', 'public', 'usgov']
+        scope (str): Cost Export scope
+        export_name (str): Cost Export name
 
     """
 
-    def __init__(self, subscription_id, tenant_id, client_id, client_secret, cloud="public"):
+    def __init__(
+        self, subscription_id, tenant_id, client_id, client_secret, cloud="public", scope=None, export_name=None
+    ):
         """Constructor."""
         self._subscription_id = subscription_id
+        self._scope = scope
+        self._export_name = export_name
 
         clouds = {
             "china": AZURE_CHINA_CLOUD,
@@ -84,3 +90,13 @@ class AzureClientFactory:
             f"EndpointSuffix=core.windows.net"
         )
         return BlobServiceClient.from_connection_string(connect_str)
+
+    @property
+    def scope(self):
+        """Cost Export scope property."""
+        return self._scope
+
+    @property
+    def export_name(self):
+        """Cost Export name."""
+        return self._export_name

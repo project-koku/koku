@@ -53,7 +53,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             self._mapper = AWSProviderMap(
                 provider=self.provider,
                 report_type=parameters.report_type,
-                cost_type=parameters.parameters.get("cost_type"),
+                cost_type=parameters.cost_type,
             )
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
@@ -637,6 +637,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 .order_by("org_unit_id", "-created_timestamp")
                 .distinct("org_unit_id")
             )
+
+            # This is to remove the excluded values from the sub_org_units
+            if "org_unit_id" in list(self.query_table_exclude_keys):
+                org_unit_list.extend(org_id for org_id in self.parameters.get_exclude("org_unit_id", []))
 
             sub_org_unit_list = None
             if org_unit_objects:

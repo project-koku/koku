@@ -5,7 +5,6 @@
 """Test the OCP on AWS Report views."""
 import datetime
 import random
-from unittest import skip
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -21,8 +20,9 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_handler import TruncDayString
+from api.report.aws.serializers import AWSQueryParamSerializer
 from api.utils import DateHelper
-from reporting.models import OCPAWSCostLineItemDailySummaryP
+from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 
 URLS = [
     reverse("reports-openshift-aws-costs"),
@@ -199,13 +199,13 @@ class OCPAWSReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["usage_start"])
                 .annotate(usage=Sum("usage_amount"))
             )
             expected_others = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values_list("node", flat=True)
                 .distinct()
@@ -281,7 +281,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             current_total = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=this_month_start)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=this_month_start)
                 .filter(product_family__contains="Storage")
                 .aggregate(usage=Sum(F("usage_amount")))
                 .get("usage")
@@ -289,7 +289,7 @@ class OCPAWSReportViewTest(IamTestCase):
             current_total = current_total if current_total is not None else 0
 
             current_totals = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=this_month_start)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=this_month_start)
                 .filter(product_family__contains="Storage")
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
@@ -297,7 +297,7 @@ class OCPAWSReportViewTest(IamTestCase):
             )
 
             prev_totals = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=last_month_start)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=last_month_start)
                 .filter(usage_start__lte=last_month_end)
                 .filter(product_family__contains="Storage")
                 .annotate(**{"date": TruncDayString("usage_start")})
@@ -318,7 +318,7 @@ class OCPAWSReportViewTest(IamTestCase):
             }
 
             prev_total = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__in=prev_total_dates)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__in=prev_total_dates)
                 .filter(product_family__contains="Storage")
                 .aggregate(usage=Sum(F("usage_amount")))
                 .get("usage")
@@ -342,7 +342,7 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             projects = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["namespace"])
                 .annotate(project_count=Count("namespace"))
@@ -369,7 +369,7 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             clusters = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["cluster_id"])
                 .annotate(cluster_count=Count("cluster_id"))
@@ -406,7 +406,7 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             nodes = (
-                OCPAWSCostLineItemDailySummaryP.objects.values(*["node"])
+                OCPAWSCostLineItemProjectDailySummaryP.objects.values(*["node"])
                 .filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["node"])
@@ -433,7 +433,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that data is filtered by tag key."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["tags"])
                 .first()
@@ -444,7 +444,7 @@ class OCPAWSReportViewTest(IamTestCase):
             filter_value = tags.get(filter_key)
 
             totals = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(**{f"tags__{filter_key}": filter_value})
                 .filter(product_family__contains="Storage")
                 .aggregate(**{"usage": Sum("usage_amount"), "cost": Sum(F("unblended_cost") + F("markup_cost"))})
@@ -468,12 +468,11 @@ class OCPAWSReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["tags"])
                 .first()
@@ -483,7 +482,7 @@ class OCPAWSReportViewTest(IamTestCase):
             filter_key = list(tags.keys())[0]
 
             totals = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(**{"tags__has_key": filter_key})
                 .filter(product_family__contains="Storage")
                 .aggregate(**{"usage": Sum("usage_amount"), "cost": Sum(F("unblended_cost") + F("markup_cost"))})
@@ -511,7 +510,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that data is grouped by tag key."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .filter(product_family__contains="Storage")
                 .values(*["tags"])
                 .first()
@@ -539,7 +538,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that data is grouped by tag key and limited."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
                 .filter(usage_start__lte=self.dh.last_month_end)
                 .filter(product_family__contains="Storage")
                 .values(*["tags"])
@@ -660,7 +659,7 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             projects = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .values(*["namespace"])
                 .annotate(project_count=Count("namespace"))
                 .all()
@@ -706,7 +705,7 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             projects = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .values(*["namespace"])
                 .annotate(project_count=Count("namespace"))
                 .all()
@@ -1000,7 +999,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that grouping by multiple tag keys returns a valid response."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
                 .values(*["tags"])
                 .first()
             )
@@ -1026,7 +1025,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
+                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
                 .filter(usage_start__lte=self.dh.last_month_end)
                 .values(*["tags"])
                 .first()
@@ -1111,3 +1110,20 @@ class OCPAWSReportViewTest(IamTestCase):
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cost_type(self):
+        cost_types = [choice[0] for choice in AWSQueryParamSerializer.COST_TYPE_CHOICE]
+        bad_cost_types = ["shplended_cost"]
+
+        client = APIClient()
+        for url in URLS:
+            for cost_type in cost_types:
+                params = {"cost_type": cost_type}
+                paramed_url = url + "?" + urlencode(params, quote_via=quote_plus)
+                response = client.get(paramed_url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+            for cost_type in bad_cost_types:
+                params = {"cost_type": cost_type}
+                paramed_url = url + "?" + urlencode(params, quote_via=quote_plus)
+                response = client.get(paramed_url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

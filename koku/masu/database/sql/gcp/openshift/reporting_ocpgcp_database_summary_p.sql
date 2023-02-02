@@ -42,7 +42,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_database_summary_p (
         source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
+    FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
     -- Get data for this month or last month
     WHERE (service_alias LIKE '%%SQL%%'
         OR service_alias LIKE '%%Spanner%%'

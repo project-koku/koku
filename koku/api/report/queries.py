@@ -33,6 +33,7 @@ from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
 
@@ -231,25 +232,35 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
-    def _check_for_operator_specific_filters(self, filter_collection, check_for_exclude=False):
-        """Checks for operator specific fitlers, and adds them to the filter collection"""
-        filter_collection = self._set_tag_filters(filter_collection, check_for_exclude)
-        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and", check_for_exclude)
-        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or", check_for_exclude)
+    def _check_for_operator_specific_filters(self, filter_collection):
+        """Checks for operator specific fitlers, and adds them to the filter collection
 
-        and_composed_filters = self._set_operator_specified_filters("and", check_for_exclude)
-        or_composed_filters = self._set_operator_specified_filters("or", check_for_exclude)
-
+        Notes:
+            Tag exclusions are constructed to use Django's `.filter` instead of
+            `.exclude`. Django adds "IS NOT NULL" when using `.exclude` which removes
+            the `no-{option}` results.
+        """
+        filter_collection = self._set_tag_filters(filter_collection)
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and")
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or")
+        tag_exclusion_composed = self._set_tag_exclusion_filters()
         composed_filters = filter_collection.compose()
+        and_composed_filters = self._set_operator_specified_filters("and")
+        or_composed_filters = self._set_operator_specified_filters("or")
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        if tag_exclusion_composed:
+            composed_filters = composed_filters & tag_exclusion_composed
+        return composed_filters
 
-        if check_for_exclude:
-            # When excluding, we can get a combination of None & filters
-            if composed_filters:
-                composed_filters = composed_filters & and_composed_filters & or_composed_filters
-            else:
-                composed_filters = and_composed_filters & or_composed_filters
-        else:
+    def _check_for_operator_specific_exclusions(self, composed_filters):
+        """Check for operator specific filters for exclusions."""
+        # Tag exclusion filters are added to the self.query_filter. COST-3199
+        and_composed_filters = self._set_operator_specified_filters("and", True)
+        or_composed_filters = self._set_operator_specified_filters("or", True)
+        if composed_filters:
             composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        else:
+            composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -264,13 +275,16 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        exclusions = QueryFilterCollection()
         # TODO: find a better name for ou_or_operator and ou_or_filter
         ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
         if ou_or_operator:
             ou_or_filters = filters.compose()
             filters = QueryFilterCollection()
-
+        if self._category:
+            category_filters = QueryFilterCollection()
+        exclusion = QueryFilterCollection()
+        composed_category_filters = None
+        composed_exclusions = None
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -285,24 +299,47 @@ class ReportQueryHandler(QueryHandler):
                             filters.add(q_filter)
                     for item in exclude_:
                         exclude_filter = QueryFilter(parameter=item, **_filt)
-                        exclusions.add(exclude_filter)
+                        exclusion.add(exclude_filter)
             else:
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
-                        q_filter = QueryFilter(parameter=item, **filt)
-                        filters.add(q_filter)
-
+                        if self._category:
+                            if any([item in cat for cat in self._category]):
+                                q_cat_filter = QueryFilter(
+                                    parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                                )
+                                category_filters.add(q_cat_filter)
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            else:
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            composed_category_filters = category_filters.compose(logical_operator="or")
+                        else:
+                            q_filter = QueryFilter(parameter=item, **filt)
+                            filters.add(q_filter)
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
+                    if self._category:
+                        if any([item in cat for cat in self._category]):
+                            exclude_cat_filter = QueryFilter(
+                                parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                            )
+                            exclusion.add(exclude_cat_filter)
                     exclude_filter = QueryFilter(parameter=item, **filt)
-                    exclusions.add(exclude_filter)
+                    exclusion.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
-
-        self.query_exclusions = self._check_for_operator_specific_filters(exclusions, True)
+        composed_exclusions = exclusion.compose(logical_operator="or")
+        self.query_exclusions = self._check_for_operator_specific_exclusions(composed_exclusions)
+        provider_map_exclusions = self._provider_map_conditional_exclusions()
+        if provider_map_exclusions:
+            self.query_exclusions = self.query_exclusions | provider_map_exclusions
         composed_filters = self._check_for_operator_specific_filters(filters)
+        if composed_category_filters:
+            composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
         if ou_or_operator and ou_or_filters:
@@ -320,7 +357,23 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
 
-    def _set_or_filters(self):
+    def _provider_map_conditional_exclusions(self):
+        """
+        Uses the provider_map conditionals to exclude from a query in certain scenarios.
+
+        Such as when we fall back to the daily summary table but don't want Unallocated projects
+        included for OCP compute/memory endpoints.
+        """
+
+        exclusions = QueryFilterCollection()
+        exclude_list = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
+        )
+        for exclusion in exclude_list:
+            exclusions.add(**exclusion)
+        return exclusions.compose()
+
+    def _set_or_filters(self, or_filter=None):
         """Create a composed filter collection of ORed filters.
 
         This is designed to handle specific cases in the provider_map
@@ -328,59 +381,99 @@ class ReportQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        or_filter = self._mapper._report_type_map.get("or_filter", [])
+        if not or_filter:
+            or_filter = self._mapper._report_type_map.get("or_filter", [])
         for filt in or_filter:
             q_filter = QueryFilter(**filt)
             filters.add(q_filter)
 
         return filters.compose(logical_operator="or")
 
-    def _set_tag_filters(self, filters, check_for_exclude=False):
+    def _set_tag_exclusion_filters(self):
+        """Creates exclusion fitlers for tags that allow null returns.
+
+        Notes:
+        Null filters are added to create the no-{key} in the api return.
+        They are added as a separate QueryFilterCollection because we need
+        the nulls to be AND together in order to handle different tag
+        key values.
+
+        noticontainslist is a custom django lookup we wrote to handle
+        tag exclusions.
+        """
+        OCP_LIST = [Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_ALL, Provider.OCP_GCP, Provider.PROVIDER_OCP]
+        null_collections = QueryFilterCollection()
+        tag_filter_list = []
+        empty_json_filter = {"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"}
+        for tag in self.get_tag_filter_keys(parameter_key="exclude"):
+            tag_db_name = self._mapper.tag_column + "__" + strip_tag_prefix(tag)
+            list_ = self.parameters.get_exclude(tag, list())
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                tag_filter_list.append({"field": tag_db_name, "operation": "noticontainslist", "parameter": list_})
+                null_collections.add(QueryFilter(**{"field": tag_db_name, "operation": "isnull", "parameter": True}))
+        null_composed = null_collections.compose()
+        if self.provider and self.provider in OCP_LIST:
+            # For OCP tables we need to use the AND operator because the two tag keys are found
+            # in the same json structure per row.
+            tag_exclusion_composed = None
+            for tag_filt in tag_filter_list:
+                tag_filt_composed = QueryFilterCollection([QueryFilter(**tag_filt)]).compose()
+                if not tag_exclusion_composed:
+                    tag_exclusion_composed = tag_filt_composed
+                else:
+                    tag_exclusion_composed = tag_exclusion_composed & tag_filt_composed
+            if tag_exclusion_composed:
+                tag_exclusion_composed = (
+                    tag_exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
+                )
+        else:
+            if tag_filter_list:
+                tag_filter_list.append(empty_json_filter)
+            # We use OR here for our non ocp tables because the tag keys will not live in the
+            # same json structure.
+            tag_exclusion_composed = self._set_or_filters(tag_filter_list)
+        if tag_exclusion_composed and null_composed:
+            tag_exclusion_composed = tag_exclusion_composed | null_composed
+        return tag_exclusion_composed
+
+    def _set_tag_filters(self, filters):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
-        if check_for_exclude:
-            tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
-        else:
-            tag_filters = self.get_tag_filter_keys()
-            tag_group_by = self.get_tag_group_by_keys()
-            tag_filters.extend(tag_group_by)
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
         tag_filters = [tag for tag in tag_filters if "and:" not in tag and "or:" not in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
-            if check_for_exclude:
-                list_ = self.parameters.get_exclude(tag, list())
-            else:
-                group_by = self.parameters.get_group_by(tag, list())
-                filter_ = self.parameters.get_filter(tag, list())
-                list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            group_by = self.parameters.get_group_by(tag, list())
+            filter_ = self.parameters.get_filter(tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
+            if filter_ and ReportQueryHandler.has_wildcard(filter_):
+                filt = {"field": tag_column, "operation": "has_key"}
+                q_filter = QueryFilter(parameter=strip_tag_prefix(tag), **filt)
+                filters.add(q_filter)
+            elif list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
         return filters
 
-    def _set_operator_specified_tag_filters(self, filters, operator, check_for_exclude=False):
+    def _set_operator_specified_tag_filters(self, filters, operator):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
-        if check_for_exclude:
-            tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
-        else:
-            tag_filters = self.get_tag_filter_keys()
-            tag_group_by = self.get_tag_group_by_keys()
-            tag_filters.extend(tag_group_by)
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
         tag_filters = [tag for tag in tag_filters if operator + ":" in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
-            if check_for_exclude:
-                list_ = self.parameters.get_exclude(tag, list())
-            else:
-                group_by = self.parameters.get_group_by(tag, list())
-                filter_ = self.parameters.get_filter(tag, list())
-                list_ = list(set(group_by + filter_))  # uniquify the list
+            group_by = self.parameters.get_group_by(tag, list())
+            filter_ = self.parameters.get_filter(tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, logical_operator=operator, **filt)
@@ -531,21 +624,21 @@ class ReportQueryHandler(QueryHandler):
 
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
+        whens = [
+            When(project__startswith="openshift-", then=Value("default")),
+            When(project__startswith="kube-", then=Value("default")),
+            When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
+        ]
         if self._category:
-            return query_data.annotate(
-                classification=Case(
-                    When(project__in=self._category, then=Value("category")),
-                    default=Value("project"),
-                    output_field=CharField(),
-                )
+            whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
+
+        return query_data.annotate(
+            classification=Case(
+                *whens,
+                default=Value("project"),
+                output_field=CharField(),
             )
-        else:
-            project_default_whens = [
-                When(project__startswith=project, then=Value("True")) for project in ["openshift-", "kube-"]
-            ]
-            return query_data.annotate(
-                default_project=Case(*project_default_whens, default=Value("False"), output_field=CharField())
-            )
+        )
 
     @property
     def annotations(self):
@@ -616,7 +709,7 @@ class ReportQueryHandler(QueryHandler):
                 value = group
                 if group.startswith(tag_prefix):
                     value = group[len(tag_prefix) :]  # noqa
-                group_label = f"no-{value}"
+                group_label = f"No-{value}"
                 data[group] = group_label
 
         return data
@@ -683,7 +776,7 @@ class ReportQueryHandler(QueryHandler):
                         new_key = group_info.get("key")
                         if data.get(group_key):
                             if isinstance(data[group_key], str):
-                                # This if is to overwrite the "cost": "no-cost"
+                                # This if is to overwrite the "cost": "No-cost"
                                 # that is provided by the order_by function.
                                 data[group_key] = {}
                             data[group_key][new_key] = {"value": value, "units": units}
@@ -745,7 +838,7 @@ class ReportQueryHandler(QueryHandler):
                 group_title = group_type[len(tag_prefix) :]  # noqa
             group_label = group
             if group is None:
-                group_label = f"no-{group_title}"
+                group_label = f"No-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
 
@@ -772,7 +865,7 @@ class ReportQueryHandler(QueryHandler):
             return self._order_by(query_data, query_order_by)
         df = pd.DataFrame(query_data)
         sort_terms = self._get_group_by()
-        none_sort_terms = [f"no-{sort_term}" for sort_term in sort_terms]
+        none_sort_terms = [f"No-{sort_term}" for sort_term in sort_terms]
         for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
             # use a dictionary to uniquify the list and maintain the correct order
             ordered_list = dict.fromkeys([entry.get(sort_term) or none_sort_term for entry in ordered_data]).keys()
@@ -828,7 +921,7 @@ class ReportQueryHandler(QueryHandler):
             else:
                 for line_data in sorted_data:
                     if not line_data.get(field):
-                        line_data[field] = f"no-{field}"
+                        line_data[field] = f"No-{field}"
                 sorted_data = sorted(
                     sorted_data,
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
@@ -928,25 +1021,28 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks)
+        return self._ranked_list(data, distinct_ranks, set(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks):
+    def _ranked_list(self, data_list, ranks, rank_fields=None):
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
+            rank_fields (Set): the fields on which ranking is performed.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
         """
+        if not rank_fields:
+            rank_fields = set()
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = ["cost_units", "source_uuid"]
+        drop_columns = {"cost_units", "source_uuid"}
         if self.is_openshift:
-            drop_columns.append("clusters")
+            drop_columns.add("clusters")
 
         if not data_list:
             return data_list
@@ -958,12 +1054,12 @@ class ReportQueryHandler(QueryHandler):
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
-            drop_columns.append("account_alias")
+            drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
-            drop_columns.append("usage_units")
+            drop_columns.add("usage_units")
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
@@ -978,6 +1074,11 @@ class ReportQueryHandler(QueryHandler):
 
         # Cross join ranks and days to get each field/rank for every day in th query
         ranks_by_day = rank_data_frame.merge(day_data_frame, how="cross")
+
+        # add the ranking columns if they still exists in both dataframes
+        rank_fields.intersection_update(set(ranks_by_day.columns.intersection(data_frame.columns)))
+        if rank_fields:
+            drop_columns.update(rank_fields)
 
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN

@@ -23,6 +23,7 @@ from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
+from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -50,7 +51,11 @@ def enable_negative_filtering(org_id):
 
     context = {"schema": org_id}
     LOG.info(f"enable_negative_filtering context: {context}")
-    result = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-enable-negative-filtering", context))
+    result = bool(
+        UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.cost-enable-negative-filtering", context, fallback_development_true
+        )
+    )
     LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
     return result
 
@@ -115,12 +120,15 @@ class QueryParameters:
         self._set_tag_keys()  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
-        parameter_set_list = ["filter", "group_by", "order_by", "access"]
-        org_id = self.request.user.customer.org_id
-        if enable_negative_filtering(org_id):
-            parameter_set_list.append("exclude")
-        elif self.parameters.get("exclude"):
-            del self.parameters["exclude"]
+        if settings.DEVELOPMENT:
+            parameter_set_list = ["filter", "group_by", "order_by", "access", "exclude"]
+        else:
+            parameter_set_list = ["filter", "group_by", "order_by", "access"]
+            org_id = self.request.user.customer.org_id
+            if enable_negative_filtering(org_id):
+                parameter_set_list.append("exclude")
+            elif self.parameters.get("exclude"):
+                del self.parameters["exclude"]
 
         for item in parameter_set_list:
             if item not in self.parameters:
@@ -456,6 +464,11 @@ class QueryParameters:
     def currency(self):
         """Get currency."""
         return self.get("currency", settings.KOKU_DEFAULT_CURRENCY)
+
+    @property
+    def cost_type(self):
+        """Get cost type param."""
+        return self.get("cost_type", settings.KOKU_DEFAULT_COST_TYPE)
 
     @property
     def delta(self):

@@ -14,7 +14,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
-from reporting.models import OCPAzureCostLineItemDailySummaryP
+from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 
 URLS = [
     reverse("reports-openshift-azure-costs"),
@@ -58,7 +58,7 @@ class OCPAzureReportViewTest(IamTestCase):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAzureCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
+                OCPAzureCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
                 .filter(usage_start__lte=self.dh.last_month_end)
                 .values(*["tags"])
                 .first()

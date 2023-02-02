@@ -170,7 +170,7 @@ generators:
         - node:
           node_name: azure_master
           node_labels: label_nodeclass:master
-          cpu_cores: 4
+          cpu_cores: 6
           memory_gig: 16
           resource_id: 99999998
           namespaces:

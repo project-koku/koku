@@ -10,10 +10,8 @@ import logging
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
-from tenant_schemas.utils import schema_context
 
 from api.models import Provider
-from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
@@ -196,52 +194,6 @@ class ReportProcessorBase:
 
         return True
 
-    def _delete_line_items(self, db_accessor, is_finalized=None):
-        """Delete stale data for the report being processed, if necessary."""
-        if not self._manifest_id:
-            return False
-
-        if is_finalized is None:
-            is_finalized = False
-        is_full_month = self._should_process_full_month()
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self._manifest_id)
-            num_processed_files = manifest_accessor.number_of_files_processed(self._manifest_id)
-            if num_processed_files != 0:
-                return False
-            # Override the bill date to correspond with the manifest
-            bill_date = manifest.billing_period_start_datetime.date()
-            provider_uuid = manifest.provider_id
-
-        date_filter = self.get_date_column_filter()
-
-        with db_accessor(self._schema) as accessor:
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
-            bills = bills.filter(billing_period_start=bill_date).all()
-            with schema_context(self._schema):
-                for bill in bills:
-                    line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
-                    delete_date = bill_date
-                    if not is_finalized and not is_full_month:
-                        delete_date = self.data_cutoff_date
-                        # This means we are processing a mid-month update
-                        # and only need to delete a small window of data
-                        line_item_query = line_item_query.filter(**date_filter)
-                    log_statement = (
-                        f"Deleting data for:\n"
-                        f" schema_name: {self._schema}\n"
-                        f" provider_uuid: {provider_uuid}\n"
-                        f" bill date: {str(bill_date)}\n"
-                        f" bill ID: {bill.id}\n"
-                        f" on or after {delete_date}."
-                    )
-                    LOG.info(log_statement)
-                    del_count, remainder = mini_transaction_delete(line_item_query)
-                    LOG.info(f"Deleted {del_count} records for bill id {bill.id}")
-
-        return True
-
     def get_date_column_filter(self):
         """Return a filter using the provider-appropriate column."""
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
@@ -250,10 +202,3 @@ class ReportProcessorBase:
             return {"usage_date__gte": self.data_cutoff_date}
         else:
             return {"usage_start__gte": self.data_cutoff_date}
-
-    @staticmethod
-    def remove_temp_cur_files(report_path):
-        """Remove temporary report files."""
-        # Remove any old files that have failed processing.
-        removed_files = []
-        return removed_files

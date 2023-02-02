@@ -18,7 +18,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -560,23 +559,15 @@ class ParquetReportProcessor:
         parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
-        if (
-            self.provider_type != Provider.PROVIDER_OCP
-            and not enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name)
-        ) or enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
-            for f in self.file_list:
-                if os.path.exists(f):
-                    os.remove(f)
+        for f in self.file_list:
+            if os.path.exists(f):
+                os.remove(f)
 
-            for f in self.files_to_remove:
-                if os.path.exists(f):
-                    os.remove(f)
+        for f in self.files_to_remove:
+            if os.path.exists(f):
+                os.remove(f)
 
-            if os.path.exists(self.report_file):
-                os.remove(self.report_file)
+        if os.path.exists(self.report_file):
+            os.remove(self.report_file)
 
         return parquet_base_filename, daily_data_frames
-
-    def remove_temp_cur_files(self, report_path):
-        """Remove processed files."""
-        pass

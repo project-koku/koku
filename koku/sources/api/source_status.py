@@ -97,7 +97,10 @@ class SourceStatus:
                     if self.source.koku_uuid:
                         builder.update_account(self.source)
                     elif self.source.billing_source.get("data_source", {}).get("table_id"):
-                        builder.create_account(self.source)
+                        try:
+                            builder.create_account(self.source)
+                        except ValidationError as validation_error:
+                            status_obj = validation_error
             self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")

@@ -324,9 +324,14 @@ class ParamSerializer(BaseSerializer):
         """
         super().validate(data)
 
-        if data.get("category") and (not data.get("group_by") or not data.get("group_by").get("project")):
-            error = {"error": ("Category may not be used without a group_by project parameter")}
-            raise serializers.ValidationError(error)
+        if data.get("category"):
+            if "key_only" in data:
+                error = {"error": "Category may only be used as a filter for the tag endpoints."}
+                raise serializers.ValidationError(error)
+
+            if not data.get("group_by") or not data.get("group_by").get("project"):
+                error = {"error": "Category may not be used without a group_by project parameter"}
+                raise serializers.ValidationError(error)
 
         if not data.get("currency"):
             data["currency"] = get_currency(self.context.get("request"))

@@ -13,6 +13,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import get_cached_infra_map
+from koku.cache import get_cached_matching_tags
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -22,6 +24,8 @@ from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
+from koku.cache import set_cached_infra_map
+from koku.cache import set_cached_matching_tags
 
 
 LOG = logging.getLogger(__name__)
@@ -228,3 +232,26 @@ class KokuCacheTest(IamTestCase):
 
             for key in cache_data:
                 self.assertIsNone(self.cache.get(key))
+
+    def test_matching_tags_cache(self):
+        """Test that getting/setting matching tags works."""
+        provider_type = Provider.PROVIDER_AWS
+        initial = get_cached_matching_tags(self.schema_name, provider_type)
+        self.assertIsNone(initial)
+
+        matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
+        set_cached_matching_tags(self.schema_name, provider_type, matched_tags)
+
+        cached = get_cached_matching_tags(self.schema_name, provider_type)
+        self.assertEqual(cached, matched_tags)
+
+    def test_infra_map_cache(self):
+        """Test that getting/setting infra_map works."""
+        provider_type = Provider.PROVIDER_AWS
+        schema = "org1234567"
+        p_uuid = "1234"
+        infra_map = {}
+        initial = set_cached_infra_map(schema, provider_type, p_uuid, infra_map)
+        self.assertIsNone(initial)
+        cached = get_cached_infra_map(schema, provider_type, p_uuid)
+        self.assertEqual(cached, infra_map)

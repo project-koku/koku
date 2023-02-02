@@ -41,10 +41,12 @@ from api.report.gcp.openshift.provider_map import OCPGCPProviderMap
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.ocp.provider_map_amortized import OCPProviderMap as OCPProviderMapAmortized
 from api.utils import DateHelper
 from api.utils import get_cost_type
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor import enable_ocp_amortized_monthly_cost
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -82,7 +84,7 @@ class Forecast:
         self.params = query_params
         self.currency = query_params.currency
 
-        if self.provider is Provider.PROVIDER_AWS:
+        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
             if query_params.get("cost_type"):
                 self.cost_type = query_params.get("cost_type")
             else:
@@ -122,8 +124,7 @@ class Forecast:
     @property
     def provider_map(self):
         """Return the provider map instance."""
-        current_provider = self
-        if current_provider.provider is Provider.PROVIDER_AWS:
+        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
             return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
@@ -593,6 +594,12 @@ class OCPForecast(Forecast):
 
     provider = Provider.PROVIDER_OCP
     provider_map_class = OCPProviderMap
+
+    def __init__(self, query_params):
+        """Initialize to override provider map class."""
+        if enable_ocp_amortized_monthly_cost(query_params.request.user.customer.schema_name):
+            self.provider_map_class = OCPProviderMapAmortized
+        super().__init__(query_params)
 
     @cached_property
     def source_to_currency_map(self):

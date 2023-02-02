@@ -77,7 +77,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 start_date = min_timestamp.date()
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date, end_date, **kwargs):
         """Populate the daily tables for reporting.
 
         Args:
@@ -93,7 +93,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
         Args:
@@ -117,6 +117,10 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
                     return start_date, end_date
                 report_period_id = report_period.id
+
+            accessor.populate_openshift_cluster_information_tables(
+                self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
+            )
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
@@ -148,9 +152,6 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
             accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            accessor.populate_openshift_cluster_information_tables(
-                self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
-            )
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
 
             LOG.info("Updating OpenShift report periods")

@@ -201,6 +201,7 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["node"], name="summary_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
+            models.Index(fields=["cost_model_rate_type"], name="cost_model_rate_type_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
 
@@ -259,6 +260,13 @@ class OCPUsageLineItemDailySummary(models.Model):
     supplementary_monthly_cost_json = JSONField(null=True)
     infrastructure_project_monthly_cost = JSONField(null=True)
     supplementary_project_monthly_cost = JSONField(null=True)
+
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
+
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
     source_uuid = models.UUIDField(unique=False, null=True)
     raw_currency = models.TextField(null=True)
@@ -572,6 +580,12 @@ class OCPCostSummaryP(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
 
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
+
 
 class OCPCostSummaryByProjectP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -612,6 +626,12 @@ class OCPCostSummaryByProjectP(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
 
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
+
 
 class OCPCostSummaryByNodeP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -650,6 +670,12 @@ class OCPCostSummaryByNodeP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
 
 
 class OCPPodSummaryP(models.Model):
@@ -698,6 +724,12 @@ class OCPPodSummaryP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
 
 
 class OCPPodSummaryByProjectP(models.Model):
@@ -751,6 +783,12 @@ class OCPPodSummaryByProjectP(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
 
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
+
 
 class OCPVolumeSummaryP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -791,6 +829,12 @@ class OCPVolumeSummaryP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
 
 
 class OCPVolumeSummaryByProjectP(models.Model):
@@ -836,3 +880,9 @@ class OCPVolumeSummaryByProjectP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)

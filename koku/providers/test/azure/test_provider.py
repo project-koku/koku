@@ -47,13 +47,18 @@ class AzureProviderTestCase(TestCase):
     @patch("providers.azure.provider.AzureService", side_effect=AzureException("test exception"))
     def test_cost_usage_source_is_reachable_exception(self, _):
         """Test that ValidationError is raised when AzureException is raised."""
+        subscription_id = FAKE.uuid4()
+        scope = f"subscriptions/{subscription_id}"
         credentials = {
-            "subscription_id": FAKE.uuid4(),
+            "subscription_id": subscription_id,
             "tenant_id": FAKE.uuid4(),
             "client_id": FAKE.uuid4(),
             "client_secret": FAKE.word(),
         }
-        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word(), "scope": scope}
+        with self.assertRaises(ValidationError):
+            AzureProvider().cost_usage_source_is_reachable(credentials, source_name)
+
         with self.assertRaises(ValidationError):
             AzureProvider().cost_usage_source_is_reachable(credentials, source_name)
 
@@ -110,4 +115,38 @@ class AzureProviderTestCase(TestCase):
             MockHelper.return_value.describe_cost_management_exports.side_effect = throws_azure_nocosterror
             azure_provider = AzureProvider()
             with self.assertRaises(ValidationError):
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    # Written as separate tests for atomic testing
+    # These two tests could be combined with pytest.parametrize
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_cost_usage_source_reachable_value_error(self, mock_azure_factory):
+        """Test that cost_usage_source_is_reachable raises the correct exception when a ValueError is raised"""
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        azure_provider = AzureProvider()
+
+        with patch("providers.azure.provider.AzureService", side_effect=ValueError("Raised intentionally")):
+            with self.assertRaisesRegex(ValidationError, "Raised intentionally"):
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_cost_usage_source_reachable_type_error(self, mock_azure_factory):
+        """Test that cost_usage_source_is_reachable raises the correct exception when a TypeError is raised"""
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        azure_provider = AzureProvider()
+
+        with patch("providers.azure.provider.AzureService", side_effect=TypeError("Raised intentionally")):
+            with self.assertRaisesRegex(ValidationError, "Raised intentionally"):
                 azure_provider.cost_usage_source_is_reachable(credentials, source_name)

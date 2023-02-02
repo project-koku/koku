@@ -39,7 +39,7 @@ INSERT
 SELECT 'AWS'::text AS source_type,
        aws.cluster_id,
        {{cluster_alias}},
-       aws.namespace,
+       array_agg(aws.namespace),
        aws.node,
        aws.resource_id,
        aws.usage_start,
@@ -58,9 +58,9 @@ SELECT 'AWS'::text AS source_type,
        sum(aws.markup_cost),
        max(aws.currency_code),
        max(cost_category_id) as cost_category_id,
-       max(aws.shared_projects),
+       cast(1 as decimal) as shared_projects,
        {{source_uuid}}::uuid as source_uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p AS aws
+  FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p AS aws
  WHERE aws.usage_start >= {{start_date}}::date
    AND aws.usage_start <= {{end_date}}::date
    AND aws.cluster_id = {{cluster_id}}

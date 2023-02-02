@@ -251,7 +251,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.line_item_daily_table, get_model("GCPCostEntryLineItemDaily"))
         self.assertEqual(self.accessor.line_item_table, get_model("GCPCostEntryLineItem"))
 
     def test_table_map(self):
@@ -408,13 +407,13 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertTrue(value)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_back_populate_ocp_on_gcp_daily_summary_trino(self, mock_presto):
+    def test_back_populate_ocp_infrastructure_costs_trino(self, mock_presto):
         """Test that ocp on gcp back populate runs"""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
         report_period_id = 4
-        self.accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, report_period_id)
+        self.accessor.back_populate_ocp_infrastructure_costs_trino(start_date, end_date, report_period_id)
 
         mock_presto.assert_called()
 

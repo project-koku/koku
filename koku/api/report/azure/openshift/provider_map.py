@@ -17,7 +17,6 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAzureComputeSummaryP
-from reporting.models import OCPAzureCostLineItemDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostSummaryByAccountP
 from reporting.models import OCPAzureCostSummaryByLocationP
@@ -40,6 +39,7 @@ class OCPAzureProviderMap(ProviderMap):
                 "annotations": {"cluster": "cluster_id"},
                 "end_date": "costentrybill__billing_period_start",
                 "filters": {
+                    "category": {"field": "cost_category__name", "operation": "icontains"},
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
                         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
@@ -168,108 +168,6 @@ class OCPAzureProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },
-                    "costs_by_project": {
-                        "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummaryP,
-                            "total": OCPAzureCostLineItemProjectDailySummaryP,
-                        },
-                        "aggregates": {
-                            "infra_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
-                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": Sum(Value(0, output_field=DecimalField())),
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                        },
-                        "annotations": {
-                            "infra_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "sup_raw": Value(0, output_field=DecimalField()),
-                            "sup_usage": Value(0, output_field=DecimalField()),
-                            "sup_markup": Value(0, output_field=DecimalField()),
-                            "sup_total": Value(0, output_field=DecimalField()),
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
-                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
-                            ),
-                        },
-                        "delta_key": {
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            )
-                        },
-                        "filter": [{}],
-                        "cost_units_key": "currency",
-                        "cost_units_fallback": "USD",
-                        "sum_columns": ["cost_total", "sup_total", "infra_total"],
-                        "default_ordering": {"cost_total": "desc"},
-                    },
                     "storage": {
                         "aggregates": {
                             "infra_total": Sum(
@@ -354,115 +252,6 @@ class OCPAzureProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum(F("usage_quantity")),
-                            "usage_units": Coalesce(
-                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
-                                Value("GB-Mo", output_field=CharField()),
-                            ),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
-                            ),
-                        },
-                        "delta_key": {"usage": Sum("usage_quantity")},
-                        "filter": [
-                            {"field": "service_name", "operation": "icontains", "parameter": "Storage"},
-                            {"field": "unit_of_measure", "operation": "exact", "parameter": "GB-Mo"},
-                        ],
-                        "cost_units_key": "currency",
-                        "cost_units_fallback": "USD",
-                        "usage_units_key": "unit_of_measure",
-                        "usage_units_fallback": "GB-Mo",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
-                        "default_ordering": {"usage": "desc"},
-                    },
-                    "storage_by_project": {
-                        "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummaryP,
-                            "total": OCPAzureCostLineItemProjectDailySummaryP,
-                        },
-                        "aggregates": {
-                            "infra_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
-                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": Sum(Value(0, output_field=DecimalField())),
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(
-                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
-                                Value("GB-Mo", output_field=CharField()),
-                            ),
-                        },
-                        "annotations": {
-                            "infra_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "sup_raw": Value(0, output_field=DecimalField()),
-                            "sup_usage": Value(0, output_field=DecimalField()),
-                            "sup_markup": Value(0, output_field=DecimalField()),
-                            "sup_total": Value(0, output_field=DecimalField()),
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
-                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("GB-Mo", output_field=CharField()),
@@ -591,121 +380,13 @@ class OCPAzureProviderMap(ProviderMap):
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
-                    "instance_type_by_project": {
-                        "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummaryP,
-                            "total": OCPAzureCostLineItemProjectDailySummaryP,
-                        },
-                        "aggregates": {
-                            "infra_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
-                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": Sum(Value(0, output_field=DecimalField())),
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(
-                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
-                                Value("Hrs", output_field=CharField()),
-                            ),
-                        },
-                        "aggregate_key": "usage_quantity",
-                        "annotations": {
-                            "infra_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "sup_raw": Value(0, output_field=DecimalField()),
-                            "sup_usage": Value(0, output_field=DecimalField()),
-                            "sup_markup": Value(0, output_field=DecimalField()),
-                            "sup_total": Value(0, output_field=DecimalField()),
-                            "cost_total": Sum(
-                                (
-                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_raw": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            ),
-                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
-                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(
-                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
-                                Value("Hrs", output_field=CharField()),
-                            ),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
-                            ),
-                        },
-                        "delta_key": {"usage": Sum("usage_quantity")},
-                        "filter": [
-                            {"field": "instance_type", "operation": "isnull", "parameter": False},
-                            {"field": "unit_of_measure", "operation": "exact", "parameter": "Hrs"},
-                        ],
-                        "group_by": ["instance_type"],
-                        "cost_units_key": "currency",
-                        "cost_units_fallback": "USD",
-                        "usage_units_key": "unit_of_measure",
-                        "usage_units_fallback": "Hrs",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
-                        "default_ordering": {"usage": "desc"},
-                    },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {"query": OCPAzureCostLineItemDailySummaryP, "total": OCPAzureCostLineItemDailySummaryP},
+                "tables": {
+                    "query": OCPAzureCostLineItemProjectDailySummaryP,
+                    "total": OCPAzureCostLineItemProjectDailySummaryP,
+                },
             }
         ]
 

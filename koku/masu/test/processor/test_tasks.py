@@ -212,7 +212,6 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_proc.remove_processed_files.assert_not_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
@@ -248,7 +247,6 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_proc.remove_processed_files.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
@@ -351,35 +349,39 @@ class ProcessReportFileTests(MasuTestCase):
         providers = [
             {"type": Provider.PROVIDER_OCP, "uuid": self.ocp_test_provider_uuid},
             {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
+            {"type": Provider.PROVIDER_OCI, "uuid": self.oci_test_provider_uuid},
         ]
         for provider_dict in providers:
             invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(
                 DateHelper().yesterday, DateHelper().today
             )[0]
+            provider_type = provider_dict.get("type")
+            provider_uuid = provider_dict.get("uuid")
+
             with self.subTest(provider_dict=provider_dict):
                 mock_update_summary.s = Mock()
                 report_meta = {}
                 report_meta["start_date"] = str(DateHelper().today)
                 report_meta["schema_name"] = self.schema
-                report_meta["provider_type"] = Provider.PROVIDER_OCP
-                report_meta["provider_uuid"] = self.ocp_test_provider_uuid
+                report_meta["provider_type"] = provider_type
+                report_meta["provider_uuid"] = provider_uuid
                 report_meta["manifest_id"] = 1
                 report_meta["start"] = str(DateHelper().yesterday)
                 report_meta["end"] = str(DateHelper().today)
-                if provider_dict.get("type") == Provider.PROVIDER_GCP:
+                if provider_type == Provider.PROVIDER_GCP:
                     report_meta["invoice_month"] = invoice_month
 
                 # add a report with start/end dates specified
                 report2_meta = {}
                 report2_meta["start_date"] = str(DateHelper().today)
                 report2_meta["schema_name"] = self.schema
-                report2_meta["provider_type"] = Provider.PROVIDER_OCP
-                report2_meta["provider_uuid"] = self.ocp_test_provider_uuid
+                report2_meta["provider_type"] = provider_type
+                report2_meta["provider_uuid"] = provider_uuid
                 report2_meta["manifest_id"] = 2
                 report2_meta["start"] = str(DateHelper().yesterday)
                 report2_meta["end"] = str(DateHelper().today)
-                if provider_dict.get("type") == Provider.PROVIDER_GCP:
-                    report_meta["invoice_month"] = invoice_month
+                if provider_type == Provider.PROVIDER_GCP:
+                    report2_meta["invoice_month"] = invoice_month
 
                 reports_to_summarize = [report_meta, report2_meta]
 
@@ -388,11 +390,12 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
-        """Test that the summarize_reports task is called when a processing list when a None provided."""
+        """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
 
         report_meta = {}
-        report_meta["start_date"] = str(DateHelper().today)
+        report_meta["start"] = str(DateHelper().today)
+        report_meta["end"] = str(DateHelper().today)
         report_meta["schema_name"] = self.schema
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
@@ -400,11 +403,12 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.s.assert_called()
+
+        mock_update_summary.s.assert_called_once()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
-        """Test that the summarize_reports task is called when a processing list with None provided."""
+        """Test that the summarize_reports task is called when a processing list with only None provided."""
         mock_update_summary.s = Mock()
         reports_to_summarize = [None, None]
 
@@ -647,6 +651,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        mock_cost_model.return_value.__enter__.return_value.distribution = "cpu"
         # We need to bypass the None check for cost model in update_cost_model_costs
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
@@ -694,7 +699,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id, data_source="Storage", infrastructure_raw_cost__isnull=True
+                cluster_id=cluster_id,
+                data_source="Storage",
+                infrastructure_raw_cost__isnull=True,
+                cost_model_rate_type__isnull=True,
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
@@ -798,10 +806,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         )
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.enable_trino_processing", return_value=True)
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
-    def test_update_summary_tables_remove_expired_data_gcp(self, mock_accessor, mock_chain, _):
+    def test_update_summary_tables_remove_expired_data_gcp(self, mock_accessor, mock_chain):
         # COST-444: We use start & end date based off manifest
         provider = Provider.PROVIDER_GCP
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
@@ -1076,6 +1083,33 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 end_date,
                 synchronous=True,
             )
+
+    @patch(
+        "masu.processor.tasks.disable_ocp_on_cloud_summary",
+        return_value=True,
+    )
+    def test_update_openshift_on_cloud_unleash_gated(self, _):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        expecte_msg = f"OCP on Cloud summary disabled for {self.schema}."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocp_on_aws_ocp_provider.uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
+            statement_found = False
+            for log in logger.output:
+                if expecte_msg in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")

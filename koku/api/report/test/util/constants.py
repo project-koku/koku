@@ -116,7 +116,8 @@ GCP_CONSTANTS = SameLengthDict(
     }
 )
 
-OCP_NAMESPACES = ("default", "koku", "koku-dev", "koku-stage", "koku-perf", "koku-prod")
+OCP_PLATFORM_NAMESPACE = "openshift-default"
+OCP_NAMESPACES = (OCP_PLATFORM_NAMESPACE, "koku", "koku-dev", "koku-stage", "koku-perf", "koku-prod")
 OCP_STORAGE_CLASSES = ("bronze", "silver", "gold", "platinum", "adamantium", "vibranium")
 OCP_POD_LABELS = (
     {"app": "mobile", "disabled": "Danilov"},

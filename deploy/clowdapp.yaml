@@ -79,14 +79,6 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -252,16 +244,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_API_ENABLE_SENTRY
@@ -376,11 +360,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
-        annotations:
-          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
-            1 pod as currently it supports only internal administrative api
-      minReplicas: ${{MASU_MIN_REPLICAS}}
+    - minReplicas: ${{MASU_MIN_REPLICAS}}
       name: clowder-masu
       podSpec:
         env:
@@ -452,8 +432,6 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
@@ -519,6 +497,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 15
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod as currently it supports only internal administrative api
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -567,11 +549,7 @@ objects:
           enabled: true
         public:
           enabled: false
-    - metadata:
-        annotations:
-          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
-            1 pod as currently scheduling is a singleton
-      minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
+    - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
       name: clowder-scheduler
       podSpec:
         command:
@@ -614,16 +592,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -710,6 +680,14 @@ objects:
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod as currently scheduling is a singleton
+            ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery
+              beat which does not easily support liveness checks
+            ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery
+              beat which does not easily support readiness checks
         resources:
           limits:
             cpu: ${SCHEDULER_CPU_LIMIT}
@@ -914,12 +892,7 @@ objects:
           enabled: true
         public:
           enabled: false
-    - metadata:
-        annotations:
-          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
-            1 pod as currently sources integration requires in order message handling,
-            which can fail with multiple consumers due to race conditions
-      minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
+    - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
       name: clowder-sources-listener
       podSpec:
         command:
@@ -1039,6 +1012,11 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod as currently sources integration requires in order message handling,
+              which can fail with multiple consumers due to race conditions
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1130,16 +1108,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1321,16 +1291,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1514,16 +1476,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1705,16 +1659,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1898,16 +1844,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2089,16 +2027,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2282,16 +2212,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2477,16 +2399,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: ENABLE_TRINO_SOURCES
-          value: ${ENABLE_TRINO_SOURCES}
-        - name: ENABLE_TRINO_ACCOUNTS
-          value: ${ENABLE_TRINO_ACCOUNTS}
-        - name: ENABLE_TRINO_SOURCE_TYPE
-          value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2809,10 +2723,6 @@ parameters:
   displayName: Enable S3 Archiving
   name: ENABLE_S3_ARCHIVING
   value: "false"
-- description: Enable Parquet Processing
-  displayName: Enable Parquet Processing
-  name: ENABLE_PARQUET_PROCESSING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
@@ -2853,18 +2763,6 @@ parameters:
   name: AUTO_DATA_INGEST
   value: "True"
 - name: QE_SCHEMA
-  value: ""
-- description: Sources to be processed with Trino
-  displayName: Sources to be processed with Trino
-  name: ENABLE_TRINO_SOURCES
-  value: ""
-- description: Accounts to be processed with Trino
-  displayName: Accounts to be processed with Trino
-  name: ENABLE_TRINO_ACCOUNTS
-  value: ""
-- description: Source Types to be processed with Trino
-  displayName: Source Types to be processed with Trino
-  name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
 - description: Report download schedule
   displayName: Report download schedule
@@ -3032,11 +2930,11 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 750Mi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
@@ -3254,11 +3152,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 400Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
-  value: 1000Mi
+  value: 750Mi
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
@@ -3302,11 +3200,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 750Mi
 - displayName: CPU Request
   name: WORKER_SUMMARY_CPU_REQUEST
   required: true
@@ -3326,11 +3224,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_HCS_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: WORKER_HCS_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 700Mi
 - displayName: CPU Request
   name: WORKER_HCS_CPU_REQUEST
   required: true

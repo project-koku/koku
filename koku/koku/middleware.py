@@ -422,8 +422,8 @@ class RequestTimingMiddleware(MiddlewareMixin):
         """
         if hasattr(response, "log_statement"):
             stmt = response.log_statement
-            time_taken_ms = (time.time() - request.start_time) * 1000
-            stmt.update({"response_time": f"{time_taken_ms:.2f} ms"})
+            time_taken_ms = int((time.time() - request.start_time) * 1000)
+            stmt.update({"response_time": time_taken_ms})
             LOG.info(stmt)
         return response
 

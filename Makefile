@@ -287,6 +287,7 @@ endif
 docker-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
 	$(PREFIX) make clear-testing
+	$(PREFIX) make clear-trino-data
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
@@ -334,26 +335,26 @@ _koku-wait:
          sleep 1 ; \
      done
 
-docker-up:
+docker-build:
 	$(DOCKER_COMPOSE) build koku-base
+
+docker-up: docker-build
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 # basic dev environment targets
-docker-up-min: docker-up-db
-	$(DOCKER_COMPOSE) build koku-base
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
+docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
-docker-up-min-with-listener: docker-up-min docker-up-db
+docker-up-min-with-listener: docker-up-min
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
-docker-up-min-no-build-with-listener: docker-up-min-no-build docker-up-db
+docker-up-min-no-build-with-listener: docker-up-min-no-build
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
 docker-up-db:

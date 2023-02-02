@@ -7,6 +7,7 @@ import logging
 
 from oci import object_storage as storage_client
 from oci.exceptions import ClientError
+from oci.exceptions import RequestException as OciRequestException
 from oci.exceptions import ServiceError
 from requests.exceptions import ConnectionError as OciConnectionError
 from rest_framework import serializers
@@ -31,13 +32,17 @@ def _check_cost_report_access(bucket, namespace, region):
     # https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clienvironmentvariables.htm!!!
     config = OCI_CONFIG
     config["region"] = region
+    key = ProviderErrors.OCI_REGION_NOT_SUPPORTED
+    message = f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}."
 
     try:
         object_storage = storage_client.ObjectStorageClient(config)
         object_storage.list_objects(namespace, bucket, prefix=prefix_file)
+    except OciRequestException as oci_error:
+        # Not using exc_info here because it prints a traceback that gets picked up by sentry:
+        LOG.warn(oci_error)
+        raise serializers.ValidationError(error_obj(key, message))
     except (ClientError, ServiceError, OciConnectionError) as oci_error:
-        key = ProviderErrors.OCI_REGION_NOT_SUPPORTED
-        message = f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}."
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 

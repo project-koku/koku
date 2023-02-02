@@ -2,9 +2,6 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-masu
-    metadata:
-      annotations:
-        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently it supports only internal administrative api
     minReplicas: ${{MASU_MIN_REPLICAS}}
     webServices:
       public:
@@ -14,6 +11,9 @@
       metrics:
         enabled: true
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently it supports only internal administrative api
       image: ${IMAGE}:${IMAGE_TAG}
       env:
         - name: CLOWDER_ENABLED
@@ -84,8 +84,6 @@
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: ENABLE_PARQUET_PROCESSING
-          value: ${ENABLE_PARQUET_PROCESSING}
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
           valueFrom:
             resourceFieldRef:

@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     currency_code varchar,
     unblended_cost double,
     markup_cost double,
+    blended_cost double,
+    markup_cost_blended double,
+    savingsplan_effective_cost double,
+    markup_cost_savingsplan double,
     pod_cost double,
     project_markup_cost double,
     pod_usage_cpu_core_hours double,
@@ -43,8 +47,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     cost_category_id int,
     project_rank integer,
     data_source_rank integer,
-    resource_id_matched boolean
-) WITH(format = 'PARQUET')
+    resource_id_matched boolean,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -74,6 +79,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     currency_code varchar,
     unblended_cost double,
     markup_cost double,
+    blended_cost double,
+    markup_cost_blended double,
+    savingsplan_effective_cost double,
+    markup_cost_savingsplan double,
     pod_cost double,
     project_markup_cost double,
     pod_labels varchar,
@@ -90,6 +99,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 -- Direct resource_id matching
@@ -117,6 +127,10 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     currency_code,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     pod_usage_cpu_core_hours,
@@ -134,7 +148,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     volume_labels,
     tags,
     cost_category_id,
-    resource_id_matched
+    resource_id_matched,
+    ocp_source
 )
 SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_id) as cluster_id,
@@ -164,6 +179,10 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_currencycode, '')) as currency_code,
         max(aws.lineitem_unblendedcost) as unblended_cost,
         max(aws.lineitem_unblendedcost) * cast({{markup}} as decimal(24,9)) as markup_cost,
+        max(aws.lineitem_blendedcost) as blended_cost,
+        max(aws.lineitem_blendedcost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
+        max(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+        max(aws.savingsplan_savingsplaneffectivecost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
         cast(NULL as double) as pod_cost,
         cast(NULL as double) as project_markup_cost,
         sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
@@ -181,7 +200,8 @@ SELECT aws.uuid as aws_uuid,
         NULL as volume_labels,
         max(aws.resourcetags) as tags,
         max(ocp.cost_category_id) as cost_category_id,
-        max(aws.resource_id_matched) as resource_id_matched
+        max(aws.resource_id_matched) as resource_id_matched,
+        '{{ocp_source_uuid | sqlsafe}}' as ocp_source
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
@@ -225,6 +245,10 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     currency_code,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     pod_usage_cpu_core_hours,
@@ -242,7 +266,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     volume_labels,
     tags,
     cost_category_id,
-    resource_id_matched
+    resource_id_matched,
+    ocp_source
 )
 SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_id) as cluster_id,
@@ -272,6 +297,10 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_currencycode, '')) as currency_code,
         max(aws.lineitem_unblendedcost) as unblended_cost,
         max(aws.lineitem_unblendedcost) * cast({{markup}} as decimal(24,9)) as markup_cost,
+        max(aws.lineitem_blendedcost) as blended_cost,
+        max(aws.lineitem_blendedcost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
+        max(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+        max(aws.savingsplan_savingsplaneffectivecost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
         cast(NULL as double) as pod_cost,
         cast(NULL as double) as project_markup_cost,
         cast(NULL as double) as pod_usage_cpu_core_hours,
@@ -289,17 +318,22 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
         max(ocp.cost_category_id) as cost_category_id,
-        max(aws.resource_id_matched) as resource_id_matched
+        max(aws.resource_id_matched) as resource_id_matched,
+        '{{ocp_source_uuid | sqlsafe}}' as ocp_source
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
             AND (
                 (strpos(aws.resourcetags, 'openshift_project') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
+                    OR (strpos(aws.resourcetags, 'namespace') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
                     OR (strpos(aws.resourcetags, 'openshift_node') != 0 AND strpos(aws.resourcetags, lower(ocp.node)) != 0)
                     OR (strpos(aws.resourcetags, 'openshift_cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
+                    OR (strpos(aws.resourcetags, 'cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
+        AND namespace != 'Worker unallocated'
+        AND namespace != 'Platform unallocated'
     LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
         ON aws.uuid = pds.aws_uuid
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
@@ -341,6 +375,10 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     currency_code,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     pod_labels,
@@ -380,8 +418,30 @@ SELECT pds.aws_uuid,
     unit,
     usage_amount / aws_uuid_count as usage_amount,
     currency_code,
-    unblended_cost / aws_uuid_count as unblended_cost,
-    markup_cost / aws_uuid_count as markup_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * unblended_cost
+        ELSE unblended_cost / aws_uuid_count
+    END as unblended_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * unblended_cost * cast({{markup}} as decimal(24,9))
+        ELSE unblended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
+    END as markup_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * blended_cost
+        ELSE blended_cost / aws_uuid_count
+    END as blended_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * blended_cost * cast({{markup}} as decimal(24,9))
+        ELSE blended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
+    END as markup_cost_blended,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * savingsplan_effective_cost
+        ELSE savingsplan_effective_cost / aws_uuid_count
+    END as savingsplan_effective_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * savingsplan_effective_cost * cast({{markup}} as decimal(24,9))
+        ELSE savingsplan_effective_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
+    END as markup_cost_savingsplan,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / aws_uuid_count
@@ -414,6 +474,7 @@ JOIN cte_rankings as r
     ON pds.aws_uuid = r.aws_uuid
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON pds.usage_account_id = aa.account_id
+WHERE pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
@@ -443,6 +504,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     currency_code,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     pod_labels,
@@ -476,6 +541,10 @@ SELECT uuid(),
     currency_code,
     unblended_cost,
     markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     json_parse(pod_labels),
@@ -491,4 +560,5 @@ WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;

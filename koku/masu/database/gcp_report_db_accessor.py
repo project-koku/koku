@@ -29,10 +29,7 @@ from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
-from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
-from reporting.provider.gcp.models import GCPCostEntryProductService
-from reporting.provider.gcp.models import GCPProject
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
@@ -59,10 +56,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     @property
     def line_item_daily_summary_table(self):
         return GCPCostEntryLineItemDailySummary
-
-    @property
-    def line_item_daily_table(self):
-        return GCPCostEntryLineItemDaily
 
     @property
     def line_item_table(self):
@@ -96,97 +89,11 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     operation="DELETE/INSERT",
                 )
 
-    def get_cost_entry_bills(self):
-        """Get all cost entry bill objects."""
-        table_name = GCPCostEntryBill
-        with schema_context(self.schema):
-            columns = ["id", "billing_period_start", "provider_id"]
-            bills = self._get_db_obj_query(table_name).values(*columns)
-            return {(bill["billing_period_start"], bill["provider_id"]): bill["id"] for bill in bills}
-
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = GCPCostEntryBill
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
-
-    def get_cost_entry_bills_by_date(self, start_date):
-        """Return a cost entry bill for the specified start date."""
-        table_name = GCPCostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
-
-    def get_products(self):
-        """Make a mapping of product sku to product objects."""
-        table_name = GCPCostEntryProductService
-        with schema_context(self.schema):
-            columns = ["service_id", "sku_id", "id"]
-            products = self._get_db_obj_query(table_name, columns=columns).all()
-
-            return {(product["service_id"], product["sku_id"]): product["id"] for product in products}
-
-    def get_projects(self):
-        """Make a mapping of projects to project objects."""
-        table_name = GCPProject
-        with schema_context(self.schema):
-            columns = ["account_id", "project_id", "project_name", "id"]
-            projects = self._get_db_obj_query(table_name, columns=columns).all()
-
-            return {
-                (project["account_id"], project["project_id"], project["project_name"]): project["id"]
-                for project in projects
-            }
-
-    def get_lineitem_query_for_billid(self, bill_id):
-        """Get the GCP cost entry line item for a given bill query."""
-        table_name = GCPCostEntryLineItem
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
-            return line_item_query
-
-    def get_daily_query_for_billid(self, bill_id):
-        """Get the GCP cost daily item for a given bill query."""
-        table_name = GCPCostEntryLineItemDaily
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            daily_item_query = base_query.filter(cost_entry_bill_id=bill_id)
-            return daily_item_query
-
-    def get_summary_query_for_billid(self, bill_id):
-        """Get the GCP cost summary item for a given bill query."""
-        table_name = GCPCostEntryLineItemDailySummary
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
-            return summary_item_query
-
-    def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
-        """Populate the daily aggregate of line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list)
-
-        Returns
-            (None)
-
-        """
-        table_name = self._table_map["line_item_daily"]
-
-        daily_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily.sql")
-        daily_sql = daily_sql.decode("utf-8")
-        daily_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "invoice_month": start_date.strftime("%Y%m"),
-            "schema": self.schema,
-        }
-        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -208,33 +115,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
             return cost_entry_bill_query
-
-    def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
-        """Populate the daily aggregated summary of line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-
-        Returns
-            (None)
-
-        """
-        table_name = self._table_map["line_item_daily_summary"]
-        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "invoice_month": start_date.strftime("%Y%m"),
-            "schema": self.schema,
-        }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        )
 
     def populate_line_item_daily_summary_table_presto(
         self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month_date
@@ -737,13 +617,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def back_populate_ocp_on_gcp_daily_summary_trino(self, start_date, end_date, report_period_id):
+    def back_populate_ocp_infrastructure_costs_trino(self, start_date, end_date, report_period_id):
         """Populate the OCP on GCP and OCP daily summary tables. after populating the project table."""
         # table_name = GCP_REPORT_TABLE_MAP["ocp_on_gcp_daily_summary"]
 
         sql = pkgutil.get_data(
             "masu.database",
-            "presto_sql/gcp/openshift/reporting_ocpgcpcostentrylineitem_daily_summary_back_populate.sql",
+            "presto_sql/gcp/openshift/reporting_ocpgcp_ocp_infrastructure_back_populate.sql",
         )
         sql = sql.decode("utf-8")
         sql_params = {

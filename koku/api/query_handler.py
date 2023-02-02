@@ -353,9 +353,9 @@ class QueryHandler:
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
         # COST-3043
-        conditional_filter = self._mapper.report_type_map.get("conditional_filter")
-        if conditional_filter and self.query_table == conditional_filter.get("if_table"):
-            filters.add(**conditional_filter.get("filter"))
+        filter_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
+        for conditional_filter in filter_list:
+            filters.add(**conditional_filter)
         return filters
 
     def filter_to_order_by(self, parameters):  # noqa: C901

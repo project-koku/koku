@@ -41,8 +41,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
     project_rank integer,
     data_source_rank integer,
     resource_id_matched boolean,
-    cost_category_id int
-) WITH(format = 'PARQUET')
+    cost_category_id int,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -85,6 +86,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 -- Directly resource_id matching
@@ -127,7 +129,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     volume_labels,
     tags,
     resource_id_matched,
-    cost_category_id
+    cost_category_id,
+    ocp_source
 )
 SELECT azure.uuid as azure_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -175,7 +178,8 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
     max(azure.resource_id_matched) as resource_id_matched,
-    max(ocp.cost_category_id) as cost_category_id
+    max(ocp.cost_category_id) as cost_category_id,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         on coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
@@ -237,7 +241,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     volume_labels,
     tags,
     resource_id_matched,
-    cost_category_id
+    cost_category_id,
+    ocp_source
 )
 SELECT azure.uuid as azure_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -285,7 +290,8 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
     max(azure.resource_id_matched) as resource_id_matched,
-    max(ocp.cost_category_id) as cost_category_id
+    max(ocp.cost_category_id) as cost_category_id,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
@@ -296,6 +302,8 @@ SELECT azure.uuid as azure_uuid,
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
+        AND namespace != 'Worker unallocated'
+        AND namespace != 'Platform unallocated'
     LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
         ON azure.uuid = pds.azure_uuid
     WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
@@ -372,8 +380,14 @@ SELECT pds.azure_uuid,
     unit_of_measure,
     usage_quantity / r.azure_uuid_count as usage_quantity,
     currency,
-    pretax_cost / r.azure_uuid_count as pretax_cost,
-    markup_cost / r.azure_uuid_count as markup_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
+        ELSE pretax_cost / r.azure_uuid_count
+    END as pretax_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
+        ELSE pretax_cost / r.azure_uuid_count * cast({{markup}} as decimal(24,9))
+    END as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
         ELSE pretax_cost / r.azure_uuid_count
@@ -404,6 +418,7 @@ SELECT pds.azure_uuid,
 FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.azure_uuid = r.azure_uuid
+WHERE pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
@@ -475,4 +490,5 @@ WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;

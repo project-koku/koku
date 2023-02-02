@@ -1388,7 +1388,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         expected = [
             {"node": "alpha", "cluster": "cluster-2"},
             {"node": "bravo", "cluster": "cluster-3"},
-            {"node": "no-node", "cluster": "cluster-1"},
+            {"node": "No-node", "cluster": "cluster-1"},
             {"node": "oscar", "cluster": "cluster-4"},
         ]
         ordered_data = handler.order_by(unordered_data, order_fields)
@@ -1443,7 +1443,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ag_key = "cost_total"
         with tenant_context(self.tenant):
             totals = AzureCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start
+                usage_start__gte=self.dh.this_month_start, tags__has_key=filter_key
             ).aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501
@@ -1660,8 +1660,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     opt_dict = overall_output.get("data", [{}])[0]
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
                     opt_value = opt_dict.get(exclude_opt)
-                    if "no-" in opt_value:
-                        # Hanlde cases where "no-instance-type" is returned
+                    if "No-" in opt_value:
+                        # Hanlde cases where "No-instance-type" is returned
                         continue
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
@@ -1690,41 +1690,33 @@ class AzureReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, AzureTagView)
+        query_params = self.mocked_query_params("?", AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, AzureCostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, AzureCostView)
-        handler = AzureReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, AzureCostView)
-        handler = AzureReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"No-{group_tag}" in str(data):
+            check_no_option = True
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, AzureCostView)
+            handler = AzureReportQueryHandler(query_params)
+            data = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"No-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
@@ -1741,7 +1733,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    if "No-" not in exclude_option.get(ex_opt):
                         if not exclude_one:
                             exclude_one = exclude_option.get(ex_opt)
                         elif not exclude_two:

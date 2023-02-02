@@ -32,7 +32,7 @@ class SourcesErrorMessage:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
-        if "SubscriptionNotFound" in message:
+        if any(test in message for test in ["SubscriptionNotFound", "InvalidSubscriptionId"]):
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
         return scrubbed_message
 

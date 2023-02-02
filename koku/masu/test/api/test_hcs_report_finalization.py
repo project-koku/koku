@@ -32,22 +32,18 @@ class HCSFinalizationTests(TestCase):
         self.assertIn(expected_key, body)
         mock_celery.s.assert_called()
 
-    def test_get_report_finalization_month(self, mock_celery, _):
-        """Test the GET hcs_report_finalization endpoint with specified month"""
-
-        expected_key = "2022-01"
-
+    def test_get_report_finalization_month_negative(self, mock_celery, _):
+        """Test the GET hcs_report_finalization endpoint with specified month but no year fails."""
         params = {
             "month": 1,
         }
-
+        expected_errmsg = "month and year must be provided together."
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
-        result = body.get("HCS Report Finalization")[0].get("month")
+        errmsg = body.get("Error")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(expected_key, result)
-        mock_celery.s.assert_called()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)
 
     def test_get_report_finalization_month_year(self, mock_celery, _):
         """Test the GET hcs_report_finalization endpoint with specified month & year"""
@@ -81,7 +77,7 @@ class HCSFinalizationTests(TestCase):
         params = {
             "year": 2001,
         }
-        expected_errmsg = "you must provide 'month' when providing 'year'"
+        expected_errmsg = "month and year must be provided together."
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
         errmsg = body.get("Error")

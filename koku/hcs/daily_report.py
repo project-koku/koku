@@ -20,7 +20,7 @@ class ReportHCS:
     def __init__(self, schema_name, provider, provider_uuid, tracing_id):
         """Establish parquet summary processor."""
         self._schema_name = schema_name
-        self._provider = provider
+        self._provider = provider.removesuffix("-local")
         self._provider_uuid = provider_uuid
         self._date_accessor = DateAccessor()
         self._tracing_id = tracing_id

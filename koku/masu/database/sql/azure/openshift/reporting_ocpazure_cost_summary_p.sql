@@ -27,7 +27,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_cost_summary_p (
         max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid,
         max(cost_category_id) as cost_category_id
-    FROM reporting_ocpazurecostlineitem_daily_summary_p
+    FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}

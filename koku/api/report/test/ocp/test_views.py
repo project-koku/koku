@@ -6,18 +6,14 @@
 import datetime
 import random
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
 from dateutil import relativedelta
 from django.db.models import Count
-from django.db.models import DecimalField
-from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
-from django.db.models.functions import Coalesce
 from django.http import HttpRequest
 from django.http import QueryDict
 from django.urls import reverse
@@ -29,13 +25,14 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
+from api.provider.models import Provider
 from api.query_handler import TruncDayString
+from api.report.ocp.provider_map_amortized import OCPProviderMap
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
-from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
 
@@ -48,6 +45,17 @@ class OCPReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs")
+        cls.cost_term = (
+            cls.provider_map.cloud_infrastructure_cost
+            + cls.provider_map.markup_cost
+            + cls.provider_map.cost_model_cost
+        )
+        cls.cost_term_by_project = (
+            cls.provider_map.cloud_infrastructure_cost_by_project
+            + cls.provider_map.markup_cost_by_project
+            + cls.provider_map.cost_model_cost
+        )
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -451,7 +459,7 @@ class OCPReportViewTest(IamTestCase):
 
         # assert the others count is correct
         meta = data.get("meta")
-        if "'no-node'" in str(data):
+        if "'No-node'" in str(data):
             num_nodes += 1
         self.assertEqual(meta.get("others"), num_nodes - 1)
 
@@ -505,7 +513,9 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_costs_group_by_project(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_ocp_costs_group_by_project(self, mock_unleash):
+        mock_unleash.return_value = True
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -526,60 +536,8 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             cost = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
-                .aggregate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.cost_term_by_project)
                 .get("total")
             )
             expected_total = cost if cost is not None else 0
@@ -587,8 +545,10 @@ class OCPReportViewTest(IamTestCase):
         self.assertNotEqual(total, Decimal(0))
         self.assertAlmostEqual(total, expected_total, 6)
 
-    def test_execute_query_ocp_costs_with_delta(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_ocp_costs_with_delta(self, mock_unleash):
         """Test that deltas work for costs."""
+        mock_unleash.return_value = True
         url = reverse("reports-openshift-costs")
         client = APIClient()
         params = {
@@ -616,183 +576,37 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             current_total = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
-                .aggregate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.cost_term)
                 .get("total")
             )
             current_total = current_total if current_total is not None else 0
 
             current_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
-                .annotate(**{"date": TruncDayString("usage_start")})
-                .values(*["date"])
                 .annotate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
                 )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
             )
 
             prev_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
                 .filter(usage_start__lte=last_month_end.date())
-                .annotate(**{"date": TruncDayString("usage_start")})
-                .values(*["date"])
                 .annotate(
-                    total=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
                 )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
             )
 
         current_totals = {total.get("date"): total.get("total") for total in current_totals}
@@ -1106,8 +920,10 @@ class OCPReportViewTest(IamTestCase):
             if values:
                 self.assertEqual(len(values), 1)
 
-    def test_execute_query_with_tag_filter(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_with_tag_filter(self, mock_unleash):
         """Test that data is filtered by tag key."""
+        mock_unleash.return_value = True
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1128,23 +944,13 @@ class OCPReportViewTest(IamTestCase):
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
                 .aggregate(
                     **{
                         "usage": Sum("pod_usage_cpu_core_hours"),
                         "request": Sum("pod_request_cpu_core_hours"),
                         "limit": Sum("pod_limit_cpu_core_hours"),
-                        "cost": Sum(
-                            Coalesce(
-                                KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                                Value(0, output_field=DecimalField()),
-                            )
-                            + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                            + Coalesce(
-                                KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                                Value(0, output_field=DecimalField()),
-                            )
-                            + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                        ),
+                        "cost": self.cost_term,
                     }
                 )
             )
@@ -1167,8 +973,10 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_costs_query_with_tag_filter(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_costs_query_with_tag_filter(self, mock_unleash):
         """Test that data is filtered by tag key."""
+        mock_unleash.return_value = True
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1188,36 +996,8 @@ class OCPReportViewTest(IamTestCase):
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
-                .aggregate(
-                    cost=Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(
-                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(cost=self.cost_term)
             )
 
         url = reverse("reports-openshift-costs")
@@ -1236,9 +1016,10 @@ class OCPReportViewTest(IamTestCase):
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
-    @skip("https://issues.redhat.com/browse/COST-2470")
-    def test_execute_query_with_wildcard_tag_filter(self):
+    @patch("api.report.ocp.query_handler.enable_ocp_amortized_monthly_cost")
+    def test_execute_query_with_wildcard_tag_filter(self, mock_unleash):
         """Test that data is filtered to include entries with tag key."""
+        mock_unleash.return_value = True
         url = "?filter[type]=pod&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1246,26 +1027,19 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
-            totals = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start__gte=self.ten_days_ago.date(), pod_labels__has_key=filter_key
-            ).aggregate(
-                **{
-                    "usage": Sum("pod_usage_cpu_core_hours"),
-                    "request": Sum("pod_request_cpu_core_hours"),
-                    "limit": Sum("pod_limit_cpu_core_hours"),
-                    "cost": Sum(
-                        Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
-                            Value(0, output_field=DecimalField()),
-                        )
-                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                    ),
-                }
+            totals = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=self.ten_days_ago.date(), pod_labels__has_key=filter_key
+                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(
+                    **{
+                        "usage": Sum("pod_usage_cpu_core_hours"),
+                        "request": Sum("pod_request_cpu_core_hours"),
+                        "limit": Sum("pod_limit_cpu_core_hours"),
+                        "cost": self.cost_term,
+                    }
+                )
             )
 
         url = reverse("reports-openshift-cpu")
@@ -1410,18 +1184,18 @@ class OCPReportViewTest(IamTestCase):
                 if option in order_mapping:
                     data_key = option
                     for node in nodes:
-                        if node.get("node") in ("Others", "no-node"):
+                        if node.get("node") in ("Others", "No-node"):
                             continue
                         previous_value = node.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
                         break
                 else:
                     for node in nodes:
-                        if node.get("node") in ("Others", "no-node"):
+                        if node.get("node") in ("Others", "No-node"):
                             continue
                         previous_value = node.get("values", [])[0].get(option, {}).get("value")
                         break
                 for entry in nodes:
-                    if entry.get("node", "") in ("Others", "no-node"):
+                    if entry.get("node", "") in ("Others", "No-node"):
                         continue
                     if data_key:
                         current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")

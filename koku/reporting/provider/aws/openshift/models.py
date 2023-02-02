@@ -95,6 +95,10 @@ class OCPAWSCostSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -128,6 +132,10 @@ class OCPAWSCostSummaryByAccountP(models.Model):
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -166,6 +174,10 @@ class OCPAWSCostSummaryByServiceP(models.Model):
     product_family = models.CharField(max_length=150, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -205,6 +217,10 @@ class OCPAWSCostSummaryByRegionP(models.Model):
     availability_zone = models.CharField(max_length=50, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -245,6 +261,10 @@ class OCPAWSComputeSummaryP(models.Model):
     unit = models.CharField(max_length=63, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -284,6 +304,10 @@ class OCPAWSStorageSummaryP(models.Model):
     unit = models.CharField(max_length=63, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -323,6 +347,10 @@ class OCPAWSNetworkSummaryP(models.Model):
     unit = models.CharField(max_length=63, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -362,6 +390,10 @@ class OCPAWSDatabaseSummaryP(models.Model):
     unit = models.CharField(max_length=63, null=True)
     unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -450,6 +482,10 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
@@ -516,8 +552,12 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)  # this field is no longer used
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)

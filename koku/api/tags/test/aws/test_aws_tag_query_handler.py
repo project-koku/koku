@@ -112,12 +112,11 @@ class AWSTagQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = AWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
-            tag_values = tags[0].get("values")
-        expected = {"key": key, "values": tag_values}
-        result = handler.get_tags()
-        self.assertEqual(result[0].get("key"), expected.get("key"))
-        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+            tags = AWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().first()
+            expected_tag_values = tags.get("values")
+        results = {r.get("key"): r.get("values") for r in handler.get_tags()}
+        self.assertIn(key, results)
+        self.assertEqual(sorted(results[key]), sorted(expected_tag_values))
 
     def test_get_tag_values_for_value_filter(self):
         """Test that the execute query runs properly with value query."""

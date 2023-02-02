@@ -11,7 +11,7 @@ from api.tags.serializers import FilterSerializer
 from api.tags.serializers import TagsQueryParamSerializer
 
 
-OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
+OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster", "category"]
 
 
 class OCPFilterSerializer(FilterSerializer):
@@ -22,6 +22,7 @@ class OCPFilterSerializer(FilterSerializer):
     project = StringOrListField(child=serializers.CharField(), required=False)
     enabled = serializers.BooleanField(default=True, required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
+    category = StringOrListField(child=serializers.CharField(), required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCPFilterSerializer."""
@@ -37,6 +38,7 @@ class OCPExcludeSerializer(ExcludeSerializer):
     project = StringOrListField(child=serializers.CharField(), required=False)
     enabled = serializers.BooleanField(default=True, required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
+    category = StringOrListField(child=serializers.CharField(), required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCPExcludeSerializer."""

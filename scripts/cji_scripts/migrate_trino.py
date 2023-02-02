@@ -89,31 +89,49 @@ def drop_columns_from_table(columns, table, conn_params):
             logging.info(e)
 
 
-def main():
-    logging.info("Running the hive migration for bucketing costs")
+def drop_table_by_partition(table, partition_column, conn_params):
+    sql = f"SELECT count(DISTINCT {partition_column}) FROM {table}"
+    try:
+        result = run_trino_sql(sql, conn_params)
+        partition_count = result[0][0]
+        limit = 10000
+        for i in range(0, partition_count, limit):
+            sql = f"SELECT DISTINCT {partition_column} FROM {table} OFFSET {i} LIMIT {limit}"
+            result = run_trino_sql(sql, conn_params)
+            partitions = [res[0] for res in result]
 
+            for partition in partitions:
+                logging.info(f"*** Deleting {table} partition {partition_column} = {partition} ***")
+                sql = f"DELETE FROM {table} WHERE {partition_column} = '{partition}'"
+                result = run_trino_sql(sql, conn_params)
+                logging.info("DELETE PARTITION result: ")
+                logging.info(result)
+    except Exception as e:
+        logging.info(e)
+
+
+def main():
     logging.info("fetching schemas")
-    schemas = ["acct7117525", "acct531488", "acct608080", "acct6089719"]
+    schemas = get_schemas()
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    # tables_to_drop = ["aws_openshift_daily"]
+    # tables_to_drop = [
+    #     "openshift_pod_usage_line_items_daily",
+    # ]
     # columns_to_drop = ["ocp_matched"]
-    columns_to_add = {"cost_category_id": "int"}
+    columns_to_add = {
+        "node_capacity_cpu_core_hours": "double",
+        "node_capacity_memory_gigabyte_hours": "double",
+    }
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
         logging.info(f"*** Adding column to tables for schema {schema} ***")
-        # drop_tables(tables_to_drop, CONNECT_PARAMS)
-        add_columns_to_table(columns_to_add, "reporting_ocpusagelineitem_daily_summary", CONNECT_PARAMS)
-        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
-        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
-        add_columns_to_table(columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary", CONNECT_PARAMS)
-        add_columns_to_table(
-            columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary_temp", CONNECT_PARAMS
-        )
-        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
         add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
+        # logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
+        # drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 
 if __name__ == "__main__":

@@ -519,6 +519,20 @@ class CommonUtilTests(MasuTestCase):
         result = common_utils.trino_table_exists(self.schema, "table_name")
         self.assertFalse(result)
 
+    def test_convert_account(self):
+        """Test that the correct account string is returned."""
+        account_str = "1234567"
+        account = common_utils.convert_account(account_str)
+        self.assertIn("acct", account)
+
+        account_str = "acct1234567"
+        account = common_utils.convert_account(account_str)
+        self.assertEqual(account_str, account)
+
+        account_str = "org1234567"
+        account = common_utils.convert_account(account_str)
+        self.assertEqual(account_str, account)
+
 
 class NamedTemporaryGZipTests(TestCase):
     """Tests for NamedTemporaryGZip."""

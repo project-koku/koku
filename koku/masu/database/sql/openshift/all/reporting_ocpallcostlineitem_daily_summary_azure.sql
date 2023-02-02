@@ -39,7 +39,7 @@ INSERT
 SELECT 'Azure'::text AS source_type,
        azure.cluster_id,
        {{cluster_alias}},
-       azure.namespace,
+       array_agg(azure.namespace),
        azure.node,
        azure.resource_id,
        azure.usage_start,
@@ -58,9 +58,9 @@ SELECT 'Azure'::text AS source_type,
        sum(azure.markup_cost),
        max(azure.currency) AS currency_code,
        max(cost_category_id) as cost_category_id,
-       max(azure.shared_projects),
+       cast(1 as decimal) as shared_projects,
        {{source_uuid}}::uuid as source_uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary_p AS azure
+  FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p AS azure
  WHERE azure.usage_start >= {{start_date}}::date
    AND azure.usage_start <= {{end_date}}::date
    AND azure.cluster_id = {{cluster_id}}

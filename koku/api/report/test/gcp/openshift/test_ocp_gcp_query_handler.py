@@ -32,7 +32,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
 from reporting.models import OCPGCPComputeSummaryP
-from reporting.models import OCPGCPCostLineItemDailySummaryP
+from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.models import OCPGCPCostSummaryByAccountP
 from reporting.models import OCPGCPCostSummaryByServiceP
 from reporting.models import OCPGCPCostSummaryP
@@ -105,7 +105,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
             return (
-                OCPGCPCostLineItemDailySummaryP.objects.filter(**filters)
+                OCPGCPCostLineItemProjectDailySummaryP.objects.filter(**filters)
                 .annotate(**handler.annotations)
                 .aggregate(**aggregates)
             )
@@ -728,7 +728,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         expected = [
             {"node": "alpha", "cluster": "cluster-2"},
             {"node": "bravo", "cluster": "cluster-3"},
-            {"node": "no-node", "cluster": "cluster-1"},
+            {"node": "No-node", "cluster": "cluster-1"},
             {"node": "oscar", "cluster": "cluster-4"},
         ]
         ordered_data = handler.order_by(unordered_data, order_fields)
@@ -852,7 +852,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         """Test execute group_by project query with category."""
         url = "?group_by[project]=*&category=*"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
             query_params = self.mocked_query_params(url, OCPGCPCostView)
             handler = OCPGCPReportQueryHandler(query_params)
             query_output = handler.execute_query()
@@ -861,13 +861,13 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             for data_item in data:
                 projects_data = data_item.get("projects")
                 for project_item in projects_data:
-                    if project_item.get("project") != "platform":
+                    if project_item.get("project") != "Platform":
                         self.assertTrue(project_item.get("values")[0].get("classification"), "project")
 
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
-            cluster = OCPGCPCostLineItemDailySummaryP.objects.values("cluster_id")[0].get("cluster_id")
+            cluster = OCPGCPCostLineItemProjectDailySummaryP.objects.values("cluster_id")[0].get("cluster_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]={cluster}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -901,7 +901,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             valid_services = [
                 service[0]
-                for service in OCPGCPCostLineItemDailySummaryP.objects.values_list("service_alias").distinct()
+                for service in OCPGCPCostLineItemProjectDailySummaryP.objects.values_list("service_alias").distinct()
             ]
             service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]={service}"  # noqa: E501
@@ -935,7 +935,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
-            service = OCPGCPCostLineItemDailySummaryP.objects.values("service_alias")[0].get("service_alias")
+            service = OCPGCPCostLineItemProjectDailySummaryP.objects.values("service_alias")[0].get("service_alias")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -965,7 +965,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
         with tenant_context(self.tenant):
-            account = OCPGCPCostLineItemDailySummaryP.objects.values("account_id")[0].get("account_id")
+            account = OCPGCPCostLineItemProjectDailySummaryP.objects.values("account_id")[0].get("account_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -989,7 +989,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_exclude_service(self):
         """Test execute_query for current month on monthly excluded by service."""
         with tenant_context(self.tenant):
-            service = OCPGCPCostLineItemDailySummaryP.objects.values("service_alias")[0].get("service_alias")
+            service = OCPGCPCostLineItemProjectDailySummaryP.objects.values("service_alias")[0].get("service_alias")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&exclude[service]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -1414,7 +1414,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                     filters["unit"] = "gibibyte month"
                 with tenant_context(self.tenant):
                     opt_value = (
-                        OCPGCPCostLineItemDailySummaryP.objects.filter(**filters)
+                        OCPGCPCostLineItemProjectDailySummaryP.objects.filter(**filters)
                         .values_list("instance_type", flat=True)
                         .distinct()[0]
                     )
@@ -1444,41 +1444,33 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
-        url = "?"
-        query_params = self.mocked_query_params(url, OCPGCPTagView)
+        query_params = self.mocked_query_params("?", OCPGCPTagView)
         handler = OCPGCPTagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
-        tag_key = tag.get("key")
-        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
-        query_params = self.mocked_query_params(base_url, OCPGCPCostView)
+        group_tag = None
+        check_no_option = False
+        exclude_vals = []
+        for tag_dict in tags:
+            if len(tag_dict.get("values")) > len(exclude_vals):
+                group_tag = tag_dict.get("key")
+                exclude_vals = tag_dict.get("values")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{group_tag}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
-        exclude_one = None
-        exclude_two = None
-        for date_dict in data:
-            if exclude_one and exclude_two:
-                continue
-            grouping_list = date_dict.get(f"{tag_key}s", [])
-            for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
-        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
-        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
-        query_params = self.mocked_query_params(single_exclude, OCPGCPCostView)
-        handler = OCPGCPReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, OCPGCPCostView)
-        handler = OCPGCPReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
+        if f"No-{group_tag}" in str(data):
+            check_no_option = True
+        previous_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        for exclude_value in exclude_vals:
+            url += f"&exclude[tag:{group_tag}]={exclude_value}"
+            query_params = self.mocked_query_params(url, OCPGCPCostView)
+            handler = OCPGCPReportQueryHandler(query_params)
+            data = handler.execute_query()
+            if check_no_option:
+                self.assertIn(f"No-{group_tag}", str(data))
+            current_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+            self.assertLess(current_total, previous_total)
+            previous_total = current_total
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_multi_exclude_functionality(self, _):
@@ -1495,7 +1487,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 exclude_one = None
                 exclude_two = None
                 for exclude_option in opt_list:
-                    if "no-" not in exclude_option.get(ex_opt):
+                    if "No-" not in exclude_option.get(ex_opt):
                         if not exclude_one:
                             exclude_one = exclude_option.get(ex_opt)
                         elif not exclude_two:

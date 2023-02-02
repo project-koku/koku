@@ -310,13 +310,16 @@ class GCPProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                         # COST-3043
                         # a default filter to use if querying a specific table. Filter generated in gcp_filter
-                        "conditional_filter": {
-                            "filter": {
-                                "field": "sku_alias",
-                                "operation": "icontains",
-                                "parameter": "Instance Core running",
+                        "conditionals": {
+                            GCPCostEntryLineItemDailySummary: {
+                                "filter": [
+                                    {
+                                        "field": "sku_alias",
+                                        "operation": "icontains",
+                                        "parameter": "Instance Core running",
+                                    },
+                                ],
                             },
-                            "if_table": GCPCostEntryLineItemDailySummary,
                         },
                     },
                     "storage": {
@@ -430,6 +433,17 @@ class GCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
+                        "conditionals": {
+                            GCPCostEntryLineItemDailySummary: {
+                                "filter": [
+                                    {
+                                        "field": "service_alias",
+                                        "operation": "in",
+                                        "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
+                                    },
+                                ],
+                            },
+                        },
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",

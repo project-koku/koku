@@ -69,7 +69,7 @@ class OCITagQueryHandler(TagQueryHandler):
             filter_map.update(
                 {
                     "payer_tenant_id": [
-                        {"field": "payer_tenant_ids", "operation": "icontains", "composition_key": "account_filter"}
+                        {"field": "payer_tenant_id", "operation": "icontains", "composition_key": "account_filter"}
                     ],
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }

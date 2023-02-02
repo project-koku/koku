@@ -387,3 +387,24 @@ class OCPTagQueryHandlerTest(IamTestCase):
             QueryFilter(field="report_period__cluster_alias", operation="icontains", parameter=["my-ocp-cluster-2"])
         )
         self.assertEqual(filters._filters, expected)
+
+    def test_category_filter(self):
+        """Test that we can filter by category on the tags endpoint."""
+        categories = {
+            "Platform": [
+                {"enabled": True, "key": "app", "values": ["mobile", "temperature"]},
+                {"enabled": True, "key": "storageclass", "values": ["Ruby"]},
+            ],
+            "FAKE_CATEGORY": [],
+            "*": [],
+        }
+        for category in categories.keys():
+            with self.subTest(category=category):
+                with tenant_context(self.tenant):
+                    query_params = self.mocked_query_params(f"?filter[category]={category}", OCPTagView)
+                    handler = OCPTagQueryHandler(query_params)
+                    result_value = handler.execute_query().get("data")
+                    if category == "*":
+                        self.assertNotEqual(result_value, categories[category])
+                    else:
+                        self.assertEqual(result_value, categories[category])

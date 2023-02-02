@@ -775,6 +775,16 @@ class ParamSerializerTest(IamTestCase):
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
 
+    def test_invalid_category_usage(self):
+        """Test handling invalid category usage on tag endpoint."""
+        query_params = {"category": "Platform"}
+        req = Mock(path="/api/cost-management/v1/tags/openshift/")
+        with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
+            serializer = ParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
+
 
 class ReportQueryParamSerializerTest(IamTestCase):
     def test_validate_delta(self):
@@ -789,8 +799,8 @@ class ReportQueryParamSerializerTest(IamTestCase):
         """Test `category` on base ReportQueryParamSerializer is invalid."""
         self.request_path = "/api/cost-management/v1/"
         with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as mock_object:
-            mock_object.values_list.return_value.distinct.return_value = ["platform"]
-            serializer = ReportQueryParamSerializer(data={"category": "platform"}, context=self.ctx_w_path)
+            mock_object.values_list.return_value.distinct.return_value = ["Platform"]
+            serializer = ReportQueryParamSerializer(data={"category": "Platform"}, context=self.ctx_w_path)
             with self.assertRaises(ValidationError):
                 self.assertFalse(serializer.is_valid())
                 serializer.is_valid(raise_exception=True)

@@ -39,7 +39,7 @@ INSERT
 SELECT 'GCP'::text AS source_type,
        gcp.cluster_id,
        {{cluster_alias}},
-       gcp.namespace,
+       array_agg(gcp.namespace),
        gcp.node,
        gcp.resource_id,
        gcp.usage_start,
@@ -58,9 +58,9 @@ SELECT 'GCP'::text AS source_type,
        sum(gcp.markup_cost),
        max(gcp.currency) AS currency_code,
        max(cost_category_id) as cost_category_id,
-       max(gcp.shared_projects),
+       cast(1 as decimal) as shared_projects,
        {{source_uuid}}::uuid as source_uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p AS gcp
+  FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS gcp
  WHERE gcp.usage_start >= {{start_date}}::date
    AND gcp.usage_start <= {{end_date}}::date
    AND gcp.cluster_id = {{cluster_id}}
