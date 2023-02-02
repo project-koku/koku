@@ -75,7 +75,7 @@ def azure_settings_ready(provider):
         and authentication
         and (
             set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
-            and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
+            and REQUIRED_AZURE_BILLING_KEYS.issubset(set(billing_source.keys()))
         )
     )
 
