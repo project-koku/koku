@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  hccm-presto.json: |-
+  hccm-trino.json: |-
     {
       "annotations": {
         "list": [
@@ -31,7 +31,7 @@ data:
             "y": 0
           },
           "id": 20,
-          "title": "Presto Resources",
+          "title": "Trino Resources",
           "type": "row"
         },
         {
@@ -103,7 +103,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "presto_heartbeatdetector_activecount{kubernetes_namespace=\"$namespace\"}",
+              "expr": "max (trino_heartbeatdetector_activecount{namespace=\"$namespace\"})",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -174,7 +174,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "presto_memory_clustermemorypool_general_freedistributedbytes{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_memory_clustermemorypool_general_freedistributedbytes{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -182,7 +182,7 @@ data:
               "refId": "A"
             },
             {
-              "expr": "presto_memory_clustermemorypool_general_reserveddistributedbytes{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_memory_clustermemorypool_general_reserveddistributedbytes{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -190,7 +190,7 @@ data:
               "refId": "B"
             },
             {
-              "expr": "presto_memory_clustermemorypool_reserved_reservedrevocabledistributedbytes{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_memory_clustermemorypool_general_reservedrevocabledistributedbytes{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -198,7 +198,7 @@ data:
               "refId": "C"
             },
             {
-              "expr": "presto_memory_clustermemorypool_general_totaldistributedbytes{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_memory_clustermemorypool_general_totaldistributedbytes{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -316,7 +316,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "presto_memory_clustermemorypool_general_nodes{kubernetes_namespace=\"$namespace\"}",
+              "expr": "max (trino_memory_clustermemorypool_general_nodes{namespace=\"$namespace\"})",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "",
@@ -347,7 +347,7 @@ data:
           },
           "id": 8,
           "panels": [],
-          "title": "Presto Query Stats",
+          "title": "Trino Query Stats",
           "type": "row"
         },
         {
@@ -400,7 +400,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(presto_execution_querymanager_abandonedqueries_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_abandonedqueries_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -408,7 +408,7 @@ data:
               "refId": "A"
             },
             {
-              "expr": "increase(presto_execution_querymanager_canceledqueries_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_canceledqueries_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -416,7 +416,7 @@ data:
               "refId": "B"
             },
             {
-              "expr": "increase(presto_execution_querymanager_completedqueries_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_completedqueries_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -424,7 +424,7 @@ data:
               "refId": "C"
             },
             {
-              "expr": "increase(presto_execution_querymanager_failedqueries_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_failedqueries_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -432,7 +432,7 @@ data:
               "refId": "D"
             },
             {
-              "expr": "increase(presto_execution_querymanager_startedqueries_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_startedqueries_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -440,7 +440,7 @@ data:
               "refId": "E"
             },
             {
-              "expr": "increase(presto_execution_querymanager_submittedqueries_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_submittedqueries_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -539,7 +539,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(presto_execution_querymanager_externalfailures_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_externalfailures_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -547,7 +547,7 @@ data:
               "refId": "A"
             },
             {
-              "expr": "increase(presto_execution_querymanager_insufficientresourcesfailures_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_insufficientresourcesfailures_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -555,7 +555,7 @@ data:
               "refId": "B"
             },
             {
-              "expr": "increase(presto_execution_querymanager_usererrorfailures_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_usererrorfailures_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -563,7 +563,7 @@ data:
               "refId": "C"
             },
             {
-              "expr": "increase(presto_execution_querymanager_internalfailures_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_internalfailures_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -663,7 +663,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "presto_execution_querymanager_executiontime_alltime_avg_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_execution_querymanager_executiontime_alltime_avg_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -671,7 +671,7 @@ data:
               "refId": "A"
             },
             {
-              "expr": "presto_execution_querymanager_executiontime_alltime_min_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_execution_querymanager_executiontime_alltime_min_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -679,7 +679,7 @@ data:
               "refId": "B"
             },
             {
-              "expr": "presto_execution_querymanager_executiontime_alltime_max_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_execution_querymanager_executiontime_alltime_max_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -687,11 +687,11 @@ data:
               "refId": "C"
             },
             {
-              "expr": "increase(presto_execution_querymanager_executiontime_alltime_seconds{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_executiontime_alltime_seconds{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "current [{{ controller_revision_hash }}]",
+              "legendFormat": "{{ quantile }}",
               "refId": "D"
             }
           ],
@@ -787,32 +787,32 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "presto_execution_querymanager_queuedtime_alltime_avg_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_execution_querymanager_queuedtime_alltime_avg_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "avg",
               "refId": "A"
             },
             {
-              "expr": "presto_execution_querymanager_queuedtime_alltime_min_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_execution_querymanager_queuedtime_alltime_min_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "min",
               "refId": "B"
             },
             {
-              "expr": "presto_execution_querymanager_queuedtime_alltime_max_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_execution_querymanager_queuedtime_alltime_max_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "max",
               "refId": "C"
             },
             {
-              "expr": "increase(presto_execution_querymanager_queuedtime_alltime_seconds{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_execution_querymanager_queuedtime_alltime_seconds{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "current [{{ controller_revision_hash }}]",
+              "legendFormat": "{{ quantile }}",
               "refId": "D"
             }
           ],
@@ -922,19 +922,19 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(presto_hive_s3_prestos3filesystem_awsrequestcount_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_hive_s3_trinos3filesystem_awsrequestcount_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "requests [{{ controller_revision_hash }}]",
+              "legendFormat": "requests [{{ pod }}]",
               "refId": "A"
             },
             {
-              "expr": "increase(presto_hive_s3_prestos3filesystem_awsretrycount_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_hive_s3_trinos3filesystem_awsretrycount_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "retries [{{ controller_revision_hash }}]",
+              "legendFormat": "retries [{{ [pod] }}]",
               "refId": "B"
             }
           ],
@@ -1030,33 +1030,33 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(presto_hive_s3_prestos3filesystem_awsabortedexceptions_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_hive_s3_trinos3filesystem_awsabortedexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "aborted [{{ controller_revision_hash }}]",
+              "legendFormat": "aborted [{{ pod }}]",
               "refId": "A"
             },
             {
-              "expr": "increase(presto_hive_s3_prestos3filesystem_awsthrottleexceptions_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_hive_s3_trinos3filesystem_awsthrottleexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "throttled [{{ controller_revision_hash }}]",
+              "legendFormat": "throttled [{{ pod }}]",
               "refId": "B"
             },
             {
-              "expr": "increase(presto_hive_s3_prestos3filesystem_socketexceptions_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_hive_s3_trinos3filesystem_socketexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "socket [{{ controller_revision_hash }}]",
+              "legendFormat": "socket [{{ pod }}]",
               "refId": "C"
             },
             {
-              "expr": "increase(presto_hive_s3_prestos3filesystem_sockettimeoutexceptions_totalcount_total{kubernetes_namespace=\"$namespace\"}[$__interval])",
+              "expr": "increase(trino_hive_s3_trinos3filesystem_sockettimeoutexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "socket timeout [{{ controller_revision_hash }}]",
+              "legendFormat": "socket timeout [{{ pod }}]",
               "refId": "D"
             }
           ],
@@ -1153,19 +1153,19 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "presto_hive_s3_prestos3filesystem_awsclientexecutetime_alltime_avg_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_hive_s3_trinos3filesystem_awsclientexecutetime_alltime_avg_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "avg. client execution [{{ controller_revision_hash }}]",
+              "legendFormat": "avg. client execution [{{ pod }}]",
               "refId": "A"
             },
             {
-              "expr": "presto_hive_s3_prestos3filesystem_awsrequesttime_alltime_avg_seconds{kubernetes_namespace=\"$namespace\"}",
+              "expr": "trino_hive_s3_trinos3filesystem_awsrequesttime_alltime_avg_seconds{namespace=\"$namespace\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "avg. request [{{ controller_revision_hash }}]",
+              "legendFormat": "avg. request [{{ pod }}]",
               "refId": "B"
             }
           ],
@@ -1219,8 +1219,8 @@ data:
           {
             "current": {
               "selected": true,
-              "text": "crc-stg-01-prometheus",
-              "value": "crc-stg-01-prometheus"
+              "text": "crcp01ue1-prometheus",
+              "value": "crcp01ue1-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -1229,41 +1229,44 @@ data:
             "name": "Datasource",
             "options": [],
             "query": "prometheus",
+            "queryValue": "",
             "refresh": 1,
             "regex": "/.*crc.*/",
             "skipUrlSync": false,
             "type": "datasource"
           },
           {
-            "allValue": null,
             "current": {
               "selected": true,
-              "text": "hccm-stage",
-              "value": "hccm-stage"
+              "text": "hccm-prod",
+              "value": "hccm-prod"
             },
-            "datasource": "$Datasource",
-            "definition": "label_values(kubernetes_namespace)",
             "hide": 0,
             "includeAll": false,
-            "label": null,
+            "label": "namespace",
             "multi": false,
             "name": "namespace",
-            "options": [],
-            "query": "label_values(kubernetes_namespace)",
-            "refresh": 2,
-            "regex": "/^hccm-/",
+            "options": [
+              {
+                "selected": false,
+                "text": "hccm-stage",
+                "value": "hccm-stage"
+              },
+              {
+                "selected": true,
+                "text": "hccm-prod",
+                "value": "hccm-prod"
+              }
+            ],
+            "query": "hccm-stage,hccm-prod",
+            "queryValue": "",
             "skipUrlSync": false,
-            "sort": 0,
-            "tagValuesQuery": "",
-            "tags": [],
-            "tagsQuery": "",
-            "type": "query",
-            "useTags": false
+            "type": "custom"
           }
         ]
       },
       "time": {
-        "from": "now-2d",
+        "from": "now-24h",
         "to": "now"
       },
       "timepicker": {
@@ -1292,13 +1295,13 @@ data:
         ]
       },
       "timezone": "",
-      "title": "Cost Management - Presto",
+      "title": "Cost Management - Trino",
       "uid": "6WhuBODGk",
       "version": 1
     }
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-clouddot-insights-hccm-presto
+  name: grafana-dashboard-clouddot-insights-hccm-trino
   labels:
     grafana_dashboard: "true"
   annotations:
