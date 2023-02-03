@@ -117,3 +117,21 @@ class AzureClientFactoryTestCase(TestCase):
         with patch.object(StorageManagementClient, "storage_accounts", return_value=None):
             cloud_account = obj.cloud_storage_account(resource_group_name, storage_account_name)
             self.assertTrue(isinstance(cloud_account, BlobServiceClient))
+
+    @patch("providers.azure.client.ClientSecretCredential.get_token")
+    def test_scope_and_export_name(self, mock_get_token):
+        """Test the scope and export_name properties."""
+        subscription_id = FAKE.uuid4()
+        scope = f"/subscriptions/{subscription_id}"
+        export_name = "cost_export"
+        obj = AzureClientFactory(
+            subscription_id=subscription_id,
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+            scope=scope,
+            export_name=export_name,
+        )
+        self.assertTrue(obj.scope, scope)
+        self.assertTrue(obj.export_name, export_name)

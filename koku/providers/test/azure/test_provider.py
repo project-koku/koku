@@ -47,13 +47,18 @@ class AzureProviderTestCase(TestCase):
     @patch("providers.azure.provider.AzureService", side_effect=AzureException("test exception"))
     def test_cost_usage_source_is_reachable_exception(self, _):
         """Test that ValidationError is raised when AzureException is raised."""
+        subscription_id = FAKE.uuid4()
+        scope = f"subscriptions/{subscription_id}"
         credentials = {
-            "subscription_id": FAKE.uuid4(),
+            "subscription_id": subscription_id,
             "tenant_id": FAKE.uuid4(),
             "client_id": FAKE.uuid4(),
             "client_secret": FAKE.word(),
         }
-        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word(), "scope": scope}
+        with self.assertRaises(ValidationError):
+            AzureProvider().cost_usage_source_is_reachable(credentials, source_name)
+
         with self.assertRaises(ValidationError):
             AzureProvider().cost_usage_source_is_reachable(credentials, source_name)
 

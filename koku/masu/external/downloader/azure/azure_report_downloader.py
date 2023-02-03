@@ -91,9 +91,18 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         client_secret = credentials.get("client_secret")
         resource_group_name = data_source.get("resource_group")
         storage_account_name = data_source.get("storage_account")
+        scope = data_source.get("scope")
+        export_name = data_source.get("export_name")
 
         service = AzureService(
-            tenant_id, client_id, client_secret, resource_group_name, storage_account_name, subscription_id
+            tenant_id,
+            client_id,
+            client_secret,
+            resource_group_name,
+            storage_account_name,
+            subscription_id,
+            scope=scope,
+            export_name=export_name,
         )
         return service
 
