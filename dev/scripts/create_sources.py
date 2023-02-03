@@ -35,6 +35,8 @@ def create_parser():
     )
     parser.add_argument("--resource_group", dest="resource_group", required=False, help="AZURE Storage Resource Group")
     parser.add_argument("--storage_account", dest="storage_account", required=False, help="AZURE Storage Account")
+    parser.add_argument("--scope", dest="scope", required=False, help="AZURE Cost Export Scope")
+    parser.add_argument("--export_name", dest="export_name", required=False, help="AZURE Cost Export Name")
     parser.add_argument("--subscription_id", dest="subscription_id", required=False, help="AZURE Subscription ID")
     parser.add_argument("--client_id", dest="client_id", required=False, help="Azure Client ID")
     parser.add_argument("--client_secret", dest="client_secret", required=False, help="Azure Client Secret")
@@ -75,9 +77,16 @@ class SourcesClientDataGenerator:
         response = requests.patch(url, headers=self._identity_header, json=json_data)
         return response
 
-    def create_azure_storage(self, parameters, resource_group, storage_account):
+    def create_azure_storage(self, parameters, resource_group, storage_account, scope=None, export_name=None):
         json_data = {
-            "billing_source": {"data_source": {"resource_group": resource_group, "storage_account": storage_account}}
+            "billing_source": {
+                "data_source": {
+                    "resource_group": resource_group,
+                    "storage_account": storage_account,
+                    "scope": scope,
+                    "export_name": export_name,
+                }
+            }
         }
 
         url = "{}/{}/".format(self._base_url, parameters.get("source_id"))
@@ -248,10 +257,14 @@ def main(args):  # noqa
         resource_group = parameters.get("resource_group")
         subscription_id = parameters.get("subscription_id")
         source_id_param = parameters.get("source_id")
+        scope = parameters.get("scope")
+        export_name = parameters.get("export_name")
 
         if storage_account and resource_group and source_id_param:
             sources_client = SourcesClientDataGenerator(identity_header)
-            billing_source_response = sources_client.create_azure_storage(parameters, resource_group, storage_account)
+            billing_source_response = sources_client.create_azure_storage(
+                parameters, resource_group, storage_account, scope, export_name
+            )
             print(f"Associating Azure storage account and resource group: {billing_source_response.content}")
             return
 

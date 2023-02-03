@@ -52,6 +52,17 @@ ENDPOINT_APPLICATION_TYPES = "application_types"
 ENDPOINT_AUTHENTICATIONS = "authentications"
 ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
+APP_OPT_EXTRA_FEILD_MAP = {
+    Provider.PROVIDER_OCP: [],
+    Provider.PROVIDER_AWS: [],
+    Provider.PROVIDER_AWS_LOCAL: [],
+    Provider.PROVIDER_AZURE: ["scope", "export_name"],
+    Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name"],
+    Provider.PROVIDER_GCP: [],
+    Provider.PROVIDER_GCP_LOCAL: [],
+    Provider.PROVIDER_OCI: [],
+    Provider.PROVIDER_OCI_LOCAL: [],
+}
 
 
 def convert_header_to_dict(header, b64_decode=False):

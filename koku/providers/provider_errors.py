@@ -77,12 +77,18 @@ class ProviderErrors:
         "Edit your Azure source to include the resource group."
     )
     AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE = (
-        "Cost management requires a subscription ID for this source. "
+        "Cost management requires a subscription ID or scope with"
+        " export name for this source. "
         "Edit your Azure source to include the subscription ID."
     )
+    AZURE_MISSING_EXPORT_NAME_MESSAGE = (
+        "Cost management requeires an export name when a scope is"
+        " provided for a source. "
+        "Edit your Azure source to include an export name."
+    )
     AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE = (
-        "Cost management requires a subscription ID, resource group "
-        "and storage account."
+        "Cost management requires a resource group,  storage account"
+        " and subscription ID or scope with export name. "
         "Edit your Azure source to include these details."
     )
     AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = (

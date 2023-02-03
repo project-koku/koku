@@ -43,29 +43,34 @@ class AzureProvider(ProviderInterface):
         """
         return Provider.PROVIDER_AZURE
 
-    def _verify_patch_entries(self, subscription_id, resource_group, storage_account):
+    def _verify_patch_entries(self, subscription_id, resource_group, storage_account, scope, export_name):
         """Raise Validation Error for missing."""
-        if subscription_id and not (resource_group and storage_account):
+        if scope and not export_name:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = ProviderErrors.AZURE_MISSING_EXPORT_NAME_MESSAGE
+            raise ValidationError(error_obj(key, message))
+
+        if (subscription_id or scope) and not (resource_group and storage_account):
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE
             raise ValidationError(error_obj(key, message))
 
-        if subscription_id and resource_group and not storage_account:
+        if (subscription_id or scope) and resource_group and not storage_account:
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE
             raise ValidationError(error_obj(key, message))
 
-        if subscription_id and storage_account and not resource_group:
+        if (subscription_id or scope) and storage_account and not resource_group:
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE
             raise ValidationError(error_obj(key, message))
 
-        if storage_account and resource_group and not subscription_id:
+        if storage_account and resource_group and not (subscription_id or scope):
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE
             raise ValidationError(error_obj(key, message))
 
-        if not resource_group and not storage_account and not subscription_id:
+        if not resource_group and not storage_account and not subscription_id and not scope:
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE
             raise ValidationError(error_obj(key, message))
@@ -107,13 +112,19 @@ class AzureProvider(ProviderInterface):
 
         resource_group = data_source.get("resource_group")
         storage_account = data_source.get("storage_account")
+        scope = data_source.get("scope")
+        export_name = data_source.get("export_name")
         subscription_id = credentials.get("subscription_id")
 
-        self._verify_patch_entries(subscription_id, resource_group, storage_account)
+        self._verify_patch_entries(subscription_id, resource_group, storage_account, scope, export_name)
 
         try:
             azure_service = AzureService(
-                **credentials, resource_group_name=resource_group, storage_account_name=storage_account
+                **credentials,
+                resource_group_name=resource_group,
+                storage_account_name=storage_account,
+                scope=scope,
+                export_name=export_name
             )
             azure_client = AzureClientFactory(**credentials)
             storage_accounts = azure_client.storage_client.storage_accounts
