@@ -143,18 +143,15 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_path = self._get_report_path(date_time)
         manifest = {}
         try:
-            container_client = self._azure_client._cloud_storage_account.get_container_client(self.container_name)
-            blob_names = container_client.list_blob_names(name_starts_with=report_path)
-            json_manifest_exists = any(name.endswith(AzureBlobExtension.manifest.value) for name in blob_names)
+            json_manifest = self._azure_client.get_latest_manifest_for_path(report_path, self.container_name)
         except AzureCostReportNotFound as ex:
-            msg = f"Unable to find manifest. Error: {ex}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
-            return manifest, None
+            json_manifest = None
+            msg = f"No JSON manifest exists. Using latest cost export. {ex}"
+            LOG.debug(msg)
 
-        if json_manifest_exists:
-            json_manifest_blob = self._azure_client._get_latest_manifest_for_path(report_path, self.container_name)
-            report_name = json_manifest_blob.name
-            last_modified = json_manifest_blob.last_modified
+        if json_manifest:
+            report_name = json_manifest.name
+            last_modified = json_manifest.last_modified
             LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
 
             # Download the manifest and extract the list of files.
@@ -177,7 +174,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
         else:
-            cost_export_blob = self._azure_client._get_latest_cost_export_for_path(report_path, self.container_name)
+            try:
+                cost_export_blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+            except AzureCostReportNotFound as ex:
+                msg = f"Unable to find cost export. Error: {ex}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                return manifest, None
+
             report_name = cost_export_blob.name
             last_modified = cost_export_blob.last_modified
             LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
@@ -213,7 +216,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-        # rdb.set_trace()
         manifest_dict = {}
         report_dict = {}
         manifest, manifest_timestamp = self._get_manifest(date)

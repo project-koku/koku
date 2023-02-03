@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob._models import BlobProperties
 from msrest.exceptions import ClientException
 
@@ -76,8 +77,8 @@ class AzureService:
 
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
-            blobs = container_client.list_blobs(name_starts_with=report_path)
-        except (AdalError, AzureException, ClientException) as error:
+            blobs = list(container_client.list_blobs(name_starts_with=report_path))
+        except (AdalError, AzureException, ClientException, ResourceNotFoundError) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
         except HttpResponseError as httpError:
             if httpError.status_code == 403:
@@ -107,26 +108,32 @@ class AzureService:
                 latest_report = blob
 
         if not latest_report:
-            message = f"No file with extension {extension} found in container {container_name} for path {report_path}."
+            message = (
+                f"No file with extension '{extension}' found in container "
+                f"'{container_name}' for path '{report_path}'."
+            )
             raise AzureCostReportNotFound(message)
 
         return latest_report
 
-    def _get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+    def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
+        try:
+            container_client = self._cloud_storage_account.get_container_client(container_name)
+            blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
+        except (AdalError, AzureException, ClientException, ResourceNotFoundError) as ex:
+            raise AzureServiceError(f"Unable to list blobs. Error: {ex}")
 
-    def _get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
+        if not blob_names:
+            raise AzureCostReportNotFound(
+                f"Unable to find files in container '{container_name}' at path '{starts_with}'"
+            )
+
+        return blob_names
 
     def get_file_for_key(self, key: str, container_name: str) -> BlobProperties:
         """Get the file from given storage account container."""
 
-        try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
-            blob_list = container_client.list_blobs(name_starts_with=key)
-        except (AdalError, AzureException, ClientException) as error:
-            raise AzureServiceError("Failed to download file. Error: ", str(error))
-
+        blob_list = self._list_blobs(key, container_name)
         report = None
         for blob in blob_list:
             if key == blob.name:
@@ -138,6 +145,12 @@ class AzureService:
             raise AzureCostReportNotFound(message)
 
         return report
+
+    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+
+    def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
 
     def download_file(self, key: str, container_name: str, destination: str = None, suffix: str = ".csv") -> str:
         """Download the file from a given storage container."""
