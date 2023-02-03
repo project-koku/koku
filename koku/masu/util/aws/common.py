@@ -399,27 +399,42 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
+def handle_user_defined_json_columns(data_frame, columns, column_prefix):
+    """Given a prefix convert multiple dataframe columns into a single json column."""
+
+    def scrub_resource_col_name(res_col_name):
+        return res_col_name.replace(column_prefix, "")
+
+    columns_of_interest = [column for column in columns if column_prefix in column]
+    unique_keys = {scrub_resource_col_name(column) for column in columns_of_interest}
+
+    df = data_frame[columns_of_interest]
+    column_dict = df.apply(
+        lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
+    )
+    column_dict.where(column_dict.notna(), lambda _: [{}], inplace=True)
+
+    return column_dict.apply(json.dumps), unique_keys
+
+
 def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
-
-    def scrub_resource_col_name(res_col_name):
-        return res_col_name.replace("resourceTags/user:", "")
+    all_resource_tag_prefix = "resourceTags/"
+    resource_tag_user_prefix = "resourceTags/user:"
+    cost_category_prefix = "costCategory/"
 
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
-    resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
-    unique_keys = {scrub_resource_col_name(column) for column in resource_tag_columns}
-    tag_df = data_frame[resource_tag_columns]
-    resource_tags_dict = tag_df.apply(
-        lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
-    )
-    resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
+    tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, resource_tag_user_prefix)
+    data_frame["resourceTags"] = tags
 
-    data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
+    cost_categories, _ = handle_user_defined_json_columns(data_frame, columns, cost_category_prefix)
+    data_frame["costCategory"] = cost_categories
+
     # Make sure we have entries for our required columns
     data_frame = data_frame.reindex(columns=columns)
 
@@ -429,7 +444,7 @@ def aws_post_processor(data_frame):
     for column in columns:
         new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
-        if "resourceTags/" in column:
+        if all_resource_tag_prefix in column or cost_category_prefix in column:
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
@@ -457,6 +472,7 @@ def aws_generate_daily_data(data_frame):
             "product_region",
             "pricing_unit",
             "resourcetags",
+            "costcategory",
         ],
         dropna=False,
     ).agg(
