@@ -40,11 +40,15 @@ class AzureService:
         storage_account_name,
         subscription_id=None,
         cloud="public",
+        scope=None,
+        export_name=None,
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
         self._storage_account_name = storage_account_name
-        self._factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret, cloud)
+        self._factory = AzureClientFactory(
+            subscription_id, tenant_id, client_id, client_secret, cloud, scope, export_name
+        )
 
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
@@ -130,13 +134,32 @@ class AzureService:
 
     def describe_cost_management_exports(self):
         """List cost management export."""
-        scope = f"/subscriptions/{self._factory.subscription_id}"
+        export_reports = []
+        scope = self._factory.scope
+        export_name = self._factory.export_name
+        if not scope:
+            scope = f"/subscriptions/{self._factory.subscription_id}"
+
+        if export_name:
+            try:
+                cost_management_client = self._factory.cost_management_client
+                report = cost_management_client.exports.get(scope, export_name)
+                report_def = {
+                    "name": report.name,
+                    "container": report.delivery_info.destination.container,
+                    "directory": report.delivery_info.destination.root_folder_path,
+                }
+                export_reports.append(report_def)
+            except (AdalError, AzureException, ClientException) as exc:
+                raise AzureCostReportNotFound(exc)
+
+            return export_reports
+
         expected_resource_id = (
             f"/subscriptions/{self._factory.subscription_id}/resourceGroups/"
             f"{self._resource_group_name}/providers/Microsoft.Storage/"
             f"storageAccounts/{self._storage_account_name}"
         )
-        export_reports = []
         try:
             cost_management_client = self._factory.cost_management_client
             management_reports = cost_management_client.exports.list(scope)
