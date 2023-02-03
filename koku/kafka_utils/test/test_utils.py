@@ -35,3 +35,37 @@ class KafkaUtilsTest(TestCase):
         utils.is_kafka_connected(TEST_HOST, TEST_PORT)
         connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
         self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    def test_extract_from_header(self):
+        """Test test_extract_from_header."""
+        encoded_value = bytes("value", "utf-8")
+        test_table = [
+            {
+                "test": [
+                    ["key", encoded_value],
+                ],
+                "key": "key",
+                "expected": "value",
+            },
+            {
+                "test": [
+                    ["key", None],
+                ],
+                "key": "key",
+                "expected": None,
+            },
+            {
+                "test": None,
+                "key": "key",
+                "expected": None,
+            },
+            {
+                "test": [["not-key", encoded_value], ["not-key-2", encoded_value]],
+                "key": "key",
+                "expected": None,
+            },
+        ]
+        for test in test_table:
+            with self.subTest(test=test):
+                result = utils.extract_from_header(test["test"], test["key"])
+                self.assertEqual(result, test["expected"])

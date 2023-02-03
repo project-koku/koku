@@ -26,7 +26,7 @@ from providers.azure.client import AzureClientFactory
 FAKE = Faker()
 
 
-def throw_azure_exception(scope):
+def throw_azure_exception(scope, extra=None):
     """Raises azure exception."""
     raise AzureException()
 
@@ -61,7 +61,7 @@ class AzureServiceTest(MasuTestCase):
         self.current_date_time = datetime.today()
         self.export_directory = FAKE.word()
 
-    def get_mock_client(self, blob_list=[], cost_exports=[]):
+    def get_mock_client(self, blob_list=[], cost_exports=[], scope=None, export_name=None):
         """Generate an AzureService instance with mocked AzureClientFactory.
 
         Args:
@@ -87,6 +87,9 @@ class AzureServiceTest(MasuTestCase):
         fake_data = FAKE.binary(length=1024 * 64)
 
         client = None
+        cost_export = None
+        if len(cost_exports):
+            cost_export = cost_exports[0]
         with patch(
             "masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory
         ) as mock_factory:
@@ -109,9 +112,18 @@ class AzureServiceTest(MasuTestCase):
                     )
                 ),
                 # .cost_management_client.exports.list().value
-                cost_management_client=Mock(exports=Mock(list=Mock(return_value=Mock(value=cost_exports)))),
+                cost_management_client=Mock(
+                    exports=Mock(
+                        list=Mock(return_value=Mock(value=cost_exports)),
+                        # .cost_management_client.exports.get().value
+                        get=Mock(return_value=Mock(value=cost_export)),
+                    )
+                ),
+                # .cost_management_client.exports.get().value
                 # .subscription_id
                 subscription_id=self.subscription_id,
+                scope=scope,
+                export_name=export_name,
             )
             client = AzureService(
                 self.tenant_id,
@@ -373,3 +385,36 @@ class AzureServiceTest(MasuTestCase):
                 self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
             )
             service.get_latest_cost_export_for_path(report_path=FAKE.word(), container_name=FAKE.word())
+
+    def test_describe_cost_management_exports_with_scope_and_name(self):
+        """Test that cost management exports using scope and name are returned for the account."""
+        resource_id = (
+            f"/subscriptions/{self.subscription_id}/resourceGroups/"
+            f"{self.resource_group_name}/providers/Microsoft.Storage/"
+            f"storageAccounts/{self.storage_account_name}"
+        )
+
+        mock_export = Mock(
+            delivery_info=Mock(
+                destination=Mock(
+                    container=self.container_name, root_folder_path=self.export_directory, resource_id=resource_id
+                )
+            )
+        )
+
+        name_attr = PropertyMock(return_value=f"{self.container_name}_blob")
+        type(mock_export).name = name_attr  # kludge to set name attribute on Mock
+
+        scope = f"/subscriptions/{self.subscription_id}"
+        svc = self.get_mock_client(cost_exports=[mock_export], scope=scope, export_name="cost_export")
+        exports = svc.describe_cost_management_exports()
+
+        self.assertEqual(len(exports), 1)
+
+    def test_describe_cost_management_exports_with_scope_and_name_no_auth(self):
+        """Test that cost management exports using scope and name are not returned from incorrect account."""
+        scope = f"/subscriptions/{self.subscription_id}"
+        svc = self.get_mock_client(cost_exports=[Mock()], scope=scope, export_name="cost_export")
+        svc._factory.cost_management_client.exports.get.side_effect = throw_azure_exception
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.describe_cost_management_exports()
