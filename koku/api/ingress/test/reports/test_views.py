@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -26,6 +27,7 @@ class ReportsViewTest(MasuTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.schema = self.schema_name
+        self.dh = DateHelper()
         self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
         self.ingress_report_dict = {
@@ -34,6 +36,8 @@ class ReportsViewTest(MasuTestCase):
             "completed_timestamp": None,
             "reports_list": ["test"],
             "source": self.aws_provider,
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
         }
         ingress_report_accessor = IngressReportDBAccessor(self.schema)
         self.added_ingress_report = ingress_report_accessor.add(**self.ingress_report_dict)
@@ -70,7 +74,25 @@ class ReportsViewTest(MasuTestCase):
     def test_post_invalid_ingress_reports(self):
         """Test to post invalid reports."""
         url = reverse("reports")
-        post_data = {"source": str(self.aws_provider.uuid), "reports_list": "bad.csv"}
+        post_data = {
+            "source": str(self.aws_provider.uuid),
+            "reports_list": "bad.csv",
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
+        client = APIClient()
+        response = client.post(url, data=post_data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_invalid_bill_dates(self):
+        """Test to post invalid reports."""
+        url = reverse("reports")
+        post_data = {
+            "source": str(self.aws_provider.uuid),
+            "reports_list": ["test.csv", "test.csv"],
+            "bill_year": "2022",
+            "bill_month": "22",
+        }
         client = APIClient()
         response = client.post(url, data=post_data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -84,7 +106,12 @@ class ReportsViewTest(MasuTestCase):
     def test_post_ingress_reports(self, mock_get_sts_access):
         """Test to post reports for a particular source."""
         url = reverse("reports")
-        post_data = {"source": f"{self.aws_provider.uuid}", "reports_list": ["test.csv", "test.csv"]}
+        post_data = {
+            "source": f"{self.aws_provider.uuid}",
+            "reports_list": ["test.csv", "test.csv"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.json().get("source"), str(self.aws_provider.uuid))

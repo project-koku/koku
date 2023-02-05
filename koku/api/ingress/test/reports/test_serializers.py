@@ -12,6 +12,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Provider
+from api.utils import DateHelper
 from reporting.ingress.models import IngressReports
 
 FAKE = Faker()
@@ -26,6 +27,7 @@ class IngressReportsSerializerTest(IamTestCase):
 
         self.ocp_provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
+        self.dh = DateHelper()
 
     def tearDown(self):
         """Clean up test cases."""
@@ -33,10 +35,38 @@ class IngressReportsSerializerTest(IamTestCase):
             IngressReports.objects.all().delete()
 
     def test_invalid_source_type(self):
-        """Test minimal report with invalid source type."""
+        """Test ingress report with invalid source type."""
         reports = {
             "source": self.ocp_provider.uuid,
             "reports_list": ["test-file"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
+        with tenant_context(self.tenant):
+            serializer = IngressReportsSerializer(data=reports)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
+
+    def test_invalid_bill_year(self):
+        """Test ingress report with invalid bill year."""
+        reports = {
+            "source": self.aws_provider.uuid,
+            "reports_list": ["test-file"],
+            "bill_year": "2022",
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
+        with tenant_context(self.tenant):
+            serializer = IngressReportsSerializer(data=reports)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
+
+    def test_invalid_bill_month(self):
+        """Test ingress report with invalid bill month."""
+        reports = {
+            "source": self.aws_provider.uuid,
+            "reports_list": ["test-file"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": "22",
         }
         with tenant_context(self.tenant):
             serializer = IngressReportsSerializer(data=reports)
@@ -50,10 +80,12 @@ class IngressReportsSerializerTest(IamTestCase):
         ),
     )
     def test_valid_data(self, mock_get_sts_access):
-        """Test minimal report valid entries."""
+        """Test ingress report valid entries."""
         reports = {
             "source": self.aws_provider.uuid,
             "reports_list": ["test-file"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
         }
         with tenant_context(self.tenant):
             instance = None

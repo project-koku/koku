@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import struct
+import uuid
 
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -53,8 +54,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         Args:
             customer_name    (String) Name of the customer
             credentials   (Dict) credentials credential for S3 bucket (RoleARN)
+            data_source (Dict) Billing source data like bucket
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the S3 bucket containing the CUR
+            ingress_reports (List) List of reports from ingress post endpoint (optional)
 
         """
         super().__init__(**kwargs)
@@ -374,7 +376,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
 
         manifest_data = {
-            "assembly_id": "",
+            "assembly_id": uuid.uuid4(),
             "compression": UNCOMPRESSED,
             "start_date": date,
             "file_names": self.ingress_reports,

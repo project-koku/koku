@@ -18,12 +18,16 @@ class IngressReports(models.Model):
     completed_timestamp = models.DateTimeField(null=True)
     reports_list = ArrayField(models.CharField(max_length=256, blank=False))
     source = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    bill_year = models.CharField(max_length=4, blank=False)
+    bill_month = models.CharField(max_length=2, blank=False)
 
     def __str__(self):
         """Get the string representation."""
         return (
             f"Source UUID: {self.source}\n"
             f"Report location: {self.reports_list}\n"
+            f"Report bill year: {self.bill_year}\n"
+            f"Report bill month: {self.bill_month}\n"
             f"Created time: {self.created_timestamp}\n"
             f"Processing completed: {self.completed_timestamp}\n"
             f"Processing ID: {self.uuid}\n"
@@ -39,6 +43,7 @@ class IngressReports(models.Model):
             transaction.on_commit(
                 lambda: check_report_updates.s(
                     provider_uuid=data.get("source"),
+                    bill_date=f"{data.get('year')}{data.get('bill_month')}",
                     ingress_reports=data.get("reports_list"),
                     ingress_report_uuid=data.get("ingress_report_uuid"),
                 )

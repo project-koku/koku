@@ -156,7 +156,7 @@ class AWSProvider(ProviderInterface):
 
     def is_file_reachable(self, source, reports_list):
         """Verify that report files are accessible in S3."""
-        arn = source.authentication.credentials.get("arn")
+        arn = source.authentication.credentials.get("role_arn")
         bucket = source.billing_source.data_source.get("bucket")
         creds = _get_sts_access(arn)
         s3_client = boto3.client("s3", **creds)

@@ -219,7 +219,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         return s3_csv_cleared
 
     def mark_s3_csv_cleared(self, manifest):
-        """Return whether we have cleared CSV files from S3 for this manifest."""
+        """Mark CSV files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_csv_cleared = True
             manifest.save()
@@ -232,7 +232,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         return s3_parquet_cleared
 
     def mark_s3_parquet_cleared(self, manifest):
-        """Return whether we have cleared CSV files from S3 for this manifest."""
+        """Mark Parquet files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_parquet_cleared = True
             manifest.save()

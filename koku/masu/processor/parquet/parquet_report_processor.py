@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 from dateutil import parser
 from django.conf import settings
+from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -45,6 +46,7 @@ from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.oci.models import OCIEnabledTagKeys
@@ -436,6 +438,9 @@ class ParquetReportProcessor:
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
+            if not set(col_names).issuperset(set(PRESTO_REQUIRED_COLUMNS)):
+                message = "Invalid report file, required column names missing from file."
+                raise ValidationError(message, code="Missing_column")
             csv_converters = {
                 col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
             }
