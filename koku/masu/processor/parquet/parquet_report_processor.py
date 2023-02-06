@@ -33,6 +33,7 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
+from masu.util.common import CSV_REQUIRED_COLUMNS
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_generate_daily_data
@@ -46,7 +47,6 @@ from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
-from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.oci.models import OCIEnabledTagKeys
@@ -442,9 +442,9 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
-                if not set(col_names).issuperset(set(PRESTO_REQUIRED_COLUMNS)):
+                if not set(col_names).issuperset(set(CSV_REQUIRED_COLUMNS.get(self._provider_type))):
                     message = "Invalid report file, required column names missing from file."
-                    raise ValidationError(message, code="Missing_column")
+                    raise ValidationError(message, code="Missing_columns")
             csv_converters = {
                 col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
             }
