@@ -627,15 +627,17 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest_json, self.aws_report_downloader.empty_manifest)
         self.assertIsNone(manifest_modified_timestamp)
 
-    def test_generate_pseudo_manifest(self):
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._generate_monthly_pseudo_manifest")
+    def test_generate_pseudo_manifest(self, mock_pseudo_manifest):
         """Test Generating pseudo manifest for storage only."""
         mock_datetime = DateAccessor().today()
         expected_manifest_data = {
-            "assembly_id": "",
+            "assembly_id": "1234",
             "compression": UNCOMPRESSED,
             "start_date": mock_datetime,
             "file_names": self.ingress_reports,
         }
+        mock_pseudo_manifest.return_value = expected_manifest_data
 
         result_manifest = self.aws_ingresss_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)

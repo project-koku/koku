@@ -248,7 +248,7 @@ def get_report_files(  # noqa: C901
             report_dict["tracing_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
-            _process_report_file(schema_name, provider_type, report_dict)
+            _process_report_file(schema_name, provider_type, report_dict, ingress_reports)
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
