@@ -931,6 +931,12 @@ class OCPReportViewTest(IamTestCase):
         tag_keys.sort(reverse=True)
         filter_key = tag_keys[0]
 
+        self.cost_term = (
+            self.provider_map.cloud_infrastructure_cost
+            + self.provider_map.markup_cost
+            + self.provider_map.cost_model_cpu_cost
+        )
+
         with tenant_context(self.tenant):
             labels = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
@@ -1025,6 +1031,12 @@ class OCPReportViewTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
+
+        self.cost_term = (
+            self.provider_map.cloud_infrastructure_cost
+            + self.provider_map.markup_cost
+            + self.provider_map.cost_model_cpu_cost
+        )
 
         with tenant_context(self.tenant):
             totals = (
