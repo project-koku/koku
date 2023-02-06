@@ -583,6 +583,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             report_period_id = report_period.id
 
+        if not rate:
+            msg = f"Removing monthly costs for source {provider_uuid} from {start_date} to {end_date}"
+            LOG.info(msg)
+            self.delete_line_item_daily_summary_entries_for_date_range_raw(
+                provider_uuid,
+                start_date,
+                end_date,
+                table=OCPUsageLineItemDailySummary,
+                filters={"report_period_id": report_period_id},
+                null_filters={"monthly_cost_type": "IS NOT NULL", "cost_model_rate_type": "IS NOT NULL"},
+            )
+            # We cleared out existing data, but there is no new to calculate.
+            return
+
         if cost_type in ("Node", "Cluster"):
             summary_sql = pkgutil.get_data(
                 "masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql"
@@ -1857,6 +1871,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):
             report_period_id = report_period.id
+
+        if not rates:
+            msg = f"Removing usage costs for source {provider_uuid} from {start_date} to {end_date}"
+            LOG.info(msg)
+            self.delete_line_item_daily_summary_entries_for_date_range_raw(
+                provider_uuid,
+                start_date,
+                end_date,
+                table=OCPUsageLineItemDailySummary,
+                filters={"cost_model_rate_type": rate_type, "report_period_id": report_period_id},
+                null_filters={"monthly_cost_type": "IS NULL"},
+            )
+            # We cleared out existing data, but there is no new to calculate.
+            return
 
         cost_model_usage_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/usage_costs.sql")
 
