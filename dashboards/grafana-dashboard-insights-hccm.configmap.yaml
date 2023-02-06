@@ -483,11 +483,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 400
+                        "value": 450
                       },
                       {
                         "color": "red",
-                        "value": 500
+                        "value": 550
                       }
                     ]
                   },
@@ -560,11 +560,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 400
+                        "value": 450
                       },
                       {
                         "color": "red",
-                        "value": 500
+                        "value": 550
                       }
                     ]
                   },
@@ -664,11 +664,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 90
+                        "value": 200
                       },
                       {
                         "color": "red",
-                        "value": 100
+                        "value": 300
                       }
                     ]
                   },
@@ -742,11 +742,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 90
+                        "value": 200
                       },
                       {
                         "color": "red",
-                        "value": 100
+                        "value": 300
                       }
                     ]
                   },
@@ -845,11 +845,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 90
+                        "value": 450
                       },
                       {
                         "color": "red",
-                        "value": 100
+                        "value": 500
                       }
                     ]
                   },
@@ -922,11 +922,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 90
+                        "value": 450
                       },
                       {
                         "color": "red",
-                        "value": 100
+                        "value": 500
                       }
                     ]
                   },
