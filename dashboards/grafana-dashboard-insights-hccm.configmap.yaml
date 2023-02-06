@@ -845,11 +845,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 450
+                        "value": 200
                       },
                       {
                         "color": "red",
-                        "value": 500
+                        "value": 300
                       }
                     ]
                   },
@@ -922,11 +922,11 @@ data:
                       },
                       {
                         "color": "#EAB839",
-                        "value": 450
+                        "value": 200
                       },
                       {
                         "color": "red",
-                        "value": 500
+                        "value": 300
                       }
                     ]
                   },
