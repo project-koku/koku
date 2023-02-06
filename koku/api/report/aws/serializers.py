@@ -100,7 +100,6 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
-    compute_count = serializers.NullBooleanField(required=False, default=False)
     check_tags = serializers.BooleanField(required=False, default=False)
 
     def validate(self, data):

@@ -108,12 +108,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_data = self.order_by(query_data, query_order_by)
 
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
-            count_units_value = self._mapper.report_type_map.get("count_units_fallback")
-            if query_data:
-                if self._mapper.usage_units_key:
-                    usage_units_value = query_data[0].get("usage_units")
-                if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                    count_units_value = query_data[0].get("count_units")
+            if query_data and self._mapper.usage_units_key:
+                usage_units_value = query_data[0].get("usage_units")
 
             if self.is_csv_output:
                 data = list(query_data)
@@ -128,8 +124,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
-        if self._mapper.report_type_map.get("annotations", {}).get("count_units") and count_units_value:
-            query_sum["count_units"] = count_units_value
         key_order = list(init_order_keys + list(annotations.keys()))
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}
         ordered_total.update(query_sum)
