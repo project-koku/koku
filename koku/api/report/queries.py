@@ -1060,9 +1060,6 @@ class ReportQueryHandler(QueryHandler):
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
             drop_columns.add("usage_units")
-        if "instance_type" in self._report_type and "count" in data_frame.columns:
-            agg_fields.update({"count_units": ["max"]})
-            drop_columns.add("count_units")
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
@@ -1117,8 +1114,6 @@ class ReportQueryHandler(QueryHandler):
         groups = ["date"]
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
-        if "count" not in data_frame.columns:
-            skip_columns.extend(["count", "count_units"])
 
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
