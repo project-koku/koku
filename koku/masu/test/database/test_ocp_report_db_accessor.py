@@ -2446,16 +2446,17 @@ select * from eek where val1 in {{report_period_id}} ;
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
             topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider])
-
-            self.assertEqual(topology.get("clusters"), [cluster_id])
-            self.assertEqual(nodes.count(), len(topology.get("nodes")))
+            self.assertEqual(len(topology), 1)
+            topo = topology[0]
+            self.assertEqual(topo.get("cluster_id"), cluster_id)
+            self.assertEqual(nodes.count(), len(topo.get("nodes")))
             for node in nodes:
-                self.assertIn(node.node, topology.get("nodes"))
+                self.assertIn(node.node, topo.get("nodes"))
             for pvc in pvcs:
-                self.assertIn(pvc.persistent_volume_claim, topology.get("persistent_volume_claims"))
-                self.assertIn(pvc.persistent_volume, topology.get("persistent_volumes"))
+                self.assertIn(pvc.persistent_volume_claim, topo.get("persistent_volume_claims"))
+                self.assertIn(pvc.persistent_volume, topo.get("persistent_volumes"))
             for project in projects:
-                self.assertIn(project.project, topology.get("projects"))
+                self.assertIn(project.project, topo.get("projects"))
 
     def test_populate_node_table_update_role(self):
         """Test that populating the node table for an entry that previously existed fills the node role correctly."""

@@ -507,13 +507,15 @@ class TestAWSUtils(MasuTestCase):
 
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
-        cluster_topology = {
-            "resource_ids": ["id1", "id2", "id3"],
-            "cluster_id": self.ocp_cluster_id,
-            "cluster_alias": "my-ocp-cluster",
-            "nodes": [],
-            "projects": [],
-        }
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
 
         matched_tags = [{"key": "value"}]
 

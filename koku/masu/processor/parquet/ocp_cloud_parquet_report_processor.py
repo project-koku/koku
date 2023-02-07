@@ -159,7 +159,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
                 parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{uuid4()}"
-        file_name = f"{parquet_base_filename}_{file_number}{PARQUET_EXT}"
+        file_name = f"{parquet_base_filename}_{file_number}_{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
         if self.provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:

@@ -165,13 +165,15 @@ class TestGCPUtils(MasuTestCase):
 
     def test_match_openshift_resources_and_labels(self):
         """Test that OCP on GCP matching occurs."""
-        cluster_topology = {
-            "resource_ids": [],
-            "clusters": ["ocp-gcp-cluster"],
-            "cluster_aliases": ["my-ocp-cluster"],
-            "nodes": ["id1", "id2", "id3"],
-            "projects": [],
-        }
+        cluster_topology = [
+            {
+                "resource_ids": [],
+                "cluster_id": "ocp-gcp-cluster",
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": ["id1", "id2", "id3"],
+                "projects": [],
+            }
+        ]
 
         matched_tags = []
 
@@ -225,13 +227,15 @@ class TestGCPUtils(MasuTestCase):
 
     def test_match_openshift_resources(self):
         """Test that OCP on GCP matching occurs."""
-        cluster_topology = {
-            "resource_ids": [],
-            "clusters": ["ocp-gcp-cluster"],
-            "cluster_aliases": ["my-ocp-cluster"],
-            "nodes": ["id1", "id2", "id3"],
-            "projects": [],
-        }
+        cluster_topology = [
+            {
+                "resource_ids": [],
+                "cluster_id": "ocp-gcp-cluster",
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": ["id1", "id2", "id3"],
+                "projects": [],
+            }
+        ]
 
         # in the gcp dataframe, these are labels
         data = [

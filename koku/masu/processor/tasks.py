@@ -1007,7 +1007,6 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         )
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)
-        data_frame = data_frame.drop(columns=["source", "year", "month"])
         for column in table_info.get(provider_type).get("date_columns"):
             if column in data_frame.columns:
                 data_frame[column] = pd.to_datetime(data_frame[column])
