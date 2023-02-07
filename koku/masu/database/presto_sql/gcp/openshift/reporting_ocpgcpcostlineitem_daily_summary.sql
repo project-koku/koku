@@ -215,7 +215,7 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
-    AND gcp.day IN ({{days}})
+    AND TRIM(LEADING '0' FROM gcp.day) IN ({{days}}) -- external partitions have a leading zero
     AND gcp.ocp_source_uuid = '{{ocp_source_uuid | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
