@@ -43,7 +43,7 @@ class IngressReports(models.Model):
             transaction.on_commit(
                 lambda: check_report_updates.s(
                     provider_uuid=data.get("source"),
-                    bill_date=f"{data.get('year')}{data.get('bill_month')}",
+                    bill_date=f"{data.get('bill_year')}{data.get('bill_month')}",
                     ingress_reports=data.get("reports_list"),
                     ingress_report_uuid=data.get("ingress_report_uuid"),
                 )

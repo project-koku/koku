@@ -335,7 +335,6 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
                     ends.append(report.get("end"))
                 start = min(starts) if starts != [] else None
                 end = max(ends) if ends != [] else None
-
             reports_deduplicated.append(
                 {
                     "manifest_id": report.get("manifest_id"),

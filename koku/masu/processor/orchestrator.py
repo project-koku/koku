@@ -115,6 +115,10 @@ class Orchestrator:
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
             reports_processed = provider_accessor.get_setup_complete()
 
+        if self.ingress_reports:
+            bill_date = self.bill_date + "01"
+            return [DateAccessor().get_billing_month_start(bill_date)]
+
         if self.bill_date:
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
@@ -274,9 +278,7 @@ class Orchestrator:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
 
-            if self.ingress_reports:
-                self.prepare_continious_report_sources(account, provider_uuid)
-            elif provider_type in [
+            if provider_type in [
                 Provider.PROVIDER_OCI,
                 Provider.PROVIDER_OCI_LOCAL,
                 Provider.PROVIDER_GCP,
