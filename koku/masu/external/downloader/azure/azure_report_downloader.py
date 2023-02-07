@@ -145,12 +145,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             container_client = self._azure_client._cloud_storage_account.get_container_client(self.container_name)
             blob_names = container_client.list_blob_names(name_starts_with=report_path)
+            json_manifest_exists = any(name.endswith(AzureBlobExtension.manifest.value) for name in blob_names)
         except AzureCostReportNotFound as ex:
             msg = f"Unable to find manifest. Error: {ex}"
             LOG.info(log_json(self.tracing_id, msg, self.context))
             return manifest, None
 
-        if any(name.endswith(AzureBlobExtension.manifest.value) for name in blob_names):
+        if json_manifest_exists:
             json_manifest_blob = self._azure_client._get_latest_manifest_for_path(report_path, self.container_name)
             report_name = json_manifest_blob.name
             last_modified = json_manifest_blob.last_modified
