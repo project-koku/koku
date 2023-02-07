@@ -172,6 +172,7 @@ class TestGCPUtils(MasuTestCase):
                 "cluster_alias": "my-ocp-cluster",
                 "nodes": ["id1", "id2", "id3"],
                 "projects": [],
+                "provider_uuid": "2e26f8a7-42db-4a11-a0b1-f3084cd11e60",
             }
         ]
 
