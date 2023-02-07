@@ -115,11 +115,10 @@ class Orchestrator:
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
             reports_processed = provider_accessor.get_setup_complete()
 
-        if self.ingress_reports:
-            bill_date = self.bill_date + "01"
-            return [DateAccessor().get_billing_month_start(bill_date)]
-
         if self.bill_date:
+            if self.ingress_reports:
+                bill_date = self.bill_date + "01"
+                return [DateAccessor().get_billing_month_start(bill_date)]
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
         if Config.INGEST_OVERRIDE or not reports_processed:
