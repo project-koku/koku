@@ -65,9 +65,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest_list:
             bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
-                if not manifest.manifest_completed_datetime:
-                    manifest.manifest_completed_datetime = completed_datetime
-                    manifest.save()
+                manifest.manifest_completed_datetime = completed_datetime
+                manifest.save()
                 msg = (
                     f"Marking manifest {manifest.id} "
                     f"\nassembly_id {manifest.assembly_id} "
