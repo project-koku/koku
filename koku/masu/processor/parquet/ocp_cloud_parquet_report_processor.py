@@ -239,7 +239,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                         daily_data_frame, cluster_topology, matched_tags
                     )
 
-                    if self.provider_type == Provider.PROVIDER_GCP:
+                    if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                         self.create_partitioned_ocp_on_cloud_parquet(
                             openshift_filtered_data_frame, parquet_base_filename, i
                         )

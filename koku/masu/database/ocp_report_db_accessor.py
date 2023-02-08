@@ -2315,20 +2315,22 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Return a dictionary with 1 or more Clusters topology."""
         topology_list = []
         for provider_uuid in provider_uuids:
-            topology = {}
             cluster = self.get_cluster_for_provider(provider_uuid)
             nodes_tuple = self.get_nodes_for_cluster(cluster.uuid)
             pvc_tuple = self.get_pvcs_for_cluster(cluster.uuid)
             project_tuple = self.get_projects_for_cluster(cluster.uuid)
-            topology["cluster_id"] = cluster.cluster_id
-            topology["cluster_alias"] = cluster.cluster_alias
-            topology["provider_uuid"] = provider_uuid
-            topology["nodes"] = [node[0] for node in nodes_tuple]
-            topology["resource_ids"] = [node[1] for node in nodes_tuple]
-            topology["persistent_volumes"] = [pvc[0] for pvc in pvc_tuple]
-            topology["persistent_volume_claims"] = [pvc[1] for pvc in pvc_tuple]
-            topology["projects"] = [project for project in project_tuple]
-            topology_list.append(topology)
+            topology_list.append(
+                {
+                    "cluster_id": cluster.cluster_id,
+                    "cluster_alias": cluster.cluster_alias,
+                    "provider_uuid": provider_uuid,
+                    "nodes": [node[0] for node in nodes_tuple],
+                    "resource_ids": [node[1] for node in nodes_tuple],
+                    "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
+                    "persistent_volume_claims": [pvc[1] for pvc in pvc_tuple],
+                    "projects": [project for project in project_tuple],
+                }
+            )
 
         return topology_list
 

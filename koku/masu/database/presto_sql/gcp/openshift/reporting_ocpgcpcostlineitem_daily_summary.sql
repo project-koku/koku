@@ -339,6 +339,7 @@ LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_s
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
+    AND TRIM(LEADING '0' FROM gcp.day) IN ({{days}}) -- external partitions have a leading zero
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
