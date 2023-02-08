@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import uuid
+from itertools import chain
 
 import ciso8601
 import numpy as np
@@ -188,6 +189,10 @@ def azure_generate_daily_data(data_frame):
 
 def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
+    nodes = chain.from_iterable(cluster_topology.get("nodes", []) for cluster_topology in cluster_topologies)
+    volumes = chain.from_iterable(
+        cluster_topology.get("persistent_volumes", []) for cluster_topology in cluster_topologies
+    )
     nodes = []
     volumes = []
     for cluster_topology in cluster_topologies:
