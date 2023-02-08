@@ -104,7 +104,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
         query_sum = self.initialize_totals()
 
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
 
         if query.exists():
             sum_annotations = {
@@ -123,14 +122,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
                 sum_units["usage_units"] = units_value
-            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                sum_units["count_units"] = count_units_fallback
 
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = self.currency
-            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                sum_units["count_units"] = count_units_fallback
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
