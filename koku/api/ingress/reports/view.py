@@ -11,6 +11,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.common.pagination import ListPaginator
 from api.ingress.reports.serializers import IngressReportsSerializer
 from reporting.ingress.models import IngressReports
 
@@ -47,7 +48,8 @@ class IngressReportsDetailView(APIView):
             return Response({"Error": "Provider uuid not found."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = IngressReportsSerializer(report_instance, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = ListPaginator(serializer.data, request)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class IngressReportsView(APIView):
@@ -63,7 +65,8 @@ class IngressReportsView(APIView):
         """
         reports = IngressReports.objects.filter()
         serializer = IngressReportsSerializer(reports, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = ListPaginator(serializer.data, request)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         """Handle posted reports."""
@@ -78,6 +81,7 @@ class IngressReportsView(APIView):
             serializer.save()
             data["ingress_report_uuid"] = serializer.data.get("uuid")
             IngressReports.ingest(data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            paginator = ListPaginator(data, request)
+            return paginator.get_paginated_response(data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

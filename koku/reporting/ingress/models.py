@@ -47,6 +47,6 @@ class IngressReports(models.Model):
                     ingress_reports=data.get("reports_list"),
                     ingress_report_uuid=data.get("ingress_report_uuid"),
                 )
-                .set(queue="priority")
+                .set(queue="download")
                 .apply_async()
             )
