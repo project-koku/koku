@@ -169,6 +169,52 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         expected = f"{file_path}/{self.ocp_provider_uuid}_0_{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True)
 
+    @patch.object(OCPCloudParquetReportProcessor, "create_parquet_table")
+    @patch.object(OCPCloudParquetReportProcessor, "_write_parquet_to_file")
+    def test_create_ocp_on_cloud_parquet_gcp_valid_idx(self, mock_write, mock_create_table):
+        """Test that we write OCP on Cloud data for a GCP provider and create a table."""
+        base_file_name = f"{self.gcp_provider_uuid}"
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+        )
+        file_path = f"{report_processor.local_path}"
+        invoice_month = "202301"
+        df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month]})
+        test_uuid = "afe2f5b7-dd24-4905-974b-8e1b95d3a5fd"
+        with patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.uuid4", return_value=test_uuid):
+            report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
+        mock_write.assert_called()
+        expected = f"{file_path}/{invoice_month}_{test_uuid}_0_{PARQUET_EXT}"
+        mock_create_table.assert_called_with(
+            expected,
+            daily=True,
+            partition_map={"source": "varchar", "year": "varchar", "month": "varchar", "day": "varchar"},
+        )
+
+    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    def test_create_partitioned_ocp_on_cloud_parquet_gcp(self, mock_create_table):
+        """Test that we write partitioned OCP on Cloud data and create a table."""
+        base_file_name = f"{self.gcp_provider_uuid}"
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+        )
+        invoice_month = "202301"
+        df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month], "usage_start_time": "2023-01-01"})
+        test_uuid = "afe2f5b7-dd24-4905-974b-8e1b95d3a5fd"
+        with patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.uuid4", return_value=test_uuid):
+            report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
+        mock_create_table.assert_called_with(df, base_file_name, 0)
+
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
@@ -182,6 +228,32 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_cluster_info.return_value = True
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
         self.report_processor.process("", [pd.DataFrame()])
+
+        mock_topology.assert_called()
+        mock_data_processor.assert_called()
+        mock_create_parquet.assert_called()
+
+    @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
+    @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
+    @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    def test_process_gcp(
+        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
+    ):
+        """Test that ocp on cloud data is fully processed for a gcp provider."""
+        # this is a yes or no check so true is fine
+        mock_cluster_info.return_value = True
+        mock_topology.return_value = [{"cluster_id": self.ocpgcp_ocp_cluster_id}]
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+        )
+        report_processor.process("", [pd.DataFrame()])
 
         mock_topology.assert_called()
         mock_data_processor.assert_called()

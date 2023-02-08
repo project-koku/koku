@@ -124,6 +124,20 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return self.parquet_ocp_on_cloud_path_s3
         return None
 
+    def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
+        """Create a parquet file for daily aggregated data."""
+        # Add the OCP UUID in case multiple clusters are running on this cloud source.
+        if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
+            if data_frame.first_valid_index() is not None:
+                parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{uuid4()}"
+        file_name = f"{parquet_base_filename}_{file_number}_{PARQUET_EXT}"
+        file_path = f"{self.local_path}/{file_name}"
+        self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
+        if self.provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
+            self.create_parquet_table(file_path, daily=True, partition_map=GCP_PARTITION_MAP)
+        else:
+            self.create_parquet_table(file_path, daily=True)
+
     def get_matched_tags(self, ocp_provider_uuids):
         """Get tags that match between OCP and the cloud source."""
         # Get matching tags
@@ -152,20 +166,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     )
         set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
         return matched_tags
-
-    def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
-        """Create a parquet file for daily aggregated data."""
-        # Add the OCP UUID in case multiple clusters are running on this cloud source.
-        if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
-            if data_frame.first_valid_index() is not None:
-                parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{uuid4()}"
-        file_name = f"{parquet_base_filename}_{file_number}_{PARQUET_EXT}"
-        file_path = f"{self.local_path}/{file_name}"
-        self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
-        if self.provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
-            self.create_parquet_table(file_path, daily=True, partition_map=GCP_PARTITION_MAP)
-        else:
-            self.create_parquet_table(file_path, daily=True)
 
     def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
         """Create a parquet file for daily aggregated data for each partition."""
