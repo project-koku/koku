@@ -166,10 +166,37 @@ def detect_type(report_path):
 def deduplicate_reports_for_oci(report_list):
     """Remove duplicate oci manifests"""
     reports_deduplicated = []
-    manifest_id_set = set()
+    date_set = set()
+    date_filtered_list = []
     for report in report_list:
-        _manifest_id = report.get("manifest_id")
-        if _manifest_id and _manifest_id not in manifest_id_set:
-            reports_deduplicated.append(report)
-            manifest_id_set.add(_manifest_id)
+        if report["start"] not in date_set:
+            date_filtered_list.append(report)
+            date_set.add(report["start"])
+
+    manifest_id_list = [report["manifest_id"] for report in date_filtered_list]
+    is_same_manifest_id = all(id == manifest_id_list[0] for id in manifest_id_list)
+
+    if is_same_manifest_id:
+        starts = []
+        ends = []
+        for report in date_filtered_list:
+            if report.get("start") and report.get("end"):
+                starts.append(report.get("start"))
+                ends.append(report.get("end"))
+        start_date = min(starts) if starts != [] else None
+        end_date = max(ends) if ends != [] else None
+        report = date_filtered_list[0]
+        reports_deduplicated.append(
+            {
+                "manifest_id": report.get("manifest_id"),
+                "tracing_id": report.get("tracing_id"),
+                "schema_name": report.get("schema_name"),
+                "provider_type": report.get("provider_type"),
+                "provider_uuid": report.get("provider_uuid"),
+                "start": start_date,
+                "end": end_date,
+            }
+        )
+    else:
+        reports_deduplicated.extend(date_filtered_list)
     return reports_deduplicated
