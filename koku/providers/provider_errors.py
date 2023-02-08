@@ -90,6 +90,7 @@ class ProviderErrors:
         " and subscription ID or scope with export name. "
         "Edit your Azure source to include these details."
     )
+    AZURE_EXPIRED_CLIENT_SECRET_KEYS_MESSAGE = "The provided client secret keys for this source are expired."
     AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = (
         "A problem has been detected with the Azure client secret for this source. "
         "Refer to the Microsoft Azure troubleshooting guide in the cost management documentation for details."
