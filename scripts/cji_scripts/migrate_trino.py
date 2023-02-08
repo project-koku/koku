@@ -118,6 +118,7 @@ def main():
 
     tables_to_drop = [
         "gcp_openshift_daily",
+        "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
     ]
     # columns_to_drop = ["ocp_matched"]
     # columns_to_add = {

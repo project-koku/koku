@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     tags varchar,
     cost_category_id int,
     project_rank integer,
-    data_source_rank integer
+    data_source_rank integer,
+    ocp_matched boolean,
+    ocp_source varchar
 ) WITH(format = 'PARQUET')
 ;
 
