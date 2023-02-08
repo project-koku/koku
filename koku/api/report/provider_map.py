@@ -40,7 +40,6 @@ class ProviderMap:
         },
         "cost": {"keys": ["monthly_cost"], "units": "cost_units"},
         "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
-        "count": {"keys": ["count"], "units": "count_units"},
     }
 
     def provider_data(self, provider):
@@ -66,11 +65,6 @@ class ProviderMap:
         # this data should be considered static and read-only.
         if not getattr(self, "_mapping"):
             self._mapping = [{}]
-
-    @property
-    def count(self):
-        """Return the count property."""
-        return self._report_type_map.get("count")
 
     @property
     def provider_map(self):
