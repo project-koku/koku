@@ -571,12 +571,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cost_type (str): Contains the type of monthly cost. ex: "Node"
             rate_type(str): Contains the metric name. ex: "node_cost_per_month"
             rate (decimal): Contains the rate amount ex: 100.0
-            node_cost (Decimal): The node cost per month
             start_date (datetime, str): The start_date to calculate monthly_cost.
             end_date (datetime, str): The end_date to calculate monthly_cost.
-            cluster_id (str): The id of the cluster
-            cluster_alias: The name of the cluster
             distribution: Choice of monthly distribution ex. memory
+            provider_uuid (str): The str of the provider UUID
         """
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
@@ -591,8 +589,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 start_date,
                 end_date,
                 table=OCPUsageLineItemDailySummary,
-                filters={"report_period_id": report_period_id},
-                null_filters={"monthly_cost_type": "IS NOT NULL", "cost_model_rate_type": "IS NOT NULL"},
+                filters={"report_period_id": report_period_id, "monthly_cost_type": cost_type},
+                null_filters={"cost_model_rate_type": "IS NOT NULL"},
             )
             # We cleared out existing data, but there is no new to calculate.
             return
@@ -2056,6 +2054,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_usage_type_map.get(metric)
+                if not usage_type:
+                    continue
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
@@ -2143,6 +2143,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_usage_type_map.get(metric)
+                if not usage_type:
+                    continue
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
