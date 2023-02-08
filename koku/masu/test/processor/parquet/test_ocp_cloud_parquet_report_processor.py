@@ -167,7 +167,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
         mock_write.assert_called()
         expected = f"{file_path}/{self.ocp_provider_uuid}_0_{PARQUET_EXT}"
-        mock_create_table.assert_called_with(expected, daily=True)
+        mock_create_table.assert_called_with(expected, daily=True, partition_map=None)
 
     @patch.object(OCPCloudParquetReportProcessor, "create_parquet_table")
     @patch.object(OCPCloudParquetReportProcessor, "_write_parquet_to_file")
