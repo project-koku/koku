@@ -212,8 +212,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month], "usage_start_time": "2023-01-01"})
         test_uuid = "afe2f5b7-dd24-4905-974b-8e1b95d3a5fd"
         with patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.uuid4", return_value=test_uuid):
-            report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
-        mock_create_table.assert_called_with(df, base_file_name, 0)
+            report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, 0)
+        mock_create_table.assert_called_once()
+        args, kwargs = mock_create_table.call_args
+        call_df, call_base_file_name, call_number = args
+        self.assertTrue(call_df.equals(df))
+        self.assertEqual(base_file_name, call_base_file_name)
+        self.assertEqual(call_number, 0)
 
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
