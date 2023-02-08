@@ -52,7 +52,7 @@ class IngressReportsSerializer(serializers.ModelSerializer):
                 interface.check_file_access(data.get("source"), data.get("reports_list"))
                 return data
             key = "bill_period"
-            message = f"Invalid bill, year and month must be {year_message} and {month_range[0]} or {month_range[1]}"
+            message = f"Invalid bill, year must be {year_message} and month must be {month_range[0]} or {month_range[1]}"
             raise serializers.ValidationError(error_obj(key, message))
         key = "source_type"
         message = f"Invalid source_type, {source_type}, provided."
