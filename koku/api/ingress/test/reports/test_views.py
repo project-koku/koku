@@ -55,7 +55,7 @@ class ReportsViewTest(MasuTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()[0].get("source"), str(self.aws_provider.uuid))
+        self.assertEqual(response.json().get("data")[0].get("source"), str(self.aws_provider.uuid))
 
     def test_get_invalid_uuid_reports(self):
         """Test to get reports for a invalid source."""
@@ -114,5 +114,5 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
-        self.assertEqual(response.json().get("source"), str(self.aws_provider.uuid))
-        self.assertEqual(response.json().get("reports_list"), post_data.get("reports_list"))
+        self.assertEqual(response.json().get("data").get("source"), str(self.aws_provider.uuid))
+        self.assertEqual(response.json().get("data").get("reports_list"), post_data.get("reports_list"))
