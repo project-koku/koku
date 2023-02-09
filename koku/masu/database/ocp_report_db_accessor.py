@@ -2313,30 +2313,26 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_topology_for_multiple_providers(self, provider_uuids):
         """Return a dictionary with 1 or more Clusters topology."""
-        cluster_list = []
-        topology = {}
-        cluster_ids = []
-        cluster_aliases = []
-        node_tuples = []
-        pvc_tuples = []
-        project_tuples = []
+        topology_list = []
         for provider_uuid in provider_uuids:
-            cluster_list.append(self.get_cluster_for_provider(provider_uuid))
-        for cluster in cluster_list:
-            cluster_ids.append(cluster.cluster_id)
-            cluster_aliases.append(cluster.cluster_alias)
-            node_tuples += self.get_nodes_for_cluster(cluster.uuid)
-            pvc_tuples += self.get_pvcs_for_cluster(cluster.uuid)
-            project_tuples += self.get_projects_for_cluster(cluster.uuid)
-        topology["clusters"] = cluster_ids
-        topology["cluster_aliases"] = cluster_aliases
-        topology["nodes"] = [node[0] for node in node_tuples]
-        topology["resource_ids"] = [node[1] for node in node_tuples]
-        topology["persistent_volumes"] = [pvc[0] for pvc in pvc_tuples]
-        topology["persistent_volume_claims"] = [pvc[1] for pvc in pvc_tuples]
-        topology["projects"] = [project for project in project_tuples]
+            cluster = self.get_cluster_for_provider(provider_uuid)
+            nodes_tuple = self.get_nodes_for_cluster(cluster.uuid)
+            pvc_tuple = self.get_pvcs_for_cluster(cluster.uuid)
+            project_tuple = self.get_projects_for_cluster(cluster.uuid)
+            topology_list.append(
+                {
+                    "cluster_id": cluster.cluster_id,
+                    "cluster_alias": cluster.cluster_alias,
+                    "provider_uuid": provider_uuid,
+                    "nodes": [node[0] for node in nodes_tuple],
+                    "resource_ids": [node[1] for node in nodes_tuple],
+                    "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
+                    "persistent_volume_claims": [pvc[1] for pvc in pvc_tuple],
+                    "projects": [project for project in project_tuple],
+                }
+            )
 
-        return topology
+        return topology_list
 
     def delete_infrastructure_raw_cost_from_daily_summary(self, provider_uuid, report_period_id, start_date, end_date):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
