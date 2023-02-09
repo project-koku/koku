@@ -128,7 +128,7 @@ class ReportParquetProcessorBase:
             # Add the specified partition columns
             sql += ", "
             sql += ",".join([f"{item[0]} {item[1]} " for item in list(partition_map.items())])
-            partition_column_str = ",".join([f"'{key}' " for key in partition_map.keys()])
+            partition_column_str = ", ".join([f"'{key}'" for key in partition_map.keys()])
             sql += (
                 f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
                 f" partitioned_by=ARRAY[{partition_column_str}])"
