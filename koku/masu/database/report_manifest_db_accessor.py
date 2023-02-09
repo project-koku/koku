@@ -60,7 +60,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.save()
 
     def mark_manifests_as_completed(self, manifest_list):
-        """Update the updated timestamp."""
+        """Update the completed timestamp."""
         completed_datetime = self.date_accessor.today_with_timezone("UTC")
         if manifest_list:
             bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
@@ -218,7 +218,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         return s3_csv_cleared
 
     def mark_s3_csv_cleared(self, manifest):
-        """Return whether we have cleared CSV files from S3 for this manifest."""
+        """Mark CSV files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_csv_cleared = True
             manifest.save()
@@ -231,7 +231,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         return s3_parquet_cleared
 
     def mark_s3_parquet_cleared(self, manifest):
-        """Return whether we have cleared CSV files from S3 for this manifest."""
+        """Mark Parquet files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_parquet_cleared = True
             manifest.save()
