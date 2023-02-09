@@ -6564,12 +6564,12 @@
                             "created_timestamp": {
                                 "format": "date-time",
                                 "readOnly": true,
-                                "description": "Timestamp of posted reports.",
+                                "description": "Timestamp of posted reports."
                             },
                             "completed_timestamp": {
                                 "format": "date-time",
                                 "readOnly": true,
-                                "description": "Timestamp of successfully processed reports.",
+                                "description": "Timestamp of successfully processed reports."
                             }
                         }
                     }
