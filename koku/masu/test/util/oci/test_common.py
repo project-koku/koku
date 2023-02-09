@@ -397,8 +397,8 @@ class TestOCIUtils(MasuTestCase):
         result = utils.detect_type(self.csv_file_path)
         self.assertEqual(result, expected_result)
 
-    def test_deduplicate_reports_for_oci(self):
-        """Test the deduplication of reports for OCI"""
+    def test_deduplicate_reports_for_oci_diff_manifest_ids(self):
+        """Test that duplicate reports with same start and end pairs are removed"""
         expected_manifest_ids = [1, 2]
         test_report_list = [
             {
@@ -447,3 +447,79 @@ class TestOCIUtils(MasuTestCase):
             manifest.get("manifest_id") for manifest in manifest_list if manifest.get("manifest_id")
         }
         self.assertEqual(list(result_manifest_ids), expected_manifest_ids)
+
+    def test_deduplicate_reports_for_oci_with_diff_start_end_pair(self):
+        """
+        Test that duplicate reports with same manifest_id but different start and end date pairs are merged
+        """
+        test_report_list = [
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2022-12-01",
+                "end": "2022-12-31",
+            },
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2023-01-01",
+                "end": "2023-01-31",
+            },
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2023-02-01",
+                "end": "2023-02-03",
+            },
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2022-12-01",
+                "end": "2022-12-31",
+            },
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2023-01-01",
+                "end": "2023-01-31",
+            },
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2023-02-01",
+                "end": "2023-02-03",
+            },
+        ]
+
+        expected_report_list = [
+            {
+                "manifest_id": 16,
+                "tracing_id": "f0029174-c191-4d99-b381-1e8355f00762: 202302",
+                "schema_name": "org1234567",
+                "provider_type": "OCI",
+                "provider_uuid": "f0029174-c191-4d99-b381-1e8355f00762",
+                "start": "2022-12-01",
+                "end": "2023-02-03",
+            },
+        ]
+
+        returned_report_list = utils.deduplicate_reports_for_oci(test_report_list)
+        self.assertEqual(returned_report_list, expected_report_list)

@@ -395,6 +395,22 @@ class DateHelper:
         date_obj = bill_date.strftime("%Y%m")
         return date_obj
 
+    def bill_year_from_date(self, date):
+        """Find the year from date."""
+
+        if isinstance(date, str):
+            date = ciso8601.parse_datetime(date).replace(tzinfo=pytz.UTC)
+        date_obj = date.strftime("%Y")
+        return date_obj
+
+    def bill_month_from_date(self, date):
+        """Find the month from date."""
+
+        if isinstance(date, str):
+            date = ciso8601.parse_datetime(date).replace(tzinfo=pytz.UTC)
+        date_obj = date.strftime("%m")
+        return date_obj
+
     def gcp_find_invoice_months_in_date_range(self, start, end):
         """Finds all the invoice months in a given date range.
 

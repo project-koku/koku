@@ -33,7 +33,7 @@ data:
       "liveNow": false,
       "panels": [
         {
-          "collapsed": true,
+          "collapsed": false,
           "datasource": {
             "type": "prometheus",
             "uid": "iLX_mMBnk"
@@ -52,7 +52,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -97,7 +97,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(increase(django_http_responses_total_by_status_total{namespace=\"$namespace\"}[$__interval])) by (status)",
                   "legendFormat": "{{status}}",
@@ -140,7 +140,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -185,7 +185,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum by (status) (increase(django_http_responses_total_by_status_total{namespace=\"$namespace\",status=~\"5..\"}[$__interval]))",
                   "legendFormat": "{{status}}",
@@ -193,7 +193,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum by (status) (increase(django_http_responses_total_by_status_total{namespace=\"$namespace\",status=~\"4..\"}[$__interval]))",
                   "legendFormat": "{{status}}",
@@ -236,7 +236,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -281,7 +281,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum by (view) (increase(django_http_requests_total_by_view_transport_method_total{namespace=\"$namespace\", view!=\"prometheus-django-metrics\", view!=\"server-status\"}[$__interval]))",
                   "legendFormat": "{{view}}",
@@ -324,7 +324,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -369,7 +369,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "increase(django_http_requests_latency_seconds_by_view_method_sum{namespace=\"$namespace\", view!=\"server-status\", view!=\"prometheus-django-metrics\"}[$__interval])",
                   "legendFormat": "{{view}}",
@@ -420,7 +420,1467 @@ data:
           "type": "row"
         },
         {
-          "collapsed": true,
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 1
+          },
+          "id": 18,
+          "panels": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery download_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 450
+                      },
+                      {
+                        "color": "red",
+                        "value": 550
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 0,
+                "y": 19
+              },
+              "id": 12,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:download_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Download",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery download_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 450
+                      },
+                      {
+                        "color": "red",
+                        "value": 550
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 10,
+                "y": 19
+              },
+              "id": 76,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:download_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Download",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery summary_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "decimals": 0,
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 200
+                      },
+                      {
+                        "color": "red",
+                        "value": 300
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 12,
+                "y": 19
+              },
+              "id": 69,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:summary_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Summary",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery summary_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "decimals": 0,
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 200
+                      },
+                      {
+                        "color": "red",
+                        "value": 300
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 22,
+                "y": 19
+              },
+              "id": 77,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:summary_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Summary",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery ocp_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 200
+                      },
+                      {
+                        "color": "red",
+                        "value": 300
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 0,
+                "y": 27
+              },
+              "id": 74,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:ocp_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "OCP",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery ocp_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 200
+                      },
+                      {
+                        "color": "red",
+                        "value": 300
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 10,
+                "y": 27
+              },
+              "id": 83,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:ocp_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "OCP",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery priority_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 12,
+                "y": 27
+              },
+              "id": 70,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:priority_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Priority",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery priority_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 22,
+                "y": 27
+              },
+              "id": 80,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:priority_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Priority",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery hcs_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 0,
+                "y": 35
+              },
+              "id": 73,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:hcs_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "HCS",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery hcs_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 10,
+                "y": 35
+              },
+              "id": 79,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:hcs_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "HCS",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery cost_model_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 12,
+                "y": 35
+              },
+              "id": 72,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:cost_model_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Cost Model",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery cost_model_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 22,
+                "y": 35
+              },
+              "id": 82,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:cost_model_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Cost Model",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery default_celery_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 0,
+                "y": 43
+              },
+              "id": 75,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:default_celery_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Default",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery default_celery_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 10,
+                "y": 43
+              },
+              "id": 81,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:default_celery_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Default",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery summary_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "line",
+                    "fillOpacity": 30,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "line+area"
+                    }
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 12,
+                "y": 43
+              },
+              "id": 71,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "min",
+                    "max"
+                  ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+                },
+                "tooltip": {
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "8.5.2",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:refresh_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Refresh",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "description": "Cost Management celery summary_queue",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "displayName": "",
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 90
+                      },
+                      {
+                        "color": "red",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 2,
+                "x": 22,
+                "y": 43
+              },
+              "id": 78,
+              "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+              },
+              "pluginVersion": "9.0.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${Datasource}"
+                  },
+                  "expr": "koku:celery:refresh_queue",
+                  "refId": "A"
+                }
+              ],
+              "title": "Refresh",
+              "transformations": [
+                {
+                  "id": "seriesToColumns",
+                  "options": {
+                    "reducers": []
+                  }
+                }
+              ],
+              "type": "gauge"
+            }
+          ],
+          "title": "Celery",
+          "type": "row"
+        },
+        {
+          "collapsed": false,
           "datasource": {
             "type": "prometheus",
             "uid": "iLX_mMBnk"
@@ -439,7 +1899,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$rds_datasource"
+                "uid": "${rds_datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -484,7 +1944,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_guest{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Guest",
@@ -492,7 +1952,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_idle{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Idle",
@@ -500,7 +1960,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_system{exported_instance=\"$db_instance\"}",
                   "legendFormat": "System",
@@ -508,7 +1968,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_irq{exported_instance=\"$db_instance\"}",
                   "legendFormat": "IRQ",
@@ -516,7 +1976,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_nice{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Nice",
@@ -524,7 +1984,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_steal{exported_exported_instance=\"$db_instance\"}",
                   "legendFormat": "Steal",
@@ -532,7 +1992,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_cpuUtilization_user{exported_instance=\"$db_instance\"}",
                   "legendFormat": "User",
@@ -575,7 +2035,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$rds_datasource"
+                "uid": "${rds_datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -620,7 +2080,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_diskIO_readIOsPS{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Read IOPS ({{device}})",
@@ -628,7 +2088,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_diskIO_writeIOsPS{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Write IOPS ({{device}})",
@@ -764,7 +2224,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$rds_datasource"
+                "uid": "${rds_datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -809,7 +2269,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_memory_active{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Active",
@@ -817,7 +2277,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_memory_buffers{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Buffers",
@@ -825,7 +2285,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_memory_cached{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Cached",
@@ -833,7 +2293,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_memory_dirty{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Dirty",
@@ -841,7 +2301,7 @@ data:
                 },
                 {
                   "datasource": {
-                    "uid": "$rds_datasource"
+                    "uid": "${rds_datasource}"
                   },
                   "expr": "rdsosmetrics_memory_free{exported_instance=\"$db_instance\"}",
                   "legendFormat": "Free",
@@ -894,7 +2354,7 @@ data:
           "type": "row"
         },
         {
-          "collapsed": true,
+          "collapsed": false,
           "datasource": {
             "type": "prometheus",
             "uid": "iLX_mMBnk"
@@ -913,7 +2373,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -958,7 +2418,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "max by(schema)(postgresql_schema_size_bytes{namespace=\"$namespace\", schema=~\"acct.*\"} > 1048576000)",
                   "legendFormat": "{{schema}}",
@@ -1009,7 +2469,7 @@ data:
           "type": "row"
         },
         {
-          "collapsed": true,
+          "collapsed": false,
           "datasource": {
             "type": "prometheus",
             "uid": "iLX_mMBnk"
@@ -1024,7 +2484,7 @@ data:
           "panels": [
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1070,7 +2530,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "count(count(hccm_count_active_providers) by (account_id))",
                   "instant": true,
@@ -1082,7 +2542,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1128,7 +2588,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "hccm_count_filtered_accounts",
                   "instant": true,
@@ -1140,7 +2600,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1186,7 +2646,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "hccm_count_filtered_users",
                   "instant": true,
@@ -1204,7 +2664,7 @@ data:
                 "threshold": 0
               },
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fontSize": "80%",
               "format": "short",
@@ -1227,7 +2687,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_active_providers) by (source_type)",
                   "instant": true,
@@ -1241,7 +2701,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1287,7 +2747,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_active_providers)",
                   "instant": true,
@@ -1303,7 +2763,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1348,7 +2808,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_active_providers) by (account_id)",
                   "legendFormat": "{{account_id}}",
@@ -1391,7 +2851,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1436,7 +2896,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_active_providers) by (source_type)",
                   "legendFormat": "{{source_type}}",
@@ -1475,7 +2935,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1521,7 +2981,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_stale_providers)",
                   "instant": true,
@@ -1537,7 +2997,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1582,7 +3042,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_stale_providers) by (account_id)",
                   "instant": false,
@@ -1626,7 +3086,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1671,7 +3131,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_stale_providers) by (source_type)",
                   "legendFormat": "{{source_type}}",
@@ -1710,7 +3170,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1756,7 +3216,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_invalid_sources)",
                   "instant": true,
@@ -1772,7 +3232,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1817,7 +3277,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_invalid_sources) by (account_id)",
                   "instant": false,
@@ -1861,7 +3321,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1906,7 +3366,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_invalid_sources) by (source_type)",
                   "legendFormat": "{{source_type}}",
@@ -1945,7 +3405,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -1991,7 +3451,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_providers_by_setup_state_and_filtered_account{setup_complete=\"True\"})",
                   "instant": true,
@@ -2007,7 +3467,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -2053,7 +3513,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_providers_by_setup_state_and_filtered_account{setup_complete=\"True\"}) by (account_id)",
                   "instant": false,
@@ -2097,7 +3557,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fieldConfig": {
                 "defaults": {
@@ -2142,7 +3602,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_providers_by_setup_state_and_filtered_account{setup_complete=\"True\"}) by (type)",
                   "legendFormat": "{{type}}",
@@ -2181,7 +3641,7 @@ data:
             },
             {
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "gridPos": {
                 "h": 7,
@@ -2222,7 +3682,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_providers_by_setup_state_and_filtered_account{setup_complete=\"False\"})",
                   "instant": true,
@@ -2238,7 +3698,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fill": 1,
               "fillGradient": 0,
@@ -2278,7 +3738,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_providers_by_setup_state_and_filtered_account{setup_complete=\"False\"}) by (account_id)",
                   "instant": false,
@@ -2322,7 +3782,7 @@ data:
               "dashLength": 10,
               "dashes": false,
               "datasource": {
-                "uid": "$Datasource"
+                "uid": "${Datasource}"
               },
               "fill": 1,
               "fillGradient": 0,
@@ -2360,7 +3820,7 @@ data:
               "targets": [
                 {
                   "datasource": {
-                    "uid": "$Datasource"
+                    "uid": "${Datasource}"
                   },
                   "expr": "sum(hccm_count_providers_by_setup_state_and_filtered_account{setup_complete=\"False\"}) by (type)",
                   "legendFormat": "{{type}}",
