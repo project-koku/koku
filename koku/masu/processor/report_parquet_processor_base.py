@@ -109,7 +109,6 @@ class ReportParquetProcessorBase:
         s3_path = f"{settings.S3_BUCKET_NAME}/{self._s3_path}"
 
         sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
-
         for idx, col in enumerate(parquet_columns):
             norm_col = strip_characters_from_column_name(col)
             if norm_col in self._column_types["numeric_columns"]:

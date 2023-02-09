@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import struct
+import uuid
 
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -18,6 +19,7 @@ from api.provider.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
+from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
@@ -45,21 +47,24 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
             credentials   (Dict) credentials credential for S3 bucket (RoleARN)
+            data_source (Dict) Billing source data like bucket
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the S3 bucket containing the CUR
+            ingress_reports (List) List of reports from ingress post endpoint (optional)
 
         """
         super().__init__(**kwargs)
 
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
+        self.bucket = bucket
+        self.storage_only = data_source.get("storage-only")
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
@@ -75,7 +80,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
                 self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                self.bucket = bucket
                 session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
                 self.s3_client = session.client("s3")
                 return
@@ -85,30 +89,35 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         LOG.debug("Connecting to AWS...")
         session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
-        self.cur = session.client("cur")
 
-        # fetch details about the report from the cloud provider
-        defs = self.cur.describe_report_definitions()
-        if not report_name:
-            report_names = []
-            for report in defs.get("ReportDefinitions", []):
-                if bucket == report.get("S3Bucket"):
-                    report_names.append(report["ReportName"])
+        # Checking for storage only source
+        if self.storage_only:
+            LOG.info("Skipping ingest as source is storage-only and requires ingress reports")
+            report = [""]
+        else:
+            self.cur = session.client("cur")
 
-            # FIXME: Get the first report in the bucket until Koku can specify
-            # which report the user wants
-            if report_names:
-                report_name = report_names[0]
-        self.report_name = report_name
-        self.bucket = bucket
-        report_defs = defs.get("ReportDefinitions", [])
-        report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
+            # fetch details about the report from the cloud provider
+            defs = self.cur.describe_report_definitions()
+            if not report_name:
+                report_names = []
+                for report in defs.get("ReportDefinitions", []):
+                    if bucket == report.get("S3Bucket"):
+                        report_names.append(report["ReportName"])
 
-        if not report:
-            raise MasuProviderError("Cost and Usage Report definition not found.")
+                # FIXME: Get the first report in the bucket until Koku can specify
+                # which report the user wants
+                if report_names:
+                    report_name = report_names[0]
+            self.report_name = report_name
+            report_defs = defs.get("ReportDefinitions", [])
+            report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
+            if not report:
+                raise MasuProviderError("Cost and Usage Report definition not found.")
 
         self.report = report.pop()
         self.s3_client = session.client("s3")
+        self.ingress_reports = ingress_reports
 
     @property
     def manifest_date_format(self):
@@ -132,11 +141,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         size_ok = False
 
         try:
-            s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
+            s3fileobj = self.s3_client.get_object(Bucket=self.bucket, Key=s3key)
             size = int(s3fileobj.get("ContentLength", -1))
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "AccessDenied":
-                msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
+                msg = f"Unable to access S3 Bucket {self.bucket}: (AccessDenied)"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
@@ -155,9 +164,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         ext = os.path.splitext(s3key)[1]
         if ext == ".gz" and check_inflate and size_ok and size > 0:
             # isize block is the last 4 bytes of the file; see: RFC1952
-            resp = self.s3_client.get_object(
-                Bucket=self.report.get("S3Bucket"), Key=s3key, Range=f"bytes={size - 4}-{size}"
-            )
+            resp = self.s3_client.get_object(Bucket=self.bucket, Key=s3key, Range=f"bytes={size - 4}-{size}")
             isize = struct.unpack("<I", resp["Body"].read(4))[0]
             if isize > free_space:
                 size_ok = False
@@ -231,6 +238,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        if self.ingress_reports:
+            key = key.split(f"{self.bucket}/")[-1]
+
         s3_filename = key.split("/")[-1]
         directory_path = f"{DATA_DIR}/{self.customer_name}/aws/{self.bucket}"
 
@@ -244,16 +254,16 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         s3_etag = None
         file_creation_date = None
         try:
-            s3_file = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=key)
+            s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
             s3_etag = s3_file.get("ETag")
             file_creation_date = s3_file.get("LastModified")
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
-                msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
+                msg = f"Unable to find {s3_filename} in S3 Bucket: {self.bucket}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             if ex.response["Error"]["Code"] == "AccessDenied":
-                msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
+                msg = f"Unable to access S3 Bucket {self.bucket}: (AccessDenied)"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
@@ -268,7 +278,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading key: {key} to file path: {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg, self.context))
-            self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
+            self.s3_client.download_file(self.bucket, key, full_file_path)
             # Push to S3
             s3_csv_path = get_path_prefix(
                 self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
@@ -304,28 +314,75 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
-        if manifest == self.empty_manifest:
-            return report_dict
-        manifest_dict = self._prepare_db_manifest_record(manifest)
-        self._remove_manifest_file(manifest_file)
+        if self.ingress_reports:
+            manifest_dict = self._generate_monthly_pseudo_manifest(date)
+            if manifest_dict:
+                assembly_id = manifest_dict.get("assembly_id")
+                manifest_id = self._process_manifest_db_record(
+                    assembly_id,
+                    date.strftime("%Y-%m-%d"),
+                    len(manifest_dict.get("file_names")),
+                    date,
+                )
+                report_dict["assembly_id"] = assembly_id
+                report_dict["compression"] = manifest_dict.get("compression")
+                files_list = [
+                    {"key": key, "local_file": self.get_local_file_for_report(key)}
+                    for key in manifest_dict.get("file_names")
+                ]
+        else:
+            # Skip download for storage only source
+            if self.storage_only:
+                return report_dict
+            manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
+            if manifest == self.empty_manifest:
+                return report_dict
+            manifest_dict = self._prepare_db_manifest_record(manifest)
+            self._remove_manifest_file(manifest_file)
 
-        if manifest_dict:
-            manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"),
-                manifest_dict.get("billing_start"),
-                manifest_dict.get("num_of_files"),
-                manifest_timestamp,
-            )
-
-            report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest.get("assemblyId")
-            report_dict["compression"] = self.report.get("Compression")
-            files_list = [
-                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
-            ]
-            report_dict["files"] = files_list
+            if manifest_dict:
+                manifest_id = self._process_manifest_db_record(
+                    manifest_dict.get("assembly_id"),
+                    manifest_dict.get("billing_start"),
+                    manifest_dict.get("num_of_files"),
+                    manifest_timestamp,
+                )
+                report_dict["assembly_id"] = manifest.get("assemblyId")
+                report_dict["compression"] = self.report.get("Compression")
+                files_list = [
+                    {"key": key, "local_file": self.get_local_file_for_report(key)}
+                    for key in manifest.get("reportKeys")
+                ]
+        report_dict["manifest_id"] = manifest_id
+        report_dict["files"] = files_list
         return report_dict
+
+    def _generate_monthly_pseudo_manifest(self, date):
+        """
+        Generate a dict representing an analog to other providers "manifest" files.
+
+        No manifest file for monthly periods. So we check for
+        files in the bucket based on what the customer posts.
+
+        Args:
+            report_data: Where reports are stored
+
+        Returns:
+            Manifest-like dict with keys and value placeholders
+                assembly_id - (String): empty string
+                compression - (String): Report compression format
+                start_date - (Datetime): billing period start date
+                file_names - (list): list of filenames.
+        """
+
+        manifest_data = {
+            "assembly_id": uuid.uuid4(),
+            "compression": UNCOMPRESSED,
+            "start_date": date,
+            "file_names": self.ingress_reports,
+        }
+        LOG.info(f"Manifest Data: {str(manifest_data)}")
+        return manifest_data
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

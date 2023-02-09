@@ -36,6 +36,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -72,6 +73,7 @@ from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
+from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -801,6 +803,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 provider,
                 provider_uuid=provider_aws_uuid,
                 manifest_list=[manifest_id],
+                ingress_report_uuid=None,
                 tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
@@ -1175,6 +1178,43 @@ class TestMarkManifestCompleteTask(MasuTestCase):
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
         self.assertGreater(provider.data_updated_timestamp, initial_update_time)
+
+    def test_mark_ingress_report_complete(self):
+        """Test that we mark ingress reports complete."""
+        provider = self.aws_provider
+        start = DateHelper().this_month_start
+        manifest = CostUsageReportManifest(
+            **{
+                "assembly_id": "1",
+                "provider_id": str(provider.uuid),
+                "billing_period_start_datetime": start,
+                "num_total_files": 1,
+            }
+        )
+        manifest.save()
+        with schema_context(self.schema):
+            ingress_report = IngressReports(
+                **{
+                    "uuid": str(uuid4()),
+                    "created_timestamp": start,
+                    "completed_timestamp": None,
+                    "reports_list": ["test"],
+                    "source": provider,
+                }
+            )
+            ingress_report.save()
+        mark_manifest_complete(
+            self.schema,
+            provider.type,
+            manifest_list=[manifest.id],
+            provider_uuid=str(provider.uuid),
+            ingress_report_uuid=ingress_report.uuid,
+            tracing_id=1,
+        )
+
+        ingress_report_accessor = IngressReportDBAccessor(self.schema)
+        ingress_report = ingress_report_accessor.get_ingress_report_by_uuid(ingress_report_uuid=ingress_report.uuid)
+        self.assertIsNotNone(ingress_report.completed_timestamp)
 
 
 @override_settings(HOSTNAME="kokuworker")
