@@ -7,7 +7,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0267_update_cost_category"),
+        ("reporting", "0268_ingressreports"),
     ]
 
     operations = [
