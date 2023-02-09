@@ -124,6 +124,11 @@ class AWSProvider(ProviderInterface):
             message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
+        storage_only = data_source.get("storage-only")
+        if storage_only:
+            # Limited bucket access without CUR
+            return True
+
         creds = _get_sts_access(credential_name)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
@@ -148,3 +153,18 @@ class AWSProvider(ProviderInterface):
     def infra_key_list_implementation(self, infrastructure_type, schema_name):
         """Return a list of cluster ids on the given infrastructure type."""
         return []
+
+    def is_file_reachable(self, source, reports_list):
+        """Verify that report files are accessible in S3."""
+        arn = source.authentication.credentials.get("role_arn")
+        bucket = source.billing_source.data_source.get("bucket")
+        creds = _get_sts_access(arn)
+        s3_client = boto3.client("s3", **creds)
+        for report in reports_list:
+            try:
+                s3_client.get_object(Bucket=bucket, Key=report)
+            except ClientError as ex:
+                if ex.response["Error"]["Code"] == "NoSuchKey":
+                    key = ProviderErrors.AWS_REPORT_NOT_FOUND
+                    internal_message = f"File {report} could not be found within bucket {bucket}."
+                    raise serializers.ValidationError(error_obj(key, internal_message))
