@@ -194,29 +194,42 @@ def gcp_generate_daily_data(data_frame):
     return daily_data_frame
 
 
-def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
+def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
     tags = data_frame["labels"]
     tags = tags.str.lower()
-
-    cluster_ids = cluster_topology.get("clusters", [])
-    cluster_aliases = cluster_topology.get("cluster_aliases", [])
-    nodes = cluster_topology.get("nodes", [])
-    volumes = cluster_topology.get("persistent_volumes", [])
-    matchable_resources = nodes + volumes
     resource_id_df = data_frame.get("resource_name")
+    match_columns = []
 
-    if resource_id_df.any():
-        LOG.info("Matching OpenShift on GCP by resource ID.")
-        ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
-    else:
-        LOG.info("Matching OpenShift on GCP by labels.")
-        cluster_strings = [
-            f"kubernetes-io-cluster-{cluster_identifier}" for cluster_identifier in (cluster_ids + cluster_aliases)
-        ]
-        ocp_matched = tags.str.contains("|".join(cluster_strings))
+    for i, cluster_topology in enumerate(cluster_topologies):
+        match_col_name = f"ocp_matched_{i}"
+        cluster_id = cluster_topology.get("cluster_id", "")
+        cluster_alias = cluster_topology.get("cluster_alias", "")
+        nodes = cluster_topology.get("nodes", [])
+        volumes = cluster_topology.get("persistent_volumes", [])
+        matchable_resources = nodes + volumes
 
-    data_frame["ocp_matched"] = ocp_matched
+        if resource_id_df.any():
+            LOG.info("Matching OpenShift on GCP by resource ID.")
+            ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
+        else:
+            LOG.info("Matching OpenShift on GCP by labels.")
+            cluster_strings = [
+                f"kubernetes-io-cluster-{cluster_identifier}" for cluster_identifier in (cluster_id, cluster_alias)
+            ]
+            ocp_matched = tags.str.contains("|".join(cluster_strings))
+
+        # Add in OCP Cluster these resources matched to
+        data_frame[match_col_name] = ocp_matched
+        data_frame.loc[data_frame[match_col_name] == True, "ocp_source_uuid"] = cluster_topology.get(  # noqa: E712
+            "provider_uuid"
+        )
+        match_columns.append(match_col_name)
+
+    # Consildate the columns per cluster into a single column
+    data_frame.loc[data_frame["ocp_source_uuid"].notnull(), "ocp_matched"] = True
+    data_frame = data_frame.drop(columns=match_columns)
+    data_frame["ocp_source_uuid"].fillna(value="", inplace=True)
 
     special_case_tag_matched = tags.str.contains(
         "|".join(

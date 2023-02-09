@@ -992,6 +992,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         bill_date = ciso8601.parse_datetime(bill_date)
     year = bill_date.strftime("%Y")
     month = bill_date.strftime("%m")
+    invoice_month = bill_date.strftime("%Y%m")
 
     # We do not have fine grain control over specific days in a month for
     # OpenShift on Cloud parquet generation. This task will clear and reprocess
@@ -1003,7 +1004,12 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     count = count[0][0]
 
     processor = OCPCloudParquetReportProcessor(
-        schema_name, "", provider_uuid, provider_type, 0, context={"tracing_id": tracing_id, "start_date": bill_date}
+        schema_name,
+        "",
+        provider_uuid,
+        provider_type,
+        0,
+        context={"tracing_id": tracing_id, "start_date": bill_date, "invoice_month": invoice_month},
     )
     remove_files_not_in_set_from_s3_bucket(
         tracing_id, processor.parquet_ocp_on_cloud_path_s3, 0, processor.error_context
@@ -1016,6 +1022,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         )
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)
+        data_frame = data_frame.drop(columns=[col for col in {"source", "year", "month"} if col in data_frame.columns])
         for column in table_info.get(provider_type).get("date_columns"):
             if column in data_frame.columns:
                 data_frame[column] = pd.to_datetime(data_frame[column])

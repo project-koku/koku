@@ -243,6 +243,23 @@ class CommonUtilTests(MasuTestCase):
         )
         self.assertEqual(path, expected_path)
 
+        # Test with partition daily
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = self.aws_provider_uuid
+        start_date = datetime.utcnow().date()
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        day = start_date.strftime("%d")
+        expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}/daily"
+        expected_path = (
+            f"{expected_path_prefix}/{account}/{provider_type}/"
+            f"source={provider_uuid}/year={year}/month={month}/day={day}"
+        )
+        path = common_utils.get_path_prefix(
+            account, provider_type, provider_uuid, start_date, "parquet", daily=True, partition_daily=True
+        )
+        self.assertEqual(path, expected_path)
+
     def test_get_hive_table_path(self):
         """Test that we resolve the path for a Hive table."""
         account = "10001"
