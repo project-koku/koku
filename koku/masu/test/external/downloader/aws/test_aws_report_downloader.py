@@ -19,6 +19,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external import AWS_REGIONS
+from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
@@ -159,6 +160,8 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
+        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage-only": True}
+        self.ingress_reports = [f"{self.fake_bucket_name}/test_report_file.csv"]
 
         self.report_downloader = ReportDownloader(
             customer_name=self.fake_customer_name,
@@ -174,6 +177,25 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "data_source": self.data_source,
                 "report_name": self.fake_report_name,
                 "provider_uuid": self.aws_provider_uuid,
+            }
+        )
+        self.aws_storage_ony_report_downloader = AWSReportDownloader(
+            **{
+                "customer_name": self.fake_customer_name,
+                "credentials": self.credentials,
+                "data_source": self.storage_only_data_source,
+                "report_name": self.fake_report_name,
+                "provider_uuid": self.aws_provider_uuid,
+            }
+        )
+        self.aws_ingresss_report_downloader = AWSReportDownloader(
+            **{
+                "customer_name": self.fake_customer_name,
+                "credentials": self.credentials,
+                "data_source": self.storage_only_data_source,
+                "report_name": self.fake_report_name,
+                "provider_uuid": self.aws_provider_uuid,
+                "ingress_reports": self.ingress_reports,
             }
         )
 
@@ -194,6 +216,30 @@ class AWSReportDownloaderTest(MasuTestCase):
         mock_check_csvs.return_value = False
         mock_check_size.return_value = True
         downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
+        downloader.download_file(self.fake.file_path(), manifest_id=1)
+        mock_check_csvs.assert_called()
+        mock_copy.assert_called()
+        mock_remove.assert_called()
+        mock_mark_csvs.assert_called()
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
+    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.mark_s3_csv_cleared")
+    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.get_s3_csv_cleared")
+    @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_download_ingress_report_file(
+        self, fake_session, mock_copy, mock_remove, mock_check_csvs, mock_mark_csvs, mock_check_size
+    ):
+        """Test the download file method."""
+        mock_check_csvs.return_value = False
+        mock_check_size.return_value = True
+        downloader = AWSReportDownloader(
+            self.fake_customer_name,
+            self.credentials,
+            self.storage_only_data_source,
+            ingress_reports=self.ingress_reports,
+        )
         downloader.download_file(self.fake.file_path(), manifest_id=1)
         mock_check_csvs.assert_called()
         mock_copy.assert_called()
@@ -243,6 +289,12 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Test assume aws role works."""
         downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
         self.assertEqual(downloader.report_name, self.fake_report_name)
+
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_initial_storage_only_download(self, fake_session):
+        """Test assume aws role works with storage only source."""
+        downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.storage_only_data_source)
+        self.assertEqual(downloader.report, "")
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionNoReport)
     @patch("masu.util.aws.common.get_cur_report_definitions", return_value=[])
@@ -493,6 +545,45 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_get_pseudo_manifest_context_for_date(self, mock_session, mock_manifest, mock_delete):
+        """Test that the pseudo manifest is created and read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name,
+            self.credentials,
+            self.storage_only_data_source,
+            provider_uuid=self.aws_provider_uuid,
+            ingress_reports=self.ingress_reports,
+        )
+
+        start_str = current_month.strftime(downloader.manifest_date_format)
+        assembly_id = "1234"
+        compression = "PLAIN"
+        mock_manifest.return_value = (
+            "",
+            {
+                "assemblyId": assembly_id,
+                "Compression": compression,
+                "start_date": start_str,
+                "filenames": self.ingress_reports,
+            },
+            DateAccessor().today(),
+        )
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
+
+    def test_get_storage_only_manifest_file(self):
+        """Test _get_manifest method w storage only."""
+        mock_datetime = DateAccessor().today()
+
+        result = self.aws_storage_ony_report_downloader.get_manifest_context_for_date(mock_datetime)
+        self.assertEqual(result, {})
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest")
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_manifest_context_for_date_no_manifest(self, mock_session, mock_manifest, mock_delete):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
@@ -535,3 +626,18 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest_file, "")
         self.assertEqual(manifest_json, self.aws_report_downloader.empty_manifest)
         self.assertIsNone(manifest_modified_timestamp)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._generate_monthly_pseudo_manifest")
+    def test_generate_pseudo_manifest(self, mock_pseudo_manifest):
+        """Test Generating pseudo manifest for storage only."""
+        mock_datetime = DateAccessor().today()
+        expected_manifest_data = {
+            "assembly_id": "1234",
+            "compression": UNCOMPRESSED,
+            "start_date": mock_datetime,
+            "file_names": self.ingress_reports,
+        }
+        mock_pseudo_manifest.return_value = expected_manifest_data
+
+        result_manifest = self.aws_ingresss_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
+        self.assertEqual(result_manifest, expected_manifest_data)
