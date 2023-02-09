@@ -193,12 +193,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     volumes = chain.from_iterable(
         cluster_topology.get("persistent_volumes", []) for cluster_topology in cluster_topologies
     )
-    nodes = []
-    volumes = []
-    for cluster_topology in cluster_topologies:
-        nodes.extend(cluster_topology.get("nodes", []))
-        volumes.extend(cluster_topology.get("persistent_volumes", []))
-    matchable_resources = nodes + volumes
+    matchable_resources = list(nodes) + list(volumes)
     resource_id_df = data_frame["resourceid"]
     if resource_id_df.isna().values.all():
         resource_id_df = data_frame["instanceid"]
