@@ -16,6 +16,7 @@ LABELS_DIR="$WORKSPACE/github_labels"
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_CJI_TIMEOUT="120m"
+export IQE_IMAGE_TAG="cost-management-ccb8d94b"
 
 set -ex
 
