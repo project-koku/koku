@@ -16,8 +16,8 @@ LABELS_DIR="$WORKSPACE/github_labels"
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_CJI_TIMEOUT="120m"
-# TODO uncomment this to run pr-check with increased logging
-# export IQE_IMAGE_TAG="cost-management-ccb8d94b"
+# TODO comment/uncomment this to run pr-check with more iqe logging
+export IQE_IMAGE_TAG="cost-management-ccb8d94b"
 
 set -ex
 
