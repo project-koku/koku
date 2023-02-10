@@ -18,6 +18,8 @@ export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_CJI_TIMEOUT="120m"
 # TODO comment/uncomment this to run pr-check with more iqe logging
 # export IQE_IMAGE_TAG="cost-management-ccb8d94b"
+# TODO comment/uncomment this to run pr-check with Victor's debugging
+export IQE_IMAGE_TAG="cost-management-31037769"
 
 set -ex
 
