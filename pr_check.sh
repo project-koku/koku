@@ -79,6 +79,8 @@ function run_smoke_tests() {
         --source=appsre \
         --timeout 600
 
+    sleep infinity
+
     source $CICD_ROOT/cji_smoke_test.sh
 }
 
