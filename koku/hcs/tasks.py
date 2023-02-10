@@ -144,11 +144,11 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
         stmt = (
             f"[collect_hcs_report_data_from_manifest]:"
             f" schema_name: {schema_name},"
-            f"provider_type: {provider_type},"
-            f"provider_uuid: {provider_uuid},"
-            f"start: {start_date},"
-            f"end: {end_date}"
-            f"finalization: {finalize}"
+            f" provider_type: {provider_type},"
+            f" provider_uuid: {provider_uuid},"
+            f" start: {start_date},"
+            f" end: {end_date}"
+            f" finalization: {finalize}"
         )
         LOG.info(log_json(tracing_id, stmt))
 

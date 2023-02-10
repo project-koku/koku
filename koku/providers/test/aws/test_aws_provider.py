@@ -203,14 +203,14 @@ class AWSProviderTestCase(TestCase):
 
     @patch("providers.aws.provider.boto3.client")
     def test_check_cost_report_access_compression_error(self, mock_boto3_client):
-        """Test _check_cost_report_access success."""
+        """Test _check_cost_report_access errors with invalid compression."""
         test_bucket = "test-bucket"
         s3_client = Mock()
         s3_client.describe_report_definitions.return_value = {
             "ReportDefinitions": [
                 {
                     "ReportName": FAKE.word(),
-                    "Compression": "Parquet",
+                    "Compression": "Fake",
                     "AdditionalSchemaElements": ["RESOURCES"],
                     "S3Bucket": test_bucket,
                     "S3Region": "us-east-1",
@@ -273,6 +273,17 @@ class AWSProviderTestCase(TestCase):
             credentials = {"role_arn": None}
             data_source = {"bucket": "bucket_name"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+
+    @patch("providers.aws.provider._check_cost_report_access", return_value=True)
+    def test_storage_only_source_is_created(self, mock_check_cost_report_access):
+        """Verify that a storage only sources is created."""
+        provider_interface = AWSProvider()
+        try:
+            credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
+            data_source = {"bucket": "bucket_name", "storage-only": True}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+        except Exception:
+            self.fail("Unexpected Error")
 
     @patch(
         "providers.aws.provider._get_sts_access",

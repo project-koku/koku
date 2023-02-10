@@ -2929,6 +2929,168 @@
                 }]
             }
         },
+        "/ingress/reports/": {
+            "post": {
+                "tags": [
+                    "Ingress Reports"
+                ],
+                "summary": "Post ingress reports",
+                "operationId": "postIngressReports",
+                "requestBody": {
+                    "description": "Reports posted for particular source",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IngressReportIn"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of ingress report objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IngressReportsPagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Input Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            },
+            "get": {
+                "tags": [
+                    "Ingress Reports"
+                ],
+                "summary": "List Ingress Reports",
+                "operationId": "listIngressReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of ingress report objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IngressReportsPagination"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ingress/reports/{source_id}/": {
+            "get": {
+                "tags": [
+                    "Ingress Reports"
+                ],
+                "summary": "Get ingress reports for a source",
+                "operationId": "getSourceIngressReports",
+                "parameters": [{
+                    "name": "source_id",
+                    "in": "path",
+                    "description": "ID of source to get",
+                    "required": true,
+                    "schema": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    }
+                },
+                {
+                    "$ref": "#/components/parameters/QueryOffset"
+                },
+                {
+                    "$ref": "#/components/parameters/QueryLimit"
+                }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "Report objects for a source",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IngressReportOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/": {
             "get": {
                 "tags": [
@@ -6320,6 +6482,113 @@
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/SourceOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "IngressReportIn": {
+                "allOf": [{
+                        "type": "object",
+                        "required": [
+                            "source",
+                            "reports_list",
+                            "billing_year",
+                            "billing_month"
+                        ],
+                        "properties": {
+                            "source": {
+                                "type": "string",
+                                "description": "Source uuid for reports.",
+                                "example": "402719af-93b2-4ae5-9eda-380d1a1e5843"
+                            },
+                            "reports_list": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "description": "Report files"
+                                },
+                                "description": "List of reports for ingestion.",
+                                "example": ["report1.csv", "report2.csv"]
+                            },
+                            "billing_year": {
+                              "type": "string",
+                              "description": "Billing year for report files",
+                              "example": "2022"
+                            },
+                            "billing_month": {
+                              "type": "string",
+                              "description": "Billing month for report files",
+                              "example": "01"
+                            }
+                        }
+                    }
+                ]
+            },
+            "IngressReportOut": {
+                "allOf": [{
+                        "type": "object",
+                        "required": [
+                            "id"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid",
+                                "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                            },
+                            "source_uuid": {
+                                "type": "string",
+                                "format": "uuid",
+                                "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                            },
+                            "reports_list": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "description": "Report files"
+                                },
+                                "example": ["file1", "file2"]
+                            },
+                            "bill_year": {
+                                "type": "string",
+                                "description": "Billing year for files.",
+                                "example": "2022"
+                            },
+                            "billing_month": {
+                                "type": "string",
+                                "description": "Billing month for files.",
+                                "example": "01"
+                            },
+                            "created_timestamp": {
+                                "format": "date-time",
+                                "readOnly": true,
+                                "description": "Timestamp of posted reports."
+                            },
+                            "completed_timestamp": {
+                                "format": "date-time",
+                                "readOnly": true,
+                                "description": "Timestamp of successfully processed reports."
+                            }
+                        }
+                    }
+                ]
+            },
+            "IngressReportsPagination": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/IngressReportOut"
                                 }
                             }
                         }

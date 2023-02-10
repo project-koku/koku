@@ -57,6 +57,8 @@ class Orchestrator:
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.queue_name = queue_name
+        self.ingress_reports = kwargs.get("ingress_reports")
+        self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
@@ -114,6 +116,9 @@ class Orchestrator:
             reports_processed = provider_accessor.get_setup_complete()
 
         if self.bill_date:
+            if self.ingress_reports:
+                bill_date = self.bill_date + "01"
+                return [DateAccessor().get_billing_month_start(bill_date)]
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
         if Config.INGEST_OVERRIDE or not reports_processed:
@@ -162,6 +167,7 @@ class Orchestrator:
             provider_type=provider_type,
             provider_uuid=provider_uuid,
             report_name=None,
+            ingress_reports=self.ingress_reports,
         )
         # only gcp returns more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
@@ -241,6 +247,7 @@ class Orchestrator:
                         provider_uuid,
                         report_month,
                         report_context,
+                        ingress_reports=self.ingress_reports,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
@@ -250,7 +257,9 @@ class Orchestrator:
             if self._summarize_reports:
                 reports_tasks_queued = True
                 hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
-                summary_task = summarize_reports.s(manifest_list=manifest_list).set(queue=SUMMARY_QUEUE)
+                summary_task = summarize_reports.s(
+                    manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
+                ).set(queue=SUMMARY_QUEUE)
                 async_id = chord(report_tasks, group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
@@ -274,7 +283,6 @@ class Orchestrator:
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
-
                 self.prepare_continious_report_sources(account, provider_uuid)
             else:
                 self.prepare_monthly_report_sources(account, provider_uuid)

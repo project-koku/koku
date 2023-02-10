@@ -30,6 +30,60 @@ from masu.external import POLL_INGEST
 
 LOG = logging.getLogger(__name__)
 
+CSV_REQUIRED_COLUMNS = {
+    "AWS": (
+        "bill/BillingEntity",
+        "bill/BillType",
+        "bill/PayerAccountId",
+        "bill/BillingPeriodStartDate",
+        "bill/BillingPeriodEndDate",
+        "bill/InvoiceId",
+        "lineItem/LineItemType",
+        "lineItem/UsageAccountId",
+        "lineItem/UsageStartDate",
+        "lineItem/UsageEndDate",
+        "lineItem/ProductCode",
+        "lineItem/UsageType",
+        "lineItem/Operation",
+        "lineItem/AvailabilityZone",
+        "lineItem/ResourceId",
+        "lineItem/UsageAmount",
+        "lineItem/NormalizationFactor",
+        "lineItem/NormalizedUsageAmount",
+        "lineItem/CurrencyCode",
+        "lineItem/UnblendedRate",
+        "lineItem/UnblendedCost",
+        "lineItem/BlendedRate",
+        "lineItem/BlendedCost",
+        "savingsPlan/SavingsPlanEffectiveCost",
+        "lineItem/TaxType",
+        "pricing/publicOnDemandCost",
+        "pricing/publicOnDemandRate",
+        "reservation/AmortizedUpfrontFeeForBillingPeriod",
+        "reservation/AmortizedUpfrontCostForUsage",
+        "reservation/RecurringFeeForUsage",
+        "reservation/UnusedQuantity",
+        "reservation/UnusedRecurringFee",
+        "pricing/term",
+        "pricing/unit",
+        "product/sku",
+        "product/ProductName",
+        "product/productFamily",
+        "product/servicecode",
+        "product/region",
+        "product/instanceType",
+        "product/memory",
+        "product/vcpu",
+        "reservation/ReservationARN",
+        "reservation/NumberOfReservations",
+        "reservation/UnitsPerReservation",
+        "reservation/StartTime",
+        "reservation/EndTime",
+    ),
+    "Azure": (),
+    "GCP": (),
+}
+
 
 def extract_uuids_from_string(source_string):
     """
@@ -238,12 +292,15 @@ def date_range_pair(start_date, end_date, step=5):
             yield start_date.date(), end_date.date()
 
 
-def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False):
+def get_path_prefix(
+    account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False, partition_daily=False
+):
     """Get the S3 bucket prefix"""
     path = None
     if start_date:
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        day = start_date.strftime("%d")
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
         if daily:
             path_prefix += "/daily"
@@ -253,6 +310,8 @@ def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type
                 f"{path_prefix}/{account}/{provider_type}/{report_type}"
                 f"/source={provider_uuid}/year={year}/month={month}"
             )
+        if partition_daily:
+            path += f"/day={day}"
     return path
 
 
