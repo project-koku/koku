@@ -22,6 +22,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
+from masu.util.aws.common import get_available_regions
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
@@ -167,3 +168,12 @@ def source_status(request):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     return _deliver_status(request, source_status_obj)
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def get_aws_s3_regions(request):
+    regions = get_available_regions("s3")
+    return Response(status=status.HTTP_204_NO_CONTENT, data=regions)
