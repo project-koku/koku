@@ -116,21 +116,22 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = [
-        "gcp_openshift_daily",
-        "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-    ]
+    # tables_to_drop = [
+    #     "gcp_openshift_daily",
+    #     "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+    # ]
     # columns_to_drop = ["ocp_matched"]
-    # columns_to_add = {
-    #     "node_capacity_cpu_core_hours": "double",
-    #     "node_capacity_memory_gigabyte_hours": "double",
-    # }
+    columns_to_add = {
+        "aws_cost_category": "varchar",
+    }
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        # logging.info(f"*** Adding column to tables for schema {schema} ***")
-        logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        logging.info(f"*** Adding column to tables for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
+        # logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
+        # drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
