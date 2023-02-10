@@ -173,7 +173,8 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "_write_parquet_to_file")
     def test_create_ocp_on_cloud_parquet_gcp_valid_idx(self, mock_write, mock_create_table):
         """Test that we write OCP on Cloud data for a GCP provider and create a table."""
-        base_file_name = f"{self.gcp_provider_uuid}"
+        test_date = "2023_01_01"
+        base_file_name = f"{self.gcp_provider_uuid}_{test_date}"
         report_processor = OCPCloudParquetReportProcessor(
             schema_name=self.schema,
             report_path=self.report_path,
@@ -185,11 +186,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         file_path = f"{report_processor.local_path}"
         invoice_month = "202301"
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month]})
-        test_uuid = "afe2f5b7-dd24-4905-974b-8e1b95d3a5fd"
-        with patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.uuid4", return_value=test_uuid):
-            report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
+        report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
         mock_write.assert_called()
-        expected = f"{file_path}/{invoice_month}_{test_uuid}_0_{PARQUET_EXT}"
+        expected = f"{file_path}/{invoice_month}_{test_date}_0_{PARQUET_EXT}"
         mock_create_table.assert_called_with(
             expected,
             daily=True,
@@ -210,9 +209,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         )
         invoice_month = "202301"
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month], "usage_start_time": "2023-01-01"})
-        test_uuid = "afe2f5b7-dd24-4905-974b-8e1b95d3a5fd"
-        with patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.uuid4", return_value=test_uuid):
-            report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, 0)
+        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, 0)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
         call_df, call_base_file_name, call_number = args
