@@ -15,6 +15,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_ocp_amortized_monthly_cost
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.util.common import filter_dictionary
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -540,11 +541,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             if self._is_amortized:
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.INFRASTRUCTURE_COST_TYPE,
-                    {
-                        rate: value
-                        for rate, value in self._infra_rates.items()
-                        if rate in metric_constants.COST_MODEL_USAGE_RATES
-                    },
+                    filter_dictionary(self._infra_rates, metric_constants.COST_MODEL_USAGE_RATES),
                     start_date,
                     end_date,
                     self._cluster_id,
@@ -552,11 +549,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 )
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.SUPPLEMENTARY_COST_TYPE,
-                    {
-                        rate: value
-                        for rate, value in self._supplementary_rates.items()
-                        if rate in metric_constants.COST_MODEL_USAGE_RATES
-                    },
+                    filter_dictionary(self._supplementary_rates, metric_constants.COST_MODEL_USAGE_RATES),
                     start_date,
                     end_date,
                     self._cluster_id,
