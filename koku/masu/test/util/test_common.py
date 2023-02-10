@@ -550,6 +550,14 @@ class CommonUtilTests(MasuTestCase):
         account = common_utils.convert_account(account_str)
         self.assertEqual(account_str, account)
 
+    def test_filter_dictionary(self):
+        """Test the filter dictionary util."""
+        test_dictionary = {"good_key": "good_value", "bad_key": "bad_value"}
+        keys_to_keep = ["good_key"]
+        expected = {"good_key": "good_value"}
+        result = common_utils.filter_dictionary(test_dictionary, keys_to_keep)
+        self.assertEqual(result, expected)
+
 
 class NamedTemporaryGZipTests(TestCase):
     """Tests for NamedTemporaryGZip."""

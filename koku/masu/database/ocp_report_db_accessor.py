@@ -39,6 +39,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.util.common import filter_dictionary
 from masu.util.common import month_date_range_tuple
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
@@ -2035,6 +2036,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
         }
+        # Remove monthly rates
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_usage_type_map.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
@@ -2054,8 +2058,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_usage_type_map.get(metric)
-                if not usage_type:
-                    continue
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
@@ -2120,6 +2122,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
         }
+        # Remove monthly rates
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_usage_type_map.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {
@@ -2143,8 +2148,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_usage_type_map.get(metric)
-                if not usage_type:
-                    continue
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
