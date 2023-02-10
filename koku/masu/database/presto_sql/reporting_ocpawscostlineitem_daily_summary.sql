@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     pod_labels varchar,
     volume_labels varchar,
     tags varchar,
-    cost_category_id int,
+    aws_cost_category varchar, -- AWS Cost category
+    cost_category_id int, -- Internal OpenShift category ID
     project_rank integer,
     data_source_rank integer,
     resource_id_matched boolean,
@@ -87,7 +88,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_markup_cost double,
     pod_labels varchar,
     tags varchar,
-    cost_category_id int,
+    aws_cost_category varchar, -- AWS Cost category
+    cost_category_id int, -- Internal OpenShift category ID
     project_rank integer,
     data_source_rank integer,
     aws_source varchar,
@@ -147,6 +149,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_labels,
     volume_labels,
     tags,
+    aws_cost_category,
     cost_category_id,
     resource_id_matched,
     ocp_source
@@ -199,6 +202,7 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         NULL as volume_labels,
         max(aws.resourcetags) as tags,
+        max(aws.costcategory) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
         max(aws.resource_id_matched) as resource_id_matched,
         '{{ocp_source_uuid | sqlsafe}}' as ocp_source
@@ -265,6 +269,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_labels,
     volume_labels,
     tags,
+    aws_cost_category,
     cost_category_id,
     resource_id_matched,
     ocp_source
@@ -317,6 +322,7 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
+        max(aws.costcategory) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
         max(aws.resource_id_matched) as resource_id_matched,
         '{{ocp_source_uuid | sqlsafe}}' as ocp_source
@@ -383,6 +389,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     project_markup_cost,
     pod_labels,
     tags,
+    aws_cost_category,
     cost_category_id,
     aws_source,
     ocp_source,
@@ -463,6 +470,7 @@ SELECT pds.aws_uuid,
                 cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
     END as tags,
+    aws_cost_category,
     cost_category_id,
     '{{aws_source_uuid | sqlsafe}}' as aws_source,
     '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
@@ -512,6 +520,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     project_markup_cost,
     pod_labels,
     tags,
+    aws_cost_category,
     cost_category_id,
     source_uuid
 )
@@ -549,6 +558,7 @@ SELECT uuid(),
     project_markup_cost,
     json_parse(pod_labels),
     json_parse(tags),
+    json_parse(aws_cost_category),
     cost_category_id,
     cast(aws_source as UUID)
 FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary

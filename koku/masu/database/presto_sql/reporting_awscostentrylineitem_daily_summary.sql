@@ -24,6 +24,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     public_on_demand_cost,
     public_on_demand_rate,
     tags,
+    cost_category,
     account_alias_id,
     organizational_unit_id,
     source_uuid,
@@ -66,6 +67,7 @@ SELECT uuid() as uuid,
             (k,v) -> contains(pek.keys, k)
         ) as json
      ) as tags,
+    json_parse(costcategory) as cost_category,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
@@ -84,6 +86,7 @@ FROM (
         nullif(lineitem_availabilityzone, '') as availability_zone,
         nullif(product_region, '') as region,
         resourcetags as tags,
+        costcategory,
         nullif(product_instancetype, '') as instance_type,
         nullif(pricing_unit, '') as unit,
         sum(lineitem_usageamount) as usage_amount,
@@ -99,7 +102,7 @@ FROM (
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,
         count(DISTINCT lineitem_resourceid) as resource_count
-    FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
@@ -114,6 +117,7 @@ FROM (
         product_productfamily,
         product_region,
         resourcetags,
+        costcategory,
         product_instancetype,
         pricing_unit
 ) AS ds
