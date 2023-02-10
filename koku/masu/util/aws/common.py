@@ -125,6 +125,27 @@ def get_assume_role_session(
     )
 
 
+def get_available_regions(service_name: str = "ec2") -> list[str]:
+    """
+    Return a list of available regions for the given service.
+
+    This list is not comprehensive as it comes from the internal boto3 library
+    and does not query AWS directly.
+
+    Args:
+        service_name: Amazon service name
+
+    Usage:
+        regions = get_available_regions("s3")
+
+    See:https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.get_available_regions
+
+    """
+
+    session = boto3.Session()
+    return session.get_available_regions(service_name)
+
+
 def get_cur_report_definitions(role_arn, session=None):
     """
     Get Cost Usage Reports associated with a given RoleARN.
