@@ -20,9 +20,9 @@ from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.util.aws.common import get_available_regions
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
-from masu.util.aws.common import get_available_regions
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
@@ -176,4 +176,14 @@ def source_status(request):
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def get_aws_s3_regions(request):
     regions = get_available_regions("s3")
+    return Response(data={"regions": regions})
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def get_aws_regions(request):
+    service = request.query_params.get("service", "ec2")
+    regions = get_available_regions(service)
     return Response(data={"regions": regions})
