@@ -176,4 +176,4 @@ def source_status(request):
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def get_aws_s3_regions(request):
     regions = get_available_regions("s3")
-    return Response(status=status.HTTP_204_NO_CONTENT, data=regions)
+    return Response(data={"regions": regions})
