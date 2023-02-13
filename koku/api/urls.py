@@ -97,6 +97,7 @@ from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
+from sources.api.source_status import get_aws_s3_regions
 from sources.api.views import SourcesViewSet
 
 
@@ -337,6 +338,7 @@ urlpatterns = [
         ),
         name="reports-openshift-azure-instance-type",
     ),
+    path("sources/aws-s3-regions/", get_aws_s3_regions, name="aws-s3-regions"),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
     path("settings/", SettingsView.as_view(), name="settings"),
