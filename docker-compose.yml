@@ -559,9 +559,9 @@ services:
       - S3_BUCKET_PATH=${S3_BUCKET_PATH-data}
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
-      - DATABASE_NAME=${DATABASE_NAME-hive}
-      - DATABASE_USER=${DATABASE_USER-hive}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
+      - DATABASE_NAME=${HIVE_DATABASE_NAME-hive}
+      - DATABASE_USER=${HIVE_DATABASE_USER-hive}
+      - DATABASE_PASSWORD=${HIVE_DATABASE_PASSWORD-hive}
     depends_on:
       - koku-create-parquet-bucket
 
