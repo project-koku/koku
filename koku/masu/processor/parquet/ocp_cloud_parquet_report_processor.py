@@ -6,7 +6,6 @@
 """Processor to filter cost data for OpenShift and store as parquet."""
 import logging
 from functools import cached_property
-from uuid import uuid4
 
 import pandas as pd
 from tenant_schemas.utils import schema_context
@@ -135,7 +134,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Create a parquet file for daily aggregated data."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
-                parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{uuid4()}"
+                parquet_base_filename = (
+                    f"{data_frame['invoice_month'].values[0]}{parquet_base_filename[parquet_base_filename.find('_'):]}"
+                )
         file_name = f"{parquet_base_filename}_{file_number}_{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
