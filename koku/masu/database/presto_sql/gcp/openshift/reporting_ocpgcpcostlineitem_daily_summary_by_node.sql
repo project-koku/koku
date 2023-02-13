@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     tags varchar,
     cost_category_id int,
     project_rank integer,
-    data_source_rank integer
+    data_source_rank integer,
+    ocp_matched boolean,
+    ocp_source varchar
 ) WITH(format = 'PARQUET')
 ;
 
@@ -205,6 +207,7 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
+    AND TRIM(LEADING '0' FROM gcp.day) IN ({{days}}) -- external partitions have a leading zero
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
@@ -324,6 +327,7 @@ LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_s
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
+    AND TRIM(LEADING '0' FROM gcp.day) IN ({{days}}) -- external partitions have a leading zero
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'

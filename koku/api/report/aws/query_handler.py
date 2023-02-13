@@ -13,7 +13,6 @@ from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
-from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
@@ -308,11 +307,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         sum_units = {}
 
         query_sum = self.initialize_totals()
-        if not self.parameters.parameters.get("compute_count"):
-            query_sum.pop("count", None)
 
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
         if query.exists():
             sum_annotations = {
                 "cost_units": Coalesce(self._mapper.cost_units_key, Value(self._mapper.cost_units_fallback))
@@ -326,13 +322,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_units["usage_units"] = (
                     sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
                 )
-            if annotations.get("count_units"):
-                sum_units["count_units"] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = self.currency
-            if annotations.get("count_units"):
-                sum_units["count_units"] = count_units_fallback
             if annotations.get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -543,12 +535,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date", self.order]
 
-            annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
-            if not self.parameters.parameters.get("compute_count"):
-                # Query parameter indicates count should be removed from DB queries
-                annotations.pop("count", None)
-                annotations.pop("count_units", None)
-
+            annotations = self._mapper.report_type_map.get("annotations", {})
             query_data = query.values(*query_group_by).annotate(**annotations)
 
             if "account" in query_group_by:
@@ -609,34 +596,17 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             (dict) The aggregated totals for the query
 
         """
-        query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         query = query.annotate(**self.annotations)
-        query_data = query.values(*query_group_by)
 
-        aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
-        if not self.parameters.parameters.get("compute_count"):
-            # Query parameter indicates count should be removed from DB queries
-            aggregates.pop("count", None)
-
-        counts = None
-
-        if "count" in aggregates:
-            resource_ids = (
-                query_data.annotate(resource_id=Func(F("resource_ids"), function="unnest"))
-                .values_list("resource_id", flat=True)
-                .distinct()
-            )
-            counts = len(resource_ids)
+        aggregates = self._mapper.report_type_map.get("aggregates", {})
 
         total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
 
-        if counts:
-            total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query

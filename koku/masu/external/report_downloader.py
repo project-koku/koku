@@ -43,6 +43,7 @@ class ReportDownloader:
         provider_uuid,
         report_name=None,
         account=None,
+        ingress_reports=None,
         tracing_id="no_tracing_id",
     ):
         """Set the downloader based on the backend cloud provider."""
@@ -55,6 +56,7 @@ class ReportDownloader:
         self.tracing_id = tracing_id
         self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
+        self.ingress_reports = ingress_reports
         if self.account is None:
             # Existing schema will start with acct and we strip that prefix for use later
             # new customers include the org prefix in case an org-id and an account number might overlap
@@ -111,6 +113,7 @@ class ReportDownloader:
                 tracing_id=self.tracing_id,
                 account=self.account,
                 provider_type=self.provider_type,
+                ingress_reports=self.ingress_reports,
             )
         return None
 

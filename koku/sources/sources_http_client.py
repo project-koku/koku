@@ -41,6 +41,17 @@ ENDPOINT_APPLICATION_TYPES = "application_types"
 ENDPOINT_AUTHENTICATIONS = "authentications"
 ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
+APP_OPT_EXTRA_FEILD_MAP = {
+    Provider.PROVIDER_OCP: [],
+    Provider.PROVIDER_AWS: ["storage-only"],
+    Provider.PROVIDER_AWS_LOCAL: ["storage-only"],
+    Provider.PROVIDER_AZURE: ["scope", "export_name", "storage-only"],
+    Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage-only"],
+    Provider.PROVIDER_GCP: ["storage-only"],
+    Provider.PROVIDER_GCP_LOCAL: ["storage-only"],
+    Provider.PROVIDER_OCI: [],
+    Provider.PROVIDER_OCI_LOCAL: [],
+}
 
 
 def convert_header_to_dict(header, b64_decode=False):
@@ -179,7 +190,12 @@ class SourcesHTTPClient:
                 f"missing application data for source: {self._source_id}. "
                 f"expected: {required_extras}, got: {list(app_settings.keys())}"
             )
-        return {k: app_settings.get(k) for k in required_extras}
+        optional_extras = APP_OPT_EXTRA_FEILD_MAP[source_type]
+        opt_include = []
+        for opt in optional_extras:
+            if opt in app_settings:
+                opt_include.append(opt)
+        return {k: app_settings.get(k) for k in required_extras + opt_include}
 
     def get_credentials(self, source_type, app_type_id):
         """Get the source credentials."""

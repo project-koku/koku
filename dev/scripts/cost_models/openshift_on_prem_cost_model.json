@@ -106,6 +106,38 @@
         },
         {
             "metric": {
+                "name": "node_cost_per_month"
+            },
+            "tag_rates": {
+                "tag_key": "instance-type",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 310,
+                        "default": false,
+                        "tag_value": "small",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 620,
+                        "default": false,
+                        "tag_value": "medium",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 930,
+                        "default": true,
+                        "tag_value": "large",
+                        "description": ""
+                    }
+                ]
+            },
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
                 "name": "cluster_cost_per_month"
             },
             "tiered_rates": [
@@ -116,6 +148,38 @@
                     "usage_end": null
                 }
             ],
+            "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "pvc_cost_per_month"
+            },
+            "tag_rates": {
+                "tag_key": "storageclass",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 93,
+                        "default": false,
+                        "tag_value": "gold",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 62,
+                        "default": false,
+                        "tag_value": "silver",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 31,
+                        "default": true,
+                        "tag_value": "bronze",
+                        "description": ""
+                    }
+                ]
+            },
             "cost_type": "Infrastructure"
         },
         {

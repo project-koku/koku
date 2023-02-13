@@ -29,7 +29,17 @@ class ReportProcessorDBError(Exception):
 class ReportProcessor:
     """Interface for masu to use to processor CUR."""
 
-    def __init__(self, schema_name, report_path, compression, provider, provider_uuid, manifest_id, context=None):
+    def __init__(
+        self,
+        schema_name,
+        report_path,
+        compression,
+        provider,
+        provider_uuid,
+        manifest_id,
+        context=None,
+        ingress_reports=None,
+    ):
         """Set the processor based on the data provider."""
         self.schema_name = schema_name
         self.report_path = report_path
@@ -39,6 +49,7 @@ class ReportProcessor:
         self.manifest_id = manifest_id
         self.context = context
         self.tracing_id = context.get("tracing_id") if context else None
+        self.ingress_reports = ingress_reports
         try:
             self._processor = self._set_processor()
         except Exception as err:
@@ -78,6 +89,7 @@ class ReportProcessor:
             provider_type=self.provider_type,
             manifest_id=self.manifest_id,
             context=self.context,
+            ingress_reports=self.ingress_reports,
         )
 
     def process(self):

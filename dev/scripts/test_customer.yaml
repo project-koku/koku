@@ -101,7 +101,7 @@ customer:
       billing_source:
         data_source:
           dataset: 'example-ocpgcp-dataset'
-          table_id: 'example-ocpgcp-table'
+          table_id: 'gcp_billing_export_resource_v1_table'
           local_dir: '/tmp/gcp_local_bucket_0'
     - oci_source:
       source_name: Test OCI Source

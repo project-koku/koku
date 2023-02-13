@@ -312,13 +312,12 @@ class OCPGCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
-                        "count_units_fallback": "instances",
                     },
                     "storage": {
                         "aggregates": {
