@@ -152,7 +152,9 @@ class AzureService:
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
 
-    def download_file(self, key: str, container_name: str, destination: str = None, suffix: str = ".csv") -> str:
+    def download_file(
+        self, key: str, container_name: str, destination: str = None, suffix: str = AzureBlobExtension.csv.value
+    ) -> str:
         """Download the file from a given storage container."""
 
         cost_export = self.get_file_for_key(key, container_name)
@@ -160,6 +162,7 @@ class AzureService:
         file_path = destination
         if not destination:
             temp_file = NamedTemporaryFile(delete=False, suffix=suffix)
+            temp_file.close()
             file_path = temp_file.name
 
         try:
