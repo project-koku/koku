@@ -24,7 +24,6 @@ from trino.exceptions import TrinoExternalError
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.utils import DateHelper
 from koku import trino_database as trino_db
-from koku.database import KeyDecimalTransform
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -275,10 +274,16 @@ select * from eek where val1 in {{report_period_id}} ;
         self.cluster_id = "OCP-on-AWS"
         with schema_context(self.schema):
             # define the two usage types to test
-            usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
-            for usage_type, cost_field in usage_types.items():
+            usage_types = ("Infrastructure", "Supplementary")
+            for usage_type in usage_types:
                 # create dictionaries for rates
                 for cost, usage_fields in cost_type.items():
+                    if usage_fields[0] == "cpu":
+                        cost_term = "cost_model_cpu_cost"
+                    elif usage_fields[0] == "memory":
+                        cost_term = "cost_model_memory_cost"
+                    elif usage_fields[0] == "storage":
+                        cost_term = "cost_model_volume_cost"
                     rate_costs = {}
                     # go through and populate values for the key value pairs for this usage and cost type
                     node_tag_rates = {}
@@ -303,7 +308,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -313,7 +318,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -323,7 +328,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -358,7 +363,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -368,7 +373,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -380,7 +385,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -433,10 +438,16 @@ select * from eek where val1 in {{report_period_id}} ;
         self.cluster_id = "OCP-on-AWS"
         with schema_context(self.schema):
             # define the two usage types to test
-            usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
-            for usage_type, cost_field in usage_types.items():
+            usage_types = ("Infrastructure", "Supplementary")
+            for usage_type in usage_types:
                 # create dictionaries for rates
                 for cost, usage_fields in cost_type.items():
+                    if usage_fields[0] == "cpu":
+                        cost_term = "cost_model_cpu_cost"
+                    elif usage_fields[0] == "memory":
+                        cost_term = "cost_model_memory_cost"
+                    elif usage_fields[0] == "storage":
+                        cost_term = "cost_model_volume_cost"
                     rate_costs = {}
                     """
                     {
@@ -464,7 +475,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -474,8 +485,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
                             usage=Sum(usage_fields[1]),
+                            cost=Sum(cost_term),
                         )
                     )
                     weather_qset = (
@@ -484,8 +495,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
                             usage=Sum(usage_fields[1]),
+                            cost=Sum(cost_term),
                         )
                     )
 
@@ -514,7 +525,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -524,7 +535,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )
@@ -536,7 +547,7 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            cost=Sum(cost_term),
                             usage=Sum(usage_fields[1]),
                         )
                     )

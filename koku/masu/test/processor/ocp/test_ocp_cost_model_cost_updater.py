@@ -436,7 +436,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         for actual, expected in zip(case_dict.get(tag_key), expected_case_strs):
             self.assertEqual(actual.replace("\n", "").replace(" ", ""), expected.replace("\n", "").replace(" ", ""))
 
-    def test_update_monthly_tag_based_cost_amortized(self):
+    def test_update_monthly_tag_based_cost(self):
         """Test that monthly tag costs are amortized."""
         node_tag_key = "app"
         pvc_tag_key = "storageclass"
@@ -477,7 +477,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     self.assertEqual(pvc_line_items, 0)
 
-                updater._update_monthly_tag_based_cost_amortized(start_date, end_date)
+                updater._update_monthly_tag_based_cost(start_date, end_date)
 
                 with schema_context(self.schema):
                     node_line_items = OCPUsageLineItemDailySummary.objects.filter(
