@@ -5,6 +5,7 @@
 """Test the AzureReportDownloader object."""
 import shutil
 from datetime import datetime
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -107,7 +108,7 @@ class MockAzureService:
         """Get exports."""
         file_path = destination
         file_contents = {
-            AzureBlobExtension.json.value: b'{\r\n  "manifestVersion": "2021-01-01",\r\n  "dataFormat": "csv",\r\n  "blobCount": 1,\r\n  "byteCount": 423869,\r\n  "dataRowCount": 490,\r\n  "blobs": [\r\n    {\r\n      "blobName": "cost/partitioned/20230101-20230131/202301041442/73746dc5-5dcc-4b83-b340-bb1bd2b1ca30/000001.csv",\r\n      "byteCount": 423869,\r\n      "dataRowCount": 490,\r\n      "headerRowCount": 1\r\n    }\r\n  ]\r\n}',
+            AzureBlobExtension.json.value: Path(__file__).parent.joinpath("fixtures", "manifest.json").read_bytes(),
             AzureBlobExtension.csv.value: b"csvcontents",
         }
         if not destination:
