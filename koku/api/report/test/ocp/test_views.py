@@ -27,7 +27,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.provider.models import Provider
 from api.query_handler import TruncDayString
-from api.report.ocp.provider_map_amortized import OCPProviderMap
+from api.report.ocp.provider_map import OCPProviderMap
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.tags.ocp.queries import OCPTagQueryHandler
