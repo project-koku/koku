@@ -39,6 +39,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.util.common import filter_dictionary
 from masu.util.common import month_date_range_tuple
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
@@ -571,17 +572,29 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cost_type (str): Contains the type of monthly cost. ex: "Node"
             rate_type(str): Contains the metric name. ex: "node_cost_per_month"
             rate (decimal): Contains the rate amount ex: 100.0
-            node_cost (Decimal): The node cost per month
             start_date (datetime, str): The start_date to calculate monthly_cost.
             end_date (datetime, str): The end_date to calculate monthly_cost.
-            cluster_id (str): The id of the cluster
-            cluster_alias: The name of the cluster
             distribution: Choice of monthly distribution ex. memory
+            provider_uuid (str): The str of the provider UUID
         """
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):
             report_period_id = report_period.id
+
+        if not rate:
+            msg = f"Removing monthly costs for source {provider_uuid} from {start_date} to {end_date}"
+            LOG.info(msg)
+            self.delete_line_item_daily_summary_entries_for_date_range_raw(
+                provider_uuid,
+                start_date,
+                end_date,
+                table=OCPUsageLineItemDailySummary,
+                filters={"report_period_id": report_period_id, "monthly_cost_type": cost_type},
+                null_filters={"cost_model_rate_type": "IS NOT NULL"},
+            )
+            # We cleared out existing data, but there is no new to calculate.
+            return
 
         if cost_type in ("Node", "Cluster"):
             summary_sql = pkgutil.get_data(
@@ -1858,6 +1871,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             report_period_id = report_period.id
 
+        if not rates:
+            msg = f"Removing usage costs for source {provider_uuid} from {start_date} to {end_date}"
+            LOG.info(msg)
+            self.delete_line_item_daily_summary_entries_for_date_range_raw(
+                provider_uuid,
+                start_date,
+                end_date,
+                table=OCPUsageLineItemDailySummary,
+                filters={"cost_model_rate_type": rate_type, "report_period_id": report_period_id},
+                null_filters={"monthly_cost_type": "IS NULL"},
+            )
+            # We cleared out existing data, but there is no new to calculate.
+            return
+
         cost_model_usage_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/usage_costs.sql")
 
         cost_model_usage_sql = cost_model_usage_sql.decode("utf-8")
@@ -2009,6 +2036,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
         }
+        # Remove monthly rates
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_usage_type_map.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
@@ -2092,6 +2122,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
         }
+        # Remove monthly rates
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_usage_type_map.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {

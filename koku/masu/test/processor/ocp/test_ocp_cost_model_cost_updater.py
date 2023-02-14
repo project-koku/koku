@@ -827,8 +827,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         """
         expected_case_strs = (
             cpu_case_str,
-            "NULL::decimal as cost_model_memory_cost",
-            "NULL::decimal as cost_model_volume_cost",
+            "0::decimal as cost_model_memory_cost",
+            "0::decimal as cost_model_volume_cost",
         )
 
         case_dict = self.updater._build_node_tag_cost_case_statements(
@@ -839,9 +839,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             self.assertEqual(actual.replace("\n", "").replace(" ", ""), expected.replace("\n", "").replace(" ", ""))
 
         expected_case_strs = (
-            "NULL::decimal as cost_model_cpu_cost",
+            "0::decimal as cost_model_cpu_cost",
             memory_case_str,
-            "NULL::decimal as cost_model_volume_cost",
+            "0::decimal as cost_model_volume_cost",
         )
 
         self.updater._distribution = metric_constants.MEMORY_DISTRIBUTION
@@ -868,8 +868,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         default_rate_amor = get_amortized_monthly_cost_model_rate(default_rate, start_date)
 
         expected_case_strs = (
-            "NULL::decimal as cost_model_cpu_cost",
-            "NULL::decimal as cost_model_memory_cost",
+            "0::decimal as cost_model_cpu_cost",
+            "0::decimal as cost_model_memory_cost",
             f"""
             CASE
             WHEN volume_labels->>'app'='cost'

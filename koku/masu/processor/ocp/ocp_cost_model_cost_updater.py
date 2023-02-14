@@ -15,6 +15,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_ocp_amortized_monthly_cost
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.util.common import filter_dictionary
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -235,14 +236,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             if self._distribution == metric_constants.CPU_DISTRIBUTION:
                 case_dict[tag_key] = (
                     "\n".join(cpu_statement_list),
-                    "NULL::decimal as cost_model_memory_cost",
-                    "NULL::decimal as cost_model_volume_cost",
+                    "0::decimal as cost_model_memory_cost",
+                    "0::decimal as cost_model_volume_cost",
                 )
             elif self._distribution == metric_constants.MEMORY_DISTRIBUTION:
                 case_dict[tag_key] = (
-                    "NULL::decimal as cost_model_cpu_cost",
+                    "0::decimal as cost_model_cpu_cost",
                     "\n".join(memory_statement_list),
-                    "NULL::decimal as cost_model_volume_cost",
+                    "0::decimal as cost_model_volume_cost",
                 )
         return case_dict
 
@@ -287,8 +288,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
             volume_statement_list.append("END as cost_model_volume_cost")
             case_dict[tag_key] = (
-                "NULL::decimal as cost_model_cpu_cost",
-                "NULL::decimal as cost_model_memory_cost",
+                "0::decimal as cost_model_cpu_cost",
+                "0::decimal as cost_model_memory_cost",
                 "\n".join(volume_statement_list),
             )
         return case_dict
@@ -324,17 +325,16 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     )
 
                     if self._is_amortized:
-                        if rate:
-                            amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
-                            report_accessor.populate_monthly_cost_sql(
-                                cost_type,
-                                rate_type,
-                                amortized_rate,
-                                start_date,
-                                end_date,
-                                self._distribution,
-                                self._provider_uuid,
-                            )
+                        amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
+                        report_accessor.populate_monthly_cost_sql(
+                            cost_type,
+                            rate_type,
+                            amortized_rate,
+                            start_date,
+                            end_date,
+                            self._distribution,
+                            self._provider_uuid,
+                        )
                     else:
                         report_accessor.populate_monthly_cost(
                             cost_type,
@@ -541,7 +541,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             if self._is_amortized:
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.INFRASTRUCTURE_COST_TYPE,
-                    self._infra_rates,
+                    filter_dictionary(self._infra_rates, metric_constants.COST_MODEL_USAGE_RATES),
                     start_date,
                     end_date,
                     self._cluster_id,
@@ -549,7 +549,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 )
                 report_accessor.populate_usage_costs_new_columns(
                     metric_constants.SUPPLEMENTARY_COST_TYPE,
-                    self._supplementary_rates,
+                    filter_dictionary(self._supplementary_rates, metric_constants.COST_MODEL_USAGE_RATES),
                     start_date,
                     end_date,
                     self._cluster_id,
@@ -633,6 +633,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             else:
                 self._update_monthly_tag_based_cost(start_date, end_date)
                 self._update_monthly_tag_based_default_cost(start_date, end_date)
+        if not (self._tag_infra_rates or self._tag_supplementary_rates):
+            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)

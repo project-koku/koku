@@ -456,3 +456,8 @@ def convert_account(account):
     if account and not account.startswith("acct") and not account.startswith("org"):
         account = f"acct{account}"
     return account
+
+
+def filter_dictionary(dictionary, keys_to_keep):
+    """Filter a dictionary to only include the keys specified."""
+    return {key: value for key, value in dictionary.items() if key in keys_to_keep}
