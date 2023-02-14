@@ -171,6 +171,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except json.JSONDecodeError as err:
                 msg = f"Unable to open JSON manifest. Reason: {err}"
                 raise AzureReportDownloaderError(msg)
+            finally:
+                self._remove_manifest_file(manifest_tmp)
 
             manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
         else:
@@ -200,6 +202,16 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest["Compression"] = UNCOMPRESSED
 
         return manifest, last_modified
+
+    def _remove_manifest_file(self, manifest_file: str) -> None:
+        """Remove the temporary manifest file"""
+        try:
+            os.unlink(manifest_file)
+            msg = f"Deleted manifest file '{manifest_file}'"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
+        except OSError:
+            msg = f"Could not delete manifest file '{manifest_file}'"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
 
     def get_manifest_context_for_date(self, date):
         """
