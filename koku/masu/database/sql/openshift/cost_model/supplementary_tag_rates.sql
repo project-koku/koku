@@ -13,7 +13,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolume,
     storageclass,
     source_uuid,
-    supplementary_usage_cost,
     cost_model_cpu_cost,
     cost_model_memory_cost,
     cost_model_volume_cost,
@@ -36,14 +35,6 @@ SELECT uuid_generate_v4() as uuid,
     persistentvolume,
     storageclass,
     source_uuid,
-    CASE
-        WHEN {{usage_type}} = 'cpu'
-            THEN jsonb_build_object('cpu', coalesce(({{rate}}::numeric * usage), 0.0), 'memory', 0.0, 'storage', 0.0)
-        WHEN {{usage_type}} = 'memory'
-            THEN jsonb_build_object('cpu', 0.0, 'memory', coalesce(({{rate}}::numeric * usage), 0.0), 'storage', 0.0)
-        WHEN {{usage_type}} = 'storage'
-            THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
-    END as supplementary_usage_cost,
     CASE
         WHEN {{usage_type}} = 'cpu'
             THEN coalesce(({{rate}}::numeric * usage), 0.0)
