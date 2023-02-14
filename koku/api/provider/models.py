@@ -129,6 +129,8 @@ class Provider(models.Model):
         PROVIDER_GCP_LOCAL,
     ]
 
+    ADDITIONAL_CONTEXT_KEYS = ["aws_list_account_aliases", "crawl_hierarchy"]
+
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
     type = models.CharField(max_length=50, null=False, choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
