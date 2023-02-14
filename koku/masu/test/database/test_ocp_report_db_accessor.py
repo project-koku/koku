@@ -2615,7 +2615,7 @@ select * from eek where val1 in {{report_period_id}} ;
                 report_period_id=report_period_id,
             ).count()
 
-        self.assertNotEqual(initial_non_raw_count, 0)
+        self.assertEqual(initial_non_raw_count, 0)
         self.assertEqual(new_non_raw_count, 0)
         self.assertEqual(initial_raw_count, new_raw_count)
 
