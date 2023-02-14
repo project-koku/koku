@@ -691,11 +691,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    def populate_usage_costs_new_columns(self, rate_type, rates, start_date, end_date, cluster_id, provider_uuid):
+    def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
-        # NOTE: This method will replace populate_usage_costs and will be renamed to match
-        #       once fully switched over.
-        # Cast start_date and end_date to date object, if they aren't already
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):

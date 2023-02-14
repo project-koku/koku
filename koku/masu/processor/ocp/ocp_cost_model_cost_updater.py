@@ -304,20 +304,18 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_accessor.populate_usage_costs_new_columns(
+            report_accessor.populate_usage_costs(
                 metric_constants.INFRASTRUCTURE_COST_TYPE,
                 filter_dictionary(self._infra_rates, metric_constants.COST_MODEL_USAGE_RATES),
                 start_date,
                 end_date,
-                self._cluster_id,
                 self._provider.uuid,
             )
-            report_accessor.populate_usage_costs_new_columns(
+            report_accessor.populate_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
                 filter_dictionary(self._supplementary_rates, metric_constants.COST_MODEL_USAGE_RATES),
                 start_date,
                 end_date,
-                self._cluster_id,
                 self._provider.uuid,
             )
 
