@@ -19,6 +19,8 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.test import MasuTestCase
 from masu.util import common as utils
+from masu.util.azure.common import AzureBlobExtension
+
 
 DATA_DIR = Config.TMP_DIR
 
@@ -36,12 +38,18 @@ class MockAzureService:
         self.report_path = f"{self.directory}/{self.export_name}/{self.month_range}"
         self.export_uuid = "9c308505-61d3-487c-a1bb-017956c9170a"
         self.export_file = f"{self.export_name}_{self.export_uuid}.csv"
+        self.manifest_file = f"{self.export_name}_{self.export_uuid}.json"
         self.export_etag = "absdfwef"
         self.last_modified = DateAccessor().today()
         self.export_key = f"{self.report_path}/{self.export_file}"
+
         self.bad_test_date = datetime(2019, 7, 15)
         self.bad_month_range = utils.month_date_range(self.bad_test_date)
         self.bad_report_path = f"{self.directory}/{self.export_name}/{self.bad_month_range}"
+
+        self.manifest_test_date = datetime(2020, 4, 2)
+        self.manifest_month_range = utils.month_date_range(self.manifest_test_date)
+        self.manifest_report_path = f"{self.directory}/{self.export_name}/{self.manifest_month_range}"
 
     def describe_cost_management_exports(self):
         """Describe cost management exports."""
@@ -68,7 +76,14 @@ class MockAzureService:
         return mock_export
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> bool:
-        return False
+        if report_path != self.manifest_report_path:
+            raise AzureCostReportNotFound
+
+        class Manifest:
+            name = self.manifest_file
+            last_modified = self.manifest_test_date
+
+        return Manifest()
 
     def get_file_for_key(self, key, container_name):
         """Get exports for key."""
@@ -88,13 +103,18 @@ class MockAzureService:
             raise AzureCostReportNotFound(message)
         return mock_export
 
-    def download_file(self, key, container_name, destination=None):
+    def download_file(self, key, container_name, destination=None, suffix=AzureBlobExtension.csv.value):
         """Get exports."""
         file_path = destination
+        file_contents = {
+            AzureBlobExtension.json.value: b'{\r\n  "manifestVersion": "2021-01-01",\r\n  "dataFormat": "csv",\r\n  "blobCount": 1,\r\n  "byteCount": 423869,\r\n  "dataRowCount": 490,\r\n  "blobs": [\r\n    {\r\n      "blobName": "cost/partitioned/20230101-20230131/202301041442/73746dc5-5dcc-4b83-b340-bb1bd2b1ca30/000001.csv",\r\n      "byteCount": 423869,\r\n      "dataRowCount": 490,\r\n      "headerRowCount": 1\r\n    }\r\n  ]\r\n}',
+            AzureBlobExtension.csv.value: b"csvcontents",
+        }
         if not destination:
-            temp_file = NamedTemporaryFile(delete=True, suffix=".csv")
-            temp_file.write(b"csvcontents")
-            file_path = temp_file.name
+            with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+                temp_file.write(file_contents[suffix])
+                file_path = temp_file.name
+
         return file_path
 
 
@@ -161,6 +181,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         """Test that error is thrown when getting manifest with an unexpected report name."""
         with self.assertRaises(AzureReportDownloaderError):
             self.downloader._get_manifest(self.mock_data.bad_test_date)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", new_callable=MockAzureService)
+    def test_get_manifest_json_manifest(self, mock_azure_service):
+        self.downloader._get_manifest(self.mock_data.manifest_test_date)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.LOG")
     def test_get_manifest_report_not_found(self, log_mock):
