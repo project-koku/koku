@@ -35,6 +35,7 @@ from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
+from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
@@ -120,6 +121,11 @@ class SourcesViewSet(*MIXIN_LIST):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
+
+    @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
+    def aws_s3_regions(self, request):
+        regions = get_available_regions("s3")
+        return Response({"regions": regions})
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
