@@ -186,6 +186,9 @@ parameters:
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
+- displayName: Gunicorn worker count
+  name: GUNICORN_WORKERS
+  value: "3"
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
