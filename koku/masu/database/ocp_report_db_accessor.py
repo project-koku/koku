@@ -581,8 +581,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
             LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date}, "
-                "skipping populate_monthly_cost_sql update."
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_monthly_cost_sql update."
             )
             return
         with schema_context(self.schema):
@@ -741,8 +741,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
             LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date}, "
-                "skipping populate_monthly_tag_cost_sql update."
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_monthly_tag_cost_sql update."
             )
             return
         with schema_context(self.schema):
@@ -1882,8 +1882,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
             LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date}, "
-                "skipping populate_usage_costs_new_columns update."
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_usage_costs_new_columns update."
             )
             return
         with schema_context(self.schema):
