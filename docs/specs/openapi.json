@@ -4022,6 +4022,42 @@
                 }
             }
         },
+        "/sources/aws-s3-regions/":{
+            "get": {
+                "tags": [
+                    "AWS"
+                ],
+                "summary": "List available AWS S3 regions",
+                "operationId": "getAWSS3Regions",
+                "responses": {
+                    "200": {
+                        "description": "An object containing available regions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Dictionary key is 'regions'. Value is list of available regions.",
+                                    "example": {
+                                        "regions": [
+                                            "af-south-1",
+                                            "ap-east-1",
+                                            "ap-northeast-1",
+                                            "ap-northeast-2",
+                                            "ap-northeast-3",
+                                            "ap-south-1",
+                                            "ap-south-2",
+                                            "ap-southeast-1",
+                                            "ap-southeast-2",
+                                            "ap-southeast-3"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/tags/aws/": {
             "get": {
                 "tags": [
