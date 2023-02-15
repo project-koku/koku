@@ -37,17 +37,13 @@ def additional_context(request):
         if request.method == "POST":
             data = request.data
             for key, value in data.items():
-                if key in provider_accessor.provider.ADDITIONAL_CONTEXT_KEYS:
-                    if value in [True, False]:
-                        context[key] = value
-                    else:
-                        errmsg = f"Invalid value supplied: key: {key}, value: {value}."
-                elif key == "remove_key":
-                    if value in context.keys():
+                if key not in ["aws_list_account_aliases", "crawl_hierarchy", "remove_key"]:
+                    return Response({"Error": f"Invalid key supplied: {key}"}, status=status.HTTP_400_BAD_REQUEST)
+                if key == "remove_key" and value in context.keys():
                         del context[value]
-                else:
-                    errmsg = f"Invalid key supplied: {key}"
-                if errmsg:
-                    return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                elif key in ["aws_list_account_aliases", "crawl_hierarchy"]:
+                    if not isinstance(value, bool):
+                        return Response({"Error": f"Invalid value supplied: key: {key}, value: {value}."}, status=status.HTTP_400_BAD_REQUEST)
+                    context[key] = value
             provider_accessor.set_additional_context(context)
     return Response(context)
