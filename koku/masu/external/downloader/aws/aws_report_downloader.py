@@ -65,6 +65,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         bucket = data_source.get("bucket")
         self.bucket = bucket
         self.storage_only = data_source.get("storage-only")
+        self.ingress_reports = ingress_reports
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
@@ -117,7 +118,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self.report = report.pop()
         self.s3_client = session.client("s3")
-        self.ingress_reports = ingress_reports
 
     @property
     def manifest_date_format(self):
