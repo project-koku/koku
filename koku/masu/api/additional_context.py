@@ -24,22 +24,19 @@ def additional_context(request):
     params = request.query_params
 
     if not params.get("schema"):
-        errmsg = "Parameter missing. Required: schema"
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"Error": "Parameter missing. Required: schema"}, status=status.HTTP_400_BAD_REQUEST)
 
     if not params.get("provider_uuid"):
-        errmsg = "Parameter missing. Required: provider_uuid"
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"Error": "Parameter missing. Required: provider_uuid"}, status=status.HTTP_400_BAD_REQUEST)
 
     with ProviderDBAccessor(params.get("provider_uuid")) as provider_accessor:
         context = provider_accessor.get_additional_context()
-        errmsg = None
         if request.method == "POST":
             data = request.data
             for key, value in data.items():
                 if key not in ["aws_list_account_aliases", "crawl_hierarchy", "remove_key"]:
                     return Response({"Error": f"Invalid key supplied: {key}"}, status=status.HTTP_400_BAD_REQUEST)
-                if key == "remove_key" and value in context.keys():
+                if key == "remove_key" and value in context:
                     del context[value]
                 elif key in ["aws_list_account_aliases", "crawl_hierarchy"]:
                     if not isinstance(value, bool):
