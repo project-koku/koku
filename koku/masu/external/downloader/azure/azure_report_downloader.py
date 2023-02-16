@@ -11,6 +11,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -40,7 +41,7 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
         """
         Constructor.
 
@@ -49,9 +50,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Dictionary containing Azure Storage blob details.
-
+            ingress_reports  (List) List of reports from ingress post endpoint (optional)
         """
         super().__init__(**kwargs)
+        self.storage_only = data_source.get("storage-only")
+        self.ingress_reports = ingress_reports
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
@@ -74,7 +77,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self._provider_uuid = kwargs.get("provider_uuid")
         self.customer_name = customer_name.replace(" ", "_")
-        if not kwargs.get("is_local"):
+        if not kwargs.get("is_local") and not self.storage_only:
             self._azure_client = self._get_azure_client(credentials, data_source)
             export_reports = self._azure_client.describe_cost_management_exports()
             export_report = export_reports[0] if export_reports else {}
@@ -82,6 +85,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.export_name = export_report.get("name")
             self.container_name = export_report.get("container")
             self.directory = export_report.get("directory")
+
+        if self.ingress_reports:
+            container = self.ingress_reports[0].split("/")[0]
+            self.container_name = container
+            self._azure_client = self._get_azure_client(credentials, data_source)
 
     @staticmethod
     def _get_azure_client(credentials, data_source):
@@ -106,13 +114,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         return service
 
-    def _get_exports_data_directory(self):
+    def _get_exports_data_directory(self, container_name):
         """Return the path of the exports temporary data directory."""
-        directory_path = f"{DATA_DIR}/{self.customer_name}/azure/{self.container_name}"
+        directory_path = f"{DATA_DIR}/{self.customer_name}/azure/{container_name}"
         os.makedirs(directory_path, exist_ok=True)
         return directory_path
 
-    def _get_report_path(self, date_time):
+    def _get_report_path(self, date_time, container=None):
         """
         Return path of report files.
 
@@ -124,8 +132,16 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     example: "/cost/costreport/20190801-20190831"
 
         """
-        report_date_range = month_date_range(date_time)
-        return f"{self.directory}/{self.export_name}/{report_date_range}"
+        if self.ingress_reports:
+            path = (
+                self.ingress_reports[0]
+                .split(f'/{self.ingress_reports[0].split("/")[-1]}')[0]
+                .split(f"{container}/")[-1]
+            )
+        else:
+            report_date_range = month_date_range(date_time)
+            path = f"{self.directory}/{self.export_name}/{report_date_range}"
+        return path
 
     def _get_manifest(self, date_time):
         """
@@ -138,7 +154,21 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        report_path = self._get_report_path(date_time)
+        if self.ingress_reports:
+            report_path = self._get_report_path(date_time, self.container_name)
+            year = report_path.split("/")[0]
+            month = report_path.split("/")[1]
+            dh = DateHelper()
+            billing_period = {
+                "start": f"{year}{month}01",
+                "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
+            }
+        else:
+            report_path = self._get_report_path(date_time)
+            billing_period = {
+                "start": (report_path.split("/")[-1]).split("-")[0],
+                "end": (report_path.split("/")[-1]).split("-")[1],
+            }
         manifest = {}
         try:
             blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
@@ -154,10 +184,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             message = f"Unable to extract assemblyID from {report_name}"
             raise AzureReportDownloaderError(message)
 
-        billing_period = {
-            "start": (report_path.split("/")[-1]).split("-")[0],
-            "end": (report_path.split("/")[-1]).split("-")[1],
-        }
         manifest["billingPeriod"] = billing_period
         manifest["reportKeys"] = [report_name]
         manifest["Compression"] = UNCOMPRESSED
@@ -181,6 +207,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
+        if self.storage_only and not self.ingress_reports:
+            LOG.info("Skipping ingest as source is storage-only and requires ingress reports")
+            return report_dict
         manifest, manifest_timestamp = self._get_manifest(date)
         if manifest == {}:
             return report_dict
@@ -233,19 +262,20 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
-        local_filename = utils.get_local_file_name(key)
-        full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
-
         file_creation_date = None
-        try:
-            blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
-            etag = blob.etag
-            file_creation_date = blob.last_modified
-        except AzureCostReportNotFound as ex:
-            msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
-            raise AzureReportDownloaderError(msg)
-
+        etag = None
+        file_creation_date = None
+        if not self.ingress_reports:
+            try:
+                blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
+                etag = blob.etag
+                file_creation_date = blob.last_modified
+            except AzureCostReportNotFound as ex:
+                msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
+                LOG.error(log_json(self.tracing_id, msg, self.context))
+                raise AzureReportDownloaderError(msg)
+        local_filename = utils.get_local_file_name(key)
+        full_file_path = f"{self._get_exports_data_directory(self.container_name)}/{local_filename}"
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
         blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
