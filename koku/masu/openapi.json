@@ -77,6 +77,10 @@
     {
       "name": "Trino",
       "description": "An endpoint to interact with Trino."
+    },
+    {
+      "name": "Additional Context",
+      "description": "An endpoint to view & manipulate additional context for the provider."
     }
   ],
   "paths": {
@@ -1223,8 +1227,8 @@
               "required": false,
               "schema": {
                 "type": "string",
-                "minlength": 4,
-                "maxlength": 100
+                "minLength": 4,
+                "maxLength": 100
               }
             },
             {
@@ -1277,8 +1281,8 @@
                 "required": false,
                 "schema": {
                   "type": "string",
-                  "minlength": 4,
-                  "maxlength": 100
+                  "minLength": 4,
+                  "maxLength": 100
                 }
               },
               {
@@ -1357,8 +1361,8 @@
               "required": false,
               "schema": {
                 "type": "string",
-                "minlength": 4,
-                "maxlength": 100
+                "minLength": 4,
+                "maxLength": 100
               }
             },
             {
@@ -2099,6 +2103,84 @@
           "Purge Trino Files"
         ]
       }
+    },
+    "/additional_context/": {
+      "get": {
+        "summary": "View additional context field.",
+        "operationId": "getAdditionalContext",
+        "description": "Returns the additional context for a specific provider.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The additional context field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdditionalContextResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Additional Context"
+        ]
+      },
+      "post": {
+        "summary": "Modify additional context field.",
+        "operationId": "postAdditionalContext",
+        "description": "Returns the additional context for a specific provider.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdditionalContextPost"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The additional context field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdditionalContextPostResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Additional Context"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "provider_uuid",
+          "in": "query",
+          "description": "The provider UUID",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        },
+        {
+          "name": "schema",
+          "in": "query",
+          "description": "schema",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "string",
+            "example": "acct10001"
+          }
+        }
+      ]
     }
   },
   "components": {
@@ -3019,6 +3101,39 @@
             "type": "string",
             "format": "uuid",
             "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "AdditionalContextResponse": {
+        "type": "object",
+        "properties": {
+          "crawl_hierarchy": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "AdditionalContextPost": {
+        "type": "array",
+        "items": {"type": "object"},
+        "example": [
+          {
+            "op": "replace",
+            "key": "/aws_list_account_aliases",
+            "value": true
+          },
+          {
+            "op": "remove",
+            "key": "/crawl_hierarchy"
+          }
+        ]
+    },
+      "AdditionalContextPostResponse": {
+        "type": "object",
+        "properties": {
+          "aws_list_account_aliases": {
+            "type": "boolean",
+            "example": true
           }
         }
       }
