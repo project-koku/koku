@@ -3119,12 +3119,12 @@
         "example": [
           {
             "op": "replace",
-            "key": "aws_list_account_aliases",
+            "key": "/aws_list_account_aliases",
             "value": true
           },
           {
             "op": "remove",
-            "key": "crawl_hierarchy"
+            "key": "/crawl_hierarchy"
           }
         ]
     },

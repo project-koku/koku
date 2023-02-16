@@ -14,22 +14,22 @@ from rest_framework.settings import api_settings
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
 
-ADDITIONAL_CONTEXT_KEYS = ["aws_list_account_aliases", "crawl_hierarchy"]
+ADDITIONAL_CONTEXT_PATHS = ["/aws_list_account_aliases", "/crawl_hierarchy"]
 
 
 def opt_dict_serializer(op_dict):
     """Checks that the opt dict is structure correctly."""
     if not isinstance(op_dict, dict):
         return "Post body must be a list of dictionaries."
-    for rk in ["op", "key"]:
+    for rk in ["op", "path"]:
         if not op_dict.get(rk):
-            return f"Missing key in body ({rk})."
-    if op_dict.get("key") not in ADDITIONAL_CONTEXT_KEYS:
-        return f"Invalid key supplied: {op_dict.get('key')}"
+            return f"Missing path in body ({rk})."
+    if op_dict.get("path") not in ADDITIONAL_CONTEXT_PATHS:
+        return f"Invalid path supplied: {op_dict.get('path')}"
     if op_dict.get("op") not in ["remove", "replace"]:
         return f"Unrecognized op: {op_dict.get('op')}"
     if op_dict.get("op") == "replace" and not isinstance(op_dict.get("value"), bool):
-        return f"Invalid value supplied: key: {op_dict.get('key')}, value: {op_dict.get('value')}."
+        return f"Invalid value supplied: path: {op_dict.get('path')}, value: {op_dict.get('value')}."
 
 
 @never_cache
@@ -57,10 +57,11 @@ def additional_context(request):
                 err_msg = opt_dict_serializer(op_dict)
                 if err_msg:
                     return Response({"Error": err_msg}, status=status.HTTP_400_BAD_REQUEST)
-                if op_dict.get("op").lower() == "remove" and op_dict.get("key") in context:
-                    del context[op_dict.get("key")]
+                key = op_dict.get("path").replace("/", "")
+                if op_dict.get("op").lower() == "remove" and key in context:
+                    del context[key]
                 elif op_dict.get("op").lower() == "replace":
-                    context[op_dict.get("key")] = op_dict.get("value")
+                    context[key] = op_dict.get("value")
             provider_accessor.set_additional_context(context)
         return Response(context)
 
@@ -68,6 +69,6 @@ def additional_context(request):
 # https://www.rfc-editor.org/rfc/rfc6902
 # Post Examples:
 # [
-#     {"op": "replace", "key": "aws_list_account_aliases", "value": true},
-#     {"op": "remove", "key": "crawl_hierarchy"}
+#     {"op": "replace", "path": "/aws_list_account_aliases", "value": true},
+#     {"op": "remove", "path": "/crawl_hierarchy"}
 # ]

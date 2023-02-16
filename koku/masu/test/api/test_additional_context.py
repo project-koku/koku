@@ -40,16 +40,16 @@ class AdditionalContextTest(MasuTestCase):
         test_matrix = [
             ["Post body must be a list of dictionaries.", {}],
             ["Post body must be a list of dictionaries.", [[]]],
-            ["Missing key in body (op).", [{"key": "crawl_hierarchy", "value": "bad"}]],
-            ["Missing key in body (key).", [{"op": "replace", "value": "bad"}]],
-            ["Invalid key supplied: crwal_heirrchy", [{"op": "replace", "key": "crwal_heirrchy", "value": False}]],
+            ["Missing path in body (op).", [{"path": "/crawl_hierarchy", "value": "bad"}]],
+            ["Missing path in body (path).", [{"op": "replace", "value": "bad"}]],
+            ["Invalid path supplied: /crwal_heirrchy", [{"op": "replace", "path": "/crwal_heirrchy", "value": False}]],
             [
-                "Invalid value supplied: key: crawl_hierarchy, value: bad.",
-                [{"op": "replace", "key": "crawl_hierarchy", "value": "bad"}],
+                "Invalid value supplied: path: /crawl_hierarchy, value: bad.",
+                [{"op": "replace", "path": "/crawl_hierarchy", "value": "bad"}],
             ],
             [
-                "Invalid value supplied: key: crawl_hierarchy, value: None.",
-                [{"op": "replace", "key": "crawl_hierarchy"}],
+                "Invalid value supplied: path: /crawl_hierarchy, value: None.",
+                [{"op": "replace", "path": "/crawl_hierarchy"}],
             ],
         ]
         param_dict = {"provider_uuid": self.aws_test_provider_uuid, "schema": "org1234567"}
@@ -63,8 +63,8 @@ class AdditionalContextTest(MasuTestCase):
                 self.assertEqual(expected_message, error_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_upserting_and_removing_keys(self, _):
-        """Test that the remove key will delete key."""
+    def test_upserting_and_removing_paths(self, _):
+        """Test that the remove path will delete path."""
         param_dict = {"provider_uuid": self.aws_test_provider_uuid, "schema": "org1234567"}
         url = reverse("additional_context") + "?" + urlencode(param_dict)
         response = self.client.get(url)
@@ -72,13 +72,13 @@ class AdditionalContextTest(MasuTestCase):
         test_matrix = [
             [
                 [
-                    {"op": "replace", "key": "aws_list_account_aliases", "value": True},
-                    {"op": "replace", "key": "crawl_hierarchy", "value": True},
+                    {"op": "replace", "path": "/aws_list_account_aliases", "value": True},
+                    {"op": "replace", "path": "/crawl_hierarchy", "value": True},
                 ],
                 {"aws_list_account_aliases": True, "crawl_hierarchy": True},
             ],
-            [[{"op": "remove", "key": "aws_list_account_aliases"}], {"crawl_hierarchy": True}],
-            [[{"op": "replace", "key": "crawl_hierarchy", "value": False}], {"crawl_hierarchy": False}],
+            [[{"op": "remove", "path": "/aws_list_account_aliases"}], {"crawl_hierarchy": True}],
+            [[{"op": "replace", "path": "/crawl_hierarchy", "value": False}], {"crawl_hierarchy": False}],
         ]
         for test_list in test_matrix:
             post_json, expected_response = test_list
