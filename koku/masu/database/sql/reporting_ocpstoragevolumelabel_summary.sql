@@ -196,7 +196,8 @@ cte_keys_to_delete AS (
         AND vlk.key IS NULL
 )
 DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values tv
-WHERE key IN (SELECT key FROM cte_keys_to_delete)
+    USING cte_keys_to_delete ktd
+    WHERE tv.key = ktd.key
 ;
 
 
