@@ -579,6 +579,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            LOG.info(
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_monthly_cost_sql update."
+            )
+            return
         with schema_context(self.schema):
             report_period_id = report_period.id
 
@@ -733,6 +739,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            LOG.info(
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_monthly_tag_cost_sql update."
+            )
+            return
         with schema_context(self.schema):
             report_period_id = report_period.id
 
@@ -1868,6 +1880,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Cast start_date and end_date to date object, if they aren't already
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            LOG.info(
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_usage_costs_new_columns update."
+            )
+            return
         with schema_context(self.schema):
             report_period_id = report_period.id
 
