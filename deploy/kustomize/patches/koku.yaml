@@ -96,6 +96,8 @@
             resourceFieldRef:
               containerName: koku-clowder-api
               resource: limits.cpu
+        - name: GUNICORN_WORKERS
+          value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
         - name: ACCOUNT_ENHANCED_METRICS
