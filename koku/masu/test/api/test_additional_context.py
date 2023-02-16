@@ -37,13 +37,25 @@ class AdditionalContextTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_post_failures(self, _):
         """Test error responses from incorrect body values."""
-        test_matrix = {
-            "Invalid key supplied: crwal_heirrchy": {"crwal_heirrchy": False},
-            "Invalid value supplied: key: crawl_hierarchy, value: bad.": {"crawl_hierarchy": "bad"},
-        }
+        test_matrix = [
+            ["Post body must be a list of dictionaries.", {}],
+            ["Post body must be a list of dictionaries.", [[]]],
+            ["Missing key in body (op).", [{"key": "crawl_hierarchy", "value": "bad"}]],
+            ["Missing key in body (key).", [{"op": "replace", "value": "bad"}]],
+            ["Invalid key supplied: crwal_heirrchy", [{"op": "replace", "key": "crwal_heirrchy", "value": False}]],
+            [
+                "Invalid value supplied: key: crawl_hierarchy, value: bad.",
+                [{"op": "replace", "key": "crawl_hierarchy", "value": "bad"}],
+            ],
+            [
+                "Invalid value supplied: key: crawl_hierarchy, value: None.",
+                [{"op": "replace", "key": "crawl_hierarchy"}],
+            ],
+        ]
         param_dict = {"provider_uuid": self.aws_test_provider_uuid, "schema": "org1234567"}
         url = reverse("additional_context") + "?" + urlencode(param_dict)
-        for expected_message, test_json in test_matrix.items():
+        for test in test_matrix:
+            expected_message, test_json = test
             with self.subTest(test_json=test_json):
                 response = self.client.post(url, test_json, content_type="application/json")
                 self.assertEqual(response.status_code, 400)
@@ -58,18 +70,18 @@ class AdditionalContextTest(MasuTestCase):
         response = self.client.get(url)
         self.assertEqual(response.json(), {})
         test_matrix = [
-            [{"aws_list_account_aliases": True}, {"aws_list_account_aliases": True}],
-            [{"crawl_hierarchy": True}, {"aws_list_account_aliases": True, "crawl_hierarchy": True}],
-            [{"remove_key": "aws_list_account_aliases"}, {"crawl_hierarchy": True}],
+            [
+                [
+                    {"op": "replace", "key": "aws_list_account_aliases", "value": True},
+                    {"op": "replace", "key": "crawl_hierarchy", "value": True},
+                ],
+                {"aws_list_account_aliases": True, "crawl_hierarchy": True},
+            ],
+            [[{"op": "remove", "key": "aws_list_account_aliases"}], {"crawl_hierarchy": True}],
+            [[{"op": "replace", "key": "crawl_hierarchy", "value": False}], {"crawl_hierarchy": False}],
         ]
         for test_list in test_matrix:
             post_json, expected_response = test_list
             response = self.client.post(url, post_json, content_type="application/json")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), expected_response)
-        # Test changing boolean to false
-        new_value = {"crawl_hierarchy": False}
-        response = self.client.post(url, new_value, content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-        get_response = self.client.get(url)
-        self.assertEqual(get_response.json(), new_value)
