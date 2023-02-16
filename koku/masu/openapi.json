@@ -2136,7 +2136,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AdditionalContextResponse"
+                "$ref": "#/components/schemas/AdditionalContextPost"
               }
             }
           }
@@ -2147,7 +2147,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdditionalContextResponse"
+                  "$ref": "#/components/schemas/AdditionalContextPostResponse"
                 }
               }
             }
@@ -3108,6 +3108,30 @@
         "type": "object",
         "properties": {
           "crawl_hierarchy": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "AdditionalContextPost": {
+        "type": "array",
+        "items": {"type": "object"},
+        "example": [
+          {
+            "op": "replace",
+            "key": "aws_list_account_aliases",
+            "value": true
+          },
+          {
+            "op": "remove",
+            "key": "crawl_hierarchy"
+          }
+        ]
+    },
+      "AdditionalContextPostResponse": {
+        "type": "object",
+        "properties": {
+          "aws_list_account_aliases": {
             "type": "boolean",
             "example": true
           }
