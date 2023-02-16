@@ -76,9 +76,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # Update the UI tables for the OpenShift provider
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
-            ocp_accessor.populate_ui_summary_tables(
-                start_date, end_date, ocp_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-            )
+            ocp_accessor.populate_ui_summary_tables(start_date, end_date, ocp_provider_uuid)
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""

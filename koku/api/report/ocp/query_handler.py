@@ -23,12 +23,10 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
-from api.report.ocp.provider_map_amortized import OCPProviderMap as OCPProviderMapAmortized
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from masu.processor import enable_ocp_amortized_monthly_cost
 
 LOG = logging.getLogger(__name__)
 
@@ -45,10 +43,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        if enable_ocp_amortized_monthly_cost(parameters.request.user.customer.schema_name):
-            mapper_class = OCPProviderMapAmortized
-        else:
-            mapper_class = OCPProviderMap
+        mapper_class = OCPProviderMap
         self._limit = parameters.get_filter("limit")
         self._report_type = parameters.report_type
         # Update which field is used to calculate cost by group by param.
