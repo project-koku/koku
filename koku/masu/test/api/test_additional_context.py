@@ -51,6 +51,7 @@ class AdditionalContextTest(MasuTestCase):
                 "Invalid value supplied: path: /crawl_hierarchy, value: None.",
                 [{"op": "replace", "path": "/crawl_hierarchy"}],
             ],
+            ["Only the remove and replace operations are supported.", [{"op": "delete", "path": "/crawl_hierarchy"}]],
         ]
         param_dict = {"provider_uuid": self.aws_test_provider_uuid, "schema": "org1234567"}
         url = reverse("additional_context") + "?" + urlencode(param_dict)

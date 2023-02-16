@@ -27,7 +27,7 @@ def opt_dict_serializer(op_dict):
     if op_dict.get("path") not in ADDITIONAL_CONTEXT_PATHS:
         return f"Invalid path supplied: {op_dict.get('path')}"
     if op_dict.get("op") not in ["remove", "replace"]:
-        return f"Unrecognized op: {op_dict.get('op')}"
+        return "Only the remove and replace operations are supported."
     if op_dict.get("op") == "replace" and not isinstance(op_dict.get("value"), bool):
         return f"Invalid value supplied: path: {op_dict.get('path')}, value: {op_dict.get('value')}."
 
