@@ -1030,5 +1030,5 @@ select * from eek where val1 in {{report_period_id}} ;
             f" {self.provider_uuid} with start date {start_date}, skipping populate_usage_costs_new_columns update."
         )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
-            self.accessor.populate_usage_costs_new_columns("", "", start_date, end_date, "", self.provider_uuid)
+            self.accessor.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
             self.assertIn(expected, logger.output)
