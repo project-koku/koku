@@ -132,16 +132,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     example: "/cost/costreport/20190801-20190831"
 
         """
-        if self.ingress_reports:
-            path = (
-                self.ingress_reports[0]
-                .split(f'/{self.ingress_reports[0].split("/")[-1]}')[0]
-                .split(f"{container}/")[-1]
-            )
-        else:
-            report_date_range = month_date_range(date_time)
-            path = f"{self.directory}/{self.export_name}/{report_date_range}"
-        return path
+        report_date_range = month_date_range(date_time)
+        return f"{self.directory}/{self.export_name}/{report_date_range}"
 
     def _get_manifest(self, date_time):
         """
@@ -154,30 +146,36 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
+        manifest = {}
         if self.ingress_reports:
-            report_path = self._get_report_path(date_time, self.container_name)
-            year = report_path.split("/")[0]
-            month = report_path.split("/")[1]
+            report = self.ingress_reports[0].strip(f"{self.container_name}/")
+            split_report = report.split("/")
+            year = split_report[0]
+            month = split_report[1]
             dh = DateHelper()
             billing_period = {
                 "start": f"{year}{month}01",
                 "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
             }
+            try:
+                blob = self._azure_client.get_blob(report, self.container_name)
+            except AzureCostReportNotFound as ex:
+                msg = f"Unable to find report. Error: {str(ex)}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                return manifest, None
         else:
             report_path = self._get_report_path(date_time)
             billing_period = {
                 "start": (report_path.split("/")[-1]).split("-")[0],
                 "end": (report_path.split("/")[-1]).split("-")[1],
             }
-        manifest = {}
-        try:
-            blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
-        except AzureCostReportNotFound as ex:
-            msg = f"Unable to find manifest. Error: {str(ex)}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
-            return manifest, None
+            try:
+                blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+            except AzureCostReportNotFound as ex:
+                msg = f"Unable to find manifest. Error: {str(ex)}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                return manifest, None
         report_name = blob.name
-
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:
@@ -278,7 +276,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         full_file_path = f"{self._get_exports_data_directory(self.container_name)}/{local_filename}"
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
+        self._azure_client.download_cost_export(
+            key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
+        )
         # Push to S3
         s3_csv_path = get_path_prefix(
             self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
