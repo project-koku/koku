@@ -4,6 +4,7 @@
 #
 """Test the AzureService object."""
 from datetime import datetime
+from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
@@ -41,6 +42,12 @@ def throw_azure_http_error_403(scope):
     error = HttpResponseError()
     error.status_code = 403
     raise error
+
+
+class FakeBlob:
+    def __init__(self, name, last_modified=None):
+        self.name = name
+        self.last_modified = last_modified
 
 
 class AzureServiceTest(MasuTestCase):
@@ -278,6 +285,27 @@ class AzureServiceTest(MasuTestCase):
         with self.assertRaises(AzureCostReportNotFound):
             svc.get_latest_cost_export_for_path(report_path, container_name)
 
+    def test_get_latest_manifest_for_path(self):
+        """Given a list of blobs with multiple manifests, ensure the latest one is returned"""
+
+        report_path = "/container/report/path"
+        blobs = (
+            FakeBlob(f"{report_path}/02/file01.csv", datetime(2022, 11, 2, 10, 20)),
+            FakeBlob(f"{report_path}/02/_manifest.json", datetime(2022, 11, 2, 10, 23)),  # Latest manifest
+            FakeBlob(f"{report_path}/01/file01.csv", datetime(2022, 11, 1, 10, 20)),
+            FakeBlob(f"{report_path}/01/_manifest.json", datetime(2022, 11, 1, 10, 23)),
+            FakeBlob(f"{report_path}/03/_manifest.json", datetime(2022, 10, 31)),
+        )
+        azure_service = self.get_mock_client(blob_list=blobs)
+        latet_manifest = azure_service.get_latest_manifest_for_path(report_path, "some_container")
+
+        self.assertEqual(latet_manifest.name, f"{report_path}/02/_manifest.json")
+
+    def test_list_blobs_none(self):
+        azure_service = self.get_mock_client()
+        with self.assertRaisesRegex(AzureCostReportNotFound, "Unable to find files in container"):
+            azure_service._list_blobs("", "")
+
     def test_describe_cost_management_exports_wrong_account(self):
         """Test that cost management exports are not returned from incorrect account."""
         resource_id = (
@@ -319,6 +347,14 @@ class AzureServiceTest(MasuTestCase):
         client = self.get_mock_client(blob_list=[mock_blob])
         file_path = client.download_file(key, self.container_name)
         self.assertTrue(file_path.endswith(".csv"))
+
+    def test_download_file_with_destination(self):
+        blobs = (FakeBlob("key", datetime.now()),)
+        azure_client = self.get_mock_client(blob_list=blobs)
+        with NamedTemporaryFile() as tf:
+            file = azure_client.download_file("key", "container", destination=tf.name)
+
+        self.assertEqual(file, tf.name)
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
     def test_get_file_for_key_exception(self, mock_factory):
@@ -423,21 +459,15 @@ class AzureServiceTest(MasuTestCase):
         """Given a list of blobs, return the blob with the latest modification date
         matching the specified extension.
         """
-
-        class MockBlob:
-            def __init__(self, name, last_modified=None):
-                self.name = name
-                self.last_modified = last_modified
-
         report_path = "/container/report/path"
         blobs = (
-            MockBlob(f"{report_path}/_manifest.json", datetime(2022, 12, 18)),
-            MockBlob(f"{report_path}/file01.csv", datetime(2022, 12, 16)),
-            MockBlob(f"{report_path}/file02.csv", datetime(2022, 12, 15)),
-            MockBlob("some/other/path/file01.csv", datetime(2022, 12, 1)),
-            MockBlob(f"{report_path}/file03.csv", datetime(2022, 12, 17)),
+            FakeBlob(f"{report_path}/_manifest.json", datetime(2022, 12, 18)),
+            FakeBlob(f"{report_path}/file01.csv", datetime(2022, 12, 16)),
+            FakeBlob(f"{report_path}/file02.csv", datetime(2022, 12, 15)),
+            FakeBlob("some/other/path/file01.csv", datetime(2022, 12, 1)),
+            FakeBlob(f"{report_path}/file03.csv", datetime(2022, 12, 17)),
         )
-        svc = self.get_mock_client()
-        latest_blob = svc._get_latest_blob(f"{report_path}", blobs, ".csv")
+        azure_service = self.get_mock_client()
+        latest_blob = azure_service._get_latest_blob(f"{report_path}", blobs, ".csv")
 
         self.assertEqual(latest_blob.name, f"{report_path}/file03.csv")
