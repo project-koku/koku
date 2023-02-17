@@ -84,7 +84,7 @@ class MockAzureService:
             raise AzureCostReportNotFound(message)
         return mock_export
 
-    def download_cost_export(self, key, container_name, destination=None):
+    def download_cost_export(self, key, container_name, destination=None, ingress_reports=None):
         """Get exports."""
         file_path = destination
         if not destination:
@@ -173,7 +173,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertTrue("Unable to find manifest" in call_arg.get("message"))
 
     def test_download_file(self):
-        """Test that Azure report report is downloaded."""
+        """Test that Azure report is downloaded."""
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
@@ -190,7 +190,7 @@ class AzureReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
     def test_download_file_matching_etag(self, mock_download_cost_method):
-        """Test that Azure report report is not downloaded with matching etag."""
+        """Test that Azure report is not downloaded with matching etag."""
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )

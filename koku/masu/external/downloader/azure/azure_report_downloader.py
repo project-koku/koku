@@ -114,13 +114,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         return service
 
-    def _get_exports_data_directory(self, container_name):
+    def _get_exports_data_directory(self):
         """Return the path of the exports temporary data directory."""
-        directory_path = f"{DATA_DIR}/{self.customer_name}/azure/{container_name}"
+        directory_path = f"{DATA_DIR}/{self.customer_name}/azure/{self.container_name}"
         os.makedirs(directory_path, exist_ok=True)
         return directory_path
 
-    def _get_report_path(self, date_time, container=None):
+    def _get_report_path(self, date_time):
         """
         Return path of report files.
 
@@ -273,7 +273,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.error(log_json(self.tracing_id, msg, self.context))
                 raise AzureReportDownloaderError(msg)
         local_filename = utils.get_local_file_name(key)
-        full_file_path = f"{self._get_exports_data_directory(self.container_name)}/{local_filename}"
+        full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
         self._azure_client.download_cost_export(
