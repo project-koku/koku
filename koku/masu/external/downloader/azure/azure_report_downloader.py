@@ -148,7 +148,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest = {}
         if self.ingress_reports:
-            report = self.ingress_reports[0].strip(f"{self.container_name}/")
+            report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
             year = date_time.strftime("%Y")
             month = date_time.strftime("%m")
             dh = DateHelper()

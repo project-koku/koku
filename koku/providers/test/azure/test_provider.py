@@ -150,3 +150,19 @@ class AzureProviderTestCase(TestCase):
         with patch("providers.azure.provider.AzureService", side_effect=TypeError("Raised intentionally")):
             with self.assertRaisesRegex(ValidationError, "Raised intentionally"):
                 azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_storage_only_source_is_created(self, mock_azure_factory):
+        """Verify that a storage only sources is created."""
+        provider_interface = AzureProvider()
+        try:
+            credentials = {
+                "subscription_id": FAKE.uuid4(),
+                "tenant_id": FAKE.uuid4(),
+                "client_id": FAKE.uuid4(),
+                "client_secret": FAKE.word(),
+            }
+            data_source = {"resource_group": FAKE.word(), "storage_account": FAKE.word(), "storage-only": True}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+        except Exception:
+            self.fail("Unexpected Error")

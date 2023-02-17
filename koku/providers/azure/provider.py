@@ -205,11 +205,10 @@ class AzureProvider(ProviderInterface):
         storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
 
         for report in reports_list:
-            try:
-                container_name = report.split("/")[0]
-                report_key = report.split(container_name)[-1]
-                storage_client.get_blob_client(container_name, report_key)
-            except AzureCostReportNotFound:
+            container_name = report.split("/")[0]
+            report_key = report.split(f"{container_name}/")[-1]
+            blob_client = storage_client.get_blob_client(container_name, report_key)
+            if not blob_client.exists():
                 internal_message = f"File {report_key} could not be found within container {container_name}."
                 key = ProviderErrors.AZURE_REPORT_NOT_FOUND
                 raise serializers.ValidationError(error_obj(key, internal_message))
