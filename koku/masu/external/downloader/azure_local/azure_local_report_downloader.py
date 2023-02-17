@@ -106,9 +106,8 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             (String): The path and file name of the saved file
 
         """
-        container_name = self.container_name
         local_filename = utils.get_local_file_name(key)
-        full_file_path = f"{self._get_exports_data_directory(container_name)}/{local_filename}"
+        full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
 
         etag_hasher = hashlib.new("ripemd160")
         etag_hasher.update(bytes(local_filename, "utf-8"))
