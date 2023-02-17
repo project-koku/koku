@@ -4,7 +4,6 @@
 #
 """Test the AzureReportDownloader object."""
 import json
-import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -219,15 +218,20 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertTrue("Unable to find cost export" in call_arg.get("message"))
 
     def test_remove_manifest_file_error(self):
-        logging.disable(logging.NOTSET)
-        with self.assertLogs("masu.external.downloader.azure.azure_report_downloader") as watcher:
-            with patch("masu.external.downloader.azure.azure_report_downloader.os.unlink", side_effect=OSError):
+        with (
+            patch(
+                "masu.external.downloader.azure.azure_report_downloader.os.unlink", side_effect=OSError
+            ) as unlink_mock,
+            patch(
+                "masu.external.downloader.azure.azure_report_downloader.LOG.info",
+                side_effect=AttributeError("Raised intentionally"),
+            ) as log_mock,
+        ):
+            with self.assertRaisesRegex(AttributeError, "Raised intentionally"):
                 self.downloader._remove_manifest_file("/not/a/file")
 
-        event = watcher.output[0]
-
-        self.assertTrue(event.startswith("INFO"))
-        self.assertTrue("Could not delete manifest file" in event)
+        unlink_mock.assert_called_once_with("/not/a/file")
+        self.assertTrue("Could not delete manifest file" in log_mock.call_args[0][0]["message"])
 
     def test_download_file(self):
         """Test that Azure report report is downloaded."""
