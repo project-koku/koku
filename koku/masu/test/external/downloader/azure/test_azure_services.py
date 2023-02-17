@@ -418,3 +418,26 @@ class AzureServiceTest(MasuTestCase):
         svc._factory.cost_management_client.exports.get.side_effect = throw_azure_exception
         with self.assertRaises(AzureCostReportNotFound):
             svc.describe_cost_management_exports()
+
+    def test_get_latest_blob(self):
+        """Given a list of blobs, return the blob with the latest modification date
+        matching the specified extension.
+        """
+
+        class MockBlob:
+            def __init__(self, name, last_modified=None):
+                self.name = name
+                self.last_modified = last_modified
+
+        report_path = "/container/report/path"
+        blobs = (
+            MockBlob(f"{report_path}/_manifest.json", datetime(2022, 12, 18)),
+            MockBlob(f"{report_path}/file01.csv", datetime(2022, 12, 16)),
+            MockBlob(f"{report_path}/file02.csv", datetime(2022, 12, 15)),
+            MockBlob("some/other/path/file01.csv", datetime(2022, 12, 1)),
+            MockBlob(f"{report_path}/file03.csv", datetime(2022, 12, 17)),
+        )
+        svc = self.get_mock_client()
+        latest_blob = svc._get_latest_blob(f"{report_path}", blobs, ".csv")
+
+        self.assertEqual(latest_blob.name, f"{report_path}/file03.csv")
