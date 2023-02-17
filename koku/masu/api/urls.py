@@ -9,6 +9,7 @@ from rest_framework.routers import DefaultRouter
 from masu.api.manifest.views import ManifestView
 from masu.api.sources.views import SourcesViewSet
 from masu.api.trino import trino_ui
+from masu.api.views import additional_context
 from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
@@ -58,6 +59,7 @@ urlpatterns = [
     path("report/process/openshift_on_cloud/", process_openshift_on_cloud, name="process_openshift_on_cloud"),
     path("report/summarize/openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
+    path("additional_context/", additional_context, name="additional_context"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
