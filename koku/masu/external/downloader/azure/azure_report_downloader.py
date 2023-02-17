@@ -149,9 +149,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest = {}
         if self.ingress_reports:
             report = self.ingress_reports[0].strip(f"{self.container_name}/")
-            split_report = report.split("/")
-            year = split_report[0]
-            month = split_report[1]
+            year = date_time.strftime("%Y")
+            month = date_time.strftime("%m")
             dh = DateHelper()
             billing_period = {
                 "start": f"{year}{month}01",
