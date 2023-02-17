@@ -129,7 +129,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = month_date_range(date_time)
         return f"{self.directory}/{self.export_name}/{report_date_range}"
 
-    def _get_manifest(self, date_time):
+    def _get_manifest(self, date_time):  # noqa: C901
         """
         Download and return the CUR manifest for the given date.
 

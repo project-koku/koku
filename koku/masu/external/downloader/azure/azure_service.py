@@ -4,6 +4,7 @@
 #
 """Azure Service helpers."""
 import logging
+import typing as t
 from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
@@ -61,6 +62,21 @@ class AzureService:
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
+    def _get_latest_blob(
+        self, report_path: str, blobs: list[BlobProperties], extension: str
+    ) -> t.Optional[BlobProperties]:
+        latest_blob = None
+        for blob in blobs:
+            if not blob.name.endswith(extension):
+                continue
+
+            if report_path in blob.name and not latest_blob:
+                latest_blob = blob
+            elif report_path in blob.name and blob.last_modified > latest_blob.last_modified:
+                latest_blob = blob
+
+        return latest_blob
+
     def _get_latest_blob_for_path(
         self,
         report_path: str,
@@ -97,16 +113,7 @@ class AzureService:
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
-        latest_report = None
-        for blob in blobs:
-            if not blob.name.endswith(extension):
-                continue
-
-            if report_path in blob.name and not latest_report:
-                latest_report = blob
-            elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
-                latest_report = blob
-
+        latest_report = self._get_latest_blob(report_path, blobs, extension)
         if not latest_report:
             message = (
                 f"No file with extension '{extension}' found in container "
