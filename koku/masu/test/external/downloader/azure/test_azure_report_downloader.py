@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDownloader object."""
+import json
+import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -76,7 +78,7 @@ class MockAzureService:
             raise AzureCostReportNotFound(message)
         return mock_export
 
-    def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> bool:
+    def get_latest_manifest_for_path(self, report_path: str, container_name: str):
         if report_path != self.manifest_report_path:
             raise AzureCostReportNotFound
 
@@ -187,6 +189,21 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_get_manifest_json_manifest(self, mock_azure_service):
         self.downloader._get_manifest(self.mock_data.manifest_test_date)
 
+    @patch.object(MockAzureService, "download_file", side_effect=AzureReportDownloaderError)
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", new_callable=MockAzureService)
+    def test_get_manifest_json_manifest_not_found(self, mock_azure_service, mock_download_file):
+        result = self.downloader._get_manifest(self.mock_data.manifest_test_date)
+
+        self.assertEqual(result, ("", {}, None))
+
+    def test_get_manifest_bad_json(self):
+        with patch(
+            "masu.external.downloader.azure.azure_report_downloader.json.load",
+            side_effect=json.JSONDecodeError("Raised intentionally", "doc", 42),
+        ):
+            with self.assertRaisesRegex(AzureReportDownloaderError, "Raised intentionally"):
+                self.downloader._get_manifest(self.mock_data.manifest_test_date)
+
     @patch("masu.external.downloader.azure.azure_report_downloader.LOG")
     def test_get_manifest_report_not_found(self, log_mock):
         """Test that Azure report is throwing an exception if the report was not found."""
@@ -200,6 +217,17 @@ class AzureReportDownloaderTest(MasuTestCase):
         call_arg = log_mock.info.call_args.args[0]
         self.assertEqual(call_arg.get("tracing_id"), self.downloader.tracing_id)
         self.assertTrue("Unable to find cost export" in call_arg.get("message"))
+
+    def test_remove_manifest_file_error(self):
+        logging.disable(logging.NOTSET)
+        with self.assertLogs("masu.external.downloader.azure.azure_report_downloader") as watcher:
+            with patch("masu.external.downloader.azure.azure_report_downloader.os.unlink", side_effect=OSError):
+                self.downloader._remove_manifest_file("/not/a/file")
+
+        event = watcher.output[0]
+
+        self.assertTrue(event.startswith("INFO"))
+        self.assertTrue("Could not delete manifest file" in event)
 
     def test_download_file(self):
         """Test that Azure report report is downloaded."""
