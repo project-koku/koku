@@ -34,7 +34,8 @@ bind = f"0.0.0.0:{CLOWDER_PORT}"
 
 # Worker Processes (https://docs.gunicorn.org/en/stable/settings.html#worker-processes)
 cpu_resources = ENVIRONMENT.int("POD_CPU_LIMIT", default=multiprocessing.cpu_count())
-workers = 1 if SOURCES else cpu_resources * 2 + 1
+gunicorn_workers = ENVIRONMENT.int("GUNICORN_WORKERS", default=(cpu_resources * 2 + 1))
+workers = 1 if SOURCES else gunicorn_workers
 gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
 if gunicorn_threads:
     threads = cpu_resources * 2 + 1
