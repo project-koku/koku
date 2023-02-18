@@ -146,13 +146,13 @@ class AzureService:
             if httpError.status_code == 403:
                 message = (
                     "An authorization error occurred attempting to fetch report"
-                    f" in container {self.container_name} for "
+                    f" in container {container_name} for "
                     f"report {report}."
                 )
             else:
                 message = (
                     "Unknown error occurred attempting to fetch report"
-                    f" in container {self.container_name} for "
+                    f" in container {container_name} for "
                     f"report {report}."
                 )
             error_msg = message + f" Azure Error: {httpError}."

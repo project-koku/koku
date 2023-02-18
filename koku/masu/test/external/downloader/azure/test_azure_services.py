@@ -418,3 +418,27 @@ class AzureServiceTest(MasuTestCase):
         svc._factory.cost_management_client.exports.get.side_effect = throw_azure_exception
         with self.assertRaises(AzureCostReportNotFound):
             svc.describe_cost_management_exports()
+
+    def test_get_blob_http_403_error(self):
+        """Test get blob 403 http error."""
+        scope = f"/subscriptions/{self.subscription_id}"
+        svc = self.get_mock_client(cost_exports=[Mock()], scope=scope)
+        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error_403
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.get_blob("report", self.container_name)
+
+    def test_get_blob_http_error(self):
+        """Test get blob http error."""
+        scope = f"/subscriptions/{self.subscription_id}"
+        svc = self.get_mock_client(cost_exports=[Mock()], scope=scope)
+        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.get_blob("report", self.container_name)
+
+    def test_failed_to_fetch_blob(self):
+        """Test get blob error."""
+        scope = f"/subscriptions/{self.subscription_id}"
+        svc = self.get_mock_client(cost_exports=[Mock()], scope=scope)
+        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_exception
+        with self.assertRaises(AzureServiceError):
+            svc.get_blob("report", self.container_name)

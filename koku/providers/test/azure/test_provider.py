@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Azure Provider."""
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from azure.common import AzureException
@@ -23,6 +24,29 @@ def throws_azure_nocosterror():
 
 class AzureProviderTestCase(TestCase):
     """Parent Class for AzureClientFactory test cases."""
+
+    def setUp(self):
+        """Create test case objects."""
+        super().setUp()
+        self.source = MagicMock(
+            return_value={
+                "billing_source": {
+                    "data_source": {
+                        "resource_group": FAKE.word(),
+                        "storage_account": FAKE.word(),
+                        "storage-only": True,
+                    }
+                },
+                "authentication": {
+                    "credentials": {
+                        "subscription_id": FAKE.uuid4(),
+                        "tenant_id": FAKE.uuid4(),
+                        "client_id": FAKE.uuid4(),
+                        "client_secret": FAKE.word(),
+                    }
+                },
+            }
+        )
 
     def test_name(self):
         """Test name property."""
