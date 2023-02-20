@@ -53,7 +53,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ingress_reports  (List) List of reports from ingress post endpoint (optional)
         """
         super().__init__(**kwargs)
-        self.storage_only = data_source.get("storage-only")
+        self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
 
         # Existing schema will start with acct and we strip that prefix for use later
@@ -205,7 +205,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_dict = {}
         report_dict = {}
         if self.storage_only and not self.ingress_reports:
-            LOG.info("Skipping ingest as source is storage-only and requires ingress reports")
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
             return report_dict
         manifest, manifest_timestamp = self._get_manifest(date)
         if manifest == {}:

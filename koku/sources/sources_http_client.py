@@ -43,12 +43,12 @@ ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
 APP_OPT_EXTRA_FEILD_MAP = {
     Provider.PROVIDER_OCP: [],
-    Provider.PROVIDER_AWS: ["storage-only"],
-    Provider.PROVIDER_AWS_LOCAL: ["storage-only"],
-    Provider.PROVIDER_AZURE: ["scope", "export_name", "storage-only"],
-    Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage-only"],
-    Provider.PROVIDER_GCP: ["storage-only"],
-    Provider.PROVIDER_GCP_LOCAL: ["storage-only"],
+    Provider.PROVIDER_AWS: ["storage_only"],
+    Provider.PROVIDER_AWS_LOCAL: ["storage_only"],
+    Provider.PROVIDER_AZURE: ["scope", "export_name", "storage_only"],
+    Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage_only"],
+    Provider.PROVIDER_GCP: ["storage_only"],
+    Provider.PROVIDER_GCP_LOCAL: ["storage_only"],
     Provider.PROVIDER_OCI: [],
     Provider.PROVIDER_OCI_LOCAL: [],
 }

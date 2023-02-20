@@ -160,7 +160,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
-        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage-only": True}
+        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage_only": True}
         self.ingress_reports = [f"{self.fake_bucket_name}/test_report_file.csv"]
 
         self.report_downloader = ReportDownloader(

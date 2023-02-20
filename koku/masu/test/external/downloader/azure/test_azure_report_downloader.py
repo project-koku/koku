@@ -128,7 +128,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.storage_only_data_source = {
             "resource_group": "group-test",
             "storage_account": "account-test",
-            "storage-only": True,
+            "storage_only": True,
         }
 
         self.downloader = AzureReportDownloader(
@@ -182,7 +182,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         report_dict = self.storage_only_downloader.get_manifest_context_for_date(self.mock_data.test_date)
         self.assertEqual(report_dict, {})
         call_arg = mock_log.info.call_args.args[0]
-        self.assertTrue("Skipping ingest as source is storage-only and requires ingress reports" in call_arg)
+        self.assertTrue("Skipping ingest as source is storage_only and requires ingress reports" in call_arg)
 
     def test_get_ingress_manifest(self):
         """Test that Azure ingress manifest is created."""

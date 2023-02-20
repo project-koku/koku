@@ -119,7 +119,7 @@ class AzureProvider(ProviderInterface):
 
         self._verify_patch_entries(subscription_id, resource_group, storage_account, scope, export_name)
 
-        storage_only = data_source.get("storage-only")
+        storage_only = data_source.get("storage_only")
         if storage_only:
             # Limited storage access
             return True

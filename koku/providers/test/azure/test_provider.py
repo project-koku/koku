@@ -34,7 +34,7 @@ class AzureProviderTestCase(TestCase):
                     "data_source": {
                         "resource_group": FAKE.word(),
                         "storage_account": FAKE.word(),
-                        "storage-only": True,
+                        "storage_only": True,
                     }
                 },
                 "authentication": {
@@ -186,7 +186,7 @@ class AzureProviderTestCase(TestCase):
                 "client_id": FAKE.uuid4(),
                 "client_secret": FAKE.word(),
             }
-            data_source = {"resource_group": FAKE.word(), "storage_account": FAKE.word(), "storage-only": True}
+            data_source = {"resource_group": FAKE.word(), "storage_account": FAKE.word(), "storage_only": True}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
