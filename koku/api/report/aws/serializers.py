@@ -133,7 +133,14 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
+        validate_field(
+            self,
+            "group_by",
+            self.GROUP_BY_SERIALIZER,
+            value,
+            tag_keys=self.tag_keys,
+            aws_category_keys=self.aws_category_keys,
+        )
         # Org unit id validation
         group_by_params = self.initial_data.get("group_by", {})
         org_unit_group_keys = ["org_unit_id", "or:org_unit_id"]
