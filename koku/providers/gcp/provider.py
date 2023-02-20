@@ -3,6 +3,7 @@ import logging
 
 import google.auth
 from google.cloud import bigquery
+from google.cloud import storage
 from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.exceptions import NotFound
@@ -28,6 +29,10 @@ REQUIRED_IAM_PERMISSIONS = [
 
 RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"
 NON_RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export"
+
+
+class GCPReportExistsError(Exception):
+    """GCP Report Exists error."""
 
 
 class GCPProvider(ProviderInterface):
@@ -98,7 +103,7 @@ class GCPProvider(ProviderInterface):
             message = f"Invalid Dataset ID: {str(data_source.get('dataset'))}"
             raise serializers.ValidationError(error_obj(key, message))
 
-    def cost_usage_source_is_reachable(self, credentials, data_source):
+    def cost_usage_source_is_reachable(self, credentials, data_source):  # noqa: C901
         """
         Verify that the GCP bucket exists and is reachable.
 
@@ -107,8 +112,23 @@ class GCPProvider(ProviderInterface):
             data_source (dict): not used; only present for interface compatibility
 
         """
+        project = credentials.get("project_id", "")
+        storage_only = data_source.get("storage_only")
+        if storage_only:
+            # Limited bucket access without CUR
+            bucket = data_source.get("bucket")
+            if not bucket:
+                key = ProviderErrors.GCP_BUCKET_MISSING
+                message = "Bucket required for storage only reports"
+                raise serializers.ValidationError(error_obj(key, message))
+            try:
+                storage_client = storage.Client(project)
+                storage_client.get_bucket(bucket)
+            except GoogleCloudError as e:
+                key = "data_source.bucket"
+                raise serializers.ValidationError(error_obj(key, e.message))
+            return True
         try:
-            project = credentials.get("project_id", "")
             gcp_credentials, _ = google.auth.default()
             # https://github.com/googleapis/google-api-python-client/issues/299
             service = discovery.build("cloudresourcemanager", "v1", credentials=gcp_credentials, cache_discovery=False)
@@ -147,3 +167,28 @@ class GCPProvider(ProviderInterface):
     def infra_key_list_implementation(self, infrastructure_type, schema_name):
         """Return a list of cluster ids on the given infrastructure type."""
         return []
+
+    def is_file_reachable(self, source, reports_list):
+        """Verify that report files are accessible in GCP."""
+        project_id = source.authentication.credentials.get("project_id")
+        bucket = source.billing_source.data_source.get("bucket")
+        for report in reports_list:
+            try:
+                storage_client = storage.Client(project_id)
+                bucket_client = storage_client.get_bucket(bucket)
+                blob = bucket_client.blob(report)
+                if blob.exists():
+                    continue
+                else:
+                    key = ProviderErrors.GCP_REPORT_NOT_FOUND
+                    internal_message = f"File {report} could not be found within bucket {bucket}."
+                    raise serializers.ValidationError(error_obj(key, internal_message))
+            except GoogleCloudError as err:
+                err_msg = (
+                    "Could connect to GCP storage client."
+                    f"\n  Provider: {source.uuid}"
+                    f"\n  Response: {err.message}"
+                )
+                LOG.warning(err_msg)
+                raise GCPReportExistsError(err_msg)
+        return True

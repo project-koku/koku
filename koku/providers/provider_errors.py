@@ -33,6 +33,8 @@ class ProviderErrors:
     AZURE_CLIENT_ERROR = "azure.exception"
 
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
+    GCP_BUCKET_MISSING = "gcp.billing_source.bucket.missing"
+    GCP_REPORT_NOT_FOUND = "billing_source.bucket.noreportfound"
 
     OCI_NO_REPORT_FOUND = "billing_source.bucket.noreportfound"
     OCI_REGION_NOT_SUPPORTED = "billing_source.bucket_region.notsupported"

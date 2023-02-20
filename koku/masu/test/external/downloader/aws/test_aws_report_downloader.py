@@ -160,7 +160,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
-        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage-only": True}
+        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage_only": True}
         self.ingress_reports = [f"{self.fake_bucket_name}/test_report_file.csv"]
 
         self.report_downloader = ReportDownloader(
@@ -188,7 +188,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "provider_uuid": self.aws_provider_uuid,
             }
         )
-        self.aws_ingresss_report_downloader = AWSReportDownloader(
+        self.aws_ingress_report_downloader = AWSReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
@@ -639,5 +639,5 @@ class AWSReportDownloaderTest(MasuTestCase):
         }
         mock_pseudo_manifest.return_value = expected_manifest_data
 
-        result_manifest = self.aws_ingresss_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
+        result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)

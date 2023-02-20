@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources HTTP Client."""
+import logging
 from base64 import b64encode
 from itertools import product
 from unittest.mock import patch
@@ -29,6 +30,8 @@ from sources.sources_http_client import ENDPOINT_SOURCES
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+
+LOG = logging.getLogger(__name__)
 
 faker = Faker()
 COST_MGMT_APP_TYPE_ID = 2
@@ -236,8 +239,8 @@ class SourcesHTTPClientTest(TestCase):
             },
             {
                 "source-type": Provider.PROVIDER_AWS,
-                "json": {"extra": {"bucket": bucket, "storage-only": True}},
-                "expected": {"bucket": bucket, "storage-only": True},
+                "json": {"extra": {"bucket": bucket, "storage_only": True}},
+                "expected": {"bucket": bucket, "storage_only": True},
             },
             {
                 "source-type": Provider.PROVIDER_AZURE,
@@ -257,6 +260,11 @@ class SourcesHTTPClientTest(TestCase):
                 "source-type": Provider.PROVIDER_GCP,
                 "json": {"extra": {"dataset": dataset}},
                 "expected": {"dataset": dataset},
+            },
+            {
+                "source-type": Provider.PROVIDER_GCP,
+                "json": {"extra": {"bucket": bucket, "storage_only": True}},
+                "expected": {"bucket": bucket, "storage_only": True},
             },
         ]
         for test in table:
@@ -302,7 +310,11 @@ class SourcesHTTPClientTest(TestCase):
                         status_code=200,
                         json={"data": json},
                     )
-                    if source_type == Provider.PROVIDER_OCP:  # ocp should always return empty dict
+                    if source_type in [
+                        Provider.PROVIDER_OCP,
+                        Provider.PROVIDER_GCP,
+                        Provider.PROVIDER_GCP_LOCAL,
+                    ]:  # ocp/gcp may return empty dict
                         self.assertDictEqual(client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID), {})
                     else:
                         with self.assertRaises(SourcesHTTPClientError):
