@@ -201,14 +201,26 @@ class AzureProvider(ProviderInterface):
         tenant_id = source.authentication.credentials.get("tenant_id")
         client_id = source.authentication.credentials.get("client_id")
         client_secret = source.authentication.credentials.get("client_secret")
-        azure_client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-        storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
-
-        for report in reports_list:
-            container_name = report.split("/")[0]
-            report_key = report.split(f"{container_name}/")[-1]
-            blob_client = storage_client.get_blob_client(container_name, report_key)
-            if not blob_client.exists():
-                internal_message = f"File {report_key} could not be found within container {container_name}."
-                key = ProviderErrors.AZURE_REPORT_NOT_FOUND
-                raise serializers.ValidationError(error_obj(key, internal_message))
+        try:
+            azure_client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
+            storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
+            for report in reports_list:
+                container_name = report.split("/")[0]
+                report_key = report.split(f"{container_name}/")[-1]
+                blob_client = storage_client.get_blob_client(container_name, report_key)
+                if not blob_client.exists():
+                    internal_message = f"File {report_key} could not be found within container {container_name}."
+                    key = ProviderErrors.AZURE_REPORT_NOT_FOUND
+                    raise serializers.ValidationError(error_obj(key, internal_message))
+        except (
+            AdalError,
+            AzureError,
+            AzureException,
+            AzureServiceError,
+            ClientException,
+            HttpResponseError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            key = ProviderErrors.AZURE_CLIENT_ERROR
+            raise ValidationError(error_obj(key, str(exc)))

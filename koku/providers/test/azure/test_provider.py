@@ -47,6 +47,7 @@ class AzureProviderTestCase(TestCase):
                 },
             }
         )
+        self.files = ["test_file.csv"]
 
     def test_name(self):
         """Test name property."""
@@ -190,3 +191,19 @@ class AzureProviderTestCase(TestCase):
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_is_file_reachable_valid(self, mock_azure_client):
+        """Test that ingress file is reachable."""
+        provider_interface = AzureProvider()
+        provider_interface.is_file_reachable(self.source, self.files)
+        mock_azure_client.cloud_storage_account.get_blob_client.assert_called
+
+    @patch("providers.azure.client.AzureClientFactory")
+    def test_is_file_reachable_authentication_error(self, mock_azure_client):
+        """Test ingress file check azure authentication error."""
+        err_msg = "Azure Error"
+        mock_azure_client.side_effect = AzureException(err_msg)
+        with self.assertRaises(ValidationError):
+            provider_interface = AzureProvider()
+            provider_interface.is_file_reachable(self.source, self.files)
