@@ -170,34 +170,17 @@ WHERE not exists (
 
 
 -- )
-WITH cte_distinct_pod_label_keys AS (
-    SELECT key
-    FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary
-    GROUP BY key
-),
-cte_distinct_volume_label_keys AS (
-    SELECT key
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary
-    GROUP BY key
-),
-cte_distinct_value_keys AS (
-    SELECT key
-    FROM {{schema | sqlsafe}}.reporting_ocptags_values
-    GROUP BY key
-),
-cte_keys_to_delete AS (
-    SELECT vk.key
-    FROM cte_distinct_value_keys AS vk
-    LEFT JOIN cte_distinct_pod_label_keys AS plk
-        ON vk.key = plk.key
-    LEFT JOIN cte_distinct_volume_label_keys AS vlk
-        ON vk.key = vlk.key
-    WHERE plk.key IS NULL
-        AND vlk.key IS NULL
-)
 DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values tv
-    USING cte_keys_to_delete ktd
-    WHERE tv.key = ktd.key
+WHERE NOT EXISTS (
+          SELECT 1
+            FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS pls
+           WHERE pls.key = tv.key
+      )
+  AND NOT EXISTS (
+          SELECT 1
+            FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS vls
+           WHERE vls.key = tv.key
+      )
 ;
 
 
