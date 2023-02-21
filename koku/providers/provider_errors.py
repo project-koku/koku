@@ -23,6 +23,7 @@ class ProviderErrors:
     AWS_ROLE_ARN_UNREACHABLE = "authentication.role_arn.unreachable"
     AWS_BUCKET_MISSING = "billing_source.bucket.missing"
     AWS_BILLING_SOURCE_NOT_FOUND = "billing_source.bucket.notfound"
+    AWS_REPORT_NOT_FOUND = "report.notfound"
 
     AZURE_MISSING_PATCH = "azure.missing.patch"
     AZURE_MISSING_DATA_SOURCE = "billing_source.data_source.missing"

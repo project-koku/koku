@@ -476,7 +476,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
-        self, source_uuid, start_date, end_date, filters, table=None
+        self, source_uuid, start_date, end_date, filters, null_filters=None, table=None
     ):
 
         if table is None:
@@ -494,6 +494,9 @@ class ReportDBAccessorBase(KokuDBAccess):
             sql += "\n".join(filter_list)
         else:
             filters = {}
+        if null_filters:
+            filter_list = [f"AND {column} {null_filter}" for column, null_filter in null_filters.items()]
+            sql += "\n".join(filter_list)
         filters["start_date"] = start_date
         filters["end_date"] = end_date
 

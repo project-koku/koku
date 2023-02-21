@@ -516,7 +516,8 @@ def match_openshift_labels(tag_dict, matched_tags):
 
 def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
     """Given a monthly rate, determine the per-day amortized rate."""
+    if monthly_rate is None:
+        return None
 
     days_in_month = dh().days_in_month(start_date)
-
     return Decimal(monthly_rate) / days_in_month

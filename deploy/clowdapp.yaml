@@ -96,6 +96,8 @@ objects:
             resourceFieldRef:
               containerName: koku-clowder-api
               resource: limits.cpu
+        - name: GUNICORN_WORKERS
+          value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
         - name: ACCOUNT_ENHANCED_METRICS
@@ -2677,6 +2679,9 @@ parameters:
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
+- displayName: Gunicorn worker count
+  name: GUNICORN_WORKERS
+  value: "3"
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"

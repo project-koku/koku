@@ -235,6 +235,11 @@ class SourcesHTTPClientTest(TestCase):
                 "expected": {"bucket": bucket},
             },
             {
+                "source-type": Provider.PROVIDER_AWS,
+                "json": {"extra": {"bucket": bucket, "storage-only": True}},
+                "expected": {"bucket": bucket, "storage-only": True},
+            },
+            {
                 "source-type": Provider.PROVIDER_AZURE,
                 "json": {
                     "extra": {

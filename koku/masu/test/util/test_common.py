@@ -243,6 +243,23 @@ class CommonUtilTests(MasuTestCase):
         )
         self.assertEqual(path, expected_path)
 
+        # Test with partition daily
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = self.aws_provider_uuid
+        start_date = datetime.utcnow().date()
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        day = start_date.strftime("%d")
+        expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}/daily"
+        expected_path = (
+            f"{expected_path_prefix}/{account}/{provider_type}/"
+            f"source={provider_uuid}/year={year}/month={month}/day={day}"
+        )
+        path = common_utils.get_path_prefix(
+            account, provider_type, provider_uuid, start_date, "parquet", daily=True, partition_daily=True
+        )
+        self.assertEqual(path, expected_path)
+
     def test_get_hive_table_path(self):
         """Test that we resolve the path for a Hive table."""
         account = "10001"
@@ -532,6 +549,14 @@ class CommonUtilTests(MasuTestCase):
         account_str = "org1234567"
         account = common_utils.convert_account(account_str)
         self.assertEqual(account_str, account)
+
+    def test_filter_dictionary(self):
+        """Test the filter dictionary util."""
+        test_dictionary = {"good_key": "good_value", "bad_key": "bad_value"}
+        keys_to_keep = ["good_key"]
+        expected = {"good_key": "good_value"}
+        result = common_utils.filter_dictionary(test_dictionary, keys_to_keep)
+        self.assertEqual(result, expected)
 
 
 class NamedTemporaryGZipTests(TestCase):

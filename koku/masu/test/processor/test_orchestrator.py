@@ -264,6 +264,18 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
+    def test_prepare_w_ingress_reports_processing_successful(self, mock_task, mock_labeler, mock_inspect):
+        """Test that Orchestrator.prepare() works when manifest processing is successful."""
+        mock_labeler().get_label_details.return_value = (True, True)
+        ingress_reports = ["test"]
+
+        orchestrator = Orchestrator(ingress_reports=ingress_reports)
+        orchestrator.prepare()
+        mock_labeler.assert_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
     @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
     def test_prepare_w_no_manifest_found(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() is skipped when no manifest is found."""

@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 from dateutil import parser
 from django.conf import settings
+from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -32,6 +33,7 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
+from masu.util.common import CSV_REQUIRED_COLUMNS
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_generate_daily_data
@@ -75,7 +77,9 @@ class ParquetReportProcessorError(Exception):
 class ParquetReportProcessor:
     """Parquet report processor."""
 
-    def __init__(self, schema_name, report_path, provider_uuid, provider_type, manifest_id, context={}):
+    def __init__(
+        self, schema_name, report_path, provider_uuid, provider_type, manifest_id, context={}, ingress_reports=None
+    ):
         """initialize report processor."""
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
@@ -89,6 +93,7 @@ class ParquetReportProcessor:
             self.invoice_month_date = DateHelper().invoice_month_start(self.invoice_month).date()
         self.presto_table_exists = {}
         self.files_to_remove = []
+        self.ingress_reports = ingress_reports
 
     @property
     def schema_name(self):
@@ -405,14 +410,14 @@ class ParquetReportProcessor:
             LOG.warn(log_json(self.tracing_id, msg, self.error_context))
         return parquet_base_filename, daily_data_frames
 
-    def create_parquet_table(self, parquet_file, daily=False):
+    def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
         processor = self._set_report_processor(parquet_file, daily=daily)
         bill_date = self.start_date.replace(day=1)
         if not processor.schema_exists():
             processor.create_schema()
         if not processor.table_exists():
-            processor.create_table()
+            processor.create_table(partition_map=partition_map)
         if not daily:
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
@@ -436,6 +441,10 @@ class ParquetReportProcessor:
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
+            if self.ingress_reports:
+                if not set(col_names).issuperset(set(CSV_REQUIRED_COLUMNS.get(self._provider_type))):
+                    message = "Invalid report file, required column names missing from file."
+                    raise ValidationError(message, code="Missing_columns")
             csv_converters = {
                 col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
             }
@@ -514,10 +523,11 @@ class ParquetReportProcessor:
                     self.account,
                     self.provider_type,
                     self.provider_uuid,
-                    start_of_invoice,
+                    self.start_date,
                     Config.PARQUET_DATA_TYPE,
                     report_type=self.report_type,
                     daily=True,
+                    partition_daily=True,
                 )
             else:
                 return get_path_prefix(
@@ -526,7 +536,7 @@ class ParquetReportProcessor:
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
-        if self._provider_type == Provider.PROVIDER_GCP:
+        if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             # We need to determine the parquet file path based off
             # of the start of the invoice month and usage start for GCP.
             s3_path = self._determin_s3_path_for_gcp(file_type, file_name)

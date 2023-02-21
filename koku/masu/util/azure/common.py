@@ -8,6 +8,8 @@ import json
 import logging
 import re
 import uuid
+from enum import Enum
+from itertools import chain
 
 import ciso8601
 import numpy as np
@@ -23,6 +25,12 @@ from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.azure.models import PRESTO_COLUMNS
 
 LOG = logging.getLogger(__name__)
+
+
+class AzureBlobExtension(Enum):
+    manifest = "_manifest.json"
+    csv = ".csv"
+    json = ".json"
 
 
 def extract_uuids_from_string(source_string):
@@ -186,11 +194,13 @@ def azure_generate_daily_data(data_frame):
     return data_frame
 
 
-def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
+def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
-    nodes = cluster_topology.get("nodes", [])
-    volumes = cluster_topology.get("persistent_volumes", [])
-    matchable_resources = nodes + volumes
+    nodes = chain.from_iterable(cluster_topology.get("nodes", []) for cluster_topology in cluster_topologies)
+    volumes = chain.from_iterable(
+        cluster_topology.get("persistent_volumes", []) for cluster_topology in cluster_topologies
+    )
+    matchable_resources = list(nodes) + list(volumes)
     resource_id_df = data_frame["resourceid"]
     if resource_id_df.isna().values.all():
         resource_id_df = data_frame["instanceid"]

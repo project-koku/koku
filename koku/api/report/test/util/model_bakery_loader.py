@@ -9,7 +9,6 @@ from datetime import datetime
 from datetime import timedelta
 from itertools import cycle
 from itertools import product
-from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
@@ -371,18 +370,14 @@ class ModelBakeryDataLoader(DataLoader):
             )
             update_cost_category(self.schema)
             for date in self.dates:
-                with patch(
-                    "masu.processor.ocp.ocp_cost_model_cost_updater.enable_ocp_amortized_monthly_cost",
-                    return_value=True,
-                ):
-                    update_cost_model_costs(
-                        self.schema,
-                        provider.uuid,
-                        date[0],
-                        date[1],
-                        tracing_id="12345",
-                        synchronous=True,
-                    )
+                update_cost_model_costs(
+                    self.schema,
+                    provider.uuid,
+                    date[0],
+                    date[1],
+                    tracing_id="12345",
+                    synchronous=True,
+                )
             accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
 
         populate_ocp_topology(self.schema, provider, cluster_id)

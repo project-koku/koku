@@ -18,7 +18,7 @@ from masu.processor.report_processor import ReportProcessorError
 LOG = logging.getLogger(__name__)
 
 
-def _process_report_file(schema_name, provider, report_dict):
+def _process_report_file(schema_name, provider, report_dict, ingress_reports=None):
     """
     Task to process a Report.
 
@@ -64,6 +64,7 @@ def _process_report_file(schema_name, provider, report_dict):
             provider_uuid=provider_uuid,
             manifest_id=manifest_id,
             context=report_dict,
+            ingress_reports=ingress_reports,
         )
 
         processor.process()

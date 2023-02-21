@@ -514,6 +514,7 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
             models.Index(fields=["node"], name="p_cost_prj_sum_nd_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="p_cost_prj_sum_rsrc_idx"),
             GinIndex(fields=["pod_labels"], name="p_cost_prj_pod_lbls_idx"),
+            GinIndex(fields=["aws_cost_category"], name="aws_cost_category_idx"),
             models.Index(fields=["product_family"], name="p_ocpaws_prj_prd_fam_idx"),
             models.Index(fields=["instance_type"], name="p_ocpaws_prj_inst_typ_idx"),
         ]
@@ -559,5 +560,6 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)  # this field is no longer used
     tags = JSONField(null=True)
+    aws_cost_category = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)

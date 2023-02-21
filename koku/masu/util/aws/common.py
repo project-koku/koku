@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import uuid
+from itertools import chain
 
 import boto3
 import ciso8601
@@ -499,9 +500,12 @@ def aws_generate_daily_data(data_frame):
     return daily_data_frame
 
 
-def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
+def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
-    resource_ids = tuple(cluster_topology.get("resource_ids", []))
+    resource_ids = chain.from_iterable(
+        cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies
+    )
+    resource_ids = tuple(resource_ids)
     resource_id_df = data_frame["lineitem_resourceid"]
 
     LOG.info("Matching OpenShift on AWS by resource ID.")
