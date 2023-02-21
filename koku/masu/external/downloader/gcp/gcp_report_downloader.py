@@ -90,7 +90,7 @@ def create_daily_archives(
                 s3_csv_path = get_path_prefix(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
-                day_file = f"{invoice_month}_{file_name}"
+                day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -353,6 +353,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report (str): name of GCP storage blob
 
         """
+        if self.ingress_reports:
+            report = report.split("/")[-1]
         return report
 
     def build_query_select_statement(self):
@@ -521,7 +523,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 file_names - (list): list of filenames.
         """
         manifest_data = {
-            "assembly_id": uuid.uuid4(),
+            "assembly_id": f"{date.strftime('%Y-%m-%d')}|{uuid.uuid4()}",
             "compression": UNCOMPRESSED,
             "start_date": date,
             "files": self.ingress_reports,
