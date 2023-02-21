@@ -32,7 +32,7 @@ from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
-from api.report.queries import strip_tag_prefix
+from api.report.queries import strip_key_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
@@ -2152,7 +2152,7 @@ class AWSReportQueryTest(IamTestCase):
     def test_strip_tag_prefix(self):
         """Verify that our tag prefix is stripped from a string."""
         tag_str = "tag:project"
-        result = strip_tag_prefix(tag_str)
+        result = strip_key_prefix(tag_str)
         self.assertEqual(result, tag_str.replace("tag:", ""))
 
     def test_execute_query_with_wildcard_tag_filter(self):

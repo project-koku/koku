@@ -46,11 +46,6 @@ from api.query_handler import QueryHandler
 LOG = logging.getLogger(__name__)
 
 
-def strip_tag_prefix(tag):
-    """Remove the query tag prefix from a tag key."""
-    return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
-
-
 def strip_key_prefix(key, prefix="tag:"):
     """Remove the query prefix from a key."""
     return key.replace(prefix, "").replace("and:", "").replace("or:", "")
@@ -439,7 +434,7 @@ class ReportQueryHandler(QueryHandler):
         tag_filter_list = []
         empty_json_filter = {"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"}
         for tag in self.get_tag_filter_keys(parameter_key="exclude"):
-            tag_db_name = self._mapper.tag_column + "__" + strip_tag_prefix(tag)
+            tag_db_name = self._mapper.tag_column + "__" + strip_key_prefix(tag)
             list_ = self.parameters.get_exclude(tag, list())
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 tag_filter_list.append({"field": tag_db_name, "operation": "noticontainslist", "parameter": list_})
@@ -529,14 +524,14 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = [tag for tag in tag_filters if "and:" not in tag and "or:" not in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
-            tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
+            tag_db_name = tag_column + "__" + strip_key_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(tag, list())
             filter_ = self.parameters.get_filter(tag, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if filter_ and ReportQueryHandler.has_wildcard(filter_):
                 filt = {"field": tag_column, "operation": "has_key"}
-                q_filter = QueryFilter(parameter=strip_tag_prefix(tag), **filt)
+                q_filter = QueryFilter(parameter=strip_key_prefix(tag), **filt)
                 filters.add(q_filter)
             elif list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
@@ -599,7 +594,7 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = [tag for tag in tag_filters if operator + ":" in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
-            tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
+            tag_db_name = tag_column + "__" + strip_key_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(tag, list())
             filter_ = self.parameters.get_filter(tag, list())
@@ -727,7 +722,7 @@ class ReportQueryHandler(QueryHandler):
         tag_column = self._mapper.tag_column
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
+            tag_db_name = tag_column + "__" + strip_key_prefix(tag)
             group_data = self.parameters.get_group_by(tag)
             if group_data:
                 tag = quote_plus(tag)
