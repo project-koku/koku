@@ -37,7 +37,7 @@ def enabled_tags(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         with schema_context(schema_name):
-            enabled_tags = OCPEnabledTagKeys.objects.all()
+            enabled_tags = OCPEnabledTagKeys.objects.filter(enabled=True).all()
             tag_keys = [tag.key for tag in enabled_tags]
 
         msg = f"Retreived enabled tags {tag_keys} for schema: {schema_name}."
@@ -63,13 +63,17 @@ def enabled_tags(request):
         with schema_context(schema_name):
             if action.lower() == "create":
                 for key in tag_keys:
-                    OCPEnabledTagKeys.objects.get_or_create(key=key)
-                msg = f"Inserted enabled tags for schema: {schema_name}."
+                    tag_key_to_enable, _ = OCPEnabledTagKeys.objects.get_or_create(key=key)
+                    tag_key_to_enable.enabled = True
+                    tag_key_to_enable.save()
+                msg = f"Enabled tags for schema: {schema_name}."
                 LOG.info(msg)
             if action.lower() == "delete":
                 for key in tag_keys:
-                    OCPEnabledTagKeys.objects.filter(key=key).delete()
-                msg = f"Deleted enabled tags for schema: {schema_name}."
+                    enabled_tag_key = OCPEnabledTagKeys.objects.filter(key=key).first()
+                    enabled_tag_key.enabled = False
+                    enabled_tag_key.save()
+                msg = f"Disabled tags for schema: {schema_name}."
                 LOG.info(msg)
 
         return Response({RESPONSE_KEY: tag_keys})
