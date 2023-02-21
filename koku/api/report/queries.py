@@ -250,10 +250,14 @@ class ReportQueryHandler(QueryHandler):
             `.exclude`. Django adds "IS NOT NULL" when using `.exclude` which removes
             the `no-{option}` results.
         """
-        filter_collection = self._set_tag_filters(filter_collection)
-        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and")
-        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or")
-        tag_exclusion_composed = self._set_tag_exclusion_filters()
+        filter_collection = self._build_prefix_filters(filter_collection, "tag:", self._mapper.tag_column)
+        filter_collection = self._set_operator_specified_prefix_filters(
+            filter_collection, "tag:", self._mapper.tag_column, "and"
+        )
+        filter_collection = self._set_operator_specified_prefix_filters(
+            filter_collection, "tag:", self._mapper.tag_column, "or"
+        )
+        tag_exclusion_composed = self._build_prefixed_exclusions("tag:", self._mapper.tag_column)
         if self.is_aws and not self.is_openshift:
             category_column = "cost_category"
         elif self.is_aws and self.is_openshift:
@@ -262,14 +266,14 @@ class ReportQueryHandler(QueryHandler):
             category_column = None
             aws_category_exclusion_composed = None
         if category_column:
-            filter_collection = self._set_aws_category_filters(filter_collection, category_column)
-            filter_collection = self._set_operator_specified_aws_category_filters(
-                filter_collection, "and", category_column
+            filter_collection = self._build_prefix_filters(filter_collection, "aws_category:", category_column)
+            filter_collection = self._set_operator_specified_prefix_filters(
+                filter_collection, "aws_category:", category_column, "and"
             )
-            filter_collection = self._set_operator_specified_aws_category_filters(
-                filter_collection, "or", category_column
+            filter_collection = self._set_operator_specified_prefix_filters(
+                filter_collection, "aws_category:", category_column, "or"
             )
-            aws_category_exclusion_composed = self._set_aws_category_exclusion_filters(category_column)
+            aws_category_exclusion_composed = self._build_prefixed_exclusions("aws_category:", category_column)
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
@@ -417,8 +421,11 @@ class ReportQueryHandler(QueryHandler):
 
         return filters.compose(logical_operator="or")
 
-    def _set_tag_exclusion_filters(self):
-        """Creates exclusion fitlers for tags that allow null returns.
+    def _build_prefixed_exclusions(self, prefix, db_column):
+        """Creates exclusion fitlers for prefixed parameter keys
+        that allow null returns.
+
+        prefixed parameters keys: (tag:, aws_category:)
 
         Notes:
         Null filters are added to create the no-{key} in the api return.
@@ -427,111 +434,85 @@ class ReportQueryHandler(QueryHandler):
         key values.
 
         noticontainslist is a custom django lookup we wrote to handle
-        tag exclusions.
+        prefixed exclusions.
         """
-        OCP_LIST = [Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_ALL, Provider.OCP_GCP, Provider.PROVIDER_OCP]
+        prefix_to_ocp_mapping = {
+            "tag:": {
+                "ocp_list": [
+                    Provider.OCP_AWS,
+                    Provider.OCP_AZURE,
+                    Provider.OCP_ALL,
+                    Provider.OCP_GCP,
+                    Provider.PROVIDER_OCP,
+                ],
+                "key_function": "get_tag_filter_keys",
+            },
+            "aws_category:": {"ocp_list": [Provider.OCP_AWS], "key_function": "get_aws_category_keys"},
+        }
         null_collections = QueryFilterCollection()
-        tag_filter_list = []
-        empty_json_filter = {"field": self._mapper.tag_column, "operation": "exact", "parameter": "{}"}
-        for tag in self.get_tag_filter_keys(parameter_key="exclude"):
-            tag_db_name = self._mapper.tag_column + "__" + strip_key_prefix(tag)
-            list_ = self.parameters.get_exclude(tag, list())
+        _filter_list = []
+        empty_json_filter = {"field": db_column, "operation": "exact", "parameter": "{}"}
+        key_function = prefix_to_ocp_mapping[prefix]["key_function"]
+        for exclude_key in getattr(self, key_function)("exclude"):
+            exclude_db_name = db_column + "__" + strip_key_prefix(exclude_key, prefix)
+            list_ = self.parameters.get_exclude(exclude_key, list())
             if list_ and not ReportQueryHandler.has_wildcard(list_):
-                tag_filter_list.append({"field": tag_db_name, "operation": "noticontainslist", "parameter": list_})
-                null_collections.add(QueryFilter(**{"field": tag_db_name, "operation": "isnull", "parameter": True}))
-        null_composed = null_collections.compose()
-        if self.provider and self.provider in OCP_LIST:
-            # For OCP tables we need to use the AND operator because the two tag keys are found
-            # in the same json structure per row.
-            tag_exclusion_composed = None
-            for tag_filt in tag_filter_list:
-                tag_filt_composed = QueryFilterCollection([QueryFilter(**tag_filt)]).compose()
-                if not tag_exclusion_composed:
-                    tag_exclusion_composed = tag_filt_composed
-                else:
-                    tag_exclusion_composed = tag_exclusion_composed & tag_filt_composed
-            if tag_exclusion_composed:
-                tag_exclusion_composed = (
-                    tag_exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
-                )
-        else:
-            if tag_filter_list:
-                tag_filter_list.append(empty_json_filter)
-            # We use OR here for our non ocp tables because the tag keys will not live in the
-            # same json structure.
-            tag_exclusion_composed = self._set_or_filters(tag_filter_list)
-        if tag_exclusion_composed and null_composed:
-            tag_exclusion_composed = tag_exclusion_composed | null_composed
-        return tag_exclusion_composed
-
-    def _set_aws_category_exclusion_filters(self, category_column):
-        """Creates exclusion fitlers for tags that allow null returns.
-
-        Notes:
-        Null filters are added to create the no-{key} in the api return.
-        They are added as a separate QueryFilterCollection because we need
-        the nulls to be AND together in order to handle different tag
-        key values.
-
-        noticontainslist is a custom django lookup we wrote to handle
-        aws_category exclusions.
-        """
-        OCP_LIST = [Provider.OCP_AWS]
-        null_collections = QueryFilterCollection()
-        aws_category_filter_list = []
-        empty_json_filter = {"field": category_column, "operation": "exact", "parameter": "{}"}
-        for aws_category in self.get_aws_category_keys(parameter_key="exclude"):
-            aws_category_db_name = category_column + "__" + strip_key_prefix(aws_category, "aws_category:")
-            list_ = self.parameters.get_exclude(aws_category, list())
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
-                aws_category_filter_list.append(
-                    {"field": aws_category_db_name, "operation": "noticontainslist", "parameter": list_}
-                )
+                _filter_list.append({"field": exclude_db_name, "operation": "noticontainslist", "parameter": list_})
                 null_collections.add(
-                    QueryFilter(**{"field": aws_category_db_name, "operation": "isnull", "parameter": True})
+                    QueryFilter(**{"field": exclude_db_name, "operation": "isnull", "parameter": True})
                 )
         null_composed = null_collections.compose()
-        if self.provider and self.provider in OCP_LIST:
-            # For OCP tables we need to use the AND operator because the two tag keys are found
-            # in the same json structure per row.
-            aws_cateogry_composed = None
-            for aws_catgory_filt in aws_category_filter_list:
-                aws_catgory_filt_composed = QueryFilterCollection([QueryFilter(**aws_catgory_filt)]).compose()
-                if not aws_cateogry_composed:
-                    aws_cateogry_composed = aws_catgory_filt_composed
+        if self.provider and self.provider in prefix_to_ocp_mapping[prefix]["ocp_list"]:
+            # For OCP tables we need to use the AND operator because the two prefixed keys are
+            # found in the same json structure per row.
+            _exclusion_composed = None
+            for _filt in _filter_list:
+                _filt_composed = QueryFilterCollection([QueryFilter(**_filt)]).compose()
+                if not _exclusion_composed:
+                    _exclusion_composed = _filt_composed
                 else:
-                    aws_cateogry_composed = aws_cateogry_composed & aws_catgory_filt_composed
-            if aws_cateogry_composed:
-                aws_cateogry_composed = (
-                    aws_cateogry_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
+                    _exclusion_composed = _exclusion_composed & _filt_composed
+            if _exclusion_composed:
+                _exclusion_composed = (
+                    _exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
                 )
         else:
-            if aws_category_filter_list:
-                aws_category_filter_list.append(empty_json_filter)
-            # We use OR here for our non ocp tables because the tag keys will not live in the
+            if _filter_list:
+                _filter_list.append(empty_json_filter)
+            # We use OR here for our non ocp tables because the  keys will not live in the
             # same json structure.
-            aws_cateogry_composed = self._set_or_filters(aws_category_filter_list)
-        if aws_cateogry_composed and null_composed:
-            aws_cateogry_composed = aws_cateogry_composed | null_composed
-        return aws_cateogry_composed
+            _exclusion_composed = self._set_or_filters(_filter_list)
+        if _exclusion_composed and null_composed:
+            _exclusion_composed = _exclusion_composed | null_composed
+        return _exclusion_composed
 
-    def _set_tag_filters(self, filters):
-        """Create tag_filters."""
-        tag_column = self._mapper.tag_column
-        tag_filters = self.get_tag_filter_keys()
-        tag_group_by = self.get_tag_group_by_keys()
-        tag_filters.extend(tag_group_by)
-        tag_filters = [tag for tag in tag_filters if "and:" not in tag and "or:" not in tag]
-        for tag in tag_filters:
+    def _build_prefix_filters(self, filters, prefix, db_column):
+        """Create prefix filters.
+
+        filters: FilterCollection
+        prefix: param prefix eg (tag:, aws_category:)
+        db_column: column to build the filter with
+        """
+        if prefix == "tag:":
+            _filters = self.get_tag_filter_keys()
+            _group_by = self.get_tag_group_by_keys()
+        elif prefix == "aws_category:":
+            _filters = self.get_aws_category_keys("filter")
+            _group_by = self.get_aws_category_keys("group_by")
+        else:
+            return filters
+        _filters.extend(_group_by)
+        _filters = [filt for filt in _filters if "and:" not in filt and "or:" not in filt]
+        for filter in _filters:
             # Update the filter to use the label column name
-            tag_db_name = tag_column + "__" + strip_key_prefix(tag)
-            filt = {"field": tag_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(tag, list())
-            filter_ = self.parameters.get_filter(tag, list())
+            db_name = db_column + "__" + strip_key_prefix(filter, prefix)
+            filt = {"field": db_name, "operation": "icontains"}
+            group_by = self.parameters.get_group_by(filter, list())
+            filter_ = self.parameters.get_filter(filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if filter_ and ReportQueryHandler.has_wildcard(filter_):
-                filt = {"field": tag_column, "operation": "has_key"}
-                q_filter = QueryFilter(parameter=strip_key_prefix(tag), **filt)
+                filt = {"field": db_column, "operation": "has_key"}
+                q_filter = QueryFilter(parameter=strip_key_prefix(filter, prefix), **filt)
                 filters.add(q_filter)
             elif list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
@@ -539,65 +520,24 @@ class ReportQueryHandler(QueryHandler):
                     filters.add(q_filter)
         return filters
 
-    def _set_aws_category_filters(self, filters, category_column):
-        """Create aws category filters."""
-        category_filters = self.get_aws_category_keys("filter")
-        category_group_by = self.get_aws_category_keys("group_by")
-        category_filters.extend(category_group_by)
-        category_filters = [
-            aws_category
-            for aws_category in category_filters
-            if "and:" not in aws_category and "or:" not in aws_category
-        ]
-        for aws_category in category_filters:
-            # Update the filter to use the label column name
-            aws_category_db_name = category_column + "__" + strip_key_prefix(aws_category, "aws_category:")
-            filt = {"field": aws_category_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(aws_category, list())
-            filter_ = self.parameters.get_filter(aws_category, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
-            if filter_ and ReportQueryHandler.has_wildcard(filter_):
-                filt = {"field": category_column, "operation": "has_key"}
-                q_filter = QueryFilter(parameter=strip_key_prefix(aws_category, "aws_category:"), **filt)
-                filters.add(q_filter)
-            elif list_ and not ReportQueryHandler.has_wildcard(list_):
-                for item in list_:
-                    q_filter = QueryFilter(parameter=item, **filt)
-                    filters.add(q_filter)
-        return filters
-
-    def _set_operator_specified_aws_category_filters(self, filters, operator, category_column):
-        """Create operator specific category filters."""
-        category_filters = self.get_aws_category_keys("filter")
-        category_group_by = self.get_aws_category_keys("group_by")
-        category_filters.extend(category_group_by)
-        category_filters = [aws_category for aws_category in category_filters if operator + ":" in aws_category]
-        for aws_category in category_filters:
-            # Update the filter to use the label column name
-            aws_category_db_name = category_column + "__" + strip_key_prefix(aws_category, "aws_category:")
-            filt = {"field": aws_category_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(aws_category, list())
-            filter_ = self.parameters.get_filter(aws_category, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
-                for item in list_:
-                    q_filter = QueryFilter(parameter=item, logical_operator=operator, **filt)
-                    filters.add(q_filter)
-        return filters
-
-    def _set_operator_specified_tag_filters(self, filters, operator):
+    def _set_operator_specified_prefix_filters(self, filters, prefix, db_column, operator):
         """Create tag_filters."""
-        tag_column = self._mapper.tag_column
-        tag_filters = self.get_tag_filter_keys()
-        tag_group_by = self.get_tag_group_by_keys()
-        tag_filters.extend(tag_group_by)
-        tag_filters = [tag for tag in tag_filters if operator + ":" in tag]
-        for tag in tag_filters:
+        if prefix == "tag:":
+            _filters = self.get_tag_filter_keys()
+            _group_by = self.get_tag_group_by_keys()
+        elif prefix == "aws_category:":
+            _filters = self.get_aws_category_keys("filter")
+            _group_by = self.get_aws_category_keys("group_by")
+        else:
+            return filters
+        _filters.extend(_group_by)
+        _filters = [filt for filt in _filters if operator + ":" in filt]
+        for filter in _filters:
             # Update the filter to use the label column name
-            tag_db_name = tag_column + "__" + strip_key_prefix(tag)
-            filt = {"field": tag_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(tag, list())
-            filter_ = self.parameters.get_filter(tag, list())
+            _db_name = db_column + "__" + strip_key_prefix(filter, prefix)
+            filt = {"field": _db_name, "operation": "icontains"}
+            group_by = self.parameters.get_group_by(filter, list())
+            filter_ = self.parameters.get_filter(filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
