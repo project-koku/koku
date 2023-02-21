@@ -7,7 +7,9 @@ import datetime
 import json
 import logging
 import os
+import typing as t
 
+from azure.storage.blob._models import BlobProperties
 from django.conf import settings
 
 from api.common import log_json
@@ -17,6 +19,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
+from masu.external.downloader.azure.azure_service import AzureServiceError
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
@@ -108,11 +111,59 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         return service
 
+    def _get_cost_export(self, report_path: str) -> tuple[str, datetime.datetime]:
+        try:
+            cost_export_blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+        except AzureCostReportNotFound as ex:
+            msg = f"Unable to find cost export. Error: {ex}"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
+            raise AzureCostReportNotFound(msg)
+
+        report_name = cost_export_blob.name
+        last_modified = cost_export_blob.last_modified
+        LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
+
+        return report_name, last_modified
+
     def _get_exports_data_directory(self):
         """Return the path of the exports temporary data directory."""
         directory_path = f"{DATA_DIR}/{self.customer_name}/azure/{self.container_name}"
         os.makedirs(directory_path, exist_ok=True)
         return directory_path
+
+    def _get_manifest_data(self, json_manifest: BlobProperties) -> dict[str, t.Union[str, int]]:
+        """Extract the JSON data from a manifest storage object
+
+        Args:
+            json_manifest (BlobProperties): The storage blob which is a JSON manifest
+
+        Returns:
+            manifest_json (Dict): Dictionary containing the contents of the manifest file.
+
+        """
+
+        # Download the manifest and extract the list of files.
+        report_name = json_manifest.name
+        try:
+            manifest_tmp = self._azure_client.download_file(
+                report_name, self.container_name, suffix=AzureBlobExtension.json.value
+            )
+        except (AzureServiceError, AzureCostReportNotFound) as err:
+            msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
+            raise
+
+        # Extract data from the JSON file
+        try:
+            with open(manifest_tmp) as f:
+                manifest_json = json.load(f)
+        except json.JSONDecodeError as err:
+            msg = f"Unable to open JSON manifest. Reason: {err}"
+            raise AzureReportDownloaderError(msg)
+        finally:
+            self._remove_manifest_file(manifest_tmp)
+
+        return manifest_json
 
     def _get_report_path(self, date_time):
         """
@@ -129,7 +180,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = month_date_range(date_time)
         return f"{self.directory}/{self.export_name}/{report_date_range}"
 
-    def _get_manifest(self, date_time):  # noqa: C901
+    def _get_manifest(self, date_time):
         """
         Download and return the CUR manifest for the given date.
 
@@ -154,38 +205,20 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             last_modified = json_manifest.last_modified
             LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
 
-            # Download the manifest and extract the list of files.
             try:
-                manifest_tmp = self._azure_client.download_file(
-                    report_name, self.container_name, suffix=AzureBlobExtension.json.value
-                )
-            except AzureReportDownloaderError as err:
-                msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                manifest_json = self._get_manifest_data(json_manifest)
+            except (AzureServiceError, AzureCostReportNotFound, AzureReportDownloaderError):
+                # Logging of exception details is handled in called method
                 return {}, None
-
-            # Extract data from the JSON file
-            try:
-                with open(manifest_tmp) as f:
-                    manifest_json = json.load(f)
-            except json.JSONDecodeError as err:
-                msg = f"Unable to open JSON manifest. Reason: {err}"
-                raise AzureReportDownloaderError(msg)
-            finally:
-                self._remove_manifest_file(manifest_tmp)
 
             manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
         else:
             try:
-                cost_export_blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
-            except AzureCostReportNotFound as ex:
-                msg = f"Unable to find cost export. Error: {ex}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
-                return manifest, None
+                report_name, last_modified = self._get_cost_export(report_path)
+            except AzureCostReportNotFound:
+                # Logging of exception details is handled in called method
+                return {}, None
 
-            report_name = cost_export_blob.name
-            last_modified = cost_export_blob.last_modified
-            LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
             manifest["reportKeys"] = [report_name]
 
         try:

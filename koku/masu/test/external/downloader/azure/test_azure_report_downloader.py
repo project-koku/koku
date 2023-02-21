@@ -188,7 +188,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_get_manifest_json_manifest(self, mock_azure_service):
         self.downloader._get_manifest(self.mock_data.manifest_test_date)
 
-    @patch.object(MockAzureService, "download_file", side_effect=AzureReportDownloaderError)
+    @patch.object(MockAzureService, "download_file", side_effect=AzureCostReportNotFound("Raised intentionally"))
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", new_callable=MockAzureService)
     def test_get_manifest_json_manifest_not_found(self, mock_azure_service, mock_download_file):
         result = self.downloader._get_manifest(self.mock_data.manifest_test_date)
@@ -200,8 +200,9 @@ class AzureReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.azure.azure_report_downloader.json.load",
             side_effect=json.JSONDecodeError("Raised intentionally", "doc", 42),
         ):
-            with self.assertRaisesRegex(AzureReportDownloaderError, "Raised intentionally"):
-                self.downloader._get_manifest(self.mock_data.manifest_test_date)
+            result = self.downloader._get_manifest(self.mock_data.manifest_test_date)
+
+        self.assertEqual(result, ({}, None))
 
     @patch("masu.external.downloader.azure.azure_report_downloader.LOG")
     def test_get_manifest_report_not_found(self, log_mock):
