@@ -499,17 +499,16 @@ class ReportQueryHandler(QueryHandler):
         if self.provider and self.provider in OCP_LIST:
             # For OCP tables we need to use the AND operator because the two tag keys are found
             # in the same json structure per row.
-            aws_category_exclusion_composed = None
+            aws_cateogry_composed = None
             for aws_catgory_filt in aws_category_filter_list:
                 aws_catgory_filt_composed = QueryFilterCollection([QueryFilter(**aws_catgory_filt)]).compose()
-                if not aws_category_exclusion_composed:
-                    aws_category_exclusion_composed = aws_catgory_filt_composed
+                if not aws_cateogry_composed:
+                    aws_cateogry_composed = aws_catgory_filt_composed
                 else:
-                    aws_category_exclusion_composed = aws_category_exclusion_composed & aws_catgory_filt_composed
-            if aws_category_exclusion_composed:
-                aws_category_exclusion_composed = (
-                    aws_category_exclusion_composed
-                    | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
+                    aws_cateogry_composed = aws_cateogry_composed & aws_catgory_filt_composed
+            if aws_cateogry_composed:
+                aws_cateogry_composed = (
+                    aws_cateogry_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
                 )
         else:
             if aws_category_filter_list:
