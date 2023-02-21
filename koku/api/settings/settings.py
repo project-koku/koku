@@ -55,8 +55,6 @@ obtainTagKeysProvidersParams = {
         "title": "OpenShift labels",
         "leftLabel": "Available labels",
         "rightLabel": "Labels for reporting",
-        "tag_view": OCPTagView,
-        "query_handler": OCPTagQueryHandler,
         "enabled_tag_keys": OCPEnabledTagKeys,
     },
     "aws": {
@@ -64,8 +62,6 @@ obtainTagKeysProvidersParams = {
         "title": "Amazon Web Services tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "tag_view": AWSTagView,
-        "query_handler": AWSTagQueryHandler,
         "enabled_tag_keys": AWSEnabledTagKeys,
     },
     "azure": {
@@ -73,8 +69,6 @@ obtainTagKeysProvidersParams = {
         "title": "Azure tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "tag_view": AzureTagView,
-        "query_handler": AzureTagQueryHandler,
         "enabled_tag_keys": AzureEnabledTagKeys,
     },
     "gcp": {
@@ -82,8 +76,6 @@ obtainTagKeysProvidersParams = {
         "title": "Google Cloud Platform tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "tag_view": GCPTagView,
-        "query_handler": GCPTagQueryHandler,
         "enabled_tag_keys": GCPEnabledTagKeys,
     },
     "oci": {
@@ -91,8 +83,6 @@ obtainTagKeysProvidersParams = {
         "title": "Oracle Cloud Infrastructure tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "tag_view": OCITagView,
-        "query_handler": OCITagQueryHandler,
         "enabled_tag_keys": OCIEnabledTagKeys,
     },
 }
@@ -112,7 +102,7 @@ class Settings:
     def _get_tag_management_prefix(self, providerName):
         return f"{SETTINGS_PREFIX}.tag-management.{providerName}"
 
-    def _obtain_tag_keys(self, tag_view_kls, tag_handler_kls, tag_keys_kls):
+    def _obtain_tag_keys(self, tag_keys_kls):
         """
         Collect the available tag keys for the customer.
 
@@ -120,31 +110,13 @@ class Settings:
             (List) - List of available tag keys objects
             (List) - List of enabled tag keys strings
         """
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-            "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
-        )
-        tag_request = self.factory.get(url)
-        tag_request.user = self.request.user
-        query_params = QueryParameters(tag_request, tag_view_kls)
-        handler = tag_handler_kls(query_params)
-        query_output = handler.execute_query()
-        avail_data = query_output.get("data")
-        all_tags_set = set(avail_data)
         enabled = []
+        all_tags_set = set()
         with schema_context(self.schema):
-            if tag_keys_kls in (AWSEnabledTagKeys, AzureEnabledTagKeys):
-                all_tags_set = set()
-                for tag_key in tag_keys_kls.objects.all():
-                    all_tags_set.add(tag_key.key)
-                    if tag_key.enabled:
-                        enabled.append(tag_key.key)
-            else:
-                enabled_tags = tag_keys_kls.objects.all()
-                enabled = [enabled_tag.key for enabled_tag in enabled_tags]
-
-            all_tags_set.update(enabled)
-
+            for tag_key in tag_keys_kls.objects.all():
+                all_tags_set.add(tag_key.key)
+                if tag_key.enabled:
+                    enabled.append(tag_key.key)
         return all_tags_set, enabled
 
     def _build_components(self):
@@ -182,10 +154,8 @@ class Settings:
         avail_objs = []
         enabled_objs = []
         for providerName in obtainTagKeysProvidersParams:
-            tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
-            query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]
-            enabled_tag_keys = obtainTagKeysProvidersParams[providerName]["enabled_tag_keys"]
-            available, enabled = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
+            enabled_tag_keys_class = obtainTagKeysProvidersParams[providerName]["enabled_tag_keys"]
+            available, enabled = self._obtain_tag_keys(enabled_tag_keys_class)
             avail_objs.append(
                 {
                     "label": obtainTagKeysProvidersParams[providerName]["title"],
@@ -244,11 +214,9 @@ class Settings:
         with schema_context(self.schema):
             for ix, provider_name in enumerate(obtainTagKeysProvidersParams):
                 enabled_tags_no_abbr = []
-                tag_view = obtainTagKeysProvidersParams[provider_name]["tag_view"]
-                query_handler = obtainTagKeysProvidersParams[provider_name]["query_handler"]
-                enabled_tag_keys = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
+                enabled_tag_keys_class = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
                 provider = obtainTagKeysProvidersParams[provider_name]["provider"]
-                available, _ = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
+                available, _ = self._obtain_tag_keys(enabled_tag_keys_class)
 
                 # build a list of enabled tags for a given provider, removing the provider name prefix
                 for enabled_tag in settings.get("enabled", []):
@@ -262,36 +230,12 @@ class Settings:
                     message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                     raise ValidationError(error_obj(key, message))
 
-                if provider_name in ("aws", "azure"):
-                    existing_enabled_tags = list(
-                        enabled_tag_keys.objects.filter(enabled=True).values_list("key", flat=True)
-                    )
+                existing_enabled_tags = list(
+                    enabled_tag_keys_class.objects.filter(enabled=True).values_list("key", flat=True)
+                )
 
-                    if enabled_tags_no_abbr != existing_enabled_tags:
-                        updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
-
-                else:
-                    remove_tags = []
-                    existing_enabled_tags = enabled_tag_keys.objects.all()
-
-                    for existing_tag in existing_enabled_tags:
-                        if existing_tag.key in enabled_tags_no_abbr:
-                            enabled_tags_no_abbr.remove(existing_tag.key)
-                        else:
-                            remove_tags.append(existing_tag)
-                            updated[ix] = True
-
-                    if len(remove_tags):
-                        LOG.info(f"Updating %d %s key(s) to DISABLED", len(remove_tags), provider_name)
-                        for rm_tag in remove_tags:
-                            rm_tag.delete()
-                            updated[ix] = True
-
-                    if len(enabled_tags_no_abbr):
-                        LOG.info(f"Updating %d %s key(s) to ENABLED", len(enabled_tags_no_abbr), provider_name)
-                        for new_tag in enabled_tags_no_abbr:
-                            enabled_tag_keys.objects.create(key=new_tag)
-                            updated[ix] = True
+                if enabled_tags_no_abbr != existing_enabled_tags:
+                    updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys_class, enabled_tags_no_abbr)
 
                 if updated[ix]:
                     invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
