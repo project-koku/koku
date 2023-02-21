@@ -193,7 +193,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_get_manifest_json_manifest_not_found(self, mock_azure_service, mock_download_file):
         result = self.downloader._get_manifest(self.mock_data.manifest_test_date)
 
-        self.assertEqual(result, ("", {}, None))
+        self.assertEqual(result, ({}, None))
 
     def test_get_manifest_bad_json(self):
         with patch(

@@ -162,7 +162,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except AzureReportDownloaderError as err:
                 msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
-                return "", {}, None
+                return {}, None
 
             # Extract data from the JSON file
             try:
