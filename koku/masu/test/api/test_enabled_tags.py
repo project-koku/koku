@@ -23,7 +23,7 @@ class EnabledTagsTest(MasuTestCase):
     def test_get_enabled_tags(self, _):
         """Test the GET enabled_tags endpoint."""
         with schema_context(self.schema):
-            expected_keys = OCPEnabledTagKeys.objects.values_list("key")
+            expected_keys = OCPEnabledTagKeys.objects.filter(enabled=True).values_list("key")
             expected_keys = [key[0] for key in expected_keys]
 
         response = self.client.get(reverse("enabled_tags") + f"?schema={self.schema}")
@@ -71,7 +71,7 @@ class EnabledTagsTest(MasuTestCase):
             self.assertIn(key, body.get("tag_keys"))
 
         with schema_context(self.schema):
-            self.assertEqual(OCPEnabledTagKeys.objects.count(), 0)
+            self.assertEqual(OCPEnabledTagKeys.objects.filter(enabled=True).count(), 0)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_post_enabled_tags_no_schema(self, _):
