@@ -27,13 +27,16 @@ create index ix_cte_tag_value_{{uuid | sqlsafe}}
 
 
 create table {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} AS
-    SELECT key,
+    SELECT tv.key,
         array_agg(DISTINCT value)::text[] as "values",
         report_period_id,
         namespace,
         node
-    FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}}
-    GROUP BY key, report_period_id, namespace, node
+    FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} tv
+    JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys etk
+        ON tv.key = etk.key
+    WHERE etk.enabled = true
+    GROUP BY tv.key, report_period_id, namespace, node
 ;
 
 create unique index ix_cte_values_agg_{{uuid | sqlsafe}}
@@ -89,6 +92,14 @@ create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
        (key, value)
 ;
 
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+    WHERE etk.enabled = false
+        AND ls.key = etk.key
+)
+;
 
 UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary x
    SET "values" = y."values"

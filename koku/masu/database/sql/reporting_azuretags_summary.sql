@@ -18,12 +18,15 @@ WITH cte_tag_value AS (
     GROUP BY key, value, li.cost_entry_bill_id, li.subscription_guid
 ),
 cte_values_agg AS (
-    SELECT key,
+    SELECT tv.key,
         array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
         subscription_guid
-    FROM cte_tag_value
-    GROUP BY key, cost_entry_bill_id, subscription_guid
+    FROM cte_tag_value AS tv
+    JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
+        ON tv.key = etk.key
+    WHERE etk.enabled = true
+    GROUP BY tv.key, cost_entry_bill_id, subscription_guid
 ),
 cte_distinct_values_agg AS (
     SELECT v.key,
@@ -61,6 +64,15 @@ SELECT uuid_generate_v4() as uuid,
 FROM cte_tag_value AS tv
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET subscription_guids=EXCLUDED.subscription_guids
+;
+
+DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
+    WHERE etk.enabled = false
+        AND ts.key = etk.key
+)
 ;
 
 WITH cte_expired_tag_keys AS (
