@@ -25,9 +25,9 @@ cte_values_agg AS (
     FROM cte_tag_value AS tv
     JOIN {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
         ON tv.key = etk.key
-    WHERE etk.enabled = true
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON tv.usage_account_id = aa.account_id
+    WHERE etk.enabled = true
     GROUP BY tv.key, cost_entry_bill_id, usage_account_id, aa.id
 ),
 cte_distinct_values_agg AS (
