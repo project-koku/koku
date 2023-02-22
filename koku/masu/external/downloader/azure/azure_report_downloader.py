@@ -148,15 +148,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        report_path = self._get_report_path(date_time)
         manifest = {}
-        try:
-            json_manifest = self._azure_client.get_latest_manifest_for_path(report_path, self.container_name)
-        except AzureCostReportNotFound as ex:
-            json_manifest = None
-            msg = f"No JSON manifest exists. {ex}"
-            LOG.debug(msg)
-
         if self.ingress_reports:
             report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
             year = date_time.strftime("%Y")
@@ -167,37 +159,14 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
             }
             try:
-                blob = self._azure_client.get_latest_cost_export_for_path(report, self.container_name)
+                blob = self._azure_client.get_blob(report, self.container_name)
             except AzureCostReportNotFound as ex:
                 msg = f"Unable to find report. Error: {str(ex)}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 return manifest, None
-        elif json_manifest:
-            report_name = json_manifest.name
-            last_modified = json_manifest.last_modified
-            LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
-
-            # Download the manifest and extract the list of files.
-            try:
-                manifest_tmp = self._azure_client.download_file(
-                    report_name, self.container_name, suffix=AzureBlobExtension.json.value
-                )
-            except AzureReportDownloaderError as err:
-                msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
-                return {}, None
-
-            # Extract data from the JSON file
-            try:
-                with open(manifest_tmp) as f:
-                    manifest_json = json.load(f)
-            except json.JSONDecodeError as err:
-                msg = f"Unable to open JSON manifest. Reason: {err}"
-                raise AzureReportDownloaderError(msg)
-            finally:
-                self._remove_manifest_file(manifest_tmp)
-
-            manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
+            report_name = blob.name
+            last_modified = blob.last_modified
+            manifest["reportKeys"] = [blob.name]
         else:
             report_path = self._get_report_path(date_time)
             billing_period = {
@@ -205,16 +174,45 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "end": (report_path.split("/")[-1]).split("-")[1],
             }
             try:
-                blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+                json_manifest = self._azure_client.get_latest_manifest_for_path(report_path, self.container_name)
             except AzureCostReportNotFound as ex:
-                msg = f"Unable to find manifest. Error: {str(ex)}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
-                return manifest, None
-            report_name = blob.name
-            last_modified = blob.last_modified
-            LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
-            manifest["reportKeys"] = [report_name]
-
+                json_manifest = None
+                msg = f"No JSON manifest exists. {ex}"
+                LOG.debug(msg)
+            if json_manifest:
+                report_name = json_manifest.name
+                last_modified = json_manifest.last_modified
+                LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
+                # Download the manifest and extract the list of files.
+                try:
+                    manifest_tmp = self._azure_client.download_file(
+                        report_name, self.container_name, suffix=AzureBlobExtension.json.value
+                    )
+                except AzureReportDownloaderError as err:
+                    msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
+                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    return {}, None
+                # Extract data from the JSON file
+                try:
+                    with open(manifest_tmp) as f:
+                        manifest_json = json.load(f)
+                except json.JSONDecodeError as err:
+                    msg = f"Unable to open JSON manifest. Reason: {err}"
+                    raise AzureReportDownloaderError(msg)
+                finally:
+                    self._remove_manifest_file(manifest_tmp)
+                manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
+            else:
+                try:
+                    blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+                except AzureCostReportNotFound as ex:
+                    msg = f"Unable to find manifest. Error: {str(ex)}"
+                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    return manifest, None
+                report_name = blob.name
+                last_modified = blob.last_modified
+                LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
+                manifest["reportKeys"] = [report_name]
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:

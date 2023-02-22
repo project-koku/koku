@@ -179,13 +179,38 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, cost_export.name)
+            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
         except (AdalError, AzureException, ClientException, OSError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
 
         return file_path
+
+    def get_blob(self, report, container_name):
+        """Get ingress report."""
+        try:
+            container_client = self._cloud_storage_account.get_container_client(container_name)
+            blob_report = container_client.get_blob_client(blob=report)
+            return blob_report.get_blob_properties()
+        except (AdalError, AzureException, ClientException) as error:
+            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
+        except HttpResponseError as httpError:
+            if httpError.status_code == 403:
+                message = (
+                    "An authorization error occurred attempting to fetch report"
+                    f" in container {container_name} for "
+                    f"report {report}."
+                )
+            else:
+                message = (
+                    "Unknown error occurred attempting to fetch report"
+                    f" in container {container_name} for "
+                    f"report {report}."
+                )
+            error_msg = message + f" Azure Error: {httpError}."
+            LOG.warning(error_msg)
+            raise AzureCostReportNotFound(message)
 
     def describe_cost_management_exports(self):
         """List cost management export."""
