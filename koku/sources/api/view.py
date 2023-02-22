@@ -28,6 +28,7 @@ from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
 
 from api.common.filters import CharListFilter
+from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
@@ -125,7 +126,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
-        return Response({"regions": regions})
+        return ListPaginator([{"regions": regions}], request).paginated_response
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
