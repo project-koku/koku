@@ -111,10 +111,10 @@ class ReportProcessor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
             return
         except (InterfaceError, DjangoInterfaceError) as err:
-            raise ReportProcessorDBError(f"Interface error: {str(err)}") from err
+            raise ReportProcessorDBError(f"Interface error: {err}") from err
         except OperationalError as o_err:
             db_exc = get_extended_exception_by_type(o_err)
-            LOG.error(log_json(self.tracing_id, f"Operation error: {str(db_exc)}", context=db_exc.as_dict()))
+            LOG.error(log_json(self.tracing_id, f"Operation error: {db_exc}", context=db_exc.as_dict()))
             raise db_exc from o_err
         except Exception as err:
-            raise ReportProcessorError(f"Unknown processor error: {str(err)}") from err
+            raise ReportProcessorError(f"Unknown processor error: {err}") from err
