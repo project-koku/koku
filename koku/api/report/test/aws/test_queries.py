@@ -851,6 +851,39 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertAlmostEqual(sum(expected_value), total_cost_total)
 
+    def test_aws_category_multiple_exclude(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        base_url = ["?filter[time_scope_units]=month", "&filter[time_scope_value]=-1", "&filter[resolution]=monthly"]
+        exclude_url = "".join(base_url)
+        # build url & expected values
+        expected_value = []
+        for idx in [0, 1]:
+            dikt = self.aws_category_tuple[idx]
+            key = list(dikt.keys())[0]
+            substring = f"&exclude[or:{AWS_CATEGORY_PREFIX}{key}]={dikt[key]}"
+            exclude_url = exclude_url + substring
+            filter_args = {
+                "usage_start__gte": self.dh.this_month_start,
+                "usage_start__lte": self.dh.today,
+                f"cost_category__{key}__icontains": dikt[key],
+            }
+            expected_value.append(self.calculate_total_filters(filter_args))
+        aws_cat_dict = self.aws_category_tuple[0]
+        aws_cat_key = list(aws_cat_dict.keys())[0]
+        group_url = "".join(base_url) + f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
+        results = {}
+        for url in [exclude_url, group_url]:
+            query_params = self.mocked_query_params(url, AWSCostView, reverse("reports-aws-costs"))
+            handler = AWSReportQueryHandler(query_params)
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            total_cost_total = query_output.get("total", {}).get("cost", {}).get("total", {}).get("value")
+            results[url] = total_cost_total
+        difference = results[group_url] - results[exclude_url]
+        self.assertIsNotNone(total_cost_total)
+        self.assertIsNotNone(data)
+        self.assertAlmostEqual(sum(expected_value), difference)
+
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
         """Test execute_query for current month on monthly filtered by avail_zone for csv."""

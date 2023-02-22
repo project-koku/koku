@@ -9,16 +9,19 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
+from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.query_params import AWS_CATEGORY_PREFIX
 from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
 from api.report.aws.openshift.serializers import OCPAWSExcludeSerializer
 from api.report.aws.openshift.view import OCPAWSCostView
 from api.report.aws.openshift.view import OCPAWSInstanceTypeView
 from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.queries import check_view_filter_and_group_by_criteria
+from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
 from api.tags.aws.openshift.view import OCPAWSTagView
 from api.utils import DateHelper
@@ -87,6 +90,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
         }
+        self.aws_category_tuple = AWS_CONSTANTS["cost_category"]
 
         with tenant_context(self.tenant):
             self.services = OCPAWSCostLineItemProjectDailySummaryP.objects.values("product_code").distinct()
@@ -640,3 +644,108 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                         self.assertIsNotNone(grouping_list)
                         for group_dict in grouping_list:
                             self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
+
+    def test_ocp_aws_category_api_options_monthly(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        aws_cat_dict = self.aws_category_tuple[0]
+        aws_cat_key = list(aws_cat_dict.keys())[0]
+        filter_args = {
+            "usage_start__gte": self.dh.this_month_start,
+            "usage_start__lte": self.dh.today,
+            f"aws_cost_category__{aws_cat_key}__icontains": aws_cat_dict[aws_cat_key],
+        }
+        group_by_key = f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
+        filter_key = f"&filter[{AWS_CATEGORY_PREFIX}{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
+        exclude_key = f"&exclude[{AWS_CATEGORY_PREFIX}{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
+        results = {}
+        filter_value = 0
+        for sub_url in [group_by_key, filter_key, exclude_key]:
+            with self.subTest(sub_url=sub_url):
+                url = base_url + sub_url
+                query_params = self.mocked_query_params(
+                    url, OCPAWSCostView, path=reverse("reports-openshift-aws-costs")
+                )
+                handler = OCPAWSReportQueryHandler(query_params)
+                if sub_url == filter_key:
+                    filter_value = self.get_totals_by_time_scope(handler, filter_args)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
+                total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
+                self.assertIsNotNone(data)
+                self.assertIsNotNone(total_cost_total)
+                results[sub_url] = total_cost_total.get("value")
+        # Validate filter
+        self.assertLess(results[filter_key], results[group_by_key])
+        self.assertEqual(results[filter_key], filter_value.get("cost_total"))
+        # Validate Exclude
+        excluded_expected = results[group_by_key] - results[filter_key]
+        self.assertEqual(results[exclude_key], excluded_expected)
+
+    def test_ocp_aws_category_multiple_filter(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        # build url & expected values
+        expected_value = []
+        filter_args = []
+        for idx in [0, 1]:
+            dikt = self.aws_category_tuple[idx]
+            key = list(dikt.keys())[0]
+            substring = f"&filter[or:{AWS_CATEGORY_PREFIX}{key}]={dikt[key]}"
+            url = url + substring
+            filter_args.append(
+                {
+                    "usage_start__gte": self.dh.this_month_start,
+                    "usage_start__lte": self.dh.today,
+                    f"aws_cost_category__{key}__icontains": dikt[key],
+                }
+            )
+
+        query_params = self.mocked_query_params(url, OCPAWSCostView, path=reverse("reports-openshift-aws-costs"))
+        handler = OCPAWSReportQueryHandler(query_params)
+        for filter_arg in filter_args:
+            expected_value.append(self.get_totals_by_time_scope(handler, filter_arg).get("cost_total"))
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(total_cost_total)
+        self.assertIsNotNone(data)
+        self.assertAlmostEqual(sum(expected_value), total_cost_total)
+
+    def test_ocp_aws_category_multiple_exclude(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        base_url = ["?filter[time_scope_units]=month", "&filter[time_scope_value]=-1", "&filter[resolution]=monthly"]
+        exclude_url = "".join(base_url)
+        # build url & expected values
+        expected_value = []
+        filter_args = []
+        for idx in [0, 1]:
+            dikt = self.aws_category_tuple[idx]
+            key = list(dikt.keys())[0]
+            substring = f"&exclude[or:{AWS_CATEGORY_PREFIX}{key}]={dikt[key]}"
+            exclude_url = exclude_url + substring
+            filter_args.append(
+                {
+                    "usage_start__gte": self.dh.this_month_start,
+                    "usage_start__lte": self.dh.today,
+                    f"aws_cost_category__{key}__icontains": dikt[key],
+                }
+            )
+        aws_cat_dict = self.aws_category_tuple[0]
+        aws_cat_key = list(aws_cat_dict.keys())[0]
+        group_url = "".join(base_url) + f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
+        results = {}
+        for url in [exclude_url, group_url]:
+            query_params = self.mocked_query_params(url, OCPAWSCostView, path=reverse("reports-openshift-aws-costs"))
+            handler = OCPAWSReportQueryHandler(query_params)
+            if expected_value == []:
+                for filter_arg in filter_args:
+                    expected_value.append(self.get_totals_by_time_scope(handler, filter_arg).get("cost_total"))
+            query_output = handler.execute_query()
+            data = query_output.get("data")
+            total_cost_total = query_output.get("total", {}).get("cost", {}).get("total", {}).get("value")
+            results[url] = total_cost_total
+        difference = results[group_url] - results[exclude_url]
+        self.assertIsNotNone(total_cost_total)
+        self.assertIsNotNone(data)
+        self.assertAlmostEqual(sum(expected_value), difference)
