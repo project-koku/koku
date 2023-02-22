@@ -167,7 +167,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
             }
             try:
-                blob = self._azure_client.get_blob(report, self.container_name)
+                blob = self._azure_client.get_latest_cost_export_for_path(report, self.container_name)
             except AzureCostReportNotFound as ex:
                 msg = f"Unable to find report. Error: {str(ex)}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
