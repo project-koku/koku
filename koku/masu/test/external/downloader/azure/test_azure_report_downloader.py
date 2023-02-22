@@ -227,7 +227,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_get_ingress_report_error(self, mock_log):
         """Test that Azure get_bob errors correctly."""
         self.ingress_downloader.tracing_id = "1111-2222-4444-5555"
-        self.ingress_downloader._azure_client.get_blob = Mock(side_effect=AzureCostReportNotFound("Oops!"))
+        self.ingress_downloader._azure_client.get_file_for_key = Mock(side_effect=AzureCostReportNotFound("Oops!"))
         manifest, last_modified = self.ingress_downloader._get_manifest(self.mock_data.test_date)
         self.assertEqual(manifest, {})
         self.assertEqual(last_modified, None)
