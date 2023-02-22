@@ -204,7 +204,8 @@ class QueryParameters:
             for inner_key in value:
                 # stripped_key = self._strip_aws_category_prefix(inner_key)
                 # if stripped_key in self.aws_category_keys:
-                param_aws_category_keys.add(inner_key)
+                if AWS_CATEGORY_PREFIX in inner_key:
+                    param_aws_category_keys.add(inner_key)
             # stripped_key = self._strip_aws_category_prefix(key)
             # if stripped_key in self.aws_category_keys:
             #     param_aws_category_keys.add(key)

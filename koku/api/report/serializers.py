@@ -142,15 +142,14 @@ class BaseSerializer(serializers.Serializer):
         self.aws_category_keys = kwargs.pop("aws_category_keys", None)
         super().__init__(*args, **kwargs)
 
+        fkwargs = {"child": serializers.CharField(), "required": False}
         if self.tag_keys is not None:
-            fkwargs = {"child": serializers.CharField(), "required": False}
             self._init_tag_keys(StringOrListField, fkwargs=fkwargs)
+        if self._aws_category and self.aws_category_keys:
+            self._init_aws_category_keys(StringOrListField, fkwargs=fkwargs)
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
-
-        if self._aws_category and self.aws_category_keys:
-            self._init_aws_category_keys(StringOrListField, fkwargs=fkwargs)
 
     def validate(self, data):
         """Validate incoming data.
@@ -194,6 +193,10 @@ class BaseSerializer(serializers.Serializer):
 
     def _init_aws_category_keys(self, field, fargs=None, fkwargs=None):
         """Initialize aws_category based fields.
+
+        This function adds the prefixed keys to the allowable fields list
+        so that a "Unsupported parameter" error is not thrown.
+
         Args:
             field (Serializer)
             fargs (list) Serializer's positional args

@@ -34,6 +34,7 @@ from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
 from api.report.queries import strip_key_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
+from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -119,6 +120,7 @@ class AWSReportQueryTest(IamTestCase):
                 .first()
                 .get("organizational_unit__org_unit_id")
             )
+            self.aws_category_tuple = AWS_CONSTANTS["cost_category"]
             # this mapping is based on the aws_org_tree.yml that populates the data for tests
             # it takes into account the sub orgs that should show up for each org based on
             # whether or not they have accounts under them in the range
@@ -143,6 +145,20 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             return (
                 AWSCostEntryLineItemDailySummary.objects.filter(filters)
+                .aggregate(
+                    cost=Sum(
+                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                    )
+                )
+                .get("cost")
+            )
+
+    def calculate_total_filters(self, filters):
+        """Return expected total cost for the query."""
+        with tenant_context(self.tenant):
+            return (
+                AWSCostEntryLineItemDailySummary.objects.filter(**filters)
                 .aggregate(
                     cost=Sum(
                         Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
@@ -776,6 +792,38 @@ class AWSReportQueryTest(IamTestCase):
         total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
         self.assertIsNotNone(total_cost_total)
+
+    def test_aws_category_api_options_monthly(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        aws_cat_dict = self.aws_category_tuple[0]
+        aws_cat_key = list(aws_cat_dict.keys())[0]
+        filter_args = {
+            "usage_start__gte": self.dh.this_month_start,
+            "usage_start__lte": self.dh.today,
+            f"cost_category__{aws_cat_key}__icontains": aws_cat_dict[aws_cat_key],
+        }
+        group_by_key = f"&group_by[aws_category:{aws_cat_key}]=*"
+        filter_key = f"&filter[aws_category:{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
+        exclude_key = f"&exclude[aws_category:{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
+        results = {}
+        for sub_url in [group_by_key, filter_key, exclude_key]:
+            with self.subTest(sub_url=sub_url):
+                url = base_url + sub_url
+                query_params = self.mocked_query_params(url, AWSCostView, reverse("reports-aws-costs"))
+                handler = AWSReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
+                total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
+                self.assertIsNotNone(data)
+                self.assertIsNotNone(total_cost_total)
+                results[sub_url] = total_cost_total.get("value")
+        # Validate filter
+        self.assertLess(results[filter_key], results[group_by_key])
+        self.assertEqual(results[filter_key], self.calculate_total_filters(filter_args))
+        # Validate Exclude
+        excluded_expected = results[group_by_key] - results[filter_key]
+        self.assertEqual(results[exclude_key], excluded_expected)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):

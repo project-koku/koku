@@ -29,6 +29,8 @@ class AWSGroupBySerializer(GroupSerializer):
         "product_family",
         "org_unit_id",
     )
+    # Tells the parent class to add prefixed
+    # aws_category param to the allowable fields list
     _aws_category = True
 
     # account field will accept both account number and account alias.

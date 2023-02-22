@@ -292,7 +292,7 @@ class ReportQueryHandlerTest(IamTestCase):
         )
         assertSameQ(output, expected.compose())
 
-    def test_set_operator_specified_tag_filters_and(self):
+    def test_set_operator_specified_prefix_filters_and(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
         operator = "and"
 
@@ -312,7 +312,7 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
-        output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
+        output = rqh._set_operator_specified_prefix_filters(QueryFilterCollection(), "tag:", "tags", operator)
 
         self.assertIsNotNone(output)
 
@@ -346,7 +346,7 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
-        output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
+        output = rqh._set_operator_specified_prefix_filters(QueryFilterCollection(), "tag:", "tags", operator)
         self.assertIsNotNone(output)
 
         expected = QueryFilterCollection(
