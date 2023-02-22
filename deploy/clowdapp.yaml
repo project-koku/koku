@@ -135,6 +135,8 @@ objects:
           value: ${ENHANCED_ORG_ADMIN}
         - name: RBAC_CACHE_TIMEOUT
           value: ${RBAC_CACHE_TIMEOUT}
+        - name: CACHE_TIMEOUT
+          value: ${CACHE_TIMEOUT}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -2904,6 +2906,9 @@ parameters:
 - displayName: RBAC_CACHE_TIMEOUT
   name: RBAC_CACHE_TIMEOUT
   value: "300"
+- displayName: Middleware Timeout
+  name: CACHE_TIMEOUT
+  value: "3600"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true
