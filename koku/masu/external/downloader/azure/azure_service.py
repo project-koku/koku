@@ -130,7 +130,7 @@ class AzureService:
             error_msg = f"{message} Azure Error: {httpError}."
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
-            
+
         latest_report = self._get_latest_blob(report_path, blobs, extension)
         if not latest_report:
             message = (

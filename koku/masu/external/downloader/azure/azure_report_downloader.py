@@ -148,15 +148,31 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
+        report_path = self._get_report_path(date_time)
         manifest = {}
         try:
             json_manifest = self._azure_client.get_latest_manifest_for_path(report_path, self.container_name)
         except AzureCostReportNotFound as ex:
             json_manifest = None
-            msg = f"No JSON manifest exists. Using latest cost export. {ex}"
+            msg = f"No JSON manifest exists. {ex}"
             LOG.debug(msg)
 
-        if json_manifest:
+        if self.ingress_reports:
+            report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
+            year = date_time.strftime("%Y")
+            month = date_time.strftime("%m")
+            dh = DateHelper()
+            billing_period = {
+                "start": f"{year}{month}01",
+                "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
+            }
+            try:
+                blob = self._azure_client.get_blob(report, self.container_name)
+            except AzureCostReportNotFound as ex:
+                msg = f"Unable to find report. Error: {str(ex)}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                return manifest, None
+        elif json_manifest:
             report_name = json_manifest.name
             last_modified = json_manifest.last_modified
             LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
@@ -182,22 +198,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self._remove_manifest_file(manifest_tmp)
 
             manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
-        else:
-            if self.ingress_reports:
-            report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
-            year = date_time.strftime("%Y")
-            month = date_time.strftime("%m")
-            dh = DateHelper()
-            billing_period = {
-                "start": f"{year}{month}01",
-                "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
-            }
-            try:
-                blob = self._azure_client.get_blob(report, self.container_name)
-            except AzureCostReportNotFound as ex:
-                msg = f"Unable to find report. Error: {str(ex)}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
-                return manifest, None
         else:
             report_path = self._get_report_path(date_time)
             billing_period = {
@@ -311,10 +311,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         file_creation_date = None
         etag = None
-        file_creation_date = None
         if not self.ingress_reports:
             try:
-                blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
+                blob = self._azure_client.get_file_for_key(key, self.container_name)
                 etag = blob.etag
                 file_creation_date = blob.last_modified
             except AzureCostReportNotFound as ex:
