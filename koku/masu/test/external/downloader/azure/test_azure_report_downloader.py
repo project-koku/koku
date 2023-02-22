@@ -120,7 +120,9 @@ class MockAzureService:
             raise AzureCostReportNotFound(message)
         return mock_export
 
-    def download_file(self, key, container_name, destination=None, suffix=AzureBlobExtension.csv.value):
+    def download_file(
+        self, key, container_name, destination=None, suffix=AzureBlobExtension.csv.value, ingress_reports=None
+    ):
         """Get exports."""
         file_path = destination
         file_contents = {
@@ -281,7 +283,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(last_modified, None)
         call_arg = log_mock.info.call_args.args[0]
         self.assertEqual(call_arg.get("tracing_id"), self.downloader.tracing_id)
-        self.assertTrue("Unable to find cost export" in call_arg.get("message"))
+        self.assertTrue("Unable to find manifest" in call_arg.get("message"))
 
     def test_remove_manifest_file_error(self):
         with (
