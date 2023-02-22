@@ -208,7 +208,7 @@ class AzureService:
                     f" in container {container_name} for "
                     f"report {report}."
                 )
-            error_msg = message + f" Azure Error: {httpError}."
+            error_msg =  f"{message} Azure Error: {httpError}."
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
