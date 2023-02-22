@@ -161,7 +161,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             try:
                 blob = self._azure_client.get_blob(report, self.container_name)
             except AzureCostReportNotFound as ex:
-                msg = f"Unable to find report. Error: {str(ex)}"
+                msg = f"Unable to find report. Error: {ex}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 return manifest, None
             report_name = blob.name
