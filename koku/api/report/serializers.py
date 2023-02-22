@@ -134,6 +134,7 @@ class BaseSerializer(serializers.Serializer):
 
     _opfields = None
     _tagkey_support = None
+    _aws_category = False
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
@@ -141,11 +142,15 @@ class BaseSerializer(serializers.Serializer):
         self.aws_category_keys = kwargs.pop("aws_category_keys", None)
         super().__init__(*args, **kwargs)
 
-        fkwargs = {"child": serializers.CharField(), "required": False}
-        self._init_param_keys(StringOrListField, fkwargs=fkwargs)
+        if self.tag_keys is not None:
+            fkwargs = {"child": serializers.CharField(), "required": False}
+            self._init_tag_keys(StringOrListField, fkwargs=fkwargs)
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
+
+        if self._aws_category and self.aws_category_keys:
+            self._init_aws_category_keys(StringOrListField, fkwargs=fkwargs)
 
     def validate(self, data):
         """Validate incoming data.
@@ -161,15 +166,38 @@ class BaseSerializer(serializers.Serializer):
         handle_invalid_fields(self, data)
         return data
 
-    def _init_param_keys(self, field, fargs=None, fkwargs=None):
-        """Initialize tag-based and aws-category fields.
+    def _init_tag_keys(self, field, fargs=None, fkwargs=None):
+        """Initialize tag-based fields.
         Args:
             field (Serializer)
             fargs (list) Serializer's positional args
             fkwargs (dict) Serializer's keyword args
+        """
+        if fargs is None:
+            fargs = []
 
-        Adds param keys separated by a colon to the allowable field list.
-        Examples: (tag:test, aws_category:organization)
+        if fkwargs is None:
+            fkwargs = {}
+
+        tag_fields = {}
+        for key in self.tag_keys:
+            if len(self.tag_keys) > 1 and "child" in fkwargs.keys():
+                # when there are multiple filters, each filter needs its own
+                # instantiated copy of the child field.
+                fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
+            tag_fields[key] = field(*fargs, **fkwargs)
+
+        # Add tag keys to allowable fields
+        for key, val in tag_fields.items():
+            setattr(self, key, val)
+            self.fields.update({key: val})
+
+    def _init_aws_category_keys(self, field, fargs=None, fkwargs=None):
+        """Initialize aws_category based fields.
+        Args:
+            field (Serializer)
+            fargs (list) Serializer's positional args
+            fkwargs (dict) Serializer's keyword args
         """
         if fargs is None:
             fargs = []
@@ -178,14 +206,6 @@ class BaseSerializer(serializers.Serializer):
             fkwargs = {}
 
         fields = {}
-        if self.tag_keys is not None:
-            for key in self.tag_keys:
-                if len(self.tag_keys) > 1 and "child" in fkwargs.keys():
-                    # when there are multiple filters, each filter needs its own
-                    # instantiated copy of the child field.
-                    fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
-                fields[key] = field(*fargs, **fkwargs)
-
         if self.aws_category_keys is not None:
             for key in self.aws_category_keys:
                 if len(self.aws_category_keys) > 1 and "child" in fkwargs.keys():
@@ -295,7 +315,7 @@ class OrderSerializer(BaseSerializer):
 
         if self.tag_keys is not None:
             fkwargs = {"choices": OrderSerializer.ORDER_CHOICES, "required": False}
-            self._init_param_keys(serializers.ChoiceField, fkwargs=fkwargs)
+            self._init_tag_keys(serializers.ChoiceField, fkwargs=fkwargs)
 
 
 class ParamSerializer(BaseSerializer):
