@@ -320,20 +320,14 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
                 LOG.error(log_json(self.tracing_id, msg, self.context))
                 raise AzureReportDownloaderError(msg)
+
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
-        try:
-            blob = self._azure_client.get_blob(report, self.container_name)
-            etag = blob.etag
-            file_creation_date = blob.last_modified
-        except AzureCostReportNotFound as ex:
-            msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
-            raise AzureReportDownloaderError(msg)
-
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        blob = self._azure_client.download_file(key, self.container_name, destination=full_file_path)
+        self._azure_client.download_file(
+            key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
+        )
         # Push to S3
         s3_csv_path = get_path_prefix(
             self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE

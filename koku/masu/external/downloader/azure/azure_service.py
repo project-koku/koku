@@ -76,25 +76,6 @@ class AzureService:
                 latest_blob = blob
         return latest_blob
 
-    def download_cost_export(self, key, container_name, destination=None, ingress_reports=None):
-        """Download the latest cost export file from a given storage container."""
-        if not ingress_reports:
-            cost_export = self.get_cost_export_for_key(key, container_name)
-            key = cost_export.name
-
-        file_path = destination
-        if not destination:
-            temp_file = NamedTemporaryFile(delete=False, suffix=".csv")
-            file_path = temp_file.name
-        try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
-
-            with open(file_path, "wb") as blob_download:
-                blob_download.write(blob_client.download_blob().readall())
-        except (AdalError, AzureException, ClientException, OSError) as error:
-            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
-        return file_path
-
     def _get_latest_blob_for_path(
         self,
         report_path: str,
@@ -203,11 +184,18 @@ class AzureService:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
 
     def download_file(
-        self, key: str, container_name: str, destination: str = None, suffix: str = AzureBlobExtension.csv.value
+        self,
+        key: str,
+        container_name: str,
+        destination: str = None,
+        suffix: str = AzureBlobExtension.csv.value,
+        ingress_reports: list[str] = None,
     ) -> str:
         """Download the file from a given storage container."""
 
-        cost_export = self.get_file_for_key(key, container_name)
+        if not ingress_reports:
+            cost_export = self.get_file_for_key(key, container_name)
+            key = cost_export.name
 
         file_path = destination
         if not destination:
