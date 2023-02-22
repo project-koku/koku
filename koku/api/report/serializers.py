@@ -16,6 +16,9 @@ from api.utils import get_currency
 from api.utils import materialized_view_month_start
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
+AWS_CATEGORY_PREFIX = "aws_category:"
+TAG_PREFIX = "tag:"
+
 
 def handle_invalid_fields(this, data):
     """Validate incoming data.
@@ -62,10 +65,10 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     # extract tag_keys from field_params and recreate the tag_keys param
     tag_keys = None
     if not kwargs.get("tag_keys") and getattr(serializer_cls, "_tagkey_support", False):
-        tag_keys = list(filter(lambda x: "tag:" in x, field_param))
+        tag_keys = list(filter(lambda x: TAG_PREFIX in x, field_param))
         kwargs["tag_keys"] = tag_keys
     if not kwargs.get("aws_category_keys"):
-        aws_category_keys = list(filter(lambda x: "aws_category:" in x, field_param))
+        aws_category_keys = list(filter(lambda x: AWS_CATEGORY_PREFIX in x, field_param))
         kwargs["aws_category_keys"] = aws_category_keys
 
     serializer = serializer_cls(data=field_param, **kwargs)

@@ -45,6 +45,9 @@ from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
 
+AWS_CATEGORY_PREFIX = "aws_category:"
+TAG_PREFIX = "tag:"
+
 
 def strip_key_prefix(key, prefix="tag:"):
     """Remove the query prefix from a key."""
@@ -250,14 +253,14 @@ class ReportQueryHandler(QueryHandler):
             `.exclude`. Django adds "IS NOT NULL" when using `.exclude` which removes
             the `no-{option}` results.
         """
-        filter_collection = self._build_prefix_filters(filter_collection, "tag:", self._mapper.tag_column)
+        filter_collection = self._build_prefix_filters(filter_collection, TAG_PREFIX, self._mapper.tag_column)
         filter_collection = self._set_operator_specified_prefix_filters(
-            filter_collection, "tag:", self._mapper.tag_column, "and"
+            filter_collection, TAG_PREFIX, self._mapper.tag_column, "and"
         )
         filter_collection = self._set_operator_specified_prefix_filters(
-            filter_collection, "tag:", self._mapper.tag_column, "or"
+            filter_collection, TAG_PREFIX, self._mapper.tag_column, "or"
         )
-        tag_exclusion_composed = self._build_prefixed_exclusions("tag:", self._mapper.tag_column)
+        tag_exclusion_composed = self._build_prefixed_exclusions(TAG_PREFIX, self._mapper.tag_column)
         if self.is_aws and not self.is_openshift:
             category_column = "cost_category"
         elif self.is_aws and self.is_openshift:
@@ -266,14 +269,14 @@ class ReportQueryHandler(QueryHandler):
             category_column = None
             aws_category_exclusion_composed = None
         if category_column:
-            filter_collection = self._build_prefix_filters(filter_collection, "aws_category:", category_column)
+            filter_collection = self._build_prefix_filters(filter_collection, AWS_CATEGORY_PREFIX, category_column)
             filter_collection = self._set_operator_specified_prefix_filters(
-                filter_collection, "aws_category:", category_column, "and"
+                filter_collection, AWS_CATEGORY_PREFIX, category_column, "and"
             )
             filter_collection = self._set_operator_specified_prefix_filters(
-                filter_collection, "aws_category:", category_column, "or"
+                filter_collection, AWS_CATEGORY_PREFIX, category_column, "or"
             )
-            aws_category_exclusion_composed = self._build_prefixed_exclusions("aws_category:", category_column)
+            aws_category_exclusion_composed = self._build_prefixed_exclusions(AWS_CATEGORY_PREFIX, category_column)
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
@@ -437,7 +440,7 @@ class ReportQueryHandler(QueryHandler):
         prefixed exclusions.
         """
         prefix_to_ocp_mapping = {
-            "tag:": {
+            TAG_PREFIX: {
                 "ocp_list": [
                     Provider.OCP_AWS,
                     Provider.OCP_AZURE,
@@ -447,7 +450,7 @@ class ReportQueryHandler(QueryHandler):
                 ],
                 "key_function": "get_tag_filter_keys",
             },
-            "aws_category:": {"ocp_list": [Provider.OCP_AWS], "key_function": "get_aws_category_keys"},
+            AWS_CATEGORY_PREFIX: {"ocp_list": [Provider.OCP_AWS], "key_function": "get_aws_category_keys"},
         }
         null_collections = QueryFilterCollection()
         _filter_list = []
@@ -493,10 +496,10 @@ class ReportQueryHandler(QueryHandler):
         prefix: param prefix eg (tag:, aws_category:)
         db_column: column to build the filter with
         """
-        if prefix == "tag:":
+        if prefix == TAG_PREFIX:
             _filters = self.get_tag_filter_keys()
             _group_by = self.get_tag_group_by_keys()
-        elif prefix == "aws_category:":
+        elif prefix == AWS_CATEGORY_PREFIX:
             _filters = self.get_aws_category_keys("filter")
             _group_by = self.get_aws_category_keys("group_by")
         else:
@@ -522,10 +525,10 @@ class ReportQueryHandler(QueryHandler):
 
     def _set_operator_specified_prefix_filters(self, filters, prefix, db_column, operator):
         """Create tag_filters."""
-        if prefix == "tag:":
+        if prefix == TAG_PREFIX:
             _filters = self.get_tag_filter_keys()
             _group_by = self.get_tag_group_by_keys()
-        elif prefix == "aws_category:":
+        elif prefix == AWS_CATEGORY_PREFIX:
             _filters = self.get_aws_category_keys("filter")
             _group_by = self.get_aws_category_keys("group_by")
         else:

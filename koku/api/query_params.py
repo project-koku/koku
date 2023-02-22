@@ -185,15 +185,16 @@ class QueryParameters:
                 param_tag_keys.add(key)
         return param_tag_keys
 
-    def _strip_aws_category_prefix(self, value):
-        if AWS_CATEGORY_PREFIX.replace(":", "") not in value:
-            return value
-        if value.startswith(AWS_CATEGORY_PREFIX):
-            return value[len(AWS_CATEGORY_PREFIX) :]  # noqa: E203
-        if value.startswith(AND_AWS_CATEGORY_PREFIX):
-            return value[len(AND_AWS_CATEGORY_PREFIX) :]  # noqa: E203
-        if value.startswith(OR_AWS_CATEGORY_PREFIX):
-            return value[len(OR_AWS_CATEGORY_PREFIX) :]  # noqa: E203
+    # TODO: This function will be needed for below
+    # def _strip_aws_category_prefix(self, value):
+    #     if AWS_CATEGORY_PREFIX.replace(":", "") not in value:
+    #         return value
+    #     if value.startswith(AWS_CATEGORY_PREFIX):
+    #         return value[len(AWS_CATEGORY_PREFIX) :]  # noqa: E203
+    #     if value.startswith(AND_AWS_CATEGORY_PREFIX):
+    #         return value[len(AND_AWS_CATEGORY_PREFIX) :]  # noqa: E203
+    #     if value.startswith(OR_AWS_CATEGORY_PREFIX):
+    #         return value[len(OR_AWS_CATEGORY_PREFIX) :]  # noqa: E203
 
     def _process_aws_category_query_params(self, query_params):
         """Reduce the set of aws categories based on those being queried."""
@@ -202,10 +203,12 @@ class QueryParameters:
             if not isinstance(value, (dict, list)):
                 value = [value]
             for inner_key in value:
-                # stripped_key = self._strip_aws_category_prefix(inner_key)
-                # if stripped_key in self.aws_category_keys:
                 if AWS_CATEGORY_PREFIX in inner_key:
                     param_aws_category_keys.add(inner_key)
+                # TODO: Remove when we have better serializer logic
+                # for aws_category keys
+                # stripped_key = self._strip_aws_category_prefix(inner_key)
+                # if stripped_key in self.aws_category_keys:
             # stripped_key = self._strip_aws_category_prefix(key)
             # if stripped_key in self.aws_category_keys:
             #     param_aws_category_keys.add(key)

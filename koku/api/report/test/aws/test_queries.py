@@ -27,6 +27,7 @@ from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.query_params import AWS_CATEGORY_PREFIX
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.view import AWSCostView
@@ -803,9 +804,9 @@ class AWSReportQueryTest(IamTestCase):
             "usage_start__lte": self.dh.today,
             f"cost_category__{aws_cat_key}__icontains": aws_cat_dict[aws_cat_key],
         }
-        group_by_key = f"&group_by[aws_category:{aws_cat_key}]=*"
-        filter_key = f"&filter[aws_category:{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
-        exclude_key = f"&exclude[aws_category:{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
+        group_by_key = f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
+        filter_key = f"&filter[{AWS_CATEGORY_PREFIX}{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
+        exclude_key = f"&exclude[{AWS_CATEGORY_PREFIX}{aws_cat_key}]={aws_cat_dict[aws_cat_key]}"
         results = {}
         for sub_url in [group_by_key, filter_key, exclude_key]:
             with self.subTest(sub_url=sub_url):
@@ -824,6 +825,31 @@ class AWSReportQueryTest(IamTestCase):
         # Validate Exclude
         excluded_expected = results[group_by_key] - results[filter_key]
         self.assertEqual(results[exclude_key], excluded_expected)
+
+    def test_aws_category_multiple_filter(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        # build url & expected values
+        expected_value = []
+        for idx in [0, 1]:
+            dikt = self.aws_category_tuple[idx]
+            key = list(dikt.keys())[0]
+            substring = f"&filter[or:{AWS_CATEGORY_PREFIX}{key}]={dikt[key]}"
+            url = url + substring
+            filter_args = {
+                "usage_start__gte": self.dh.this_month_start,
+                "usage_start__lte": self.dh.today,
+                f"cost_category__{key}__icontains": dikt[key],
+            }
+            expected_value.append(self.calculate_total_filters(filter_args))
+        query_params = self.mocked_query_params(url, AWSCostView, reverse("reports-aws-costs"))
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(total_cost_total)
+        self.assertIsNotNone(data)
+        self.assertAlmostEqual(sum(expected_value), total_cost_total)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
