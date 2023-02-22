@@ -42,7 +42,7 @@ class MockAzureService:
         self.export_file = f"{self.export_name}_{self.export_uuid}.csv"
         self.manifest_file = f"{self.export_name}_{self.export_uuid}.json"
         self.export_etag = "absdfwef"
-        self.ingress_report = f"custom_report_{self.export_uuid}.csv"
+        self.ingress_report = f"custom_ingress_report_{self.export_uuid}.csv"
         self.last_modified = DateAccessor().today()
         self.export_key = f"{self.report_path}/{self.export_file}"
 
@@ -96,27 +96,15 @@ class MockAzureService:
             last_modified = self.last_modified
 
         class Export:
-            name = self.export_file
-            last_modified = self.last_modified
-
-        if key == self.export_key:
-            mock_export = ExportProperties()
-        else:
-            message = f"No cost report for report name {key} found in container {container_name}."
-            raise AzureCostReportNotFound(message)
-        return mock_export
-
-    def get_blob(self, report_path, container_name):
-        """Get ingress report blob."""
-
-        class Export:
             name = self.ingress_report
             last_modified = self.last_modified
 
-        if report_path == self.ingress_report:
+        if key == self.ingress_report:
             mock_export = Export()
+        elif key == self.export_key:
+            mock_export = ExportProperties()
         else:
-            message = f"No cost report found in container {container_name} for " f"path {report_path}."
+            message = f"No cost report for report name {key} found in container {container_name}."
             raise AzureCostReportNotFound(message)
         return mock_export
 
