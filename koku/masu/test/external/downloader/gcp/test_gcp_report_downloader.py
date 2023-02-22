@@ -149,6 +149,17 @@ class GCPReportDownloaderTest(MasuTestCase):
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
 
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.open")
+    def test_download_file_query_unbound_error(self, mock_open):
+        """Test BigQuery client is handled correctly in download file method."""
+        key = "202011_1234_2020-12-05:2020-12-08.csv"
+        downloader = self.downloader
+        err_msg = "GCP Error"
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
+            bigquery.Client.side_effect = UnboundLocalError(err_msg)
+            with self.assertRaises(GCPReportDownloaderError):
+                downloader.download_file(key)
+
     @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
     def test_download_with_unreachable_source(self, gcp_provider):
         """Assert errors correctly when source is unreachable."""
