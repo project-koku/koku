@@ -4,6 +4,7 @@
 #
 """Test the AzureService object."""
 from datetime import datetime
+from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
@@ -41,6 +42,12 @@ def throw_azure_http_error_403(scope):
     error = HttpResponseError()
     error.status_code = 403
     raise error
+
+
+class FakeBlob:
+    def __init__(self, name, last_modified=None):
+        self.name = name
+        self.last_modified = last_modified
 
 
 class AzureServiceTest(MasuTestCase):
@@ -154,7 +161,7 @@ class AzureServiceTest(MasuTestCase):
                 self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
             )
 
-    def test_get_cost_export_for_key(self):
+    def test_get_file_for_key(self):
         """Test that a cost export is retrieved by a key."""
         today = self.current_date_time
         yesterday = today - relativedelta(days=1)
@@ -175,12 +182,12 @@ class AzureServiceTest(MasuTestCase):
             type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
             svc = self.get_mock_client(blob_list=[mock_blob])
-            cost_export = svc.get_cost_export_for_key(key, self.container_name)
+            cost_export = svc.get_file_for_key(key, self.container_name)
             self.assertIsNotNone(cost_export)
             self.assertEqual(cost_export.name, key)
             self.assertEqual(cost_export.last_modified.date(), expected_modified_date)
 
-    def test_get_cost_export_for_missing_key(self):
+    def test_get_file_for_missing_key(self):
         """Test that a cost export is not retrieved by an incorrect key."""
         key = "{}_{}_wrong".format(self.container_name, "blob")
 
@@ -190,11 +197,11 @@ class AzureServiceTest(MasuTestCase):
 
         svc = self.get_mock_client(blob_list=[mock_blob])
         with self.assertRaises(AzureCostReportNotFound):
-            svc.get_cost_export_for_key(key, self.container_name)
+            svc.get_file_for_key(key, self.container_name)
 
     def test_get_latest_cost_export_for_path(self):
         """Test that the latest cost export is returned for a given path."""
-        report_path = "{}_{}".format(self.container_name, "blob")
+        report_path = "{}_{}".format(self.container_name, "blob.csv")
 
         mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
         name_attr = PropertyMock(return_value=report_path)
@@ -278,6 +285,27 @@ class AzureServiceTest(MasuTestCase):
         with self.assertRaises(AzureCostReportNotFound):
             svc.get_latest_cost_export_for_path(report_path, container_name)
 
+    def test_get_latest_manifest_for_path(self):
+        """Given a list of blobs with multiple manifests, ensure the latest one is returned"""
+
+        report_path = "/container/report/path"
+        blobs = (
+            FakeBlob(f"{report_path}/02/file01.csv", datetime(2022, 11, 2, 10, 20)),
+            FakeBlob(f"{report_path}/02/_manifest.json", datetime(2022, 11, 2, 10, 23)),  # Latest manifest
+            FakeBlob(f"{report_path}/01/file01.csv", datetime(2022, 11, 1, 10, 20)),
+            FakeBlob(f"{report_path}/01/_manifest.json", datetime(2022, 11, 1, 10, 23)),
+            FakeBlob(f"{report_path}/03/_manifest.json", datetime(2022, 10, 31)),
+        )
+        azure_service = self.get_mock_client(blob_list=blobs)
+        latet_manifest = azure_service.get_latest_manifest_for_path(report_path, "some_container")
+
+        self.assertEqual(latet_manifest.name, f"{report_path}/02/_manifest.json")
+
+    def test_list_blobs_none(self):
+        azure_service = self.get_mock_client()
+        with self.assertRaisesRegex(AzureCostReportNotFound, "Unable to find files in container"):
+            azure_service._list_blobs("", "")
+
     def test_describe_cost_management_exports_wrong_account(self):
         """Test that cost management exports are not returned from incorrect account."""
         resource_id = (
@@ -308,7 +336,7 @@ class AzureServiceTest(MasuTestCase):
         with self.assertRaises(AzureCostReportNotFound):
             svc.describe_cost_management_exports()
 
-    def test_download_cost_export(self):
+    def test_download_file(self):
         """Test that cost management exports are downloaded."""
         key = "{}_{}_day_{}".format(self.container_name, "blob", self.current_date_time.day)
 
@@ -317,11 +345,19 @@ class AzureServiceTest(MasuTestCase):
         type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
         client = self.get_mock_client(blob_list=[mock_blob])
-        file_path = client.download_cost_export(key, self.container_name)
+        file_path = client.download_file(key, self.container_name)
         self.assertTrue(file_path.endswith(".csv"))
 
+    def test_download_file_with_destination(self):
+        blobs = (FakeBlob("key", datetime.now()),)
+        azure_client = self.get_mock_client(blob_list=blobs)
+        with NamedTemporaryFile() as tf:
+            file = azure_client.download_file("key", "container", destination=tf.name)
+
+        self.assertEqual(file, tf.name)
+
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
-    def test_get_cost_export_for_key_exception(self, mock_factory):
+    def test_get_file_for_key_exception(self, mock_factory):
         """Test that function handles a raised exception."""
         mock_factory.return_value = Mock(
             spec=AzureClientFactory,
@@ -338,7 +374,7 @@ class AzureServiceTest(MasuTestCase):
             service = AzureService(
                 self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
             )
-            service.get_cost_export_for_key(key=FAKE.word(), container_name=FAKE.word())
+            service.get_file_for_key(key=FAKE.word(), container_name=FAKE.word())
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
     def test_download_cost_report_exception(self, mock_factory):
@@ -364,7 +400,7 @@ class AzureServiceTest(MasuTestCase):
             service = AzureService(
                 self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
             )
-            service.download_cost_export(key=key, container_name=FAKE.word())
+            service.download_file(key=key, container_name=FAKE.word())
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
     def test_get_latest_cost_export_for_path_exception(self, mock_factory):
@@ -418,3 +454,20 @@ class AzureServiceTest(MasuTestCase):
         svc._factory.cost_management_client.exports.get.side_effect = throw_azure_exception
         with self.assertRaises(AzureCostReportNotFound):
             svc.describe_cost_management_exports()
+
+    def test_get_latest_blob(self):
+        """Given a list of blobs, return the blob with the latest modification date
+        matching the specified extension.
+        """
+        report_path = "/container/report/path"
+        blobs = (
+            FakeBlob(f"{report_path}/_manifest.json", datetime(2022, 12, 18)),
+            FakeBlob(f"{report_path}/file01.csv", datetime(2022, 12, 16)),
+            FakeBlob(f"{report_path}/file02.csv", datetime(2022, 12, 15)),
+            FakeBlob("some/other/path/file01.csv", datetime(2022, 12, 1)),
+            FakeBlob(f"{report_path}/file03.csv", datetime(2022, 12, 17)),
+        )
+        azure_service = self.get_mock_client()
+        latest_blob = azure_service._get_latest_blob(f"{report_path}", blobs, ".csv")
+
+        self.assertEqual(latest_blob.name, f"{report_path}/file03.csv")

@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import uuid
+from enum import Enum
 from itertools import chain
 
 import ciso8601
@@ -24,6 +25,12 @@ from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.azure.models import PRESTO_COLUMNS
 
 LOG = logging.getLogger(__name__)
+
+
+class AzureBlobExtension(Enum):
+    manifest = "_manifest.json"
+    csv = ".csv"
+    json = ".json"
 
 
 def extract_uuids_from_string(source_string):
