@@ -192,12 +192,13 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test that we load daily files to S3."""
         # Use the processor example for data:
         file_name = "2022-08-01_5.csv"
+        partition = "2022-08-01"
         file_path = f"./koku/masu/test/data/gcp/{file_name}"
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/202208_{file_name}",
+            f"{temp_dir}/202208_{partition}_{file_name}",
         ]
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
