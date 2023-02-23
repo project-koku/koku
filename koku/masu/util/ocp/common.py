@@ -531,9 +531,9 @@ def ocp_post_processor(data_frame):
     label_columns = {"pod_labels", "volume_labels", "namespace_labels", "node_labels"}
     df_columns = set(data_frame.columns)
     columns_to_grab = df_columns.intersection(label_columns)
-    label_set = set()
+    label_key_set = set()
     for column in columns_to_grab:
         unique_labels = data_frame[column].unique()
         for label in unique_labels:
-            label_set.update(json.loads(label).keys())
-    return (data_frame, label_set)
+            label_key_set.update(json.loads(label).keys())
+    return (data_frame, label_key_set)
