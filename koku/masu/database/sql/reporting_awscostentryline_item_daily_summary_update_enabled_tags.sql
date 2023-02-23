@@ -2,6 +2,7 @@
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
       from {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+      where enabled = true
 )
 update {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary as lids
    set tags = tags - array_subtract(array(select jsonb_object_keys(tags))::text[], keys::text[])

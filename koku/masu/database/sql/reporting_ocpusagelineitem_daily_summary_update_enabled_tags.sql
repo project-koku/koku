@@ -2,6 +2,7 @@
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
       from {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
+      where enabled = true
 )
 update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
    set pod_labels = pod_labels - array_subtract(array(select jsonb_object_keys(coalesce(nullif(pod_labels, '"{}"')::jsonb, '{}'::jsonb)))::text[], keys::text[]),
