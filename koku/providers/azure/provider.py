@@ -10,6 +10,7 @@ from azure.common import AzureException
 from azure.core.exceptions import AzureError
 from azure.core.exceptions import HttpResponseError
 from msrest.exceptions import ClientException
+from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
 from ..provider_errors import ProviderErrors
@@ -118,13 +119,18 @@ class AzureProvider(ProviderInterface):
 
         self._verify_patch_entries(subscription_id, resource_group, storage_account, scope, export_name)
 
+        storage_only = data_source.get("storage_only")
+        if storage_only:
+            # Limited storage access
+            return True
+
         try:
             azure_service = AzureService(
                 **credentials,
                 resource_group_name=resource_group,
                 storage_account_name=storage_account,
                 scope=scope,
-                export_name=export_name
+                export_name=export_name,
             )
             azure_client = AzureClientFactory(**credentials)
             storage_accounts = azure_client.storage_client.storage_accounts
@@ -186,3 +192,35 @@ class AzureProvider(ProviderInterface):
 
         """
         return []
+
+    def is_file_reachable(self, source, reports_list):
+        """Verify that report files are accessible in Azure."""
+        resource_group = source.billing_source.data_source.get("resource_group")
+        storage_account = source.billing_source.data_source.get("storage_account")
+        subscription_id = source.authentication.credentials.get("subscription_id")
+        tenant_id = source.authentication.credentials.get("tenant_id")
+        client_id = source.authentication.credentials.get("client_id")
+        client_secret = source.authentication.credentials.get("client_secret")
+        try:
+            azure_client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
+            storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
+            for report in reports_list:
+                container_name = report.split("/")[0]
+                report_key = report.split(f"{container_name}/")[-1]
+                blob_client = storage_client.get_blob_client(container_name, report_key)
+                if not blob_client.exists():
+                    internal_message = f"File {report_key} could not be found within container {container_name}."
+                    key = ProviderErrors.AZURE_REPORT_NOT_FOUND
+                    raise serializers.ValidationError(error_obj(key, internal_message))
+        except (
+            AdalError,
+            AzureError,
+            AzureException,
+            AzureServiceError,
+            ClientException,
+            HttpResponseError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            key = ProviderErrors.AZURE_CLIENT_ERROR
+            raise ValidationError(error_obj(key, str(exc)))

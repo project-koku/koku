@@ -28,6 +28,8 @@ class SourcesErrorMessage:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
         if "AADSTS90002" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE
+        if "AADSTS7000222" in message:
+            scrubbed_message = ProviderErrors.AZURE_EXPIRED_CLIENT_SECRET_KEYS_MESSAGE
         if "ResourceGroupNotFound" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:

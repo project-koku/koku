@@ -78,6 +78,14 @@ class SourcesErrorMessageTest(TestCase):
             {
                 "key": ProviderErrors.AZURE_CLIENT_ERROR,
                 "internal_message": (
+                    "Authentication failed: AADSTS7000222: The provided client secret keys for app"
+                    " '84ed5026-61c8-42a3-9511-74735a5c6be2' are expired."
+                ),
+                "expected_message": ProviderErrors.AZURE_EXPIRED_CLIENT_SECRET_KEYS_MESSAGE,
+            },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": (
                     "Azure Error: ResourceGroupNotFound\nMessage: Resource group" "'RG2' could not be found."
                 ),
                 "expected_message": ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE,
