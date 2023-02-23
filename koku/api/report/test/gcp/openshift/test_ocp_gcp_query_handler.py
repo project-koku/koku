@@ -1439,7 +1439,12 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 handler.execute_query()
                 excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                 self.assertAlmostEqual(expected_total, excluded_total, 6)
-                self.assertNotEqual(overall_total, excluded_total)
+                if filtered_total == 0:
+                    # If the filtered value returns 0 then nothing should be excluded
+                    # so the two costs should equal
+                    self.assertEqual(overall_total, excluded_total)
+                else:
+                    self.assertNotEqual(overall_total, excluded_total)
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
