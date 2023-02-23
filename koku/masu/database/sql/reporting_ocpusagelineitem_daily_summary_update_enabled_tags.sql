@@ -4,8 +4,8 @@ with cte_enabled_keys as (
       from {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
 )
 update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-   set pod_labels = pod_labels - array_subtract(array(select jsonb_object_keys(coalesce(pod_labels, '{}'::jsonb)))::text[], keys::text[]),
-       volume_labels = volume_labels - array_subtract(array(select jsonb_object_keys(coalesce(volume_labels, '{}'::jsonb)))::text[], keys::text[])
+   set pod_labels = pod_labels - array_subtract(array(select jsonb_object_keys(coalesce(nullif(pod_labels, '"{}"')::jsonb, '{}'::jsonb)))::text[], keys::text[]),
+       volume_labels = volume_labels - array_subtract(array(select jsonb_object_keys(coalesce(nullif(volume_labels, '"{}"')::jsonb, '{}'::jsonb)))::text[], keys::text[])
   from cte_enabled_keys as ek
  where ek.keys != '{}'::text[]
    and lids.usage_start >= date({{start_date}})

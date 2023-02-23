@@ -1080,15 +1080,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_nodes_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
         with schema_context(self.schema):
-            nodes = OCPNode.objects.filter(cluster_id=cluster_id).values_list("node", "resource_id")
+            nodes = (
+                OCPNode.objects.filter(cluster_id=cluster_id)
+                .exclude(node__exact="")
+                .values_list("node", "resource_id")
+            )
             nodes = [(node[0], node[1]) for node in nodes]
         return nodes
 
     def get_pvcs_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
         with schema_context(self.schema):
-            pvcs = OCPPVC.objects.filter(cluster_id=cluster_id).values_list(
-                "persistent_volume", "persistent_volume_claim"
+            pvcs = (
+                OCPPVC.objects.filter(cluster_id=cluster_id)
+                .exclude(persistent_volume__exact="")
+                .values_list("persistent_volume", "persistent_volume_claim")
             )
             pvcs = [(pvc[0], pvc[1]) for pvc in pvcs]
         return pvcs
