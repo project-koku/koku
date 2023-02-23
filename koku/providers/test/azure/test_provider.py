@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Azure Provider."""
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from azure.common import AzureException
@@ -23,6 +24,30 @@ def throws_azure_nocosterror():
 
 class AzureProviderTestCase(TestCase):
     """Parent Class for AzureClientFactory test cases."""
+
+    def setUp(self):
+        """Create test case objects."""
+        super().setUp()
+        self.source = MagicMock(
+            return_value={
+                "billing_source": {
+                    "data_source": {
+                        "resource_group": FAKE.word(),
+                        "storage_account": FAKE.word(),
+                        "storage_only": True,
+                    }
+                },
+                "authentication": {
+                    "credentials": {
+                        "subscription_id": FAKE.uuid4(),
+                        "tenant_id": FAKE.uuid4(),
+                        "client_id": FAKE.uuid4(),
+                        "client_secret": FAKE.word(),
+                    }
+                },
+            }
+        )
+        self.files = ["test_file.csv"]
 
     def test_name(self):
         """Test name property."""
@@ -150,3 +175,35 @@ class AzureProviderTestCase(TestCase):
         with patch("providers.azure.provider.AzureService", side_effect=TypeError("Raised intentionally")):
             with self.assertRaisesRegex(ValidationError, "Raised intentionally"):
                 azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_storage_only_source_is_created(self, mock_azure_factory):
+        """Verify that a storage only sources is created."""
+        provider_interface = AzureProvider()
+        try:
+            credentials = {
+                "subscription_id": FAKE.uuid4(),
+                "tenant_id": FAKE.uuid4(),
+                "client_id": FAKE.uuid4(),
+                "client_secret": FAKE.word(),
+            }
+            data_source = {"resource_group": FAKE.word(), "storage_account": FAKE.word(), "storage_only": True}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+        except Exception:
+            self.fail("Unexpected Error")
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_is_file_reachable_valid(self, mock_azure_client):
+        """Test that ingress file is reachable."""
+        provider_interface = AzureProvider()
+        provider_interface.is_file_reachable(self.source, self.files)
+        mock_azure_client.cloud_storage_account.get_blob_client.assert_called
+
+    @patch("providers.azure.client.AzureClientFactory")
+    def test_is_file_reachable_authentication_error(self, mock_azure_client):
+        """Test ingress file check azure authentication error."""
+        err_msg = "Azure Error"
+        mock_azure_client.side_effect = AzureException(err_msg)
+        with self.assertRaises(ValidationError):
+            provider_interface = AzureProvider()
+            provider_interface.is_file_reachable(self.source, self.files)

@@ -14,7 +14,7 @@ from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
 
-PROVIDER_LIST = ["aws", "aws-local"]
+PROVIDER_LIST = ["aws", "aws-local", "azure", "azure-local"]
 
 
 class IngressReportsSerializer(serializers.ModelSerializer):

@@ -1,0 +1,15 @@
+{
+  "manifestVersion": "2021-01-01",
+  "dataFormat": "csv",
+  "blobCount": 1,
+  "byteCount": 423869,
+  "dataRowCount": 490,
+  "blobs": [
+    {
+      "blobName": "cost/partitioned/20230101-20230131/202301041442/73746dc5-5dcc-4b83-b340-bb1bd2b1ca30/000001.csv",
+      "byteCount": 423869,
+      "dataRowCount": 490,
+      "headerRowCount": 1
+    }
+  ]
+}

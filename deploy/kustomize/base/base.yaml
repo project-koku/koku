@@ -424,3 +424,6 @@ parameters:
 - name: RBAC_CACHE_TIMEOUT
   displayName: RBAC_CACHE_TIMEOUT
   value: "300"
+- name: CACHE_TIMEOUT
+  displayName: Middleware Timeout
+  value: "3600"

@@ -4,6 +4,7 @@
 #
 """Azure Report Downloader."""
 import datetime
+import json
 import logging
 import os
 
@@ -11,6 +12,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -21,6 +23,7 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure import common as utils
+from masu.util.azure.common import AzureBlobExtension
 from masu.util.common import extract_uuids_from_string
 from masu.util.common import get_path_prefix
 from masu.util.common import month_date_range
@@ -40,7 +43,7 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
         """
         Constructor.
 
@@ -49,9 +52,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Dictionary containing Azure Storage blob details.
-
+            ingress_reports  (List) List of reports from ingress post endpoint (optional)
         """
         super().__init__(**kwargs)
+        self.storage_only = data_source.get("storage_only")
+        self.ingress_reports = ingress_reports
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
@@ -74,7 +79,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self._provider_uuid = kwargs.get("provider_uuid")
         self.customer_name = customer_name.replace(" ", "_")
-        if not kwargs.get("is_local"):
+        if not kwargs.get("is_local") and not self.storage_only:
             self._azure_client = self._get_azure_client(credentials, data_source)
             export_reports = self._azure_client.describe_cost_management_exports()
             export_report = export_reports[0] if export_reports else {}
@@ -82,6 +87,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.export_name = export_report.get("name")
             self.container_name = export_report.get("container")
             self.directory = export_report.get("directory")
+
+        if self.ingress_reports:
+            container = self.ingress_reports[0].split("/")[0]
+            self.container_name = container
+            self._azure_client = self._get_azure_client(credentials, data_source)
 
     @staticmethod
     def _get_azure_client(credentials, data_source):
@@ -127,7 +137,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = month_date_range(date_time)
         return f"{self.directory}/{self.export_name}/{report_date_range}"
 
-    def _get_manifest(self, date_time):
+    def _get_manifest(self, date_time):  # noqa: C901
         """
         Download and return the CUR manifest for the given date.
 
@@ -138,31 +148,91 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        report_path = self._get_report_path(date_time)
         manifest = {}
-        try:
-            blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
-        except AzureCostReportNotFound as ex:
-            msg = f"Unable to find manifest. Error: {str(ex)}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
-            return manifest, None
-        report_name = blob.name
-
+        if self.ingress_reports:
+            report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
+            year = date_time.strftime("%Y")
+            month = date_time.strftime("%m")
+            dh = DateHelper()
+            billing_period = {
+                "start": f"{year}{month}01",
+                "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
+            }
+            try:
+                blob = self._azure_client.get_file_for_key(report, self.container_name)
+            except AzureCostReportNotFound as ex:
+                msg = f"Unable to find report. Error: {ex}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                return manifest, None
+            report_name = blob.name
+            last_modified = blob.last_modified
+            manifest["reportKeys"] = [blob.name]
+        else:
+            report_path = self._get_report_path(date_time)
+            billing_period = {
+                "start": (report_path.split("/")[-1]).split("-")[0],
+                "end": (report_path.split("/")[-1]).split("-")[1],
+            }
+            try:
+                json_manifest = self._azure_client.get_latest_manifest_for_path(report_path, self.container_name)
+            except AzureCostReportNotFound as ex:
+                json_manifest = None
+                msg = f"No JSON manifest exists. {ex}"
+                LOG.debug(msg)
+            if json_manifest:
+                report_name = json_manifest.name
+                last_modified = json_manifest.last_modified
+                LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
+                # Download the manifest and extract the list of files.
+                try:
+                    manifest_tmp = self._azure_client.download_file(
+                        report_name, self.container_name, suffix=AzureBlobExtension.json.value
+                    )
+                except AzureReportDownloaderError as err:
+                    msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
+                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    return {}, None
+                # Extract data from the JSON file
+                try:
+                    with open(manifest_tmp) as f:
+                        manifest_json = json.load(f)
+                except json.JSONDecodeError as err:
+                    msg = f"Unable to open JSON manifest. Reason: {err}"
+                    raise AzureReportDownloaderError(msg)
+                finally:
+                    self._remove_manifest_file(manifest_tmp)
+                manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
+            else:
+                try:
+                    blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+                except AzureCostReportNotFound as ex:
+                    msg = f"Unable to find manifest. Error: {ex}"
+                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    return manifest, None
+                report_name = blob.name
+                last_modified = blob.last_modified
+                LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
+                manifest["reportKeys"] = [report_name]
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:
             message = f"Unable to extract assemblyID from {report_name}"
             raise AzureReportDownloaderError(message)
 
-        billing_period = {
-            "start": (report_path.split("/")[-1]).split("-")[0],
-            "end": (report_path.split("/")[-1]).split("-")[1],
-        }
         manifest["billingPeriod"] = billing_period
-        manifest["reportKeys"] = [report_name]
         manifest["Compression"] = UNCOMPRESSED
 
-        return manifest, blob.last_modified
+        return manifest, last_modified
+
+    def _remove_manifest_file(self, manifest_file: str) -> None:
+        """Remove the temporary manifest file"""
+        try:
+            os.unlink(manifest_file)
+            msg = f"Deleted manifest file '{manifest_file}'"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
+        except OSError:
+            msg = f"Could not delete manifest file '{manifest_file}'"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
 
     def get_manifest_context_for_date(self, date):
         """
@@ -181,6 +251,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
+        if self.storage_only and not self.ingress_reports:
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
+            return report_dict
         manifest, manifest_timestamp = self._get_manifest(date)
         if manifest == {}:
             return report_dict
@@ -202,6 +275,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
             ]
             report_dict["files"] = files_list
+
         return report_dict
 
     @property
@@ -233,22 +307,25 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        file_creation_date = None
+        etag = None
+        if not self.ingress_reports:
+            try:
+                blob = self._azure_client.get_file_for_key(key, self.container_name)
+                etag = blob.etag
+                file_creation_date = blob.last_modified
+            except AzureCostReportNotFound as ex:
+                msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
+                LOG.error(log_json(self.tracing_id, msg, self.context))
+                raise AzureReportDownloaderError(msg)
+
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
-
-        file_creation_date = None
-        try:
-            blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
-            etag = blob.etag
-            file_creation_date = blob.last_modified
-        except AzureCostReportNotFound as ex:
-            msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
-            raise AzureReportDownloaderError(msg)
-
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
+        self._azure_client.download_file(
+            key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
+        )
         # Push to S3
         s3_csv_path = get_path_prefix(
             self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE

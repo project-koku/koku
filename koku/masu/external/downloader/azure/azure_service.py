@@ -4,13 +4,17 @@
 #
 """Azure Service helpers."""
 import logging
+import typing as t
 from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import ResourceNotFoundError
+from azure.storage.blob._models import BlobProperties
 from msrest.exceptions import ClientException
 
+from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
 
 LOG = logging.getLogger(__name__)
@@ -58,79 +62,130 @@ class AzureService:
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
-    def get_cost_export_for_key(self, key, container_name):
-        """Get the latest cost export file from given storage account container."""
-        report = None
-        try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
-            blob_list = container_client.list_blobs(name_starts_with=key)
-        except (AdalError, AzureException, ClientException) as error:
-            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
+    def _get_latest_blob(
+        self, report_path: str, blobs: list[BlobProperties], extension: str
+    ) -> t.Optional[BlobProperties]:
+        latest_blob = None
+        for blob in blobs:
+            if not blob.name.endswith(extension):
+                continue
 
-        for blob in blob_list:
-            if key == blob.name:
-                report = blob
-                break
-        if not report:
-            message = f"No cost report for report name {key} found in container {container_name}."
-            raise AzureCostReportNotFound(message)
-        return report
+            if report_path in blob.name and not latest_blob:
+                latest_blob = blob
+            elif report_path in blob.name and blob.last_modified > latest_blob.last_modified:
+                latest_blob = blob
+        return latest_blob
 
-    def download_cost_export(self, key, container_name, destination=None):
-        """Download the latest cost export file from a given storage container."""
-        cost_export = self.get_cost_export_for_key(key, container_name)
+    def _get_latest_blob_for_path(
+        self,
+        report_path: str,
+        container_name: str,
+        extension: str,
+    ) -> BlobProperties:
+        """Get the latest file with the specified extension from given storage account container."""
 
-        file_path = destination
-        if not destination:
-            temp_file = NamedTemporaryFile(delete=False, suffix=".csv")
-            file_path = temp_file.name
-        try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, cost_export.name)
-
-            with open(file_path, "wb") as blob_download:
-                blob_download.write(blob_client.download_blob().readall())
-        except (AdalError, AzureException, ClientException, OSError) as error:
-            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
-        return file_path
-
-    def get_latest_cost_export_for_path(self, report_path, container_name):
-        """Get the latest cost export file from given storage account container."""
         latest_report = None
         if not container_name:
-            message = "Unable to gather latest export as container name is not provided."
+            message = "Unable to gather latest file as container name is not provided."
             LOG.warning(message)
             raise AzureCostReportNotFound(message)
 
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
-            blob_list = container_client.list_blobs(name_starts_with=report_path)
-            for blob in blob_list:
-                if report_path in blob.name and not latest_report:
-                    latest_report = blob
-                elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
-                    latest_report = blob
-            if not latest_report:
-                message = f"No cost report found in container {container_name} for " f"path {report_path}."
-                raise AzureCostReportNotFound(message)
-            return latest_report
-        except (AdalError, AzureException, ClientException) as error:
-            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
+            blobs = list(container_client.list_blobs(name_starts_with=report_path))
+        except (AdalError, AzureException, ClientException, ResourceNotFoundError) as error:
+            raise AzureServiceError("Failed to download file. Error: ", str(error))
         except HttpResponseError as httpError:
             if httpError.status_code == 403:
                 message = (
-                    "An authorization error occurred attempting to gather latest export"
+                    "An authorization error occurred attempting to gather latest file"
                     f" in container {container_name} for "
                     f"path {report_path}."
                 )
             else:
                 message = (
-                    "Unknown error occurred attempting to gather latest export"
+                    "Unknown error occurred attempting to gather latest file"
                     f" in container {container_name} for "
                     f"path {report_path}."
                 )
-            error_msg = message + f" Azure Error: {httpError}."
+            error_msg = f"{message} Azure Error: {httpError}."
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
+
+        latest_report = self._get_latest_blob(report_path, blobs, extension)
+        if not latest_report:
+            message = (
+                f"No file with extension '{extension}' found in container "
+                f"'{container_name}' for path '{report_path}'."
+            )
+            raise AzureCostReportNotFound(message)
+
+        return latest_report
+
+    def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
+        try:
+            container_client = self._cloud_storage_account.get_container_client(container_name)
+            blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
+        except (AdalError, AzureException, ClientException, ResourceNotFoundError) as ex:
+            raise AzureServiceError(f"Unable to list blobs. Error: {ex}")
+
+        if not blob_names:
+            raise AzureCostReportNotFound(
+                f"Unable to find files in container '{container_name}' at path '{starts_with}'"
+            )
+
+        return blob_names
+
+    def get_file_for_key(self, key: str, container_name: str) -> BlobProperties:
+        """Get the file from given storage account container."""
+
+        blob_list = self._list_blobs(key, container_name)
+        report = None
+        for blob in blob_list:
+            if key == blob.name:
+                report = blob
+                break
+
+        if not report:
+            message = f"No file for report name {key} found in container {container_name}."
+            raise AzureCostReportNotFound(message)
+
+        return report
+
+    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+
+    def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
+
+    def download_file(
+        self,
+        key: str,
+        container_name: str,
+        destination: str = None,
+        suffix: str = AzureBlobExtension.csv.value,
+        ingress_reports: list[str] = None,
+    ) -> str:
+        """Download the file from a given storage container."""
+
+        if not ingress_reports:
+            cost_export = self.get_file_for_key(key, container_name)
+            key = cost_export.name
+
+        file_path = destination
+        if not destination:
+            temp_file = NamedTemporaryFile(delete=False, suffix=suffix)
+            temp_file.close()
+            file_path = temp_file.name
+
+        try:
+            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
+            with open(file_path, "wb") as blob_download:
+                blob_download.write(blob_client.download_blob().readall())
+        except (AdalError, AzureException, ClientException, OSError) as error:
+            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
+
+        return file_path
 
     def describe_cost_management_exports(self):
         """List cost management export."""
