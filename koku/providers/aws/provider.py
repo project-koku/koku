@@ -124,7 +124,7 @@ class AWSProvider(ProviderInterface):
             message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
-        storage_only = data_source.get("storage-only")
+        storage_only = data_source.get("storage_only")
         if storage_only:
             # Limited bucket access without CUR
             return True
