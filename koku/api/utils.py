@@ -318,7 +318,7 @@ class DateHelper:
             current = next_month
         return months
 
-    def days_in_month(self, date):
+    def days_in_month(self, date, year=None, month=None):
         """Return the number of days in the month.
 
         Args:
@@ -329,7 +329,10 @@ class DateHelper:
 
         """
         # monthrange returns (day_of_week, num_days)
-        _, num_days = calendar.monthrange(date.year, date.month)
+        if year and month:
+            _, num_days = calendar.monthrange(year, month)
+        else:
+            _, num_days = calendar.monthrange(date.year, date.month)
         return num_days
 
     def relative_month_start(self, month_seek, dt=None):

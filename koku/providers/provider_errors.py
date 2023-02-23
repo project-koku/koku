@@ -31,6 +31,7 @@ class ProviderErrors:
     AZURE_BILLING_SOURCE_NOT_FOUND = "billing_source.data_source.notfound"
     AZURE_CREDENTAL_UNREACHABLE = "authentication.credentials.unreachable"
     AZURE_CLIENT_ERROR = "azure.exception"
+    AZURE_REPORT_NOT_FOUND = "report.notfound"
 
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
     GCP_BUCKET_MISSING = "gcp.billing_source.bucket.missing"
