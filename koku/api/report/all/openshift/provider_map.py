@@ -370,10 +370,17 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [{"field": "unit", "operation": "exact", "parameter": "GB-Mo"}],
+                        "filter": [
+                            {"field": "unit", "operation": "in", "parameter": ["GB-Mo", "gibibyte month"]},
+                        ],
                         "or_filter": [
-                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
+                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},  # all
+                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},  # all
+                            {
+                                "field": "product_code",
+                                "operation": "in",
+                                "parameter": ["Filestore", "Data Transfer"],
+                            },  # GCP Specific
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
@@ -487,6 +494,11 @@ class OCPAllProviderMap(ProviderMap):
                         "or_filter": [
                             {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
                             {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
+                            {
+                                "field": "product_code",
+                                "operation": "in",
+                                "parameter": ["Filestore", "Data Transfer"],
+                            },  # GCP Specific
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
