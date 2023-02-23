@@ -17,6 +17,18 @@ WHERE
       lineitem_legalentity like '%Amazon Web Services%'
       AND lineitem_lineitemdescription like '%Red Hat%'
     )
+    OR (
+      lineitem_legalentity like '%Amazon Web Services%'
+      AND lineitem_lineitemdescription like '%RHEL%'
+    )
+    OR (
+      lineitem_legalentity like '%AWS%'
+      AND lineitem_lineitemdescription like '%Red Hat%'
+    )
+    OR (
+      lineitem_legalentity like '%AWS%'
+      AND lineitem_lineitemdescription like '%RHEL%'
+    )
   )
   AND lineitem_usagestartdate >= TIMESTAMP '{{date | sqlsafe}}'
   AND lineitem_usagestartdate < date_add(
