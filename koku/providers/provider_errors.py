@@ -92,7 +92,7 @@ class ProviderErrors:
         "Edit your Azure source to include these details."
     )
     AZURE_EXPIRED_CLIENT_SECRET_KEYS_MESSAGE = (
-        "The provided client secret keys for this source are expired."
+        "The provided client secret keys for this source are expired. "
         "In Azure, refresh your client secret and try again."
     )
     AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = (
