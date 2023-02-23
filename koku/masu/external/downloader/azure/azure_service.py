@@ -74,7 +74,6 @@ class AzureService:
                 latest_blob = blob
             elif report_path in blob.name and blob.last_modified > latest_blob.last_modified:
                 latest_blob = blob
-
         return latest_blob
 
     def _get_latest_blob_for_path(
@@ -160,11 +159,18 @@ class AzureService:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
 
     def download_file(
-        self, key: str, container_name: str, destination: str = None, suffix: str = AzureBlobExtension.csv.value
+        self,
+        key: str,
+        container_name: str,
+        destination: str = None,
+        suffix: str = AzureBlobExtension.csv.value,
+        ingress_reports: list[str] = None,
     ) -> str:
         """Download the file from a given storage container."""
 
-        cost_export = self.get_file_for_key(key, container_name)
+        if not ingress_reports:
+            cost_export = self.get_file_for_key(key, container_name)
+            key = cost_export.name
 
         file_path = destination
         if not destination:
@@ -173,7 +179,7 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, cost_export.name)
+            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
         except (AdalError, AzureException, ClientException, OSError) as error:
