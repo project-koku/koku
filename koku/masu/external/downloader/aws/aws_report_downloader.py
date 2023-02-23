@@ -64,7 +64,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
         self.bucket = bucket
-        self.storage_only = data_source.get("storage-only")
+        self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
@@ -93,7 +93,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         # Checking for storage only source
         if self.storage_only:
-            LOG.info("Skipping ingest as source is storage-only and requires ingress reports")
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
             report = [""]
         else:
             self.cur = session.client("cur")

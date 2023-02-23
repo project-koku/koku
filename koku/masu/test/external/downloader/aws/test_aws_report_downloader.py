@@ -160,7 +160,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
-        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage-only": True}
+        self.storage_only_data_source = {"bucket": self.fake_bucket_name, "storage_only": True}
         self.ingress_reports = [f"{self.fake_bucket_name}/test_report_file.csv"]
 
         self.report_downloader = ReportDownloader(
@@ -179,7 +179,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "provider_uuid": self.aws_provider_uuid,
             }
         )
-        self.aws_storage_ony_report_downloader = AWSReportDownloader(
+        self.aws_storage_only_report_downloader = AWSReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
@@ -578,7 +578,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Test _get_manifest method w storage only."""
         mock_datetime = DateAccessor().today()
 
-        result = self.aws_storage_ony_report_downloader.get_manifest_context_for_date(mock_datetime)
+        result = self.aws_storage_only_report_downloader.get_manifest_context_for_date(mock_datetime)
         self.assertEqual(result, {})
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file")
