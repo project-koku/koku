@@ -146,9 +146,9 @@ class SourcesViewTests(IamTestCase):
             "us-west-1",
             "us-west-2",
         }
-
-        response = self.client.get(reverse("sources-aws-s3-regions"))
-        regions = json.loads(response.content)["regions"]
+        response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
+        data = response.json()["data"]
+        regions = data[0]["regions"]
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(expected_subset.issubset(regions))
