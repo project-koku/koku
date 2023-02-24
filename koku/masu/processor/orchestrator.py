@@ -169,7 +169,7 @@ class Orchestrator:
             report_name=None,
             ingress_reports=self.ingress_reports,
         )
-        # only gcp returns more than one manifest at the moment.
+        # only GCP and OCI return more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
         report_tasks = []
         for manifest in manifest_list:
