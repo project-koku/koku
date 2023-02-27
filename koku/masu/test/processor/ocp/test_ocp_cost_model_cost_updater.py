@@ -87,8 +87,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                         6,
                     )
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_markup_cost_no_markup(self, mock_cost_accessor):
+    def test_update_markup_cost_no_markup(self, mock_cost_accessor, mock_markup):
         """Test that markup is calculated."""
         markup = {}
 
@@ -100,13 +101,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._update_markup_cost(start_date, end_date)
 
-        with schema_context(self.schema):
-            line_items = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=self.cluster_id
-            ).all()
-            for line_item in line_items:
-                self.assertEqual(line_item.infrastructure_markup_cost, 0)
-                self.assertEqual(line_item.infrastructure_project_markup_cost, 0)
+        mock_markup.assert_not_called()
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_usage_costs(self, mock_cost_accessor):
