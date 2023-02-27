@@ -62,6 +62,14 @@ class SourcesErrorMessageTest(TestCase):
             {
                 "key": ProviderErrors.AZURE_CLIENT_ERROR,
                 "internal_message": (
+                    "(401) Unauthorized. Request ID: cca1a5a4-4107-4e7a-b3b4-b88f31e6a674\n"
+                    "Code: 401\nMessage: Unauthorized. Request ID: cca1a5a4-4107-4e7a-b3b4-b88f31e6a674"
+                ),
+                "expected_message": ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE,
+            },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": (
                     ", AdalError: Get Token request returned http error: 400 and server response:"
                     ' {"error":"invalid_request","error_description":"AADSTS90002: Tenant'
                 ),
