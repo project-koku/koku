@@ -312,7 +312,10 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
-        output = rqh._set_operator_specified_prefix_filters(QueryFilterCollection(), "tag:", "tags", operator)
+        filter_keys = rqh.get_tag_filter_keys()
+        group_by = rqh.get_tag_group_by_keys()
+        filter_keys.extend(group_by)
+        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys)
 
         self.assertIsNotNone(output)
 
@@ -346,7 +349,10 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
-        output = rqh._set_operator_specified_prefix_filters(QueryFilterCollection(), "tag:", "tags", operator)
+        filter_keys = rqh.get_tag_filter_keys()
+        group_by = rqh.get_tag_group_by_keys()
+        filter_keys.extend(group_by)
+        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys)
         self.assertIsNotNone(output)
 
         expected = QueryFilterCollection(
