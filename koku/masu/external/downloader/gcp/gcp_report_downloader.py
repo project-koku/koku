@@ -496,7 +496,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        if not iterable_num:
+        if self.ingress_reports:
             local_file_name = key.replace("/", "_")
         else:
             local_file_name = key.replace("/", "_") + f"_{str(iterable_num)}.csv"
