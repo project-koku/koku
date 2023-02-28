@@ -17,6 +17,7 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS
         AND li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
+        AND li.pod_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys WHERE enabled=true)
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ;
 

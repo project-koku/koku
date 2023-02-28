@@ -11,6 +11,7 @@ WITH cte_tag_value AS (
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
+        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys WHERE enabled=true)
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -30,6 +31,9 @@ cte_values_agg AS (
         namespace,
         node
     FROM cte_tag_value
+    JOIN {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
+        ON tv.key = etk.key
+    WHERE etk.enabled = true
     GROUP BY key, cost_entry_bill_id, report_period_id, usage_account_id, namespace, node
 ),
 cte_distinct_values_agg AS (
@@ -93,4 +97,26 @@ LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON tv.usage_account_id = aa.account_id
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET usage_account_ids=EXCLUDED.usage_account_ids, namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
+;
+
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
+    WHERE etk.enabled = false
+        AND ts.key = etk.key
+)
+;
+
+WITH cte_expired_tag_keys AS (
+    SELECT DISTINCT tv.key
+    FROM {{schema | sqlsafe}}.reporting_ocpawstags_values AS tv
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
+        ON tv.key = ts.key
+    WHERE ts.key IS NULL
+
+)
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpawstags_values tv
+    USING cte_expired_tag_keys etk
+    WHERE tv.key = etk.key
 ;
