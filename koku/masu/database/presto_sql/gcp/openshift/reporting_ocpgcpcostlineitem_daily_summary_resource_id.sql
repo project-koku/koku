@@ -360,6 +360,17 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN ({{days}})
     AND pds.gcp_uuid IS NULL
+    AND (
+    (
+      gcp.matched_tag != ''
+      AND gcp.matched_tag IS NOT NULL
+    )
+    OR (
+      strpos(gcp.labels, 'openshift_project') != 0
+      OR strpos(gcp.labels, 'openshift_node') != 0
+      OR strpos(gcp.labels, 'openshift_cluster') != 0
+    )
+  )
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
