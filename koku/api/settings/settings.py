@@ -117,7 +117,7 @@ class Settings:
                 all_tags_set.add(tag_key.key)
                 if tag_key.enabled:
                     enabled.append(tag_key.key)
-        return all_tags_set, enabled
+        return all_tags_set, sorted(enabled)
 
     def _build_components(self):
         """
@@ -216,7 +216,7 @@ class Settings:
                 enabled_tags_no_abbr = []
                 enabled_tag_keys_class = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
                 provider = obtainTagKeysProvidersParams[provider_name]["provider"]
-                available, _ = self._obtain_tag_keys(enabled_tag_keys_class)
+                available, enabled = self._obtain_tag_keys(enabled_tag_keys_class)
 
                 # build a list of enabled tags for a given provider, removing the provider name prefix
                 for enabled_tag in settings.get("enabled", []):
@@ -230,11 +230,7 @@ class Settings:
                     message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                     raise ValidationError(error_obj(key, message))
 
-                existing_enabled_tags = list(
-                    enabled_tag_keys_class.objects.filter(enabled=True).values_list("key", flat=True)
-                )
-
-                if enabled_tags_no_abbr != existing_enabled_tags:
+                if sorted(enabled_tags_no_abbr) != enabled:
                     updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys_class, enabled_tags_no_abbr)
 
                 if updated[ix]:
