@@ -19,6 +19,7 @@ from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.constants import TAG_PREFIX
 from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.gcp.view import GCPCostView
@@ -315,7 +316,7 @@ class ReportQueryHandlerTest(IamTestCase):
         filter_keys = rqh.get_tag_filter_keys()
         group_by = rqh.get_tag_group_by_keys()
         filter_keys.extend(group_by)
-        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys)
+        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys, TAG_PREFIX)
 
         self.assertIsNotNone(output)
 
@@ -352,7 +353,7 @@ class ReportQueryHandlerTest(IamTestCase):
         filter_keys = rqh.get_tag_filter_keys()
         group_by = rqh.get_tag_group_by_keys()
         filter_keys.extend(group_by)
-        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys)
+        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys, TAG_PREFIX)
         self.assertIsNotNone(output)
 
         expected = QueryFilterCollection(

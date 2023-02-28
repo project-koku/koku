@@ -21,6 +21,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
+from api.report.constants import TAG_PREFIX
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
@@ -636,7 +637,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         group_keys = handler.get_tag_group_by_keys()
         filter_keys.extend(group_keys)
         filter_collection = handler._set_prefix_based_filters(
-            filter_collection, handler._mapper.tag_column, filter_keys
+            filter_collection, handler._mapper.tag_column, filter_keys, TAG_PREFIX
         )
 
         expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('pod_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('pod_labels__{group_by_key}__icontains', '{group_by_value}')), """  # noqa: E501
