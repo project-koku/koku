@@ -21,6 +21,10 @@ from tenant_schemas.utils import tenant_context
 from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
+from api.report.constants import AND_TAG_PREFIX
+from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import OR_TAG_PREFIX
+from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
 from koku.feature_flags import fallback_development_true
@@ -30,12 +34,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
-TAG_PREFIX = "tag:"
-AND_TAG_PREFIX = "and:tag:"
-OR_TAG_PREFIX = "or:tag:"
-AWS_CATEGORY_PREFIX = "aws_category:"
-AND_AWS_CATEGORY_PREFIX = "and:aws_category:"
-OR_AWS_CATEGORY_PREFIX = "or:aws_category:"
 
 
 def enable_negative_filtering(org_id):

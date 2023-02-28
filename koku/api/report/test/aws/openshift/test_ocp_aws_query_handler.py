@@ -14,12 +14,12 @@ from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.query_params import AWS_CATEGORY_PREFIX
 from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
 from api.report.aws.openshift.serializers import OCPAWSExcludeSerializer
 from api.report.aws.openshift.view import OCPAWSCostView
 from api.report.aws.openshift.view import OCPAWSInstanceTypeView
 from api.report.aws.openshift.view import OCPAWSStorageView
+from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.queries import check_view_filter_and_group_by_criteria
 from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler

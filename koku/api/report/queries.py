@@ -42,16 +42,18 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import TAG_PREFIX
 
 LOG = logging.getLogger(__name__)
 
 
 def strip_prefix(key):
     """Remove the query prefix from a key."""
-    if "tag:" in key:
-        return key.replace("tag:", "").replace("and:", "").replace("or:", "")
-    if "aws_category:" in key:
-        return key.replace("aws_category:", "").replace("and:", "").replace("or:", "")
+    if TAG_PREFIX in key:
+        return key.replace(TAG_PREFIX, "").replace("and:", "").replace("or:", "")
+    if AWS_CATEGORY_PREFIX in key:
+        return key.replace(AWS_CATEGORY_PREFIX, "").replace("and:", "").replace("or:", "")
 
 
 def _is_grouped_by_key(group_by, keys):
@@ -220,7 +222,7 @@ class ReportQueryHandler(QueryHandler):
         aws_category_parameters = []
         parameters = self.parameters.get(parameter_key, {})
         for filt in parameters:
-            if "aws_category" in filt and filt in self._aws_category:
+            if AWS_CATEGORY_PREFIX.replace(":", "") in filt and filt in self._aws_category:
                 aws_category_parameters.append(filt)
         return aws_category_parameters
 
@@ -857,7 +859,7 @@ class ReportQueryHandler(QueryHandler):
             if data_key.startswith(tag_prefix):
                 new_tag = data_key[len(tag_prefix) :]  # noqa
                 if new_tag in all_pack_keys:
-                    new_data["tag:" + new_tag] = data[data_key]
+                    new_data[TAG_PREFIX + new_tag] = data[data_key]
                 else:
                     new_data[new_tag] = data[data_key]
                 delete_keys.append(data_key)
@@ -956,7 +958,6 @@ class ReportQueryHandler(QueryHandler):
             "infra_total",
             "cost_total",
         ]
-        tag_str = "tag:"
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
         for field in reversed(order_fields):
@@ -969,8 +970,8 @@ class ReportQueryHandler(QueryHandler):
                 sorted_data = sorted(
                     sorted_data, key=lambda entry: (entry[field] is None, entry[field]), reverse=reverse
                 )
-            elif tag_str in field:
-                tag_index = field.index(tag_str) + len(tag_str)
+            elif TAG_PREFIX in field:
+                tag_index = field.index(TAG_PREFIX) + len(TAG_PREFIX)
                 tag = db_tag_prefix + field[tag_index:]
                 sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]), reverse=reverse)
             else:

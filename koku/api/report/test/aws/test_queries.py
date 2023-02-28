@@ -27,12 +27,12 @@ from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.query_params import AWS_CATEGORY_PREFIX
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
+from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.queries import strip_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
 from api.report.test.util.constants import AWS_CONSTANTS

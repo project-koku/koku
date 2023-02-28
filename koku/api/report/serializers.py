@@ -10,14 +10,13 @@ from rest_framework import serializers
 from rest_framework.fields import DateField
 
 from api.currency.currencies import CURRENCY_CHOICES
+from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
 from api.utils import DateHelper
 from api.utils import get_currency
 from api.utils import materialized_view_month_start
 from reporting.provider.ocp.models import OpenshiftCostCategory
-
-AWS_CATEGORY_PREFIX = "aws_category:"
-TAG_PREFIX = "tag:"
 
 
 def handle_invalid_fields(this, data):
