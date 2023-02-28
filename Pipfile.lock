@@ -2640,11 +2640,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:ac66f12d07581bc51e943ab29d29723ff6f7e6362018afe335ca8ff914d1b8a9",
-                "sha256:be75998a9485392a06f36922e2280d7c3e85bccac788ad898f7db9264e398ce2"
+                "sha256:21c5e840239968195887200e7f5ac76def1402134af8f7f4741f4a980a3c9453",
+                "sha256:b743e018863b77cb1734c5e5ad2b3bf17c6beff3de4cd65fc7ff93e649363ee6"
             ],
             "index": "pypi",
-            "version": "==3.1.0"
+            "version": "==4.0.2"
         },
         "kubernetes": {
             "hashes": [
