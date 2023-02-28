@@ -2,10 +2,10 @@
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
       from {{schema | sqlsafe}}.reporting_ocienabledtagkeys
-      where enabled = true
+      where enabled = false
 )
 update {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary as lids
-   set tags = tags - array_subtract(array(select jsonb_object_keys(tags))::text[], keys::text[])
+   set tags = tags - ek.keys
   from cte_enabled_keys as ek
  where ek.keys != '{}'::text[]
    and lids.usage_start >= date({{start_date}})
