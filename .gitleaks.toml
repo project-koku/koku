@@ -1,0 +1,4 @@
+[allowlist]
+paths = [
+    '''grafana\/grafana.db.sql''',
+]
