@@ -21,18 +21,18 @@ WITH cte_tag_value AS (
     GROUP BY key, value, li.cost_entry_bill_id, li.subscription_guid, li.report_period_id, li.namespace, li.node
 ),
 cte_values_agg AS (
-    SELECT key,
+    SELECT tv.key,
         array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
         report_period_id,
         subscription_guid,
         namespace,
         node
-    FROM cte_tag_value
+    FROM cte_tag_value AS tv
     JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
-    GROUP BY key, cost_entry_bill_id, report_period_id, subscription_guid, namespace, node
+    GROUP BY tv.key, cost_entry_bill_id, report_period_id, subscription_guid, namespace, node
 ),
 cte_distinct_values_agg AS (
     SELECT v.key,

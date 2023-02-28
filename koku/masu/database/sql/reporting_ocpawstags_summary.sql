@@ -22,7 +22,7 @@ WITH cte_tag_value AS (
     GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id, li.report_period_id, li.namespace, li.node
 ),
 cte_values_agg AS (
-    SELECT key,
+    SELECT tv.key,
         array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
         report_period_id,
@@ -30,11 +30,11 @@ cte_values_agg AS (
         max(account_alias_id) as account_alias_id,
         namespace,
         node
-    FROM cte_tag_value
+    FROM cte_tag_value AS tv
     JOIN {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
-    GROUP BY key, cost_entry_bill_id, report_period_id, usage_account_id, namespace, node
+    GROUP BY tv.key, cost_entry_bill_id, report_period_id, usage_account_id, namespace, node
 ),
 cte_distinct_values_agg AS (
     SELECT v.key,
