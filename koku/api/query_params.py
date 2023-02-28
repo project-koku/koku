@@ -21,6 +21,10 @@ from tenant_schemas.utils import tenant_context
 from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
+from api.report.constants import AND_TAG_PREFIX
+from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import OR_TAG_PREFIX
+from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
 from koku.feature_flags import fallback_development_true
@@ -30,9 +34,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
-TAG_PREFIX = "tag:"
-AND_TAG_PREFIX = "and:tag:"
-OR_TAG_PREFIX = "or:tag:"
 
 
 def enable_negative_filtering(org_id):
@@ -118,6 +119,7 @@ class QueryParameters:
             raise ValidationError(error) from e
 
         self._set_tag_keys()  # sets self.tag_keys
+        self._set_aws_category_keys()
         self._validate(query_params)  # sets self.parameters
 
         if settings.DEVELOPMENT:
@@ -180,6 +182,35 @@ class QueryParameters:
             if stripped_key in self.tag_keys:
                 param_tag_keys.add(key)
         return param_tag_keys
+
+    # TODO: This function will be needed for below
+    # def _strip_aws_category_prefix(self, value):
+    #     if AWS_CATEGORY_PREFIX.replace(":", "") not in value:
+    #         return value
+    #     if value.startswith(AWS_CATEGORY_PREFIX):
+    #         return value[len(AWS_CATEGORY_PREFIX) :]  # noqa: E203
+    #     if value.startswith(AND_AWS_CATEGORY_PREFIX):
+    #         return value[len(AND_AWS_CATEGORY_PREFIX) :]  # noqa: E203
+    #     if value.startswith(OR_AWS_CATEGORY_PREFIX):
+    #         return value[len(OR_AWS_CATEGORY_PREFIX) :]  # noqa: E203
+
+    def _process_aws_category_query_params(self, query_params):
+        """Reduce the set of aws categories based on those being queried."""
+        param_aws_category_keys = set()
+        for key, value in query_params.items():
+            if not isinstance(value, (dict, list)):
+                value = [value]
+            for inner_key in value:
+                if AWS_CATEGORY_PREFIX in inner_key:
+                    param_aws_category_keys.add(inner_key)
+                # TODO: Remove when we have better serializer logic
+                # for aws_category keys
+                # stripped_key = self._strip_aws_category_prefix(inner_key)
+                # if stripped_key in self.aws_category_keys:
+            # stripped_key = self._strip_aws_category_prefix(key)
+            # if stripped_key in self.aws_category_keys:
+            #     param_aws_category_keys.add(key)
+        return param_aws_category_keys
 
     def _configure_access_params(self, caller):
         """Configure access for the appropriate providers."""
@@ -406,6 +437,14 @@ class QueryParameters:
             with tenant_context(self.tenant):
                 self.tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
 
+    def _set_aws_category_keys(self):
+        """Set the valid aws_category keys"""
+        self.aws_category_keys = set()
+        # TODO: Right now we accept any key passed in.
+        # However, we should rewrite this to only
+        # allow acceptable categorites.
+        return
+
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
         time_scope_units = self.get_filter("time_scope_units")
@@ -443,6 +482,11 @@ class QueryParameters:
         if self.report_type != "tags" and "tag" in self.url_data:
             self.tag_keys = self._process_tag_query_params(query_params)
             qps = self.serializer(data=query_params, tag_keys=self.tag_keys, context={"request": self.request})
+        elif AWS_CATEGORY_PREFIX.replace(":", "") in self.url_data:
+            self.aws_category_keys = self._process_aws_category_query_params(query_params)
+            qps = self.serializer(
+                data=query_params, aws_category_keys=self.aws_category_keys, context={"request": self.request}
+            )
         else:
             qps = self.serializer(data=query_params, context={"request": self.request})
 

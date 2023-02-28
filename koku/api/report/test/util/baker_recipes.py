@@ -37,6 +37,7 @@ aws_daily_summary = Recipe(
     unit=cycle(AWS_CONSTANTS["units"]),
     region=cycle(AWS_GEOG["regions"]),
     availability_zone=cycle(AWS_GEOG["availability_zones"]),
+    cost_category=cycle(AWS_CONSTANTS["cost_category"]),
     _fill_optional=True,
     _quantity=10,
 )
@@ -172,6 +173,7 @@ ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
     instance_type=cycle(AWS_CONSTANTS["instance_types"]),
     product_code=cycle(AWS_CONSTANTS["product_codes"]),
     product_family=cycle(AWS_CONSTANTS["product_families"]),
+    aws_cost_category=cycle(AWS_CONSTANTS["cost_category"]),
     unit=cycle(AWS_CONSTANTS["units"]),
     unblended_cost=cycle(decimal_yielder()),
     markup_cost=cycle(decimal_yielder()),
