@@ -15,5 +15,11 @@ class Migration(migrations.Migration):
             name="enabled",
             field=models.BooleanField(default=False),
         ),
+        migrations.AlterField(
+            model_name="gcpenabledtagkeys",
+            name="enabled",
+            field=models.BooleanField(default=False),
+        ),
         migrations.RunSQL("ALTER TABLE reporting_ocpenabledtagkeys ALTER COLUMN enabled SET DEFAULT false"),
+        migrations.RunSQL("ALTER TABLE reporting_gcpenabledtagkeys ALTER COLUMN enabled SET DEFAULT false"),
     ]
