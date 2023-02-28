@@ -1081,7 +1081,6 @@ class OCPAWSReportViewTest(IamTestCase):
 
             compared_deltas = False
             for day in data:
-                print("\nDAY: ", day)
                 previous_delta = None
                 for instance_type in day.get("instance_types", []):
                     values = instance_type.get("values", [])
