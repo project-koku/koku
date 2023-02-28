@@ -48,12 +48,9 @@ from api.report.constants import TAG_PREFIX
 LOG = logging.getLogger(__name__)
 
 
-def strip_prefix(key):
+def strip_prefix(key, prefix):
     """Remove the query prefix from a key."""
-    if TAG_PREFIX in key:
-        return key.replace(TAG_PREFIX, "").replace("and:", "").replace("or:", "")
-    if AWS_CATEGORY_PREFIX in key:
-        return key.replace(AWS_CATEGORY_PREFIX, "").replace("and:", "").replace("or:", "")
+    return key.replace(prefix, "").replace("and:", "").replace("or:", "")
 
 
 def _is_grouped_by_key(group_by, keys):
@@ -259,9 +256,13 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
-        filter_collection = self._set_prefix_based_filters(filter_collection, self._mapper.tag_column, tag_filters)
+        filter_collection = self._set_prefix_based_filters(
+            filter_collection, self._mapper.tag_column, tag_filters, TAG_PREFIX
+        )
         tag_exclude_filters = self.get_tag_filter_keys("exclude")
-        tag_exclusion_composed = self._build_prefixed_based_exclusions(self._mapper.tag_column, tag_exclude_filters)
+        tag_exclusion_composed = self._set_prefix_based_exclusions(
+            self._mapper.tag_column, tag_exclude_filters, TAG_PREFIX
+        )
         # aws_category prefixed filters
         aws_category_exclusion_composed = None
         if self.is_aws:
@@ -272,11 +273,11 @@ class ReportQueryHandler(QueryHandler):
             if self.is_openshift:
                 aws_category_column = "aws_cost_category"
             filter_collection = self._set_prefix_based_filters(
-                filter_collection, aws_category_column, aws_category_filters
+                filter_collection, aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
             )
             aws_category_exclude_filters = self.get_aws_category_keys("exclude")
-            aws_category_exclusion_composed = self._build_prefixed_based_exclusions(
-                aws_category_column, aws_category_exclude_filters
+            aws_category_exclusion_composed = self._set_prefix_based_exclusions(
+                aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
             )
 
         composed_filters = filter_collection.compose()
@@ -426,12 +427,13 @@ class ReportQueryHandler(QueryHandler):
 
         return filters.compose(logical_operator="or")
 
-    def _build_prefixed_based_exclusions(self, db_column, exclude_filters):
+    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):
         """Creates exclusion fitlers for prefixed parameter keys
         that allow null returns.
 
         db_column: column to apply the excludes on
         exclude_filters: list of exclude filters
+        prefix: prefix to be stripped from parameter keys
 
         Notes:
         Null filters are added to create the no-{key} in the api return.
@@ -446,7 +448,7 @@ class ReportQueryHandler(QueryHandler):
         _filter_list = []
         empty_json_filter = {"field": db_column, "operation": "exact", "parameter": "{}"}
         for exclude_key in exclude_filters:
-            exclude_db_name = db_column + "__" + strip_prefix(exclude_key)
+            exclude_db_name = db_column + "__" + strip_prefix(exclude_key, prefix)
             list_ = self.parameters.get_exclude(exclude_key, list())
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 _filter_list.append({"field": exclude_db_name, "operation": "noticontainslist", "parameter": list_})
@@ -484,16 +486,19 @@ class ReportQueryHandler(QueryHandler):
             _exclusion_composed = _exclusion_composed | null_composed
         return _exclusion_composed
 
-    def _set_operator_specific_prefixed_filters(self, filter_collection, db_column, filter_list, operator):
-        """
+    def _set_operator_specific_prefix_based_filters(self, filter_collection, db_column, filter_list, operator, prefix):
+        """Create operator specific prefix based filters.
+
         filter_collection: FilterCollection
         db_column: column to use to build filter
         filter_list: list of filters from param's filter & group by
+        operator: operator to combine filters on
+        prefix: prefix to be stripped from parameter keys
         """
         operator_filters = [filt for filt in filter_list if operator + ":" in filt]
         for _filter in operator_filters:
             # Update the _filter to use the label column name
-            _db_name = db_column + "__" + strip_prefix(_filter)
+            _db_name = db_column + "__" + strip_prefix(_filter, prefix)
             filt = {"field": _db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(_filter, list())
             filter_ = self.parameters.get_filter(_filter, list())
@@ -504,35 +509,36 @@ class ReportQueryHandler(QueryHandler):
                     filter_collection.add(q_filter)
         return filter_collection
 
-    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list):
+    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):
         """Create and set colon prefixed filters.
 
         filter_collection: FilterCollection
         db_column: column to use to build filter
         filter_list: list of filters from param's filter & group by
+        prefix: prefix to be stripped from parameter keys
         """
         standard_filters = [filt for filt in filter_list if "and:" not in filt and "or:" not in filt]
         for prefix_filter in standard_filters:
             # Update the _filter to use the label column name
-            db_name = db_column + "__" + strip_prefix(prefix_filter)
+            db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
             filt = {"field": db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(prefix_filter, list())
             filter_ = self.parameters.get_filter(prefix_filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if filter_ and ReportQueryHandler.has_wildcard(filter_):
                 filt = {"field": db_column, "operation": "has_key"}
-                q_filter = QueryFilter(parameter=strip_prefix(prefix_filter), **filt)
+                q_filter = QueryFilter(parameter=strip_prefix(prefix_filter, prefix), **filt)
                 filter_collection.add(q_filter)
             elif list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filter_collection.add(q_filter)
 
-        filter_collection = self._set_operator_specific_prefixed_filters(
-            filter_collection, db_column, filter_list, "and"
+        filter_collection = self._set_operator_specific_prefix_based_filters(
+            filter_collection, db_column, filter_list, "and", prefix
         )
-        filter_collection = self._set_operator_specific_prefixed_filters(
-            filter_collection, db_column, filter_list, "or"
+        filter_collection = self._set_operator_specific_prefix_based_filters(
+            filter_collection, db_column, filter_list, "or", prefix
         )
 
         return filter_collection
@@ -654,7 +660,7 @@ class ReportQueryHandler(QueryHandler):
         tag_column = self._mapper.tag_column
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            tag_db_name = tag_column + "__" + strip_prefix(tag)
+            tag_db_name = tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
             group_data = self.parameters.get_group_by(tag)
             if group_data:
                 tag = quote_plus(tag)
