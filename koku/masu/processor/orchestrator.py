@@ -347,7 +347,10 @@ class Orchestrator:
         """
         LOG.info("Getting latest report files for account (provider uuid): %s", provider_uuid)
         dh = DateHelper()
-        start_date = dh.today
+        if self.ingress_reports:
+            start_date = DateAccessor().get_billing_month_start(self.bill_date + "01")
+        else:
+            start_date = dh.today
         account["report_month"] = start_date
         try:
             _, reports_tasks_queued = self.start_manifest_processing(**account)

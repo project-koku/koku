@@ -319,7 +319,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 len(manifest.get("files")),
                 date,
             )
-            compression = manifest.get("compression")
+            report_dict = {
+                "manifest_id": manifest_id,
+                "assembly_id": assembly_id,
+                "compression": manifest.get("compression"),
+                "files": [
+                    {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
+                ],
+            }
+            reports_list.append(report_dict)
         else:
             current_manifests = self.retrieve_current_manifests_mapping()
             bigquery_mapping = self.bigquery_export_to_partition_mapping()
@@ -331,16 +339,16 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     len(manifest["files"]),
                     dh._now,
                 )
-                assembly_id = manifest["assembly_id"]
-                compression = UNCOMPRESSED
-        files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")]
-        report_dict = {
-            "manifest_id": manifest_id,
-            "assembly_id": assembly_id,
-            "compression": compression,
-            "files": files_list,
-        }
-        reports_list.append(report_dict)
+                report_dict = {
+                    "manifest_id": manifest_id,
+                    "assembly_id": manifest["assembly_id"],
+                    "compression": UNCOMPRESSED,
+                    "files": [
+                        {"key": key, "local_file": self.get_local_file_for_report(key)}
+                        for key in manifest.get("files")
+                    ],
+                }
+                reports_list.append(report_dict)
         return reports_list
 
     def get_local_file_for_report(self, report):
