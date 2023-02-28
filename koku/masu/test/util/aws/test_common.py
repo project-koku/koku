@@ -79,6 +79,30 @@ class TestAWSUtils(MasuTestCase):
         session = utils.get_assume_role_session(self.arn)
         self.assertIsInstance(session, boto3.Session)
 
+    def test_get_available_regions(self):
+        regions = utils.get_available_regions()
+        expected_subset = {
+            "us-east-1",
+            "us-east-2",
+            "eu-central-1",
+            "sa-east-1",
+        }
+        self.assertTrue(expected_subset.issubset(regions))
+
+    def test_get_available_regions_service_name(self):
+        regions = utils.get_available_regions("ec2")
+        expected_subset = {
+            "us-east-1",
+            "us-east-2",
+            "eu-central-1",
+            "sa-east-1",
+        }
+        self.assertTrue(expected_subset.issubset(regions))
+
+    def test_get_available_regions_bad_service_name(self):
+        regions = utils.get_available_regions("not a service")
+        self.assertEqual(regions, [])
+
     def test_month_date_range(self):
         """Test month_date_range returns correct month range."""
         today = datetime.now()

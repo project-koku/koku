@@ -22,12 +22,14 @@ class SourcesErrorMessage:
     def azure_client_errors(self, message):
         """Azure client error messages."""
         scrubbed_message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
-        if any(test in message for test in ["http error: 401", "Authentication failed"]):
+        if any(test in message for test in ["http error: 401", "Authentication failed", "(401) Unauthorized"]):
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE
         if "AADSTS700016" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
         if "AADSTS90002" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE
+        if "AADSTS7000222" in message:
+            scrubbed_message = ProviderErrors.AZURE_EXPIRED_CLIENT_SECRET_KEYS_MESSAGE
         if "ResourceGroupNotFound" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:
