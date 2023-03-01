@@ -16,6 +16,7 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
+from api.report.serializers import BaseSerializer
 from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
@@ -52,6 +53,24 @@ class MarkupSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10, coerce_to_string=True)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
+
+
+class DistributionSerializer(BaseSerializer):
+    """Serializer for distribution options"""
+
+    distribute_type = serializers.ChoiceField(
+        choices=metric_constants.DISTRIBUTION_CHOICES, default=metric_constants.CPU_DISTRIBUTION
+    )
+    platform_cost = serializers.BooleanField(default=True)
+    worker_cost = serializers.BooleanField(default=True)
+
+    def validate_distribute_type(self, distribute_type):
+        """Run validation for distribution choice."""
+        distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
+        if distribute_type not in distrib_choice_list:
+            error_msg = f"{distribute_type} is an invaild distribution type"
+            raise serializers.ValidationError(error_msg)
+        return distribute_type
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -363,7 +382,7 @@ class RateSerializer(serializers.Serializer):
         return data
 
 
-class CostModelSerializer(serializers.Serializer):
+class CostModelSerializer(BaseSerializer):
     """Serializer for a list of tiered rates."""
 
     class Meta:
@@ -395,9 +414,7 @@ class CostModelSerializer(serializers.Serializer):
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
 
-    distribute_platform_cost = serializers.BooleanField(default=True)
-
-    distribute_worker_cost = serializers.BooleanField(default=True)
+    distribution_info = DistributionSerializer(required=True)
 
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
@@ -466,6 +483,7 @@ class CostModelSerializer(serializers.Serializer):
             raise serializers.ValidationError("{} is not a valid source.".format(data["source_type"]))
         if data.get("rates"):
             self.validate_rates_currency(data)
+        data["distribution_info"] = self.validate_distribution_json(data)
         return data
 
     def _get_metric_display_data(self, source_type, metric):
@@ -485,6 +503,21 @@ class CostModelSerializer(serializers.Serializer):
             err_msg = f"Provider object does not exist with following uuid(s): {invalid_uuids}."
             raise serializers.ValidationError(err_msg)
         return valid_uuids
+
+    def validate_distribution_json(self, data):
+        """Validates the distrubtion json."""
+        distribution = data.get("distribution")
+        distribution_info = data.get("distribution_info")
+        if distribution and not distribution_info:
+            distribution_info = {
+                "distribute_type": distribution,
+                "platform_cost": True,
+                "worker_cost": True,
+            }
+        serializer = DistributionSerializer(data=distribution_info)
+        serializer.validate(data)
+        serializer.is_valid(raise_exception=True)
+        return distribution_info
 
     def validate_rates_currency(self, data):
         """Validate incoming currency and rates all match."""
@@ -524,23 +557,10 @@ class CostModelSerializer(serializers.Serializer):
             raise serializers.ValidationError(error_msg)
         return distribution
 
-    def build_distribution_info_json(self, validated_data):
-        """
-        Builds the distrubtion info json, off the given fields.
-        """
-        distribution_info_json = {
-            "distribution_type": validated_data.pop("distribution", "cpu"),
-            "distribute_platform_cost": validated_data.pop("distribute_platform_cost", True),
-            "distribute_worker_cost": validated_data.pop("distribute_worker_cost", True),
-        }
-        validated_data.update({"distribution_info": distribution_info_json})
-        return validated_data
-
     def create(self, validated_data):
         """Create the cost model object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
-        validated_data = self.build_distribution_info_json(validated_data)
         try:
             return CostModelManager().create(**validated_data)
         except CostModelException as error:
@@ -550,7 +570,6 @@ class CostModelSerializer(serializers.Serializer):
         """Update the rate object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
         new_providers_for_instance = []
-        validated_data = self.build_distribution_info_json(validated_data)
         for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
         try:
