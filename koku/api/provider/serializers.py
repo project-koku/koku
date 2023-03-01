@@ -167,7 +167,10 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     def validate_data_source(self, data_source):
         """Validate data_source field."""
         key = "provider.data_source"
-        fields = ["dataset"]
+        if data_source.get("storage_only"):
+            fields = ["bucket"]
+        else:
+            fields = ["dataset"]
         data = validate_field(data_source, fields, key)
 
         report_prefix = data_source.get("report_prefix", "")

@@ -1,5 +1,6 @@
 """Test GCP Provider."""
 import copy
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -14,9 +15,11 @@ from rest_framework.serializers import ValidationError
 from api.models import Provider
 from api.provider.models import Sources
 from providers.gcp.provider import GCPProvider
+from providers.gcp.provider import GCPReportExistsError
 from providers.gcp.provider import REQUIRED_IAM_PERMISSIONS
 from providers.provider_errors import SkipStatusPush
 
+LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
 
@@ -46,19 +49,80 @@ class MockBigQueryClient:
         return valid_tables
 
 
+class MockStorageClient:
+    def __init__(self, bucket):
+        self._bucket = bucket
+
+    def get_bucket(self, bucket):
+        return bucket
+
+
 class GCPProviderTestCase(TestCase):
     """Test cases for GCP Provider."""
+
+    def setUp(self):
+        """Create test case objects."""
+        super().setUp()
+
+        self.source = MagicMock(
+            return_value={
+                "billing_source": {
+                    "data_source": {
+                        "bucket": FAKE.word(),
+                        "storage_only": True,
+                    }
+                },
+                "authentication": {
+                    "credentials": {
+                        "project_id": FAKE.uuid4(),
+                    }
+                },
+            }
+        )
+        self.files = [FAKE.word()]
 
     def test_name(self):
         """Test name property."""
         provider = GCPProvider()
         self.assertEqual(provider.name(), Provider.PROVIDER_GCP)
 
+    @patch("providers.gcp.provider.storage")
+    def test_storage_only_source_is_reachable_valid(self, mock_storage):
+        """Test that storage_only cost_usage_source_is_reachable succeeds."""
+        bucket = FAKE.word()
+        mock_storage.Client.return_value = MockStorageClient(bucket)
+        billing_source_param = {"bucket": bucket, "storage_only": True}
+        credentials_param = {"project_id": FAKE.word()}
+        provider = GCPProvider()
+        self.assertTrue(provider.cost_usage_source_is_reachable(credentials_param, billing_source_param))
+
+    def test_storage_only_source_is_reachable_missing_bucket(
+        self,
+    ):
+        """Test that storage_only cost_usage_source_is_reachable missing bucket."""
+        billing_source_param = {"storage_only": True}
+        credentials_param = {"project_id": FAKE.word()}
+        with self.assertRaises(ValidationError):
+            provider = GCPProvider()
+            provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    @patch("providers.gcp.provider.storage")
+    def test_storage_only_cost_usage_source_bucket_not_reachable(self, mock_storage):
+        """Test that cost_usage_source_is_reachable bucket does not exist."""
+        bucket = FAKE.word()
+        err_msg = "GCP Error"
+        mock_storage.Client.side_effect = GoogleCloudError(err_msg)
+        billing_source_param = {"bucket": bucket, "storage_only": True}
+        credentials_param = {"project_id": FAKE.word()}
+        with self.assertRaises(ValidationError):
+            provider = GCPProvider()
+            provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
     @patch("providers.gcp.provider.bigquery")
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
     def test_cost_usage_source_is_reachable_valid(self, mock_auth, mock_discovery, mock_bigquery):
-        """Test that cost_usage_source_is_reachable succeeds."""
+        """Test that cost_usage_source_is_reachable bucket unreachable."""
         mock_bigquery.Client.return_value = MockBigQueryClient(
             "test_project", "test_dataset", ["gcp_billing_export_1234"]
         )
@@ -80,7 +144,7 @@ class GCPProviderTestCase(TestCase):
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
     def test_cost_usage_source_missing_required_permission(self, mock_auth, mock_discovery):
-        """Test that cost_usage_source_is_reachable succeeds."""
+        """Test that cost_usage_source_is_reachable permmision error."""
         missing_permissions = [REQUIRED_IAM_PERMISSIONS[0]]
         mock_auth.return_value = (MagicMock(), MagicMock())
         mock_discovery.build.return_value.projects.return_value.testIamPermissions.return_value.execute.return_value.get.return_value = (  # noqa: E501
@@ -293,3 +357,20 @@ class GCPProviderTestCase(TestCase):
         mock_bigquery.Client.return_value.list_tables.return_value = tables
         result = GCPProvider().get_table_id("dataset")
         self.assertIsNone(result)
+
+    @patch("providers.gcp.provider.storage")
+    def test_is_file_reachable_valid(self, mock_storage):
+        """Test that ingress file is reachable."""
+        bucket = "bucket"
+        mock_storage.Client.return_value = MockStorageClient(bucket)
+        provider = GCPProvider()
+        self.assertTrue(provider.is_file_reachable(self.source, self.files))
+
+    @patch("providers.gcp.provider.storage")
+    def test_is_file_reachable_authentication_error(self, mock_storage):
+        """Test ingress file check GCP authentication error."""
+        err_msg = "GCP Error"
+        mock_storage.Client.side_effect = GoogleCloudError(err_msg)
+        with self.assertRaises(GCPReportExistsError):
+            provider = GCPProvider()
+            provider.is_file_reachable(self.source, self.files)

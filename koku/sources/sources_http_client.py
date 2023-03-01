@@ -24,8 +24,8 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_AWS_LOCAL: ["bucket"],
     Provider.PROVIDER_AZURE: ["resource_group", "storage_account"],
     Provider.PROVIDER_AZURE_LOCAL: ["resource_group", "storage_account"],
-    Provider.PROVIDER_GCP: ["dataset"],
-    Provider.PROVIDER_GCP_LOCAL: ["dataset"],
+    Provider.PROVIDER_GCP: [],
+    Provider.PROVIDER_GCP_LOCAL: [],
     Provider.PROVIDER_OCI: ["bucket", "bucket_namespace", "bucket_region"],
     Provider.PROVIDER_OCI_LOCAL: ["bucket", "bucket_namespace", "bucket_region"],
 }
@@ -47,8 +47,8 @@ APP_OPT_EXTRA_FEILD_MAP = {
     Provider.PROVIDER_AWS_LOCAL: ["storage_only"],
     Provider.PROVIDER_AZURE: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage_only"],
-    Provider.PROVIDER_GCP: ["storage_only"],
-    Provider.PROVIDER_GCP_LOCAL: ["storage_only"],
+    Provider.PROVIDER_GCP: ["dataset", "bucket", "storage_only"],
+    Provider.PROVIDER_GCP_LOCAL: ["dataset", "bucket", "storage_only"],
     Provider.PROVIDER_OCI: [],
     Provider.PROVIDER_OCI_LOCAL: [],
 }
