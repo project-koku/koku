@@ -59,6 +59,15 @@ AWS_INSTANCE_TYPES = ("db.t3.medium", "db.r5.2xlarge", None, None, "m5.large", "
 AWS_RESOURCE_COUNTS = (1, 1, 0, 0, 1, 1, 1)
 AWS_RESOURCE_IDS = (["i-11111111"], ["i-22222222"], [None], [None], ["i-33333333"], ["i-44444444"], ["i-55555555"])
 AWS_UNITS = ("Hrs", "Hrs", "GB-Mo", "Hrs", "Hrs", "Hrs", "Hrs")
+AWS_COST_CATEGORIES = (
+    {"ninja": "turtle"},
+    {"ninja": "naruto"},
+    {"ninja": "scorpion"},
+    {"ninja": "psylocke"},
+    None,
+    None,
+    None,
+)
 
 AWS_CONSTANTS = SameLengthDict(
     {
@@ -68,6 +77,7 @@ AWS_CONSTANTS = SameLengthDict(
         "resource_counts": AWS_RESOURCE_COUNTS,
         "resource_ids": AWS_RESOURCE_IDS,
         "units": AWS_UNITS,
+        "cost_category": AWS_COST_CATEGORIES,
     }
 )
 
