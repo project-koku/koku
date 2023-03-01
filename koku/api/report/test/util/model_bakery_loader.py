@@ -60,7 +60,7 @@ class ModelBakeryDataLoader(DataLoader):
         self.tag_keys = [self.faker.slug() for _ in range(self.num_tag_keys)]
         self.tags = [{"app": "mobile"}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
-        self.ocp_tag_keys = ["app", "storageclass", "environment", "version", "disabled"]
+        self.ocp_tag_keys = ["app", "storageclass", "environment", "version"]
         self._populate_enabled_tag_key_table()
         self._populate_exchange_rates()
 
@@ -91,6 +91,7 @@ class ModelBakeryDataLoader(DataLoader):
         with schema_context(self.schema):
             for key in self.ocp_tag_keys:
                 baker.make("OCPEnabledTagKeys", key=key, enabled=True)
+            baker.make("OCPEnabledTagKeys", key="disabled", enabled=False)
 
     def _populate_exchange_rates(self):
         rates = [
