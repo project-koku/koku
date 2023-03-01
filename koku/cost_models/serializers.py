@@ -414,7 +414,7 @@ class CostModelSerializer(BaseSerializer):
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
 
-    distribution_info = DistributionSerializer(required=True)
+    distribution_info = DistributionSerializer(required=False)
 
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
