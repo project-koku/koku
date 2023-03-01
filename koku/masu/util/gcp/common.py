@@ -337,8 +337,12 @@ def check_resource_level(gcp_provider_uuid):
     with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
         source = provider_accessor.get_data_source()
         if source:
-            if "resource" in source.get("table_id"):
-                LOG.info("OCP GCP matching set to resource level")
+            if not source.get("storage_only"):
+                if "resource" in source.get("table_id"):
+                    LOG.info("OCP GCP matching set to resource level")
+                    return True
+            else:
+                LOG.info("Storage only source defaults to resource level only")
                 return True
         LOG.info("Defaulting to GCP tag matching")
         return False

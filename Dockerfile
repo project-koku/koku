@@ -44,7 +44,7 @@ FROM --platform=arm64 base AS build-arm64
 RUN microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel
 RUN git clone https://github.com/edenhill/librdkafka.git /root/librdkafka
 WORKDIR /root/librdkafka
-RUN git checkout tags/v1.9.2
+RUN git checkout tags/v2.0.2
 RUN ./configure --prefix /opt/librdkafka --install-deps
 RUN make -j4
 RUN make install
