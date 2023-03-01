@@ -395,6 +395,10 @@ class CostModelSerializer(serializers.Serializer):
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
 
+    distribute_platform_cost = serializers.BooleanField(default=True)
+
+    distribute_worker_cost = serializers.BooleanField(default=True)
+
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
     @property
@@ -520,10 +524,23 @@ class CostModelSerializer(serializers.Serializer):
             raise serializers.ValidationError(error_msg)
         return distribution
 
+    def build_distribution_info_json(self, validated_data):
+        """
+        Builds the distrubtion info json, off the given fields.
+        """
+        distribution_info_json = {
+            "distribution_type": validated_data.pop("distribution", "cpu"),
+            "distribute_platform_cost": validated_data.pop("distribute_platform_cost", True),
+            "distribute_worker_cost": validated_data.pop("distribute_worker_cost", True),
+        }
+        validated_data.update({"distribution_info": distribution_info_json})
+        return validated_data
+
     def create(self, validated_data):
         """Create the cost model object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
+        validated_data = self.build_distribution_info_json(validated_data)
         try:
             return CostModelManager().create(**validated_data)
         except CostModelException as error:
@@ -533,6 +550,7 @@ class CostModelSerializer(serializers.Serializer):
         """Update the rate object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
         new_providers_for_instance = []
+        validated_data = self.build_distribution_info_json(validated_data)
         for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
         try:
