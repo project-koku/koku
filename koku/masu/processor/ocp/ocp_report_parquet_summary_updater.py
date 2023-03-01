@@ -59,6 +59,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
+                    if (
+                        bill_date.year == self._date_accessor.today().year
+                        and bill_date.month == self._date_accessor.today().month
+                    ):
+                        end_date = bill_date.replace(day=self._date_accessor.today().day)
                     LOG.info("Overriding start and end date to process full month.")
 
         if isinstance(start_date, str):
