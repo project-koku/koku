@@ -49,7 +49,15 @@ class GCPReportDownloaderError(Exception):
 
 
 def create_daily_archives(
-    tracing_id, account, provider_uuid, filename, local_file_paths, manifest_id, start_date, context={}
+    tracing_id,
+    account,
+    provider_uuid,
+    filename,
+    local_file_paths,
+    manifest_id,
+    start_date,
+    context={},
+    ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -67,7 +75,10 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     for local_file_path in local_file_paths:
-        file_name = os.path.basename(local_file_path).split("/")[-1]
+        if not ingress_reports:
+            file_name = os.path.basename(local_file_path).split("/")[-1]
+        else:
+            file_name = "ingress_report.csv"
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
         try:
@@ -476,6 +487,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_id,
             start_date,
             self.context,
+            self.ingress_reports,
         )
 
         return key, filename, DateHelper().today, file_names, date_range
