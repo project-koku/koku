@@ -12,7 +12,6 @@ from tenant_schemas.utils import schema_context
 
 from api.common import error_obj
 from api.provider.models import Provider
-from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
 from api.settings.utils import create_plain_text
 from api.settings.utils import create_plain_text_with_doc
@@ -26,16 +25,6 @@ from api.settings.utils import get_selected_currency_or_setup
 from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
-from api.tags.aws.queries import AWSTagQueryHandler
-from api.tags.aws.view import AWSTagView
-from api.tags.azure.queries import AzureTagQueryHandler
-from api.tags.azure.view import AzureTagView
-from api.tags.gcp.queries import GCPTagQueryHandler
-from api.tags.gcp.view import GCPTagView
-from api.tags.oci.queries import OCITagQueryHandler
-from api.tags.oci.view import OCITagView
-from api.tags.ocp.queries import OCPTagQueryHandler
-from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.feature_flags import fallback_development_true
@@ -110,14 +99,14 @@ class Settings:
             (List) - List of available tag keys objects
             (List) - List of enabled tag keys strings
         """
-        enabled = []
+        enabled = set()
         all_tags_set = set()
         with schema_context(self.schema):
             for tag_key in tag_keys_kls.objects.all():
                 all_tags_set.add(tag_key.key)
                 if tag_key.enabled:
-                    enabled.append(tag_key.key)
-        return all_tags_set, sorted(enabled)
+                    enabled.add(tag_key.key)
+        return all_tags_set, enabled
 
     def _build_components(self):
         """
@@ -213,7 +202,7 @@ class Settings:
 
         with schema_context(self.schema):
             for ix, provider_name in enumerate(obtainTagKeysProvidersParams):
-                enabled_tags_no_abbr = []
+                enabled_tags_no_abbr = set()
                 enabled_tag_keys_class = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
                 provider = obtainTagKeysProvidersParams[provider_name]["provider"]
                 available, enabled = self._obtain_tag_keys(enabled_tag_keys_class)
@@ -221,16 +210,16 @@ class Settings:
                 # build a list of enabled tags for a given provider, removing the provider name prefix
                 for enabled_tag in settings.get("enabled", []):
                     if enabled_tag.startswith(provider_name + tag_delimiter):
-                        enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter, 1)[1])
+                        enabled_tags_no_abbr.add(enabled_tag.split(tag_delimiter, 1)[1])
 
-                invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
+                invalid_keys = {tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available}
 
                 if invalid_keys:
                     key = "settings"
                     message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                     raise ValidationError(error_obj(key, message))
 
-                if sorted(enabled_tags_no_abbr) != enabled:
+                if enabled_tags_no_abbr != enabled:
                     updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys_class, enabled_tags_no_abbr)
 
                 if updated[ix]:
