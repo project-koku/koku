@@ -10,6 +10,8 @@ from rest_framework import serializers
 from rest_framework.fields import DateField
 
 from api.currency.currencies import CURRENCY_CHOICES
+from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
 from api.utils import DateHelper
 from api.utils import get_currency
@@ -62,8 +64,11 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     # extract tag_keys from field_params and recreate the tag_keys param
     tag_keys = None
     if not kwargs.get("tag_keys") and getattr(serializer_cls, "_tagkey_support", False):
-        tag_keys = list(filter(lambda x: "tag:" in x, field_param))
+        tag_keys = list(filter(lambda x: TAG_PREFIX in x, field_param))
         kwargs["tag_keys"] = tag_keys
+    if not kwargs.get("aws_category_keys"):
+        aws_category_keys = list(filter(lambda x: AWS_CATEGORY_PREFIX in x, field_param))
+        kwargs["aws_category_keys"] = aws_category_keys
 
     serializer = serializer_cls(data=field_param, **kwargs)
 
@@ -131,15 +136,19 @@ class BaseSerializer(serializers.Serializer):
 
     _opfields = None
     _tagkey_support = None
+    _aws_category = False
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
         self.tag_keys = kwargs.pop("tag_keys", None)
+        self.aws_category_keys = kwargs.pop("aws_category_keys", None)
         super().__init__(*args, **kwargs)
 
+        fkwargs = {"child": serializers.CharField(), "required": False}
         if self.tag_keys is not None:
-            fkwargs = {"child": serializers.CharField(), "required": False}
             self._init_tag_keys(StringOrListField, fkwargs=fkwargs)
+        if self._aws_category and self.aws_category_keys:
+            self._init_aws_category_keys(StringOrListField, fkwargs=fkwargs)
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
@@ -160,12 +169,10 @@ class BaseSerializer(serializers.Serializer):
 
     def _init_tag_keys(self, field, fargs=None, fkwargs=None):
         """Initialize tag-based fields.
-
         Args:
             field (Serializer)
             fargs (list) Serializer's positional args
             fkwargs (dict) Serializer's keyword args
-
         """
         if fargs is None:
             fargs = []
@@ -183,6 +190,35 @@ class BaseSerializer(serializers.Serializer):
 
         # Add tag keys to allowable fields
         for key, val in tag_fields.items():
+            setattr(self, key, val)
+            self.fields.update({key: val})
+
+    def _init_aws_category_keys(self, field, fargs=None, fkwargs=None):
+        """Initialize aws_category based fields.
+
+        This function adds the prefixed keys to the allowable fields list
+        so that a "Unsupported parameter" error is not thrown.
+
+        Args:
+            field (Serializer)
+            fargs (list) Serializer's positional args
+            fkwargs (dict) Serializer's keyword args
+        """
+        if fargs is None:
+            fargs = []
+
+        if fkwargs is None:
+            fkwargs = {}
+
+        fields = {}
+        if self.aws_category_keys is not None:
+            for key in self.aws_category_keys:
+                if len(self.aws_category_keys) > 1 and "child" in fkwargs.keys():
+                    fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
+                fields[key] = field(*fargs, **fkwargs)
+
+        # Add tag keys to allowable fields
+        for key, val in fields.items():
             setattr(self, key, val)
             self.fields.update({key: val})
 
@@ -561,7 +597,7 @@ class ReportQueryParamSerializer(ParamSerializer):
             elif issubclass(val, ExcludeSerializer):
                 data = self.initial_data.get("exclude")
 
-            inst = val(required=False, tag_keys=self.tag_keys, data=data)
+            inst = val(required=False, tag_keys=self.tag_keys, aws_category_keys=self.aws_category_keys, data=data)
             setattr(self, key, inst)
             self.fields[key] = inst
 

@@ -29,6 +29,9 @@ class AWSGroupBySerializer(GroupSerializer):
         "product_family",
         "org_unit_id",
     )
+    # Tells the parent class to add prefixed
+    # aws_category param to the allowable fields list
+    _aws_category = True
 
     # account field will accept both account number and account alias.
     account = StringOrListField(child=serializers.CharField(), required=False)
@@ -45,6 +48,7 @@ class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
     _opfields = ("usage", "account_alias", "region", "service", "product_family", "date")
+    _aws_category = True
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     # ordering by alias is supported, but ordering by account is not due to the
@@ -60,6 +64,7 @@ class AWSFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
+    _aws_category = True
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
@@ -73,6 +78,7 @@ class AWSExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
+    _aws_category = True
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
@@ -133,7 +139,13 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
+        validate_field(
+            self,
+            "group_by",
+            self.GROUP_BY_SERIALIZER,
+            value,
+            tag_keys=self.tag_keys,
+        )
         # Org unit id validation
         group_by_params = self.initial_data.get("group_by", {})
         org_unit_group_keys = ["org_unit_id", "or:org_unit_id"]
