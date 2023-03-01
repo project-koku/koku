@@ -11,7 +11,6 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
-from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -60,9 +59,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    dh = DateHelper()
-                    if bill_date.year == dh.today.year and bill_date.month == dh.today.month:
-                        end_date = bill_date.replace(day=dh.today.day)
+                    if (
+                        bill_date.year == self._date_accessor.today().year
+                        and bill_date.month == self._date_accessor.today().month
+                    ):
+                        end_date = bill_date.replace(day=self._date_accessor.today().day)
                     LOG.info("Overriding start and end date to process full month.")
 
         if isinstance(start_date, str):
