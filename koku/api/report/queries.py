@@ -266,18 +266,15 @@ class ReportQueryHandler(QueryHandler):
         # aws_category prefixed filters
         aws_category_exclusion_composed = None
         if self.is_aws:
-            aws_category_column = "cost_category"
             aws_category_filters = self.get_aws_category_keys("filter")
             aws_category_group_by = self.get_aws_category_keys("group_by")
             aws_category_filters.extend(aws_category_group_by)
-            if self.is_openshift:
-                aws_category_column = "aws_cost_category"
             filter_collection = self._set_prefix_based_filters(
-                filter_collection, aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
+                filter_collection, self._mapper.aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
             )
             aws_category_exclude_filters = self.get_aws_category_keys("exclude")
             aws_category_exclusion_composed = self._set_prefix_based_exclusions(
-                aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
+                self._mapper.aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
             )
 
         composed_filters = filter_collection.compose()
@@ -641,6 +638,7 @@ class ReportQueryHandler(QueryHandler):
 
         tag_group_by = self._get_tag_group_by()
         group_by.extend(tag_group_by)
+        group_by.extend(self._get_aws_category_group_by())
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
 
@@ -657,15 +655,28 @@ class ReportQueryHandler(QueryHandler):
     def _get_tag_group_by(self):
         """Create list of tag based group by parameters."""
         group_by = []
-        tag_column = self._mapper.tag_column
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            tag_db_name = tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
+            tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
             group_data = self.parameters.get_group_by(tag)
             if group_data:
                 tag = quote_plus(tag)
                 group_pos = self.parameters.url_data.index(tag)
                 group_by.append((tag_db_name, group_pos))
+        return group_by
+
+    def _get_aws_category_group_by(self):
+        """Return list of aws_category based group by parameters."""
+        group_by = []
+        if self._mapper.aws_category_column:
+            groups = self.get_aws_category_keys("group_by")
+            for aws_category in groups:
+                db_name = self._mapper.aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                group_data = self.parameters.get_group_by(aws_category)
+                if group_data:
+                    aws_category = quote_plus(aws_category)
+                    group_pos = self.parameters.url_data.index(aws_category)
+                    group_by.append((db_name, group_pos))
         return group_by
 
     @cached_property
@@ -753,6 +764,20 @@ class ReportQueryHandler(QueryHandler):
                 out_data[key] = grouped
         return out_data
 
+    def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
+        """build grouping prefix"""
+        check_pack_prefix = None
+        prefix_mapping = {TAG_PREFIX: self._mapper.tag_column}
+        if self._mapper.aws_category_column:
+            prefix_mapping[AWS_CATEGORY_PREFIX] = self._mapper.aws_category_column
+        for prefix, db_column in prefix_mapping.items():
+            if group.startswith(db_column + "__"):
+                group = group[len(db_column + "__") :]  # noqa
+                check_pack_prefix = prefix
+        if check_pack_prefix and group in all_pack_keys:
+            group = check_pack_prefix + group
+        return group
+
     def _apply_group_null_label(self, data, groupby=None):
         """Apply any no-{group} labels needed before grouping data.
 
@@ -763,15 +788,12 @@ class ReportQueryHandler(QueryHandler):
             (Dict): Data updated with no-group labels
 
         """
-        tag_prefix = self._mapper.tag_column + "__"
         if groupby is None:
             return data
 
         for group in groupby:
             if group in data and pd.isnull(data.get(group)):
-                value = group
-                if group.startswith(tag_prefix):
-                    value = group[len(tag_prefix) :]  # noqa
+                value = self._clean_prefix_grouping_labels(group)
                 group_label = f"No-{value}"
                 data[group] = group_label
 
@@ -820,7 +842,6 @@ class ReportQueryHandler(QueryHandler):
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
-        tag_prefix = self._mapper.tag_column + "__"
         if not isinstance(data, dict):
             return data
 
@@ -862,12 +883,9 @@ class ReportQueryHandler(QueryHandler):
         delete_keys = []
         new_data = {}
         for data_key in data.keys():
-            if data_key.startswith(tag_prefix):
-                new_tag = data_key[len(tag_prefix) :]  # noqa
-                if new_tag in all_pack_keys:
-                    new_data[TAG_PREFIX + new_tag] = data[data_key]
-                else:
-                    new_data[new_tag] = data[data_key]
+            clean_prefix = self._clean_prefix_grouping_labels(data_key, all_pack_keys)
+            if clean_prefix != data_key:
+                new_data[clean_prefix] = data[data_key]
                 delete_keys.append(data_key)
         for del_key in delete_keys:
             if data.get(del_key):
@@ -877,7 +895,6 @@ class ReportQueryHandler(QueryHandler):
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
-        tag_prefix = self._mapper.tag_column + "__"
         groups_len = len(groups)
         if not groups or group_index >= groups_len:
             pack = self._mapper.PACK_DEFINITIONS
@@ -892,13 +909,10 @@ class ReportQueryHandler(QueryHandler):
 
         if next_group_index < groups_len:
             label = groups[next_group_index] + "s"
-            if label.startswith(tag_prefix):
-                label = label[len(tag_prefix) :]  # noqa
+            label = self._clean_prefix_grouping_labels(label)
 
         for group, group_value in data.items():
-            group_title = group_type
-            if group_type.startswith(tag_prefix):
-                group_title = group_type[len(tag_prefix) :]  # noqa
+            group_title = self._clean_prefix_grouping_labels(group_type)
             group_label = group
             if group is None:
                 group_label = f"No-{group_title}"

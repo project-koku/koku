@@ -70,6 +70,7 @@ class OCPAWSProviderMap(ProviderMap):
                 },
                 "group_by_options": ["account", "service", "region", "cluster", "project", "node", "product_family"],
                 "tag_column": "tags",
+                "aws_category_column": "aws_cost_category",
                 "report_type": {
                     "costs": {
                         "aggregates": {

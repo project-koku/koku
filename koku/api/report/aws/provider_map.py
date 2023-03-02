@@ -73,6 +73,7 @@ class AWSProviderMap(ProviderMap):
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
+                "aws_category_column": "cost_category",
                 "report_type": {
                     "costs": {
                         "aggregates": {

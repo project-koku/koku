@@ -827,6 +827,37 @@ class AWSReportQueryTest(IamTestCase):
         excluded_expected = results[group_by_key] - results[filter_key]
         self.assertEqual(results[exclude_key], excluded_expected)
 
+    def test_aws_category_sub_strucuture(self):
+        """Test execute_query for current month on monthly filter aws_category"""
+        aws_cat_key = None
+        for dikt in self.aws_category_tuple:
+            if isinstance(dikt, dict):
+                if not aws_cat_key:
+                    aws_cat_key = list(dikt.keys())[0]
+                    expected_values = [f"No-{aws_cat_key}", dikt[aws_cat_key]]
+                else:
+                    if dikt.get(aws_cat_key):
+                        expected_values.append(dikt[aws_cat_key])
+
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        url = base_url + f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
+        query_params = self.mocked_query_params(url, AWSCostView, reverse("reports-aws-costs"))
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(data)
+        sub_totals = []
+        for date in data:
+            categories_list = date.get(f"{aws_cat_key}s")
+            self.assertIsNotNone(categories_list)
+            for cate in categories_list:
+                self.assertIsNotNone(cate.get(aws_cat_key))
+                self.assertIn(cate[aws_cat_key], expected_values)
+                date_dict = cate.get("values")[0]
+                sub_totals.append(date_dict.get("cost", {}).get("total", {}).get("value"))
+        self.assertAlmostEqual(total_cost_total, sum(sub_totals), 6)
+
     def test_aws_category_multiple_filter(self):
         """Test execute_query for current month on monthly filter aws_category"""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
