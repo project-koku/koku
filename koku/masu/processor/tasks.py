@@ -252,22 +252,22 @@ def get_report_files(  # noqa: C901
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(log_json(tracing_id, str(processing_error), context))
+            LOG.error(log_json(tracing_id, f"Report processing error: {processing_error}", context))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
-            LOG.info(log_json(tracing_id, str(err), context))
+            LOG.info(log_json(tracing_id, f"Not implemented error: {err}", context))
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
 
         return report_meta
     except ReportDownloaderWarning as err:
-        LOG.warning(log_json(tracing_id, str(err), context))
+        LOG.warning(log_json(tracing_id, f"Report downloader Warning: {err}", context))
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(log_json(tracing_id, str(err), context))
+        LOG.error(log_json(tracing_id, f"Unknown downloader exception: {err}", context))
         WorkerCache().remove_task_from_cache(cache_key)
 
 

@@ -7,6 +7,7 @@ import csv
 import datetime
 import logging
 import os
+import uuid
 from functools import cached_property
 from itertools import islice
 
@@ -15,6 +16,7 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db.utils import DataError
 from google.cloud import bigquery
+from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
@@ -47,7 +49,15 @@ class GCPReportDownloaderError(Exception):
 
 
 def create_daily_archives(
-    tracing_id, account, provider_uuid, filename, local_file_paths, manifest_id, start_date, context={}
+    tracing_id,
+    account,
+    provider_uuid,
+    filename,
+    local_file_paths,
+    manifest_id,
+    start_date,
+    context={},
+    ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -65,7 +75,10 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     for local_file_path in local_file_paths:
-        file_name = os.path.basename(local_file_path).split("/")[-1]
+        if not ingress_reports:
+            file_name = os.path.basename(local_file_path).split("/")[-1]
+        else:
+            file_name = "ingress_report.csv"
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
         try:
@@ -88,7 +101,7 @@ def create_daily_archives(
                 s3_csv_path = get_path_prefix(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
-                day_file = f"{invoice_month}_{file_name}"
+                day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -106,14 +119,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://cloud.google.com/billing/docs/how-to/export-data-bigquery
     """
 
-    def __init__(self, customer_name, data_source, **kwargs):
+    def __init__(self, customer_name, data_source, ingress_reports=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name  (str): Name of the customer
             data_source    (dict): dict containing name of GCP storage bucket
-
+            ingress_reports (List) List of reports from ingress post endpoint (optional)
         """
         super().__init__(**kwargs)
 
@@ -121,41 +134,44 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.credentials = kwargs.get("credentials", {})
         self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")
-        self.gcp_big_query_columns = [
-            "billing_account_id",
-            "service.id",
-            "service.description",
-            "sku.id",
-            "sku.description",
-            "usage_start_time",
-            "usage_end_time",
-            "project.id",
-            "project.name",
-            "project.labels",
-            "project.ancestry_numbers",
-            "labels",
-            "system_labels",
-            "location.location",
-            "location.country",
-            "location.region",
-            "location.zone",
-            "export_time",
-            "cost",
-            "currency",
-            "currency_conversion_rate",
-            "usage.amount",
-            "usage.unit",
-            "usage.amount_in_pricing_units",
-            "usage.pricing_unit",
-            "credits",
-            "invoice.month",
-            "cost_type",
-            "resource.name",
-            "resource.global_name",
-        ]
-        self.table_name = ".".join(
-            [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
-        )
+        self.ingress_reports = ingress_reports
+        self.storage_only = self.data_source.get("storage_only")
+        if not self.storage_only:
+            self.gcp_big_query_columns = [
+                "billing_account_id",
+                "service.id",
+                "service.description",
+                "sku.id",
+                "sku.description",
+                "usage_start_time",
+                "usage_end_time",
+                "project.id",
+                "project.name",
+                "project.labels",
+                "project.ancestry_numbers",
+                "labels",
+                "system_labels",
+                "location.location",
+                "location.country",
+                "location.region",
+                "location.zone",
+                "export_time",
+                "cost",
+                "currency",
+                "currency_conversion_rate",
+                "usage.amount",
+                "usage.unit",
+                "usage.amount_in_pricing_units",
+                "usage.pricing_unit",
+                "credits",
+                "invoice.month",
+                "cost_type",
+                "resource.name",
+                "resource.global_name",
+            ]
+            self.table_name = ".".join(
+                [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
+            )
 
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
@@ -164,6 +180,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.warning(log_json(self.tracing_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
         self.big_query_export_time = None
+        if self.ingress_reports:
+            self.bucket = self.data_source.get("bucket")
 
     @cached_property
     def scan_start(self):
@@ -296,30 +314,52 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
+        reports_list = []
+        if self.storage_only and not self.ingress_reports:
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
+            return reports_list
         dh = DateHelper()
         if isinstance(date, datetime.datetime):
             date = date.date()
-        current_manifests = self.retrieve_current_manifests_mapping()
-        bigquery_mapping = self.bigquery_export_to_partition_mapping()
-        new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
-        reports_list = []
-        for manifest in new_manifest_list:
+        if self.ingress_reports:
+            manifest = self._generate_monthly_pseudo_manifest(date)
+            assembly_id = manifest.get("assembly_id")
             manifest_id = self._process_manifest_db_record(
-                manifest["assembly_id"],
-                manifest["bill_date"],
-                len(manifest["files"]),
-                dh._now,
+                assembly_id,
+                date.strftime("%Y-%m-%d"),
+                len(manifest.get("files")),
+                date,
             )
-            files_list = [
-                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
-            ]
             report_dict = {
                 "manifest_id": manifest_id,
-                "assembly_id": manifest["assembly_id"],
-                "compression": UNCOMPRESSED,
-                "files": files_list,
+                "assembly_id": assembly_id,
+                "compression": manifest.get("compression"),
+                "files": [
+                    {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
+                ],
             }
             reports_list.append(report_dict)
+        else:
+            current_manifests = self.retrieve_current_manifests_mapping()
+            bigquery_mapping = self.bigquery_export_to_partition_mapping()
+            new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
+            for manifest in new_manifest_list:
+                manifest_id = self._process_manifest_db_record(
+                    manifest["assembly_id"],
+                    manifest["bill_date"],
+                    len(manifest["files"]),
+                    dh._now,
+                )
+                report_dict = {
+                    "manifest_id": manifest_id,
+                    "assembly_id": manifest["assembly_id"],
+                    "compression": UNCOMPRESSED,
+                    "files": [
+                        {"key": key, "local_file": self.get_local_file_for_report(key)}
+                        for key in manifest.get("files")
+                    ],
+                }
+                reports_list.append(report_dict)
         return reports_list
 
     def get_local_file_for_report(self, report):
@@ -332,6 +372,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report (str): name of GCP storage blob
 
         """
+        if self.ingress_reports:
+            report = report.split("/")[-1]
         return report
 
     def build_query_select_statement(self):
@@ -368,64 +410,84 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and GCP's etag.
 
         """
-        try:
-            filename = os.path.splitext(key)[0]
-            partition_date = filename.split("_")[-1]
-            query = f"""
-                SELECT {self.build_query_select_statement()}
-                FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) = '{partition_date}'
-                """
-            client = bigquery.Client()
-            LOG.info(f"{query}")
-            query_job = client.query(query).result()
-
-        except GoogleCloudError as err:
-            err_msg = (
-                "Could not query table for billing information."
-                f"\n  Provider: {self._provider_uuid}"
-                f"\n  Customer: {self.customer_name}"
-                f"\n  Response: {err.message}"
-            )
-            LOG.warning(err_msg)
-            raise GCPReportDownloaderError(err_msg)
-        except UnboundLocalError:
-            err_msg = f"Error recovering start and end date from csv key ({key})."
-            raise GCPReportDownloaderError(err_msg)
+        paths_list = []
         directory_path = self._get_local_directory_path()
         os.makedirs(directory_path, exist_ok=True)
-        try:
-            column_list = self.gcp_big_query_columns.copy()
-            column_list.append("partition_date")
-            local_paths_list = []
-            for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
-                full_local_path = self._get_local_file_path(directory_path, partition_date, i)
-                msg = f"Downloading subset of {partition_date} to {full_local_path}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
-                with open(full_local_path, "w") as f:
-                    writer = csv.writer(f)
-                    LOG.info(f"writing columns: {column_list}")
-                    writer.writerow(column_list)
-                    writer.writerows(rows)
-                local_paths_list.append(full_local_path)
-        except OSError as exc:
-            err_msg = (
-                "Could not create GCP billing data csv file."
-                f"\n  Provider: {self._provider_uuid}"
-                f"\n  Customer: {self.customer_name}"
-                f"\n  Response: {exc}"
-            )
-            raise GCPReportDownloaderError(err_msg)
+        if self.ingress_reports:
+            key = key.split(f"{self.bucket}/")[-1]
+            try:
+                filename = key
+                storage_client = storage.Client(self.credentials.get("project_id"))
+                bucket = storage_client.get_bucket(self.bucket)
+                blob = bucket.blob(key)
+                full_local_path = self._get_local_file_path(directory_path, key)
+                blob.download_to_filename(full_local_path)
+            except GoogleCloudError as err:
+                err_msg = (
+                    "Could not find or download file from bucket."
+                    f"\n  Provider: {self._provider_uuid}"
+                    f"\n  Customer: {self.customer_name}"
+                    f"\n  Response: {err.message}"
+                )
+                LOG.warning(err_msg)
+                raise GCPReportDownloaderError(err_msg)
+            paths_list.append(full_local_path)
+        else:
+            try:
+                filename = os.path.splitext(key)[0]
+                partition_date = filename.split("_")[-1]
+                query = f"""
+                    SELECT {self.build_query_select_statement()}
+                    FROM {self.table_name}
+                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
+                    """
+                client = bigquery.Client()
+                LOG.info(f"{query}")
+                query_job = client.query(query).result()
+            except GoogleCloudError as err:
+                err_msg = (
+                    "Could not query table for billing information."
+                    f"\n  Provider: {self._provider_uuid}"
+                    f"\n  Customer: {self.customer_name}"
+                    f"\n  Response: {err.message}"
+                )
+                LOG.warning(err_msg)
+                raise GCPReportDownloaderError(err_msg)
+            except UnboundLocalError:
+                err_msg = f"Error recovering start and end date from csv key ({key})."
+                raise GCPReportDownloaderError(err_msg)
+            try:
+                column_list = self.gcp_big_query_columns.copy()
+                column_list.append("partition_date")
+                for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
+                    full_local_path = self._get_local_file_path(directory_path, partition_date, i)
+                    msg = f"Downloading subset of {partition_date} to {full_local_path}"
+                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    with open(full_local_path, "w") as f:
+                        writer = csv.writer(f)
+                        LOG.info(f"writing columns: {column_list}")
+                        writer.writerow(column_list)
+                        writer.writerows(rows)
+                    paths_list.append(full_local_path)
+            except OSError as exc:
+                err_msg = (
+                    "Could not create GCP billing data csv file."
+                    f"\n  Provider: {self._provider_uuid}"
+                    f"\n  Customer: {self.customer_name}"
+                    f"\n  Response: {exc}"
+                )
+                raise GCPReportDownloaderError(err_msg)
 
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
             key,
-            local_paths_list,
+            paths_list,
             manifest_id,
             start_date,
             self.context,
+            self.ingress_reports,
         )
 
         return key, filename, DateHelper().today, file_names, date_range
@@ -442,7 +504,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp")
         return directory_path
 
-    def _get_local_file_path(self, directory_path, key, iterable_num):
+    def _get_local_file_path(self, directory_path, key, iterable_num=None):
         """
         Get the local file path destination for a downloaded file.
 
@@ -454,8 +516,37 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        local_file_name = key.replace("/", "_") + f"_{str(iterable_num)}.csv"
+        if self.ingress_reports:
+            local_file_name = key.replace("/", "_")
+        else:
+            local_file_name = key.replace("/", "_") + f"_{str(iterable_num)}.csv"
         msg = f"Local filename: {local_file_name}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path
+
+    def _generate_monthly_pseudo_manifest(self, date):
+        """
+        Generate a dict representing an analog to other providers "manifest" files.
+
+        No manifest file for monthly periods. So we check for
+        files in the bucket based on what the customer posts.
+
+        Args:
+            report_data: Where reports are stored
+
+        Returns:
+            Manifest-like dict with keys and value placeholders
+                assembly_id - (String): empty string
+                compression - (String): Report compression format
+                start_date - (Datetime): billing period start date
+                file_names - (list): list of filenames.
+        """
+        manifest_data = {
+            "assembly_id": f"{date.strftime('%Y-%m-%d')}|{uuid.uuid4()}",
+            "compression": UNCOMPRESSED,
+            "start_date": date,
+            "files": self.ingress_reports,
+        }
+        LOG.info(f"Manifest Data: {str(manifest_data)}")
+        return manifest_data
