@@ -698,8 +698,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
-        self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
-        self.assertEqual(self.accessor.cost_entry_table, get_model("AWSCostEntry"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)

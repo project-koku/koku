@@ -28,7 +28,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.provider.gcp.models import GCPCostEntryBill
-from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
@@ -56,10 +55,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     @property
     def line_item_daily_summary_table(self):
         return GCPCostEntryLineItemDailySummary
-
-    @property
-    def line_item_table(self):
-        return GCPCostEntryLineItem
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""

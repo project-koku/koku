@@ -58,23 +58,6 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
-    def test_update_daily_tables(self):
-        """Test that this is a placeholder method."""
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
-
-        expected_log = (
-            "INFO:masu.processor.aws.aws_report_parquet_summary_updater:"
-            f"update_daily_tables for: {expected_start}-{expected_end}"
-        )
-
-        with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str)
-            self.assertIn(expected_log, logger.output)
-        self.assertEqual(start, expected_start)
-        self.assertEqual(end, expected_end)
-
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )

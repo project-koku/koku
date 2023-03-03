@@ -30,9 +30,7 @@ from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
-from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
-from reporting.provider.aws.models import AWSCostEntryLineItem
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
@@ -67,14 +65,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     @property
     def ocpall_line_item_project_daily_summary_table(self):
         return get_model("OCPAllCostLineItemProjectDailySummaryP")
-
-    @property
-    def line_item_table(self):
-        return AWSCostEntryLineItem
-
-    @property
-    def cost_entry_table(self):
-        return AWSCostEntry
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
