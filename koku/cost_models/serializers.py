@@ -58,19 +58,39 @@ class MarkupSerializer(serializers.Serializer):
 class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
-    distribute_type = serializers.ChoiceField(
-        choices=metric_constants.DISTRIBUTION_CHOICES, default=metric_constants.CPU_DISTRIBUTION
-    )
-    platform_cost = serializers.BooleanField(default=True)
-    worker_cost = serializers.BooleanField(default=True)
+    DISTRIBUTION_OPTIONS = ("distribute_type", "worker_cost", "platform_cost")
+
+    distribute_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
+    platform_cost = serializers.BooleanField(required=False)
+    worker_cost = serializers.BooleanField(required=False)
 
     def validate_distribute_type(self, distribute_type):
-        """Run validation for distribution choice."""
+        """Run validation for distribute type."""
         distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
         if distribute_type not in distrib_choice_list:
             error_msg = f"{distribute_type} is an invaild distribution type"
             raise serializers.ValidationError(error_msg)
         return distribute_type
+
+    def validate(self, data):
+        """Run validation for distribution options."""
+
+        if not any(ele in data.keys() for ele in self.DISTRIBUTION_OPTIONS):
+            data = data.get("distribution_info", {})
+        if data.keys() and not (sorted(self.DISTRIBUTION_OPTIONS) == sorted(data.keys())):
+            distribution_info_str = ", ".join(str(option) for option in self.DISTRIBUTION_OPTIONS)
+            error_msg = f"Missing distribution information: one of {distribution_info_str}"
+            raise serializers.ValidationError(error_msg)
+        else:
+            _distribute_type = data.get("distribute_type", metric_constants.CPU_DISTRIBUTION)
+            valid_distribute_type = self.validate_distribute_type(_distribute_type)
+            if data == {}:
+                data["distribute_type"] = valid_distribute_type
+                data["platform_cost"] = True
+                data["worker_cost"] = True
+            else:
+                data["distribute_type"] = valid_distribute_type
+        return data
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -472,6 +492,9 @@ class CostModelSerializer(BaseSerializer):
         if not data.get("currency"):
             data["currency"] = get_currency(self.context.get("request"))
 
+        if not data.get("distribution_info"):
+            data["distribution_info"] = self.validate_distribution_json(data)
+
         if (
             data.get("markup")
             and not data.get("rates")
@@ -483,7 +506,6 @@ class CostModelSerializer(BaseSerializer):
             raise serializers.ValidationError("{} is not a valid source.".format(data["source_type"]))
         if data.get("rates"):
             self.validate_rates_currency(data)
-        data["distribution_info"] = self.validate_distribution_json(data)
         return data
 
     def _get_metric_display_data(self, source_type, metric):
@@ -503,21 +525,6 @@ class CostModelSerializer(BaseSerializer):
             err_msg = f"Provider object does not exist with following uuid(s): {invalid_uuids}."
             raise serializers.ValidationError(err_msg)
         return valid_uuids
-
-    def validate_distribution_json(self, data):
-        """Validates the distrubtion json."""
-        distribution = data.get("distribution")
-        distribution_info = data.get("distribution_info")
-        if distribution and not distribution_info:
-            distribution_info = {
-                "distribute_type": distribution,
-                "platform_cost": True,
-                "worker_cost": True,
-            }
-        serializer = DistributionSerializer(data=distribution_info)
-        serializer.validate(data)
-        serializer.is_valid(raise_exception=True)
-        return distribution_info
 
     def validate_rates_currency(self, data):
         """Validate incoming currency and rates all match."""
@@ -548,6 +555,22 @@ class CostModelSerializer(BaseSerializer):
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return validated_rates
+
+    def validate_distribution_json(self, data):
+        """Run validation the distrubtion options object."""
+
+        distribution = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
+        distribution_info = data.get("distribution_info", {})
+        if not distribution_info:
+            distribution_info = {
+                "distribute_type": distribution,
+                "platform_cost": True,
+                "worker_cost": True,
+            }
+        serializer = DistributionSerializer(data=distribution_info)
+        serializer.validate(data)
+        serializer.is_valid(raise_exception=True)
+        return distribution_info
 
     def validate_distribution(self, distribution):
         """Run validation for distribution choice."""
