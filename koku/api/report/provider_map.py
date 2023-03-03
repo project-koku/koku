@@ -96,11 +96,6 @@ class ProviderMap:
         return report_specific_column if report_specific_column else default
 
     @property
-    def aws_category_column(self):
-        """Return the appropriate query table for the report type."""
-        return self._provider_map.get("aws_category_column")
-
-    @property
     def cost_units_key(self):
         """Return the cost_units_key property."""
         return self._report_type_map.get("cost_units_key")

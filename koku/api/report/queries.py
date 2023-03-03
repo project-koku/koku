@@ -265,16 +265,16 @@ class ReportQueryHandler(QueryHandler):
         )
         # aws_category prefixed filters
         aws_category_exclusion_composed = None
-        if self.is_aws:
+        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
             aws_category_filters = self.get_aws_category_keys("filter")
             aws_category_group_by = self.get_aws_category_keys("group_by")
             aws_category_filters.extend(aws_category_group_by)
             filter_collection = self._set_prefix_based_filters(
-                filter_collection, self._mapper.aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
+                filter_collection, aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
             )
             aws_category_exclude_filters = self.get_aws_category_keys("exclude")
             aws_category_exclusion_composed = self._set_prefix_based_exclusions(
-                self._mapper.aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
+                aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
             )
 
         composed_filters = filter_collection.compose()
@@ -668,10 +668,10 @@ class ReportQueryHandler(QueryHandler):
     def _get_aws_category_group_by(self):
         """Return list of aws_category based group by parameters."""
         group_by = []
-        if self._mapper.aws_category_column:
+        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
-                db_name = self._mapper.aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
                 group_data = self.parameters.get_group_by(aws_category)
                 if group_data:
                     aws_category = quote_plus(aws_category)
@@ -768,8 +768,8 @@ class ReportQueryHandler(QueryHandler):
         """build grouping prefix"""
         check_pack_prefix = None
         prefix_mapping = {TAG_PREFIX: self._mapper.tag_column}
-        if self._mapper.aws_category_column:
-            prefix_mapping[AWS_CATEGORY_PREFIX] = self._mapper.aws_category_column
+        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
+            prefix_mapping[AWS_CATEGORY_PREFIX] = aws_category_column
         for prefix, db_column in prefix_mapping.items():
             if group.startswith(db_column + "__"):
                 group = group[len(db_column + "__") :]  # noqa
