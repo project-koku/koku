@@ -31,7 +31,8 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self.updater = AWSReportParquetSummaryUpdater(self.schema_name, self.aws_provider, self.manifest)
 
-    def test_get_sql_inputs(self):
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    def test_get_sql_inputs(self, _):
         """Test that dates are returned."""
         # Previous month
         start_str = (self.dh.last_month_end - timedelta(days=3)).isoformat()
@@ -101,7 +102,8 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, end_date)
 
-    def test_update_daily_tables(self):
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    def test_update_daily_tables(self, _):
         """Test that this is a placeholder method."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
@@ -118,6 +120,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
 
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
@@ -125,7 +128,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_presto, mock_tag_update, mock_delete):
+    def test_update_daily_summary_tables(self, mock_presto, mock_tag_update, mock_delete, _):
         """Test that we run Presto summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
