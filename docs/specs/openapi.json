@@ -4029,16 +4029,24 @@
                 ],
                 "summary": "List available AWS S3 regions",
                 "operationId": "getAWSS3Regions",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "An object containing available regions",
+                        "description": "List of available S3 regions",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "description": "Dictionary key is 'regions'. Value is list of available regions.",
+                                    "description": "List of available S3 regions.",
                                     "example": {
-                                        "regions": [
+                                        "data": [
                                             "af-south-1",
                                             "ap-east-1",
                                             "ap-northeast-1",
