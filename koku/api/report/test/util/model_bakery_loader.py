@@ -155,12 +155,6 @@ class ModelBakeryDataLoader(DataLoader):
                 data["billing_period_end"] = month_end
             return baker.make(model_str, **data, **kwargs, _fill_optional=False)
 
-    def create_cost_entry(self, bill_date, bill):
-        """Create a cost entry object for the provider"""
-        with schema_context(self.schema):
-            month_end = self.dh.month_end(bill_date)
-            baker.make("AWSCostEntry", interval_start=bill_date, interval_end=month_end, bill=bill)
-
     def create_cost_model(self, provider):
         """Create a cost model and map entry."""
         with schema_context(self.schema):
@@ -212,7 +206,6 @@ class ModelBakeryDataLoader(DataLoader):
                 self.create_manifest(provider, bill_date)
                 bill = self.create_bill(provider_type, provider, bill_date, payer_account_id=payer_account_id)
                 bills.append(bill)
-                self.create_cost_entry(bill_date, bill)
                 days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(  # Storage data_source
