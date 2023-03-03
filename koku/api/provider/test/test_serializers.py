@@ -483,6 +483,25 @@ class ProviderSerializerTest(IamTestCase):
             "One or more required fields is invalid/missing. Required fields are ['dataset']",
         )
 
+    def test_create_gcp_provider_validate_no_bucket(self):
+        """Test the data_source.bucket validation for GCP provider."""
+        provider = {
+            "name": "test_provider_val_data_source",
+            "type": Provider.PROVIDER_GCP.lower(),
+            "authentication": {"credentials": {"project_id": "gcp_project"}},
+            "billing_source": {"data_source": {"storage_only": True}},
+        }
+
+        with self.assertRaises(ValidationError) as e:
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            serializer.is_valid(raise_exception=True)
+
+        self.assertEqual(e.exception.status_code, 400)
+        self.assertEqual(
+            str(e.exception.detail["billing_source"]["data_source"]["provider.data_source"][0]),
+            "One or more required fields is invalid/missing. Required fields are ['bucket']",
+        )
+
     def test_create_gcp_provider_validate_report_prefix_too_long(self):
         """Test the data_source.report_prefix validation for GCP provider."""
         provider = {

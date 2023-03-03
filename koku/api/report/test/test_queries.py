@@ -19,6 +19,7 @@ from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.constants import TAG_PREFIX
 from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.gcp.view import GCPCostView
@@ -292,7 +293,7 @@ class ReportQueryHandlerTest(IamTestCase):
         )
         assertSameQ(output, expected.compose())
 
-    def test_set_operator_specified_tag_filters_and(self):
+    def test_set_operator_specified_prefix_filters_and(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
         operator = "and"
 
@@ -312,7 +313,10 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
-        output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
+        filter_keys = rqh.get_tag_filter_keys()
+        group_by = rqh.get_tag_group_by_keys()
+        filter_keys.extend(group_by)
+        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys, TAG_PREFIX)
 
         self.assertIsNotNone(output)
 
@@ -346,7 +350,10 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
-        output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
+        filter_keys = rqh.get_tag_filter_keys()
+        group_by = rqh.get_tag_group_by_keys()
+        filter_keys.extend(group_by)
+        output = rqh._set_prefix_based_filters(QueryFilterCollection(), "tags", filter_keys, TAG_PREFIX)
         self.assertIsNotNone(output)
 
         expected = QueryFilterCollection(

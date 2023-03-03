@@ -1195,6 +1195,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         timestamps = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
         minim, maxim = timestamps[0]
-        minim = parse(minim) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
-        maxim = parse(maxim) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
+        minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
+        maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim

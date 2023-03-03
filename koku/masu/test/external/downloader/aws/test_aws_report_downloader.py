@@ -188,7 +188,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "provider_uuid": self.aws_provider_uuid,
             }
         )
-        self.aws_ingresss_report_downloader = AWSReportDownloader(
+        self.aws_ingress_report_downloader = AWSReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
@@ -639,5 +639,5 @@ class AWSReportDownloaderTest(MasuTestCase):
         }
         mock_pseudo_manifest.return_value = expected_manifest_data
 
-        result_manifest = self.aws_ingresss_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
+        result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
