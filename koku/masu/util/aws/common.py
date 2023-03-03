@@ -35,7 +35,15 @@ LOG = logging.getLogger(__name__)
 ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
 RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
 COST_CATEGORY_PREFIX = "costCategory/"
-CSV_COLUMN_PREFIX = (ALL_RESOURCE_TAG_PREFIX, COST_CATEGORY_PREFIX, "bill/", "lineItem/", "pricing/", "discount/")
+CSV_COLUMN_PREFIX = (
+    ALL_RESOURCE_TAG_PREFIX,
+    COST_CATEGORY_PREFIX,
+    "bill/",
+    "lineItem/",
+    "pricing/",
+    "discount/",
+    "product/sku",
+)
 
 
 # pylint: disable=too-few-public-methods
