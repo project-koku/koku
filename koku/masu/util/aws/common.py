@@ -32,6 +32,11 @@ from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
+ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
+RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
+COST_CATEGORY_PREFIX = "costCategory/"
+CSV_COLUMN_PREFIX = (ALL_RESOURCE_TAG_PREFIX, COST_CATEGORY_PREFIX)
+
 
 # pylint: disable=too-few-public-methods
 class AwsArn:
@@ -509,18 +514,14 @@ def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
-    all_resource_tag_prefix = "resourceTags/"
-    resource_tag_user_prefix = "resourceTags/user:"
-    cost_category_prefix = "costCategory/"
-
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
-    tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, resource_tag_user_prefix)
+    tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, RESOURCE_TAG_USER_PREFIX)
     data_frame["resourceTags"] = tags
 
-    cost_categories, _ = handle_user_defined_json_columns(data_frame, columns, cost_category_prefix)
+    cost_categories, _ = handle_user_defined_json_columns(data_frame, columns, COST_CATEGORY_PREFIX)
     data_frame["costCategory"] = cost_categories
 
     # Make sure we have entries for our required columns
@@ -532,7 +533,7 @@ def aws_post_processor(data_frame):
     for column in columns:
         new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
-        if all_resource_tag_prefix in column or cost_category_prefix in column:
+        if ALL_RESOURCE_TAG_PREFIX in column or COST_CATEGORY_PREFIX in column:
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
