@@ -683,7 +683,7 @@ class CostModelSerializerTest(IamTestCase):
                 serializer.validate_source_uuids([uuid4()])
 
     def test_distribution_choices_added_successfully(self):
-        """Test that a source type is valid if it has markup."""
+        """Test that source distribution is a valid choice and added successsfully."""
         valid_choices = ["cpu", "memory"]
         for good_input in valid_choices:
             self.ocp_data["distribution"] = good_input
@@ -834,3 +834,44 @@ class CostModelSerializerTest(IamTestCase):
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             self.assertTrue(serializer.is_valid(raise_exception=True))
+
+    def test_valid_distribution_info_keys(self):
+        """Test that source distribution_info object has valid keys."""
+
+        valid_distrib_obj = {"distribute_type": "cpu", "worker_cost": True, "platform_cost": True}
+        self.ocp_data["distribution_info"] = valid_distrib_obj
+        self.assertEqual(self.ocp_data["distribution_info"], valid_distrib_obj)
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            self.assertIsNotNone(instance)
+            self.assertEqual(instance.distribution_info, valid_distrib_obj)
+
+    def test_invalid_distribution_info_keys(self):
+        """Test that source distribution_info object has invalid keys."""
+
+        invalid_distrib_info_keys = {"bad_key": "", "badder_key": True, "worker_cost": False}
+        self.ocp_data["distribution_info"] = invalid_distrib_info_keys
+        self.assertEqual(self.ocp_data["distribution_info"], invalid_distrib_info_keys)
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
+
+    def test_none_distribution_info_returns_defaults(self):
+        """Test that a none distribution_info object uses default options."""
+        default_distrib_info_obj = {
+            "distribute_type": metric_constants.CPU_DISTRIBUTION,
+            "platform_cost": True,
+            "worker_cost": True,
+        }
+
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            self.assertIsNotNone(instance)
+            self.assertEqual(instance.distribution_info, default_distrib_info_obj)
