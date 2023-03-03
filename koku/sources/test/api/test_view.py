@@ -117,7 +117,8 @@ class SourcesViewTests(IamTestCase):
             self.assertEqual(body.get("meta").get("count"), 1)
 
     def test_aws_s3_regions(self):
-        expected_subset = {
+        """Given a request for AWS S3 regions, a subset of all available regions should be returned"""
+        all_regions = {
             "af-south-1",
             "ap-east-1",
             "ap-northeast-1",
@@ -147,11 +148,25 @@ class SourcesViewTests(IamTestCase):
             "us-west-2",
         }
         response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
-        data = response.json()["data"]
-        regions = data[0]["regions"]
+        regions = response.json()["data"]
+        count = response.json()["meta"]["count"]
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(expected_subset.issubset(regions))
+        self.assertTrue(set(regions).issubset(all_regions))
+        self.assertTrue(len(all_regions) >= count)
+
+    def test_aws_s3_regions_pagination(self):
+        """Test that the API response is paginated"""
+        limit = 4
+
+        response = self.client.get(
+            reverse("sources-aws-s3-regions"),
+            {"limit": limit},
+            **self.request_context["request"].META,
+        )
+        regions = response.json()["data"]
+
+        self.assertEqual(len(regions), limit)
 
     def test_source_list_other_header(self):
         """Test the LIST endpoint with other auth header not matching test data."""

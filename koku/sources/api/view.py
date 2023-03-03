@@ -126,7 +126,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
-        return ListPaginator([{"regions": regions}], request).paginated_response
+        return ListPaginator(regions, request).paginated_response
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
