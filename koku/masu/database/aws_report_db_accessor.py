@@ -8,6 +8,7 @@ import logging
 import pkgutil
 import uuid
 
+import ciso8601
 from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
@@ -451,3 +452,24 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(f"No matching enabled keys for OCP on AWS {self.schema}")
                 return False
         return True
+
+    def check_for_invoice_id_trino(self, source_uuid, check_date):
+        """Check if this month's data has been finalized by AWS."""
+        if isinstance(check_date, str):
+            check_date = ciso8601.parse_datetime(check_date).date()
+
+        year = check_date.strftime("%Y")
+        month = check_date.strftime("%m")
+
+        sql = f"""
+            SELECT DISTINCT bill_invoiceid
+            FROM aws_line_items
+            WHERE year = '{year}'
+                AND month = '{month}'
+                AND source = '{source_uuid}'
+        """
+
+        results = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="check_for_invoice_id_trino")
+
+        invoice_ids = [result[0] for result in results if result[0] != ""]
+        return invoice_ids
