@@ -6,6 +6,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
@@ -57,6 +58,48 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         start, end = updater._get_sql_inputs(start_str, end_str)
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
+
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    def test_check_for_finalized_report(self, mock_invoice_check):
+        """Test that we properly adjust start date for non-finalized reports."""
+        dh = DateHelper()
+
+        # Test current month
+        mock_invoice_check.return_value = []
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        bill_date = dh.this_month_start
+        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
+            bill_date, start_date, end_date
+        )
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+        mock_invoice_check.reset_mock()
+        # Test previous month IS finalized
+        mock_invoice_check.return_value = ["1"]
+        start_date = dh.last_month_start
+        end_date = dh.last_month_end
+        bill_date = dh.last_month_start
+        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
+            bill_date, start_date, end_date
+        )
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+        mock_invoice_check.reset_mock()
+        # Test previous month NOT finalized
+        mock_invoice_check.return_value = []
+        start_date = dh.last_month_start
+        end_date = dh.last_month_end
+        bill_date = dh.last_month_start
+        expected_start_date = end_date - relativedelta(days=2)
+        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
+            bill_date, start_date, end_date
+        )
+        self.assertNotEqual(result_start_date, start_date)
+        self.assertEqual(result_start_date, expected_start_date)
+        self.assertEqual(result_end_date, end_date)
 
     def test_update_daily_tables(self):
         """Test that this is a placeholder method."""
