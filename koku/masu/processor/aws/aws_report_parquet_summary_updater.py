@@ -7,6 +7,7 @@ import calendar
 import logging
 
 import ciso8601
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
@@ -49,13 +50,32 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    LOG.info("Overriding start and end date to process full month.")
+                    start_date, end_date = self._adjust_start_date_if_finalized(bill_date, start_date, end_date)
+                    msg = f"Overriding start date to {start_date} and end date to {end_date}."
+                    LOG.info(msg)
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
         if isinstance(end_date, str):
             end_date = ciso8601.parse_datetime(end_date).date()
 
+        return start_date, end_date
+
+    def _adjust_start_date_if_finalized(self, bill_date, start_date, end_date):
+        """If the bill date is from a prior month, check for an invoice ID and adjust start date."""
+        now_utc = DateAccessor().today()
+
+        is_previous_month = bill_date.year != now_utc.year or bill_date.month != now_utc.month
+        if is_previous_month:
+            with AWSReportDBAccessor(self._schema) as accessor:
+                invoice_ids = accessor.check_for_invoice_id_trino(str(self._provider.uuid), bill_date)
+                if invoice_ids:
+                    msg = f"Report for billing date {bill_date} is finalized."
+                    LOG.info(msg)
+                else:
+                    msg = f"Report for billing date {bill_date} is NOT finalized."
+                    LOG.info(msg)
+                    start_date = end_date - relativedelta(days=2)
         return start_date, end_date
 
     def update_daily_tables(self, start_date, end_date, **kwargs):
