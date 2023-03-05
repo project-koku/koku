@@ -862,12 +862,12 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_none_distribution_info_returns_defaults(self):
         """Test that a none distribution_info object uses default options."""
+
         default_distrib_info_obj = {
             "distribute_type": metric_constants.CPU_DISTRIBUTION,
             "platform_cost": True,
             "worker_cost": True,
         }
-
         with tenant_context(self.tenant):
             instance = None
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)

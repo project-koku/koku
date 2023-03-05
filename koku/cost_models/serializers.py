@@ -557,7 +557,7 @@ class CostModelSerializer(BaseSerializer):
         return validated_rates
 
     def validate_distribution_json(self, data):
-        """Run validation the distrubtion options object."""
+        """Run validation for the distrubtion_info object."""
 
         distribution = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
         distribution_info = data.get("distribution_info", {})
