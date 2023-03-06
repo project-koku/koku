@@ -838,7 +838,7 @@ class CostModelSerializerTest(IamTestCase):
     def test_valid_distribution_info_keys(self):
         """Test that source distribution_info object has valid keys."""
 
-        valid_distrib_obj = {"distribute_type": "cpu", "worker_cost": True, "platform_cost": True}
+        valid_distrib_obj = {"distribution_type": "cpu", "worker_cost": True, "platform_cost": True}
         self.ocp_data["distribution_info"] = valid_distrib_obj
         self.assertEqual(self.ocp_data["distribution_info"], valid_distrib_obj)
         with tenant_context(self.tenant):
@@ -864,7 +864,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test that a none distribution_info object uses default options."""
 
         default_distrib_info_obj = {
-            "distribute_type": metric_constants.CPU_DISTRIBUTION,
+            "distribution_type": metric_constants.CPU_DISTRIBUTION,
             "platform_cost": True,
             "worker_cost": True,
         }

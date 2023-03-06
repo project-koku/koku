@@ -58,38 +58,22 @@ class MarkupSerializer(serializers.Serializer):
 class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
-    DISTRIBUTION_OPTIONS = ("distribute_type", "worker_cost", "platform_cost")
+    DISTRIBUTION_OPTIONS = {"distribution_type", "worker_cost", "platform_cost"}
 
-    distribute_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
+    distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
     platform_cost = serializers.BooleanField(required=False)
     worker_cost = serializers.BooleanField(required=False)
-
-    def validate_distribute_type(self, distribute_type):
-        """Run validation for distribute type."""
-        distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
-        if distribute_type not in distrib_choice_list:
-            error_msg = f"{distribute_type} is an invaild distribution type"
-            raise serializers.ValidationError(error_msg)
-        return distribute_type
 
     def validate(self, data):
         """Run validation for distribution options."""
 
-        if not any(ele in data.keys() for ele in self.DISTRIBUTION_OPTIONS):
-            data = data.get("distribution_info", {})
-        if data.keys() and not (sorted(self.DISTRIBUTION_OPTIONS) == sorted(data.keys())):
-            distribution_info_str = ", ".join(str(option) for option in self.DISTRIBUTION_OPTIONS)
+        diff = self.DISTRIBUTION_OPTIONS.difference(data)
+        if diff == self.DISTRIBUTION_OPTIONS:
+            return {"distribution_type": metric_constants.CPU_DISTRIBUTION, "platform_cost": True, "worker_cost": True}
+        if diff:
+            distribution_info_str = ", ".join(diff)
             error_msg = f"Missing distribution information: one of {distribution_info_str}"
             raise serializers.ValidationError(error_msg)
-        else:
-            _distribute_type = data.get("distribute_type", metric_constants.CPU_DISTRIBUTION)
-            valid_distribute_type = self.validate_distribute_type(_distribute_type)
-            if data == {}:
-                data["distribute_type"] = valid_distribute_type
-                data["platform_cost"] = True
-                data["worker_cost"] = True
-            else:
-                data["distribute_type"] = valid_distribute_type
         return data
 
 
@@ -563,7 +547,7 @@ class CostModelSerializer(BaseSerializer):
         distribution_info = data.get("distribution_info", {})
         if not distribution_info:
             distribution_info = {
-                "distribute_type": distribution,
+                "distribution_type": distribution,
                 "platform_cost": True,
                 "worker_cost": True,
             }
