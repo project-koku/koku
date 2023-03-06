@@ -689,13 +689,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.assertNotEqual(item.infrastructure_usage_cost.get("cpu"), 0)
                 self.assertNotEqual(item.infrastructure_usage_cost.get("memory"), 0)
 
-            storage_daily_name = OCP_REPORT_TABLE_MAP["storage_line_item_daily"]
-
-            items = self.ocp_accessor._get_db_obj_query(storage_daily_name).filter(cluster_id=cluster_id)
-            for item in items:
-                self.assertIsNotNone(item.volume_request_storage_byte_seconds)
-                self.assertIsNotNone(item.persistentvolumeclaim_usage_byte_seconds)
-
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
                 cluster_id=cluster_id,
