@@ -13,6 +13,7 @@ WITH cte_tag_value AS (
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
+        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys WHERE enabled=true)
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -23,7 +24,7 @@ WITH cte_tag_value AS (
     GROUP BY key, value, li.cost_entry_bill_id, li.account_id, li.project_id, li.project_name, li.report_period_id, li.namespace, li.node
 ),
 cte_values_agg AS (
-    SELECT key,
+    SELECT tv.key,
         array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
         report_period_id,
@@ -32,8 +33,11 @@ cte_values_agg AS (
         project_name,
         namespace,
         node
-    FROM cte_tag_value
-    GROUP BY key, cost_entry_bill_id, report_period_id, account_id, project_id, project_name, namespace, node
+    FROM cte_tag_value AS tv
+    JOIN {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
+        ON tv.key = etk.key
+    WHERE etk.enabled = true
+    GROUP BY tv.key, cost_entry_bill_id, report_period_id, account_id, project_id, project_name, namespace, node
 ),
 cte_distinct_values_agg AS (
     SELECT v.key,
@@ -99,4 +103,26 @@ JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
     ON tv.report_period_id = rp.id
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids,project_ids=EXCLUDED.project_ids, project_names=EXCLUDED.project_names, namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
+;
+
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_summary AS ts
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
+    WHERE etk.enabled = false
+        AND ts.key = etk.key
+)
+;
+
+WITH cte_expired_tag_keys AS (
+    SELECT DISTINCT tv.key
+    FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values AS tv
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpgcptags_summary AS ts
+        ON tv.key = ts.key
+    WHERE ts.key IS NULL
+
+)
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values tv
+    USING cte_expired_tag_keys etk
+    WHERE tv.key = etk.key
 ;

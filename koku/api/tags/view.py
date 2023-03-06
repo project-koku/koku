@@ -80,7 +80,7 @@ class TagView(ReportView):
 
     def validate_key(self, key):
         """Validate that tag key exists."""
-        count = 0
         for handler in self.tag_handler:
-            count += handler.objects.filter(key=key).count()
-        return count != 0
+            if handler.objects.filter(key=key).exists():
+                return True
+        return False

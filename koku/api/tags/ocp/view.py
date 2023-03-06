@@ -7,8 +7,7 @@ from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.serializers import OCPTagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
-from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class OCPTagView(TagView):
@@ -17,5 +16,5 @@ class OCPTagView(TagView):
     provider = "ocp"
     serializer = OCPTagsQueryParamSerializer
     query_handler = OCPTagQueryHandler
-    tag_handler = [OCPUsagePodLabelSummary, OCPStorageVolumeLabelSummary]
+    tag_handler = [OCPEnabledTagKeys]
     permission_classes = [OpenShiftAccessPermission]
