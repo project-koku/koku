@@ -21,6 +21,6 @@ class Migration(migrations.Migration):
             field=models.JSONField(default=dict),
         ),
         migrations.RunSQL(
-            "UPDATE cost_model cm SET distribution_info = (SELECT to_jsonb(distribution_opts) FROM (select temp_cm.distribution as distribute_type, false as worker_cost, false as platform_cost from cost_model temp_cm where temp_cm.uuid = cm.uuid) distribution_opts)"
+            "UPDATE cost_model cm SET distribution_info = (SELECT to_jsonb(distribution_opts) FROM (select temp_cm.distribution as distribution_type, false as worker_cost, false as platform_cost from cost_model temp_cm where temp_cm.uuid = cm.uuid) distribution_opts)"
         ),
     ]
