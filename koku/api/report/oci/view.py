@@ -8,7 +8,7 @@ from api.models import Provider
 from api.report.oci.query_handler import OCIReportQueryHandler
 from api.report.oci.serializers import OCIQueryParamSerializer
 from api.report.view import ReportView
-from reporting.provider.oci.models import OCITagsSummary
+from reporting.provider.oci.models import OCIEnabledTagKeys
 
 
 class OCIView(ReportView):
@@ -18,7 +18,7 @@ class OCIView(ReportView):
     provider = Provider.PROVIDER_OCI
     serializer = OCIQueryParamSerializer
     query_handler = OCIReportQueryHandler
-    tag_handler = [OCITagsSummary]
+    tag_handler = [OCIEnabledTagKeys]
 
 
 class OCICostView(OCIView):

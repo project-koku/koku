@@ -16,7 +16,7 @@
     },
     {
       "name": "Enabled Tags",
-      "description": "Create or delete OCP enabled tags"
+      "description": "Create or delete enabled tags for a provider type"
     },
     {
       "name": "Expired Data",
@@ -143,7 +143,7 @@
     },
     "/enabled_tags/": {
       "get": {
-        "summary": "List OCP Enabled Tags",
+        "summary": "List Provider Enabled Tags",
         "operationId": "getEnabledTag",
         "description": "Return tag keys.",
         "parameters": [
@@ -155,6 +155,16 @@
             "schema": {
               "type": "string",
               "example": "acct12345"
+            }
+          },
+          {
+            "name": "provider_type",
+            "in": "query",
+            "description": "The provider type",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "OCP"
             }
           }
         ],
@@ -175,7 +185,7 @@
         ]
       },
       "post": {
-        "summary": "Create or delete OCP Enabled Tags",
+        "summary": "Create or delete Enabled Tags for a provider type",
         "operationId": "postEnabledTag",
         "description": "Return tag keys.",
         "requestBody": {
@@ -2260,6 +2270,10 @@
           "schema": {
             "type": "string",
             "example": "acct12345"
+          },
+          "provider_type": {
+            "type": "string",
+            "enum": ["aws", "azure", "gcp", "oci", "ocp"]
           },
           "action": {
             "type": "string",

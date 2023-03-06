@@ -7,7 +7,7 @@ from api.common.permissions.azure_access import AzureAccessPermission
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.serializers import AzureTagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.provider.azure.models import AzureTagsSummary
+from reporting.provider.azure.models import AzureEnabledTagKeys
 
 
 class AzureTagView(TagView):
@@ -16,5 +16,5 @@ class AzureTagView(TagView):
     provider = "azure"
     serializer = AzureTagsQueryParamSerializer
     query_handler = AzureTagQueryHandler
-    tag_handler = [AzureTagsSummary]
+    tag_handler = [AzureEnabledTagKeys]
     permission_classes = [AzureAccessPermission]

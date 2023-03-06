@@ -17,6 +17,7 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} as
         AND li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
+        AND li.volume_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys WHERE enabled=true)
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ;
 
@@ -27,13 +28,16 @@ create index ix_cte_tag_value_{{uuid | sqlsafe}}
 
 
 create table {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} as
-    SELECT key,
+    SELECT tv.key,
         array_agg(DISTINCT value)::text[] as "values",
         report_period_id,
         namespace,
         node
-    FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}}
-    GROUP BY key, report_period_id, namespace, node
+    FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} tv
+    JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys etk
+        ON tv.key = etk.key
+    WHERE etk.enabled = true
+    GROUP BY tv.key, report_period_id, namespace, node
 ;
 
 create unique index ix_cte_values_agg_{{uuid | sqlsafe}}
@@ -170,17 +174,23 @@ WHERE not exists (
 
 
 -- )
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+    WHERE etk.enabled = false
+        AND ls.key = etk.key
+)
+;
+
+
 DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values tv
-WHERE NOT EXISTS (
-          SELECT 1
-            FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS pls
-           WHERE pls.key = tv.key
-      )
-  AND NOT EXISTS (
-          SELECT 1
-            FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS vls
-           WHERE vls.key = tv.key
-      )
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+    WHERE etk.enabled = false
+        AND tv.key = etk.key
+)
 ;
 
 

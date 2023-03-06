@@ -521,3 +521,19 @@ def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
 
     days_in_month = dh().days_in_month(start_date)
     return Decimal(monthly_rate) / days_in_month
+
+
+def ocp_post_processor(data_frame):
+    """
+    Consume the OCP data and get distinc label counts
+    """
+
+    label_columns = {"pod_labels", "volume_labels", "namespace_labels", "node_labels"}
+    df_columns = set(data_frame.columns)
+    columns_to_grab = df_columns.intersection(label_columns)
+    label_key_set = set()
+    for column in columns_to_grab:
+        unique_labels = data_frame[column].unique()
+        for label in unique_labels:
+            label_key_set.update(json.loads(label).keys())
+    return (data_frame, label_key_set)
