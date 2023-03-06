@@ -33,7 +33,6 @@ from api.utils import materialized_view_month_start
 from reporting.models import AzureComputeSummaryP
 from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
-from reporting.models import AzureCostEntryProductService
 from reporting.models import AzureCostSummaryByAccountP
 from reporting.models import AzureCostSummaryByLocationP
 from reporting.models import AzureCostSummaryByServiceP
@@ -330,34 +329,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 except ValueError as exc:
                     self.fail(exc)
                 self.assertIsInstance(month_item.get("service_names"), list)
-
-    def test_execute_query_with_counts(self):
-        """Test execute_query for with counts of unique resources."""
-        with tenant_context(self.tenant):
-            instance_type = AzureCostEntryProductService.objects.filter(service_name="Virtual Machines").first()
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
-        handler = AzureReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-
-        total = query_output.get("total")
-        filters = {**self.this_month_filter, "instance_type__isnull": False}
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
-        expected_cost_total = current_totals.get("cost_total")
-        self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
-        self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
-
-        for data_item in data:
-            instance_types = data_item.get("instance_types")
-            for it in instance_types:
-                if it["instance_type"] == instance_type:
-                    actual_count = it["values"][0].get("count", {}).get("value")
-                    self.assertEqual(actual_count, 1)
 
     def test_execute_query_curr_month_by_subscription_guid_w_limit(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with limit."""

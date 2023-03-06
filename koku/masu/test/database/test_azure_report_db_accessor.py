@@ -43,8 +43,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AZURE_REPORT_TABLE_MAP["bill"],
-            AZURE_REPORT_TABLE_MAP["product"],
-            AZURE_REPORT_TABLE_MAP["meter"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
