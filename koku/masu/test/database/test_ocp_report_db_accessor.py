@@ -524,8 +524,9 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
-            key_to_keep = OCPEnabledTagKeys.objects.first()
-            OCPEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            key_to_keep = OCPEnabledTagKeys.objects.filter(key="app").first()
+            OCPEnabledTagKeys.objects.all().update(enabled=False)
+            OCPEnabledTagKeys.objects.filter(key="app").update(enabled=True)
             report_period_ids = [report_period.id]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
             tags = (

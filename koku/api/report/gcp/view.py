@@ -8,7 +8,7 @@ from api.models import Provider
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.gcp.serializers import GCPQueryParamSerializer
 from api.report.view import ReportView
-from reporting.provider.gcp.models import GCPTagsSummary
+from reporting.provider.gcp.models import GCPEnabledTagKeys
 
 
 class GCPView(ReportView):
@@ -18,7 +18,7 @@ class GCPView(ReportView):
     provider = Provider.PROVIDER_GCP
     serializer = GCPQueryParamSerializer
     query_handler = GCPReportQueryHandler
-    tag_handler = [GCPTagsSummary]
+    tag_handler = [GCPEnabledTagKeys]
 
 
 class GCPCostView(GCPView):

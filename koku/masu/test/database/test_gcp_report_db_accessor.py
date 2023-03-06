@@ -209,8 +209,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.gcp_provider_uuid, start_date)
         with schema_context(self.schema):
             GCPTagsSummary.objects.all().delete()
-            key_to_keep = GCPEnabledTagKeys.objects.first()
-            GCPEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            key_to_keep = GCPEnabledTagKeys.objects.filter(key="app").first()
+            GCPEnabledTagKeys.objects.all().update(enabled=False)
+            GCPEnabledTagKeys.objects.filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (

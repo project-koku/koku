@@ -298,3 +298,49 @@ class OCPUtilTests(MasuTestCase):
                     mock_csv.return_value.columns = test
                     result, _ = utils.detect_type("")
                     self.assertEqual(result, expected)
+
+    def test_ocp_post_processor(self):
+        """Test the unique tag key processing for OpenShift."""
+
+        for label_type in ("pod_labels", "volume_labels", "namespace_labels", "node_labels"):
+            with self.subTest(label_type=label_type):
+                data = [
+                    {
+                        "key_one": "value_one",
+                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "always"}',
+                    },
+                    {
+                        "key_one": "value_two",
+                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "sometimes"}',
+                    },
+                    {
+                        "key_one": "value_one",
+                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "maybe?"}',
+                    },
+                ]
+                expected_keys = ["application", "environment", "fun_times"]
+                df = pd.DataFrame(data)
+                result, unique_keys = utils.ocp_post_processor(df)
+                pd.testing.assert_frame_equal(df, result)
+                self.assertEqual(sorted(unique_keys), sorted(expected_keys))
+
+        label_type = "incorrect_labels_column"
+        data = [
+            {
+                "key_one": "value_one",
+                label_type: '{"application": "cost", "environment": "dev", "fun_times": "always"}',
+            },
+            {
+                "key_one": "value_two",
+                label_type: '{"application": "cost", "environment": "dev", "fun_times": "sometimes"}',
+            },
+            {
+                "key_one": "value_one",
+                label_type: '{"application": "cost", "environment": "dev", "fun_times": "maybe?"}',
+            },
+        ]
+        expected_keys = ["application", "environment", "fun_times"]
+        df = pd.DataFrame(data)
+        result, unique_keys = utils.ocp_post_processor(df)
+        pd.testing.assert_frame_equal(df, result)
+        self.assertEqual(unique_keys, set())

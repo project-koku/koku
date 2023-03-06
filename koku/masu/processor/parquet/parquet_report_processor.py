@@ -27,6 +27,7 @@ from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProc
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
+from masu.util.aws.common import CSV_COLUMN_PREFIX as AWS_COLUMN_PREFIX
 from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_generate_daily_data
@@ -46,6 +47,7 @@ from masu.util.oci.common import oci_post_processor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
+from masu.util.ocp.common import ocp_post_processor
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -219,6 +221,8 @@ class ParquetReportProcessor:
             post_processor = gcp_post_processor
         elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
             post_processor = oci_post_processor
+        elif self.provider_type == Provider.PROVIDER_OCP:
+            post_processor = ocp_post_processor
         return post_processor
 
     @property
@@ -305,6 +309,20 @@ class ParquetReportProcessor:
             return GCPEnabledTagKeys
         elif self.provider_type == Provider.PROVIDER_OCI:
             return OCIEnabledTagKeys
+        return None
+
+    @property
+    def csv_columns(self):
+        """Return the required CSV columns if we need to filter them"""
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return CSV_REQUIRED_COLUMNS.get(Provider.PROVIDER_AWS)
+        return None
+
+    @property
+    def csv_column_prefixes(self):
+        """Return csv column prefixes to be included when we load the csv"""
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return AWS_COLUMN_PREFIX
         return None
 
     def _get_column_converters(self):
@@ -449,6 +467,10 @@ class ParquetReportProcessor:
                 col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
             }
             csv_converters.update({col: str for col in col_names if col not in csv_converters})
+            if self.csv_columns and self.csv_column_prefixes:
+                kwargs["usecols"] = [
+                    col for col in col_names if col in self.csv_columns or col.startswith(self.csv_column_prefixes)
+                ]
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:

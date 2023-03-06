@@ -25,7 +25,6 @@ from reporting.models import OCPEnabledTagKeys
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
-OCP_ENABLED_TAGS = ["storageclass", "environment", "version"]
 
 if GITHUB_ACTIONS:
     sys.stdout = open(os.devnull, "w")
@@ -85,10 +84,6 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                             org_id=KokuTestRunner.org_id,
                             schema_name=KokuTestRunner.schema,
                         )
-                        ######### TODO: remove after azure has been converted ########
-                        with tenant_context(tenant):
-                            for tag_key in OCP_ENABLED_TAGS:
-                                OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
                         ##############################################################
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)

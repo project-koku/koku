@@ -174,6 +174,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
     source_uuid = models.UUIDField(unique=False, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
 class OCPTagsValues(models.Model):
@@ -243,7 +244,7 @@ class OCPEnabledTagKeys(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=True)
+    enabled = models.BooleanField(null=False, default=False)
 
 
 class OCPCluster(models.Model):
@@ -357,6 +358,7 @@ class OCPCostSummaryP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -403,6 +405,7 @@ class OCPCostSummaryByProjectP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -448,6 +451,7 @@ class OCPCostSummaryByNodeP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -502,6 +506,7 @@ class OCPPodSummaryP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -560,6 +565,7 @@ class OCPPodSummaryByProjectP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -607,6 +613,7 @@ class OCPVolumeSummaryP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -658,6 +665,7 @@ class OCPVolumeSummaryByProjectP(models.Model):
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

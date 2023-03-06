@@ -278,8 +278,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
         with schema_context(self.schema):
             AzureTagsSummary.objects.all().delete()
-            key_to_keep = AzureEnabledTagKeys.objects.first()
-            AzureEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            key_to_keep = AzureEnabledTagKeys.objects.filter(key="app").first()
+            AzureEnabledTagKeys.objects.all().update(enabled=False)
+            AzureEnabledTagKeys.objects.filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (

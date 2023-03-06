@@ -156,8 +156,9 @@ class OCIReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
         with schema_context(self.schema):
             OCITagsSummary.objects.all().delete()
-            key_to_keep = OCIEnabledTagKeys.objects.first()
-            OCIEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            key_to_keep = OCIEnabledTagKeys.objects.filter(key="app").first()
+            OCIEnabledTagKeys.objects.all().update(enabled=False)
+            OCIEnabledTagKeys.objects.filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (
