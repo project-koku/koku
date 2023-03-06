@@ -477,7 +477,11 @@ class CostModelSerializer(BaseSerializer):
             data["currency"] = get_currency(self.context.get("request"))
 
         if not data.get("distribution_info"):
-            data["distribution_info"] = self.validate_distribution_json(data)
+            data["distribution_info"] = {
+                "distribution_type": data.get("distribution", metric_constants.CPU_DISTRIBUTION),
+                "platform_cost": True,
+                "worker_cost": True,
+            }
 
         if (
             data.get("markup")
@@ -539,22 +543,6 @@ class CostModelSerializer(BaseSerializer):
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return validated_rates
-
-    def validate_distribution_json(self, data):
-        """Run validation for the distrubtion_info object."""
-
-        distribution = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
-        distribution_info = data.get("distribution_info", {})
-        if not distribution_info:
-            distribution_info = {
-                "distribution_type": distribution,
-                "platform_cost": True,
-                "worker_cost": True,
-            }
-        serializer = DistributionSerializer(data=distribution_info)
-        serializer.validate(data)
-        serializer.is_valid(raise_exception=True)
-        return distribution_info
 
     def validate_distribution(self, distribution):
         """Run validation for distribution choice."""
