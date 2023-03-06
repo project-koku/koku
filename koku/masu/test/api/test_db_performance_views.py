@@ -35,7 +35,7 @@ TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFI
 
 
 def _get_database_name():
-    return CONFIGURATOR.get_database_name()
+    return f"test_{CONFIGURATOR.get_database_name()}"
 
 
 TEST_CONFIGURATOR.get_database_name = staticmethod(_get_database_name)
@@ -94,42 +94,44 @@ class TestDBPerformance(IamTestCase):
             self.assertIn("blocked_pid", html)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("koku.configurator.CONFIGURATOR.get_database_name", return_value=TEST_CONFIGURATOR.get_database_name())
-    def test_get_conn_activity(self, mok_conf, mok_middl):
+    def test_get_conn_activity(self, mok_middl):
         """Test the stat activity view."""
         with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
             activity = dbp.get_activity(TEST_CONFIGURATOR.get_database_name())
         pid = activity[0]["backend_pid"]
         state = activity[0]["state"]
-        response = self.client.get(reverse("conn_activity"), **self._get_headers())
-        html = response.content.decode("utf-8")
-        self.assertIn('id="term_action_table"', html)
-        self.assertIn("Connection Activity", html)
-        self.assertIn("backend_pid", html)
+        with patch(
+            "koku.configurator.CONFIGURATOR.get_database_name", return_value=TEST_CONFIGURATOR.get_database_name()
+        ):
+            response = self.client.get(reverse("conn_activity"), **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn('id="term_action_table"', html)
+            self.assertIn("Connection Activity", html)
+            self.assertIn("backend_pid", html)
 
-        response = self.client.get(reverse("conn_activity"), {"pid": pid}, **self._get_headers())
-        html = response.content.decode("utf-8")
-        self.assertIn('id="term_action_table"', html)
-        self.assertIn("Connection Activity", html)
-        self.assertIn("backend_pid", html)
+            response = self.client.get(reverse("conn_activity"), {"pid": pid}, **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn('id="term_action_table"', html)
+            self.assertIn("Connection Activity", html)
+            self.assertIn("backend_pid", html)
 
-        response = self.client.get(reverse("conn_activity"), {"pid": [pid]}, **self._get_headers())
-        html = response.content.decode("utf-8")
-        self.assertIn('id="term_action_table"', html)
-        self.assertIn("Connection Activity", html)
-        self.assertIn("backend_pid", html)
+            response = self.client.get(reverse("conn_activity"), {"pid": [pid]}, **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn('id="term_action_table"', html)
+            self.assertIn("Connection Activity", html)
+            self.assertIn("backend_pid", html)
 
-        response = self.client.get(reverse("conn_activity"), {"state": state}, **self._get_headers())
-        html = response.content.decode("utf-8")
-        self.assertIn('id="term_action_table"', html)
-        self.assertIn("Connection Activity", html)
-        self.assertIn("backend_pid", html)
+            response = self.client.get(reverse("conn_activity"), {"state": state}, **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn('id="term_action_table"', html)
+            self.assertIn("Connection Activity", html)
+            self.assertIn("backend_pid", html)
 
-        response = self.client.get(reverse("conn_activity"), {"state": [state]}, **self._get_headers())
-        html = response.content.decode("utf-8")
-        self.assertIn('id="term_action_table"', html)
-        self.assertIn("Connection Activity", html)
-        self.assertIn("backend_pid", html)
+            response = self.client.get(reverse("conn_activity"), {"state": [state]}, **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn('id="term_action_table"', html)
+            self.assertIn("Connection Activity", html)
+            self.assertIn("backend_pid", html)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_stmt_stats(self, mok_middl):

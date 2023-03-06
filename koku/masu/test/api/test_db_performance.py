@@ -19,7 +19,7 @@ TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFI
 
 
 def _get_database_name():
-    return CONFIGURATOR.get_database_name()
+    return f"test_{CONFIGURATOR.get_database_name()}"
 
 
 TEST_CONFIGURATOR.get_database_name = staticmethod(_get_database_name)
