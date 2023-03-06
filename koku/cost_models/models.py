@@ -52,6 +52,8 @@ class CostModel(models.Model):
 
     distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
+    distribution_info = JSONField(default=dict)
+
     currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
 
 
@@ -86,6 +88,8 @@ class CostModelAudit(models.Model):
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
     distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
+
+    distribution_info = JSONField(default=dict)
 
     currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
 
