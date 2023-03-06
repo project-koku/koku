@@ -126,7 +126,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         """Test that not all tag keys are returned with a filter."""
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
-            "&filter[resolution]=monthly&filter[enabled]=False"
+            "&filter[resolution]=monthly&filter[enabled]=True"
         )
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -149,9 +149,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=True)
-        self.assertNotEqual(sorted(result), sorted(tag_keys))
-        self.assertIn("disabled", result)
+        self.assertEqual(sorted(result), sorted(tag_keys))
+        self.assertNotIn("disabled", result)
         self.assertNotIn("disabled", tag_keys)
+        self.assertIn("app", result)
+        self.assertIn("app", tag_keys)
 
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
@@ -184,9 +186,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=False)
-        self.assertNotEqual(sorted(result), sorted(tag_keys))
-        self.assertIn("disabled", result)
+        self.assertEqual(sorted(result), sorted(tag_keys))
+        self.assertNotIn("disabled", result)
         self.assertNotIn("disabled", tag_keys)
+        self.assertIn("app", result)
+        self.assertIn("app", tag_keys)
 
     def test_get_tag_type_filter_pod(self):
         """Test that all usage tags are returned with pod type filter."""
@@ -203,9 +207,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
             )
 
         result = handler.get_tag_keys(filters=False)
-        self.assertNotEqual(sorted(result), sorted(tag_keys))
-        self.assertIn("disabled", result)
+        self.assertEqual(sorted(result), sorted(tag_keys))
+        self.assertNotIn("disabled", result)
         self.assertNotIn("disabled", tag_keys)
+        self.assertIn("app", result)
+        self.assertIn("app", tag_keys)
 
         result = handler.get_tag_keys(filters=True)
         self.assertEqual(sorted(result), sorted(tag_keys))

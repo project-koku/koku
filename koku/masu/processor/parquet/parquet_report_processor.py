@@ -47,6 +47,7 @@ from masu.util.oci.common import oci_post_processor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
+from masu.util.ocp.common import ocp_post_processor
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -220,6 +221,8 @@ class ParquetReportProcessor:
             post_processor = gcp_post_processor
         elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
             post_processor = oci_post_processor
+        elif self.provider_type == Provider.PROVIDER_OCP:
+            post_processor = ocp_post_processor
         return post_processor
 
     @property

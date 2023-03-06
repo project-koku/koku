@@ -18,7 +18,7 @@ from masu.api.views import crawl_account_hierarchy
 from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
 from masu.api.views import download_report
-from masu.api.views import enabled_tags
+from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
 from masu.api.views import explain_query
 from masu.api.views import get_status
@@ -46,7 +46,7 @@ urlpatterns = [
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
-    path("enabled_tags/", enabled_tags, name="enabled_tags"),
+    path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),
     path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),

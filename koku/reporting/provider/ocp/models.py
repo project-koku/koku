@@ -466,7 +466,7 @@ class OCPEnabledTagKeys(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=True)
+    enabled = models.BooleanField(null=False, default=False)
 
 
 class OCPCluster(models.Model):
