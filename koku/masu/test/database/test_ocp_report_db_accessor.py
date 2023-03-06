@@ -4,7 +4,6 @@
 #
 """Test the OCPReportDBAccessor utility object."""
 import random
-import string
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -14,7 +13,6 @@ from unittest.mock import patch
 from dateutil import relativedelta
 from django.conf import settings
 from django.db.models import Max
-from django.db.models import Min
 from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.query import QuerySet
@@ -39,7 +37,6 @@ from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -66,13 +63,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.reporting_period = self.creator.create_ocp_report_period(
             provider_uuid=self.ocp_provider_uuid, cluster_id=self.cluster_id
         )
-        self.report = self.creator.create_ocp_report(self.reporting_period)
-        pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-        namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-        node = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-        self.creator.create_ocp_usage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
-        self.creator.create_ocp_storage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
-        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report, node=node)
 
     def test_initializer(self):
         """Test initializer."""
@@ -85,25 +75,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         query = self.accessor._get_db_obj_query(table_name)
 
         self.assertIsInstance(query, QuerySet)
-
-    def test_get_db_obj_query_with_columns(self):
-        """Test that a query is returned with limited columns."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item"]
-        columns = list(REPORT_COLUMN_MAP[table_name].values())
-
-        selected_columns = [random.choice(columns) for _ in range(2)]
-        missing_columns = set(columns).difference(selected_columns)
-
-        query = self.accessor._get_db_obj_query(table_name, columns=selected_columns)
-        self.assertIsInstance(query, QuerySet)
-        with schema_context(self.schema):
-            result = query.first()
-
-            for column in selected_columns:
-                self.assertTrue(column in result)
-
-            for column in missing_columns:
-                self.assertFalse(column in result)
 
     def test_get_current_usage_period(self):
         """Test that the most recent usage period is returned."""
@@ -206,49 +177,6 @@ select * from eek where val1 in {{report_period_id}} ;
             self.accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
-
-    def test_populate_node_label_line_item_daily_table(self):
-        """Test that the node label line item daily table populates."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        daily_table_name = OCP_REPORT_TABLE_MAP["node_label_line_item_daily"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        daily_table = getattr(self.accessor.report_schema, daily_table_name)
-
-        for _ in range(5):
-            self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(daily_table_name)
-        with schema_context(self.schema):
-            initial_count = query.count()
-
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-
-        self.assertNotEqual(query.count(), initial_count)
-
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_start__max"]
-
-        self.assertEqual(result_start_date, start_date.date())
-        self.assertEqual(result_end_date, end_date.date())
-
-        with schema_context(self.schema):
-            entry = query.first()
-
-            summary_columns = ["cluster_id", "node", "node_labels", "total_seconds", "usage_end", "usage_start"]
-
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry, column))
 
     def test_populate_tag_based_usage_costs(self):  # noqa: C901
         """

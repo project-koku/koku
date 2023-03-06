@@ -71,7 +71,6 @@ from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
@@ -610,8 +609,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.aws_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
-
-        cls.creator = ReportObjectCreator(cls.schema)
 
     def setUp(self):
         """Set up each test."""

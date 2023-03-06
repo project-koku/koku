@@ -22,7 +22,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from masu.util.azure.common import get_bills_from_provider
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureEnabledTagKeys
@@ -39,7 +38,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
         cls.dh = DateHelper()
 
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
@@ -63,10 +61,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.azure_provider_uuid,
         }
-        product_id = self.creator.create_azure_cost_entry_product(provider_uuid=self.azure_provider_uuid)
-        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
-        meter_id = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
-        self.creator.create_azure_cost_entry_line_item(bill_id, product_id, meter_id)
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
