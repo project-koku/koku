@@ -44,7 +44,7 @@ def _type_transform(v):
         return EOT.sub(")", str(v))
     else:
         # Convert to string *with* surrounding single-quote characters
-        return f"'{str(v)}'"
+        return f"""'{str(v).replace("'", "''")}'"""
 
 
 def _has_params(sql):
