@@ -157,4 +157,15 @@ FROM potential_platform_line_items as ppli
 WHERE ppli.cost_model_rate_type = {{rate_type}}
 AND ppli.distributed_cost != 0;
 
+-- Validation SQL
+-- SELECT
+--     sum(distributed_cost),
+--     lids.node,
+--     lids.usage_start,
+--     lids.namespace,
+--     lids.cluster_id
+-- FROM org1234567.reporting_ocpusagelineitem_daily_summary AS lids
+-- WHERE distributed_cost IS NOT NULL
+-- GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, pod_labels;
+
 DROP TABLE node_to_platform_cost;
