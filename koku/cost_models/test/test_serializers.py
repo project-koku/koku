@@ -875,3 +875,19 @@ class CostModelSerializerTest(IamTestCase):
                 instance = serializer.save()
             self.assertIsNotNone(instance)
             self.assertEqual(instance.distribution_info, default_distrib_info_obj)
+
+    def test_empty_distribution_info_returns_defaults(self):
+        """Test that an empty distribution_info object returns default options."""
+
+        default_distrib_info_obj = {
+            "distribution_type": metric_constants.CPU_DISTRIBUTION,
+            "platform_cost": True,
+            "worker_cost": True,
+        }
+        self.ocp_data["distribution_info"] = {}
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            self.assertEqual(instance.distribution_info, default_distrib_info_obj)
