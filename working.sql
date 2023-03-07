@@ -1,4 +1,4 @@
-
+CREATE TEMPORARY TABLE node_to_platform_cost AS (
 SELECT
     SUM(
         COALESCE(infrastructure_raw_cost, 0) +
@@ -7,20 +7,18 @@ SELECT
         COALESCE(cost_model_memory_cost, 0) +
         COALESCE(cost_model_volume_cost, 0)
     ) as platform_cost,
-    lids.node,
-    lids.cluster_id,
-    lids.namespace
+    lids.node
 FROM org1234567.reporting_ocpusagelineitem_daily_summary as lids
 LEFT JOIN org1234567.reporting_ocp_cost_category AS cat
     ON lids.namespace LIKE ANY(cat.namespace)
 WHERE lids.cost_category_id IS NOT NULL
-    AND lids.cost_category_id IS NOT NULL
     AND usage_start >= '2023-03-01'::date
     AND usage_start <= '2023-03-06'::date
     AND report_period_id = 11
     AND cost_model_rate_type != 'platform_distributed'
     AND source_uuid = 'c8675449-8a88-493d-afea-e6cbfccc4a79'
-GROUP BY lids.node, source_uuid, lids.cluster_id, lids.namespace, cost_category_id
+GROUP BY lids.node, source_uuid, cost_category_id
+);
 
 --     platform_cost    |   node    |    cluster_id    |        namespace
 -- ---------------------+-----------+------------------+--------------------------
@@ -33,7 +31,8 @@ SELECT
     SUM(distributed_cost),
     node,
     cluster_id,
-    namespace
+    namespace,
+    cost_category_id
 FROM org1234567.reporting_ocpusagelineitem_daily_summary as lids
 WHERE usage_start >= '2023-03-01'::date
     AND usage_start <= '2023-03-06'::date
@@ -53,51 +52,40 @@ SELECT max(report_period_id) as report_period_id,
     lids.node,
     max(resource_id) as resource_id,
     pod_labels,
-    NULL as pod_usage_cpu_core_hours,
-    NULL as pod_request_cpu_core_hours,
-    NULL as pod_effective_usage_cpu_core_hours,
-    NULL as pod_limit_cpu_core_hours,
-    NULL as pod_usage_memory_gigabyte_hours,
-    NULL as pod_request_memory_gigabyte_hours,
-    NULL as pod_effective_usage_memory_gigabyte_hours,
-    NULL as pod_limit_memory_gigabyte_hours,
     max(node_capacity_cpu_cores) as node_capacity_cpu_cores,
     max(node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
     max(node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    NULL as persistentvolumeclaim,
-    NULL as persistentvolume,
-    NULL as storageclass,
-    NULL as volume_labels,
-    NULL as persistentvolumeclaim_capacity_gigabyte,
-    NULL as persistentvolumeclaim_capacity_gigabyte_months,
-    NULL as volume_request_storage_gigabyte_months,
-    NULL as persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     'platform-distributed' as cost_model_rate_type,
     CASE
-        WHEN 'cpu' = 'cpu' and npc.node = lids.node
+        WHEN 'cpu' = 'cpu' and max(npc.node) = lids.node
             THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * max(npc.platform_cost)::decimal
-        WHEN 'cpu' = 'memory' and npc.node = lids.node
+        WHEN 'cpu' = 'memory' and max(npc.node) = lids.node
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(npc.platform_cost)::decimal
     END AS distribution_cost,
     0 as cost_model_volume_cost,
     cost_category_id,
     max(npc.platform_cost) as platform_cost,
     sum(pod_effective_usage_cpu_core_hours) as hourz,
-    max(node_capacity_cpu_core_hours) as cap
+    max(node_capacity_cpu_core_hours) as cap,
+    sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) as ratio
 FROM reporting_ocpusagelineitem_daily_summary AS lids
 INNER JOIN node_to_platform_cost as npc
     on lids.node = npc.node
-WHERE namespace IS NOT NULL
+WHERE usage_start >= '2023-03-01'::date
+    AND usage_start <= '2023-03-06'::date
+    AND report_period_id = 11
+    AND lids.namespace IS NOT NULL
     AND data_source = 'Pod'
-    AND namespace != 'Worker unallocated'
+    AND lids.namespace != 'Worker unallocated'
     AND node_capacity_cpu_core_hours IS NOT NULL
     AND node_capacity_cpu_core_hours != 0
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
     AND cost_category_id IS NULL
-GROUP BY usage_start, source_uuid, cluster_id, lids.node, namespace, pod_labels, cost_category_id
+    AND npc.platform_cost != 0
+GROUP BY usage_start, source_uuid, cluster_id, lids.node,  namespace, pod_labels, cost_category_id
 ;
