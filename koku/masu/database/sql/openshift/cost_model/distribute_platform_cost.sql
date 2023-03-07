@@ -15,16 +15,18 @@ CREATE TEMPORARY TABLE node_to_platform_cost AS (
             COALESCE(cost_model_memory_cost, 0) +
             COALESCE(cost_model_volume_cost, 0)
         ) as platform_cost,
-        lids.node
+        lids.node,
+        lids.usage_start,
+        lids.source_uuid
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON lids.namespace LIKE ANY(cat.namespace)
-    WHERE lids.cost_category_id IS NOT NULL
-        AND usage_start >= {{start_date}}::date
-        AND usage_start <= {{end_date}}::date
+    INNER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
         AND report_period_id = {{report_period_id}}
         AND source_uuid = {{source_uuid}}
-    GROUP BY source_uuid, lids.node, cost_category_id
+        AND cat.name = 'Platform'
+    GROUP BY lids.source_uuid, lids.node, lids.cluster_id, lids.usage_start
 );
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
@@ -70,7 +72,7 @@ WITH potential_platform_line_items AS (
     lids.cluster_id,
     max(cluster_alias) as cluster_alias,
     'Pod' as data_source,
-    usage_start,
+    lids.usage_start,
     max(usage_end) as usage_end,
     lids.namespace,
     lids.node,
@@ -82,7 +84,7 @@ WITH potential_platform_line_items AS (
     max(node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    source_uuid,
+    lids.source_uuid,
     CASE
         WHEN max(npc.platform_cost) != 0
             THEN {{rate_type}}
@@ -97,21 +99,22 @@ WITH potential_platform_line_items AS (
     END AS distributed_cost
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 INNER JOIN node_to_platform_cost as npc
-    on lids.node = npc.node
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
+    ON lids.node = npc.node
+    AND npc.usage_start = lids.usage_start
+    AND npc.source_uuid = lids.source_uuid
+WHERE lids.usage_start >= {{start_date}}::date
+    AND lids.usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
     AND lids.namespace IS NOT NULL
     AND data_source = 'Pod'
-    AND lids.namespace != 'Worker unallocated'
     AND node_capacity_cpu_core_hours IS NOT NULL
     AND node_capacity_cpu_core_hours != 0
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
     AND cost_category_id IS NULL
     AND npc.platform_cost != 0
-    AND monthly_cost_type IS NULL
-GROUP BY usage_start, source_uuid, lids.cluster_id, lids.node, lids.namespace, pod_labels
+    AND lids.namespace != 'Worker unallocated'
+GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, pod_labels
 )
 SELECT
     uuid_generate_v4(),
