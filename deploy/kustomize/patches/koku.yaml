@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/0
   value:
     name: clowder-api
-    minReplicas: ${{KOKU_MIN_REPLICAS}}
+    replicas: ${{KOKU_MIN_REPLICAS}}
     webServices:
       public:
         enabled: true

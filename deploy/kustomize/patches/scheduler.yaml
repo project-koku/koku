@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-scheduler
-    minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
+    replicas: ${{SCHEDULER_MIN_REPLICAS}}
     webServices:
       public:
         enabled: false
