@@ -192,7 +192,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_REFRESH_MIN_REPLICAS
+    name: WORKER_REFRESH_REPLICAS
     required: true
     value: '2'
 - op: add

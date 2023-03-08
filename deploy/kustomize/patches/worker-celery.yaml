@@ -190,7 +190,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_CELERY_MIN_REPLICAS
+    name: WORKER_CELERY_REPLICAS
     required: true
     value: '1'
 - op: add

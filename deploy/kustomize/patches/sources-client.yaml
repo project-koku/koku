@@ -172,7 +172,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: SOURCES_CLIENT_MIN_REPLICAS
+    name: SOURCES_CLIENT_REPLICAS
     required: true
     value: '1'
 - op: add

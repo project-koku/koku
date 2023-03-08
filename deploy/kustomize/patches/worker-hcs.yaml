@@ -194,7 +194,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_HCS_MIN_REPLICAS
+    name: WORKER_HCS_REPLICAS
     required: true
     value: '1'
 - op: add

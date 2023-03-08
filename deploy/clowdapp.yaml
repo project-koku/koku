@@ -2910,7 +2910,7 @@ parameters:
   name: CACHE_TIMEOUT
   value: "3600"
 - displayName: Minimum replicas
-  name: KOKU_MIN_REPLICAS
+  name: KOKU_REPLICAS
   required: true
   value: "3"
 - displayName: Memory Request
@@ -2934,7 +2934,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: LISTENER_MIN_REPLICAS
+  name: LISTENER_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -2958,7 +2958,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: MASU_MIN_REPLICAS
+  name: MASU_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -2982,7 +2982,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: SCHEDULER_MIN_REPLICAS
+  name: SCHEDULER_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3012,7 +3012,7 @@ parameters:
   name: SOURCE_STATUS_FREQUENCY_MINUTES
   value: "60"
 - displayName: Minimum replicas
-  name: SOURCES_CLIENT_MIN_REPLICAS
+  name: SOURCES_CLIENT_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3036,7 +3036,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: SOURCES_LISTENER_MIN_REPLICAS
+  name: SOURCES_LISTENER_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3060,7 +3060,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: WORKER_CELERY_MIN_REPLICAS
+  name: WORKER_CELERY_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3084,7 +3084,7 @@ parameters:
   required: true
   value: celery
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_MIN_REPLICAS
+  name: WORKER_COST_MODEL_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3108,7 +3108,7 @@ parameters:
   required: true
   value: cost_model
 - displayName: Minimum replicas
-  name: WORKER_DOWNLOAD_MIN_REPLICAS
+  name: WORKER_DOWNLOAD_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3132,7 +3132,7 @@ parameters:
   required: true
   value: download
 - displayName: Minimum replicas
-  name: WORKER_OCP_MIN_REPLICAS
+  name: WORKER_OCP_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3156,7 +3156,7 @@ parameters:
   required: true
   value: ocp
 - displayName: Minimum replicas
-  name: WORKER_PRIORITY_MIN_REPLICAS
+  name: WORKER_PRIORITY_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3180,7 +3180,7 @@ parameters:
   required: true
   value: priority
 - displayName: Minimum replicas
-  name: WORKER_REFRESH_MIN_REPLICAS
+  name: WORKER_REFRESH_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3204,7 +3204,7 @@ parameters:
   required: true
   value: refresh
 - displayName: Minimum replicas
-  name: WORKER_SUMMARY_MIN_REPLICAS
+  name: WORKER_SUMMARY_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3228,7 +3228,7 @@ parameters:
   required: true
   value: summary
 - displayName: Minimum replicas
-  name: WORKER_HCS_MIN_REPLICAS
+  name: WORKER_HCS_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request

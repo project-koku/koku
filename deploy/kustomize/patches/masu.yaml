@@ -194,7 +194,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: MASU_MIN_REPLICAS
+    name: MASU_REPLICAS
     required: true
     value: '1'
 - op: add

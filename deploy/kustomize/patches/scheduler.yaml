@@ -181,7 +181,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: SCHEDULER_MIN_REPLICAS
+    name: SCHEDULER_REPLICAS
     required: true
     value: '1'
 - op: add

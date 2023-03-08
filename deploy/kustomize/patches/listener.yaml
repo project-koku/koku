@@ -166,7 +166,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: LISTENER_MIN_REPLICAS
+    name: LISTENER_REPLICAS
     required: true
     value: '2'
 - op: add

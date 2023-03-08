@@ -193,7 +193,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: KOKU_MIN_REPLICAS
+    name: KOKU_REPLICAS
     required: true
     value: '3'
 - op: add

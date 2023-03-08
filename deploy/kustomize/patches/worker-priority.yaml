@@ -190,7 +190,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_PRIORITY_MIN_REPLICAS
+    name: WORKER_PRIORITY_REPLICAS
     required: true
     value: '2'
 - op: add
