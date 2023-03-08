@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-celery
-    replicas: ${{WORKER_CELERY_MIN_REPLICAS}}
+    replicas: ${{WORKER_CELERY_REPLICAS}}
     webServices:
       public:
         enabled: false

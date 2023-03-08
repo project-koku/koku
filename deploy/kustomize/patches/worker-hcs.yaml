@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-hcs
-    replicas: ${{WORKER_HCS_MIN_REPLICAS}}
+    replicas: ${{WORKER_HCS_REPLICAS}}
     webServices:
       public:
         enabled: false

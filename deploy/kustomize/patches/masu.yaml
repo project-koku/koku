@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-masu
-    replicas: ${{MASU_MIN_REPLICAS}}
+    replicas: ${{MASU_REPLICAS}}
     webServices:
       public:
         enabled: false

@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-sources-client
-    replicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
+    replicas: ${{SOURCES_CLIENT_REPLICAS}}
     webServices:
       public:
         enabled: false

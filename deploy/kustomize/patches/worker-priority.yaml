@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-priority
-    replicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
+    replicas: ${{WORKER_PRIORITY_REPLICAS}}
     webServices:
       public:
         enabled: false
