@@ -195,7 +195,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{KOKU_MIN_REPLICAS}}
+      replicas: ${{KOKU_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -356,7 +356,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{LISTENER_MIN_REPLICAS}}
+      replicas: ${{LISTENER_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -545,7 +545,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{MASU_MIN_REPLICAS}}
+      replicas: ${{MASU_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -722,7 +722,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{SCHEDULER_MIN_REPLICAS}}
+      replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
         metrics:
           enabled: false
@@ -888,7 +888,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
+      replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1061,7 +1061,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
+      replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1244,7 +1244,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_CELERY_MIN_REPLICAS}}
+      replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1429,7 +1429,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
+      replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1612,7 +1612,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
+      replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1797,7 +1797,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_OCP_MIN_REPLICAS}}
+      replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1980,7 +1980,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
+      replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2165,7 +2165,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
+      replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2350,7 +2350,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
+      replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2537,7 +2537,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
-      replicas: ${{WORKER_HCS_MIN_REPLICAS}}
+      replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
         metrics:
           enabled: true
