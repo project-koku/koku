@@ -50,10 +50,10 @@ def _get_sts_access(role_arn):
     )
 
 
-def _check_s3_access(bucket, credentials):
+def _check_s3_access(bucket, credentials, region_name=None):
     """Check for access to s3 bucket."""
     s3_exists = True
-    s3_resource = boto3.resource("s3", **credentials)
+    s3_resource = boto3.resource("s3", region_name=region_name, **credentials)
     try:
         s3_resource.meta.client.head_bucket(Bucket=bucket)
     except (ClientError, BotoConnectionError) as boto_error:
@@ -63,9 +63,9 @@ def _check_s3_access(bucket, credentials):
     return s3_exists
 
 
-def _check_cost_report_access(credential_name, credentials, region="us-east-1", bucket=None):
+def _check_cost_report_access(credential_name, credentials, region_name="us-east-1", bucket=None):
     """Check for provider cost and usage report access."""
-    cur_client = boto3.client("cur", region_name=region, **credentials)
+    cur_client = boto3.client("cur", region_name=region_name, **credentials)
     reports = None
 
     try:
@@ -136,13 +136,14 @@ class AWSProvider(ProviderInterface):
             internal_message = f"Unable to access account resources with ARN {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        s3_exists = _check_s3_access(storage_resource_name, creds)
+        region_name = data_source.get("bucket_region")
+        s3_exists = _check_s3_access(storage_resource_name, creds, region_name)
         if not s3_exists:
             key = ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND
             internal_message = f"Bucket {storage_resource_name} could not be found with {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        _check_cost_report_access(credential_name, creds, bucket=storage_resource_name)
+        _check_cost_report_access(credential_name, creds, bucket=storage_resource_name, region_name=region_name)
 
         return True
 
