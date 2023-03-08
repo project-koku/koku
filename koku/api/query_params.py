@@ -479,16 +479,23 @@ class QueryParameters:
             (Dict): Dictionary parsed from query params string
 
         """
-        if self.report_type != "tags" and "tag" in self.url_data:
-            self.tag_keys = self._process_tag_query_params(query_params)
-            qps = self.serializer(data=query_params, tag_keys=self.tag_keys, context={"request": self.request})
-        elif AWS_CATEGORY_PREFIX.replace(":", "") in self.url_data:
-            self.aws_category_keys = self._process_aws_category_query_params(query_params)
-            qps = self.serializer(
-                data=query_params, aws_category_keys=self.aws_category_keys, context={"request": self.request}
-            )
-        else:
-            qps = self.serializer(data=query_params, context={"request": self.request})
+        serializer_kwargs = {"data": query_params, "context": {"request": self.request}}
+        # the url_data property is percent encoded
+        # https://en.wikipedia.org/wiki/URL_encoding
+        # [tag: == %5Btag
+        # or:tag == or%3Atag
+        for url_encoded_prefix in ["%5B", "%3A"]:
+            if self.report_type != "tags":
+                tag_search = url_encoded_prefix + TAG_PREFIX.replace(":", "")
+                if tag_search in self.url_data and not serializer_kwargs.get("tag_keys"):
+                    self.tag_keys = self._process_tag_query_params(query_params)
+                    serializer_kwargs["tag_keys"] = self.tag_keys
+            aws_category_search = url_encoded_prefix + AWS_CATEGORY_PREFIX.replace(":", "")
+            if aws_category_search in self.url_data and not serializer_kwargs.get("aws_category_keys"):
+                self.aws_category_keys = self._process_aws_category_query_params(query_params)
+                serializer_kwargs["aws_category_keys"] = self.aws_category_keys
+
+        qps = self.serializer(**serializer_kwargs)
 
         if not qps.is_valid():
             raise ValidationError(detail=qps.errors)

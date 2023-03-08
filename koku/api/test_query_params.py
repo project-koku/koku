@@ -26,6 +26,8 @@ from api.query_params import QueryParameters
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
+# import urllib.parse
+
 LOG = logging.getLogger(__name__)
 PROVIDERS = [
     Provider.PROVIDER_AWS,
@@ -689,7 +691,7 @@ class QueryParametersTests(TestCase):
         )
         tag_keys = ["app", "az", "environment", "cost_center", "fake", "other", "this"]
         expected = {"tag:app", "tag:environment"}
-
+        # fake_uri = urllib.parse.quote(str(fake_uri))
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),

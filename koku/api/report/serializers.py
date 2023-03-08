@@ -145,10 +145,7 @@ class BaseSerializer(serializers.Serializer):
         super().__init__(*args, **kwargs)
 
         fkwargs = {"child": serializers.CharField(), "required": False}
-        if self.tag_keys is not None:
-            self._init_tag_keys(StringOrListField, fkwargs=fkwargs)
-        if self._aws_category and self.aws_category_keys:
-            self._init_aws_category_keys(StringOrListField, fkwargs=fkwargs)
+        self._init_prefix_keys(StringOrListField, fkwargs=fkwargs)
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
@@ -167,38 +164,8 @@ class BaseSerializer(serializers.Serializer):
         handle_invalid_fields(self, data)
         return data
 
-    def _init_tag_keys(self, field, fargs=None, fkwargs=None):
-        """Initialize tag-based fields.
-        Args:
-            field (Serializer)
-            fargs (list) Serializer's positional args
-            fkwargs (dict) Serializer's keyword args
-        """
-        if fargs is None:
-            fargs = []
-
-        if fkwargs is None:
-            fkwargs = {}
-
-        tag_fields = {}
-        for key in self.tag_keys:
-            if len(self.tag_keys) > 1 and "child" in fkwargs.keys():
-                # when there are multiple filters, each filter needs its own
-                # instantiated copy of the child field.
-                fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
-            tag_fields[key] = field(*fargs, **fkwargs)
-
-        # Add tag keys to allowable fields
-        for key, val in tag_fields.items():
-            setattr(self, key, val)
-            self.fields.update({key: val})
-
-    def _init_aws_category_keys(self, field, fargs=None, fkwargs=None):
-        """Initialize aws_category based fields.
-
-        This function adds the prefixed keys to the allowable fields list
-        so that a "Unsupported parameter" error is not thrown.
-
+    def _init_prefix_keys(self, field, fargs=None, fkwargs=None):
+        """Initialize prefix-based fields.
         Args:
             field (Serializer)
             fargs (list) Serializer's positional args
@@ -211,13 +178,21 @@ class BaseSerializer(serializers.Serializer):
             fkwargs = {}
 
         fields = {}
-        if self.aws_category_keys is not None:
-            for key in self.aws_category_keys:
-                if len(self.aws_category_keys) > 1 and "child" in fkwargs.keys():
-                    fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
-                fields[key] = field(*fargs, **fkwargs)
+        prefix_keys = set()
+        if self.tag_keys is not None:
+            prefix_keys.update(self.tag_keys)
+        if self._aws_category and self.aws_category_keys:
+            prefix_keys.update(self.aws_category_keys)
+        if not prefix_keys:
+            return
 
-        # Add tag keys to allowable fields
+        for key in prefix_keys:
+            if len(prefix_keys) > 1 and "child" in fkwargs.keys():
+                # when there are multiple filters, each filter needs its own
+                # instantiated copy of the child field.
+                fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
+            fields[key] = field(*fargs, **fkwargs)
+
         for key, val in fields.items():
             setattr(self, key, val)
             self.fields.update({key: val})
@@ -318,9 +293,8 @@ class OrderSerializer(BaseSerializer):
         """Initialize the OrderSerializer."""
         super().__init__(*args, **kwargs)
 
-        if self.tag_keys is not None:
-            fkwargs = {"choices": OrderSerializer.ORDER_CHOICES, "required": False}
-            self._init_tag_keys(serializers.ChoiceField, fkwargs=fkwargs)
+        fkwargs = {"choices": OrderSerializer.ORDER_CHOICES, "required": False}
+        self._init_prefix_keys(serializers.ChoiceField, fkwargs=fkwargs)
 
 
 class ParamSerializer(BaseSerializer):
