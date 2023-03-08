@@ -54,6 +54,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = AWS_CUR_TABLE_MAP
 
     @property
@@ -149,7 +150,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value if markup_value else 0,
             "bill_id": bill_id,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_presto_raw_sql_query(
             self.schema, summary_sql, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
@@ -247,7 +248,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
+        # days_str = "','".join([str(day.day) for day in days])
         days_list = [str(day.day) for day in days]
         self.delete_ocp_on_aws_hive_partition_by_day(
             days_list, aws_provider_uuid, openshift_provider_uuid, year, month
@@ -264,9 +265,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql_params = {
             "schema": self.schema,
             "start_date": start_date,
-            "year": year,
-            "month": month,
-            "days": days_str,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "days": tuple(str(day.day) for day in days),
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
@@ -415,20 +416,20 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = sql.decode("utf-8")
 
         days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
+        # days_str = "','".join([str(day.day) for day in days])
+        # ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
 
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "aws_source_uuid": aws_source_uuid,
-            "ocp_source_uuids": ocp_uuids,
+            "ocp_source_uuids": tuple(ocp_source_uuids),
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": days_str,
+            "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(
             self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpaws_matched_tags.sql"
         )

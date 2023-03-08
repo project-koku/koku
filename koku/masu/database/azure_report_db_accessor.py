@@ -290,7 +290,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
+        # days_str = "','".join([str(day.day) for day in days])
         days_list = [str(day.day) for day in days]
         self.delete_ocp_on_azure_hive_partition_by_day(
             days_list, azure_provider_uuid, openshift_provider_uuid, year, month
@@ -312,7 +312,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "year": year,
             "month": month,
-            "days": days_str,
+            "days": (str(day.day) for day in days),
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,
@@ -392,18 +392,18 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = sql.decode("utf-8")
 
         days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
+        # days_str = "','".join([str(day.day) for day in days])
+        # ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
 
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "azure_source_uuid": azure_source_uuid,
-            "ocp_source_uuids": ocp_uuids,
+            "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": days_str,
+            "days": (str(day.day) for day in days),
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(

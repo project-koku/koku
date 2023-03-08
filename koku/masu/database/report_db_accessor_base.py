@@ -394,7 +394,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             raise ex
 
     def _execute_presto_multipart_sql_query(
-        self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
+        self, schema, sql, bind_params=None, preprocessor=JinjaSql(param_style="qmark").prepare_query
     ):
         """Execute multiple related SQL queries in Presto."""
         presto_conn = trino_db.connect(schema=self.schema)

@@ -75,6 +75,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.jinja_sql = JinjaSql()
+        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self.date_helper = DateHelper()
         self._table_map = OCP_REPORT_TABLE_MAP
         self._aws_table_map = AWS_CUR_TABLE_MAP
@@ -282,7 +283,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "masu.database", f"presto_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
                 )
                 infra_sql = infra_sql.decode("utf-8")
-                infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
+                infra_sql, infra_sql_params = self.trino_jinja_sql.prepare_query(infra_sql, infra_sql_params)
                 results = self._execute_presto_raw_sql_query(
                     self.schema,
                     infra_sql,
@@ -403,7 +404,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
 
         days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
+        # days_str = "','".join([str(day.day) for day in days])
         days_list = [str(day.day) for day in days]
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
@@ -411,7 +412,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": str(source).replace("-", "_"),
+            "uuid": source,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -419,9 +420,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
             "source": str(source),
-            "year": year,
-            "month": month,
-            "days": days_str,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "days": tuple(str(day.day) for day in days),
             "storage_exists": storage_exists,
         }
 
@@ -430,7 +431,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         try:
             LOG.info("TRINO OCP: executing SQL buffer for OCP usage processing")
             trino_db.executescript(
-                presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
+                presto_conn,
+                tmpl_summary_sql,
+                params=summary_sql_params,
+                preprocessor=self.trino_jinja_sql.prepare_query,
             )
         except Exception as e:
             LOG.warning(
