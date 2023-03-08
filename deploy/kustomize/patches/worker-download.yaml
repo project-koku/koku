@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-download
-    minReplicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
+    replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -190,7 +190,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_DOWNLOAD_MIN_REPLICAS
+    name: WORKER_DOWNLOAD_REPLICAS
     required: true
     value: '2'
 - op: add
