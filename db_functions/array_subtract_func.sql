@@ -12,4 +12,5 @@ begin
       using minuend, subtrahend
        into difference;
 end;
-$$ language plpgsql returns null on null input;
+$$ language plpgsql returns null on null input
+;

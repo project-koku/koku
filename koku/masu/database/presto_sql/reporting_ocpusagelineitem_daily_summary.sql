@@ -410,7 +410,6 @@ FROM (
 ) as sua
 
 {% endif %}
-
 ;
 
 /*

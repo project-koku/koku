@@ -97,3 +97,4 @@ FROM (
         lids.source_uuid,
         lids.cost_category_id
 ) AS sub
+;

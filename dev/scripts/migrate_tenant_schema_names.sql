@@ -1,4 +1,8 @@
-SELECT id, schema_name FROM public.api_tenant WHERE schema_name LIKE 'acct%';
+SELECT
+id,
+schema_name
+FROM public.api_tenant WHERE schema_name LIKE 'acct%'
+;
 
 DROP FUNCTION IF EXISTS tenant_schema_rename();
 
@@ -27,4 +31,8 @@ $$ LANGUAGE plpgsql;
 
 SELECT tenant_schema_rename();
 
-SELECT id, schema_name FROM public.api_tenant WHERE schema_name LIKE 'acct%';
+SELECT
+id,
+schema_name
+FROM public.api_tenant WHERE schema_name LIKE 'acct%'
+;

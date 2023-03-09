@@ -716,4 +716,5 @@ BEGIN
 
     RETURN true;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+;

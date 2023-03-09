@@ -26,9 +26,10 @@
 \echo
 \echo =========================================================
 \echo Running vacuum/analyze on :"TARGET_DB" ...
-VACUUM ( ANALYZE, VERBOSE );
+VACUUM ( ANALYZE, VERBOSE )
+;
 
 \echo
 \echo =========================================================
 \echo Running reindex :"TARGET_DB" ...
-REINDEX ( VERBOSE ) DATABASE :TARGET_DB ;
+REINDEX ( VERBOSE ) DATABASE :TARGET_DB;

@@ -50,4 +50,5 @@ BEGIN
     RETURN QUERY EXECUTE check_stmt;
 END;
 $$
-LANGUAGE plpgsql;
+LANGUAGE plpgsql
+;

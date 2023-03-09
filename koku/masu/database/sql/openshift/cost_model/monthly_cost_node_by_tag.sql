@@ -7,16 +7,17 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.pod_labels ? {{tag_key}}
 ;
 
-CREATE TEMPORARY TABLE label_filtered_daily_summary AS (
-    SELECT max(report_period_id) as report_period_id,
-    cluster_id,
-    max(cluster_alias) as cluster_alias,
-    'Pod' as data_source,
-    usage_start,
-    max(usage_end) as usage_end,
-    lids.namespace,
-    node,
-    max(resource_id) as resource_id,
+    CREATE TEMPORARY TABLE label_filtered_daily_summary AS (
+        SELECT
+            cluster_id,
+            'Pod' AS data_source,
+            usage_start,
+            lids.namespace,
+            node,
+            max(report_period_id) AS report_period_id,
+            max(cluster_alias) AS cluster_alias,
+            max(usage_end) AS usage_end,
+            max(resource_id) AS resource_id,
     {{labels | sqlsafe}},
     sum(pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
     sum(pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
@@ -59,8 +60,8 @@ WHERE usage_start >= {{start_date}}::date
     AND node_capacity_cpu_core_hours != 0
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
-GROUP BY usage_start, source_uuid, cluster_id, node, lids.namespace, lids.pod_labels, lids.cost_category_id
-)
+    GROUP BY usage_start, source_uuid, cluster_id, node, lids.namespace, lids.pod_labels, lids.cost_category_id
+    )
 ;
 
 -- This block is for allocated node usage
@@ -288,5 +289,4 @@ LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
     ON uc.namespace LIKE ANY(cat.namespace)
 ;
 
-DROP TABLE label_filtered_daily_summary
-;
+    DROP TABLE label_filtered_daily_summary;

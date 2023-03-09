@@ -151,4 +151,5 @@ BEGIN
 
     RETURN completed_migrations;
 END;
-$BODY$ LANGUAGE PLPGSQL;
+$BODY$ LANGUAGE PLPGSQL
+;

@@ -66,7 +66,8 @@ BEGIN
     END IF;
 END;
 $$
-LANGUAGE plpgsql;
+LANGUAGE plpgsql
+;
 
 
 -- Function to return table partition start bounds from scanning another table for partition key values.
@@ -117,4 +118,5 @@ BEGIN
     RETURN QUERY EXECUTE check_stmt;
 END;
 $$
-LANGUAGE plpgsql;
+LANGUAGE plpgsql
+;

@@ -1,7 +1,7 @@
-
 WITH cte_azure_instances AS (
-    SELECT DISTINCT split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) as instance,
-        azure.source
+    SELECT DISTINCT
+azure.source,
+        split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) AS instance
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
@@ -11,8 +11,10 @@ WITH cte_azure_instances AS (
         AND azure.year = '{{year | sqlsafe}}'
         AND azure.month = '{{month | sqlsafe}}'
 ),
+
 cte_ocp_nodes AS (
-    SELECT DISTINCT ocp.node,
+    SELECT DISTINCT
+ocp.node,
         ocp.source
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
     WHERE ocp.interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
@@ -25,9 +27,12 @@ cte_ocp_nodes AS (
         AND ocp.year = '{{year | sqlsafe}}'
         AND ocp.month = '{{month | sqlsafe}}'
 )
-SELECT DISTINCT ocp.source as ocp_uuid,
-    azure.source as infra_uuid,
-    'Azure' as type
-FROM cte_azure_instances AS azure
-JOIN cte_ocp_nodes AS ocp
-    ON ocp.node = azure.instance
+
+SELECT DISTINCT
+cte_ocp_nodes.source AS ocp_uuid,
+    cte_azure_instances.source AS infra_uuid,
+    'Azure' AS provider_type
+FROM cte_azure_instances
+INNER JOIN cte_ocp_nodes
+    ON cte_ocp_nodes.node = cte_azure_instances.instance
+;

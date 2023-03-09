@@ -6,7 +6,8 @@ DELETE
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
-   AND source_type = 'Azure';
+   AND source_type = 'Azure'
+;
 
 
 INSERT
@@ -79,4 +80,5 @@ SELECT 'Azure' as source_type,
        product_code,
        instance_type,
        region,
-       pod_labels;
+       pod_labels
+;

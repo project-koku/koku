@@ -64,3 +64,4 @@ GROUP BY billing_account_id,
     labels,
     cost_type,
     invoice_month
+;

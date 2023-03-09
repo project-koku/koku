@@ -1,4 +1,3 @@
-
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,

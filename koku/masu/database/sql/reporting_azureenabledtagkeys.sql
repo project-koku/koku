@@ -21,4 +21,5 @@ SELECT DISTINCT(key)
           SELECT DISTINCT(key)
             FROM {{schema | sqlsafe}}.reporting_azuretags_summary
         )
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO NOTHING
+;

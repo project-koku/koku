@@ -6,7 +6,8 @@ DELETE
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
-   AND source_type = 'AWS';
+   AND source_type = 'AWS'
+;
 
 
 INSERT
@@ -78,4 +79,5 @@ SELECT 'AWS'::text AS source_type,
        aws.instance_type,
        aws.region,
        aws.availability_zone,
-       aws.tags;
+       aws.tags
+;

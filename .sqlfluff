@@ -2,43 +2,28 @@
 dialect = postgres
 fix_even_unparsable = True
 # ignore = templating
-runaway_limit = 100
+runaway_limit = 10
 processes = -1
-# exclude_rules = L052
+large_file_skip_byte_limit = 40000
+warning = L052
+exclude_rules = L003, L016, L026, L044
 
+[sqlfluff:indentation]
+# See https://docs.sqlfluff.com/en/stable/layout.html#configuring-indent-locations
+indented_joins = True
+indented_ctes = True
+indented_using_on = True
+indented_on_contents = True
+template_blocks_indent = True
+
+[sqlfluff:layout:type:statement_terminator]
+spacing_before = touch
+line_position = alone:strict
 
 [sqlfluff:rules]
 tab_space_size = 4
 
-[sqlfluff:rules:L003]
-hanging_indents = False
-
 [sqlfluff:rules:L052]
 # Semi-colon formatting approach
-multiline_newline = False
+multiline_newline = True
 require_final_semicolon = True
-
-# [sqlfluff:templater:jinja:context]
-# year = '2023'
-# month = '02'
-# days = ('1', '2')
-# start_date = '2023-02-01'
-# end_date = '2023-02-28'
-# schema = 'org1234567'
-# schema_name = 'org1234567'
-# source_uuid = '1234567890'
-# report_period_id = 12
-# aws_source_uuid = '1234567890'
-# azure_source_uuid = '1234567890'
-# gcp_source_uuid = '1234567890'
-# ocp_source_uuid = '1234567890'
-# ocp_source_uuids = ('1234567890', '1234567890')
-# cluster_id = '1234567890'
-# cluster_alias = 'an-alias'
-# node = 'a-node'
-# node_count = 8763457697345
-# pod_column = 'aglhadgflkjhdfg'
-# cluster_column = 'adfgkhegiuhdfg'
-# markup = 0.1
-# temp_table_hash = 'gibberish'
-# bill_id = 76

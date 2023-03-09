@@ -1,6 +1,6 @@
-
 WITH cte_aws_resource_ids AS (
-    SELECT DISTINCT lineitem_resourceid,
+    SELECT DISTINCT
+        aws.lineitem_resourceid,
         aws.source
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
     WHERE aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
@@ -13,8 +13,10 @@ WITH cte_aws_resource_ids AS (
         AND aws.year = '{{year | sqlsafe}}'
         AND aws.month = '{{month | sqlsafe}}'
 ),
+
 cte_ocp_resource_ids AS (
-    SELECT DISTINCT resource_id,
+    SELECT DISTINCT
+        ocp.resource_id,
         ocp.source
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
     WHERE ocp.interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
@@ -27,9 +29,12 @@ cte_ocp_resource_ids AS (
     AND ocp.year = '{{year | sqlsafe}}'
     AND ocp.month = '{{month | sqlsafe}}'
 )
-SELECT DISTINCT ocp.source as ocp_uuid,
-    aws.source as infra_uuid,
-    'AWS' as type
-FROM cte_aws_resource_ids AS aws
-JOIN cte_ocp_resource_ids AS ocp
-    ON strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
+
+SELECT DISTINCT
+    cte_ocp_resource_ids.source AS ocp_uuid,
+    cte_aws_resource_ids.source AS infra_uuid,
+    'AWS' AS provider_type
+FROM cte_aws_resource_ids
+INNER JOIN cte_ocp_resource_ids
+    ON strpos(cte_aws_resource_ids.lineitem_resourceid, cte_ocp_resource_ids.resource_id) != 0
+;

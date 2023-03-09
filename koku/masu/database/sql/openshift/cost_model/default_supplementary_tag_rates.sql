@@ -102,3 +102,4 @@ FROM (
         lids.{{labels_field | sqlsafe}},
         lids.cost_category_id
 ) AS sub
+;

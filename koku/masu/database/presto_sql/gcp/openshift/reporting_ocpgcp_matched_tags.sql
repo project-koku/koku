@@ -1,5 +1,6 @@
 WITH cte_unnested_gcp_tags AS (
-    SELECT DISTINCT key,
+    SELECT DISTINCT
+key,
         value
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     CROSS JOIN UNNEST(cast(json_parse(labels) as map(varchar, varchar))) AS tags(key, value)
@@ -9,8 +10,10 @@ WITH cte_unnested_gcp_tags AS (
         AND usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND usage_start_time < date_add('day', 1, TIMESTAMP '{{start_date | sqlsafe}}')
 ),
+
 cte_unnested_ocp_tags AS (
-    SELECT DISTINCT pod_key,
+    SELECT DISTINCT
+pod_key,
         pod_value,
         volume_key,
         volume_value
@@ -24,22 +27,25 @@ cte_unnested_ocp_tags AS (
         AND lpad(month, 2, '0') = '{{month | sqlsafe}}'
         AND day IN ('{{days | sqlsafe}}')
 )
-SELECT '{"' || key || '": "' || value || '"}' as tag
+
+SELECT '{"' || key || '": "' || value || '"}' AS tag
 FROM (
-    SELECT DISTINCT gcp.key,
-        gcp.value
-    FROM cte_unnested_gcp_tags AS gcp
-    JOIN cte_unnested_ocp_tags AS ocp
+    SELECT DISTINCT
+cte_unnested_gcp_tags.key,
+        cte_unnested_gcp_tags.value
+    FROM cte_unnested_gcp_tags
+    INNER JOIN cte_unnested_ocp_tags
         ON (
-            lower(gcp.key) = lower(ocp.pod_key)
-                AND lower(gcp.value) = lower(ocp.pod_value)
+            lower(cte_unnested_gcp_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
+                AND lower(cte_unnested_gcp_tags.value) = lower(cte_unnested_ocp_tags.pod_value)
         )
         OR (
-            lower(gcp.key) = lower(ocp.volume_key)
-                AND lower(gcp.value) = lower(ocp.volume_value)
+            lower(cte_unnested_gcp_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
+                AND lower(cte_unnested_gcp_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
         )
-    JOIN postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS gtk
+    INNER JOIN postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS gtk
         ON gcp.key = gtk.key
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
         ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
 ) AS matches
+;

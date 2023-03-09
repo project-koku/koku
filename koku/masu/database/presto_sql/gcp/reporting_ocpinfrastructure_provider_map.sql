@@ -57,7 +57,7 @@
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
-        'GCP' as type
+        'GCP' as provider_type
     FROM cte_gcp_resource_name AS gcp
     JOIN cte_ocp_nodes AS ocp
         ON strpos(gcp.resource_name, ocp.node) != 0

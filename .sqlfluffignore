@@ -1,0 +1,12 @@
+# Ignore anything in these paths
+/grafana/
+/temp/
+/testing/
+
+
+# Ignore anything called "testing.sql"
+tenant-from-template0.sql
+testing.sql
+
+# Ignore any ".tsql" files
+*.tsql

@@ -79,3 +79,4 @@ GROUP BY li.usage_date,
     li.instance_type,
     li.service_name,
     li.source_uuid
+;

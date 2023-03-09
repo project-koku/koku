@@ -1,24 +1,29 @@
 WITH cte_unnested_gcp_tags AS (
-    SELECT DISTINCT ts.key,
+    SELECT DISTINCT
+ts.key,
         ts.value
     FROM {{schema | sqlsafe}}.reporting_gcptags_values AS ts
     JOIN {{schema | sqlsafe}}.reporting_gcpenabledtagkeys as enabled_tags
         ON lower(enabled_tags.key) = lower(ts.key)
 ),
+
 cte_unnested_ocp_tags AS (
-    SELECT DISTINCT ts.key,
+    SELECT DISTINCT
+ts.key,
         ts.value
     FROM {{schema | sqlsafe}}.reporting_ocptags_values AS ts
     JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
         ON lower(enabled_tags.key) = lower(ts.key)
 )
-SELECT jsonb_build_object(key, value) as tag
+
+SELECT jsonb_build_object(key, value) AS tag
 FROM (
-    SELECT gcp.key,
-        gcp.value
-    FROM cte_unnested_gcp_tags AS gcp
-    JOIN cte_unnested_ocp_tags AS ocp
-        ON lower(gcp.key) = lower(ocp.key)
-            AND lower(gcp.value) = lower(ocp.value)
+    SELECT
+cte_unnested_gcp_tags.key,
+        cte_unnested_gcp_tags.value
+    FROM cte_unnested_gcp_tags
+    INNER JOIN cte_unnested_ocp_tags
+        ON lower(cte_unnested_gcp_tags.key) = lower(cte_unnested_ocp_tags.key)
+            AND lower(cte_unnested_gcp_tags.value) = lower(cte_unnested_ocp_tags.value)
 ) AS matches
 ;

@@ -16,4 +16,5 @@ begin
       into hash_val;
 end;
 $$ language plpgsql returns null on null input
-immutable;
+immutable
+;

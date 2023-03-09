@@ -6,7 +6,8 @@ DELETE
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
-   AND source_type = 'GCP';
+   AND source_type = 'GCP'
+;
 
 
 INSERT
@@ -76,4 +77,5 @@ SELECT 'GCP'::text AS source_type,
        gcp.service_alias,
        gcp.instance_type,
        gcp.region,
-       gcp.tags;
+       gcp.tags
+;

@@ -102,3 +102,4 @@ FROM (
         u.usage_consumedquantityunits
 ) AS ds
 CROSS JOIN cte_pg_enabled_keys AS pek
+;

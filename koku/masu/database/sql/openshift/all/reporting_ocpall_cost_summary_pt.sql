@@ -7,7 +7,8 @@ DELETE
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
-   AND source_type = {{source_type}};
+   AND source_type = {{source_type}}
+;
 
 
 -- INSERT NEW DATA INTO reporting_ocpall_cost_summary_pt

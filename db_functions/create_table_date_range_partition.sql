@@ -10,7 +10,7 @@
 --   schema (text)           : Schema of the partitioned table
 --   parttioned_table (text) : Name of the partitioned table within the schema
 --   _commit (boolean)       : Execute a commit after action. (default is false)
-DROP PROCEDURE IF EXISTS public.create_table_date_range_partition( text, text, text, date, date, boolean, boolean );
+DROP PROCEDURE IF EXISTS public.create_table_date_range_partition(text, text, text, date, date, boolean, boolean);
 CREATE OR REPLACE PROCEDURE public.create_table_date_range_partition(
     schema text,
     table_partition text,
@@ -106,4 +106,5 @@ BEGIN
     END IF;
 END;
 $$
-LANGUAGE plpgsql;
+LANGUAGE plpgsql
+;

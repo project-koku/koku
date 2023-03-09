@@ -1,4 +1,3 @@
-
 WITH cte_tag_value AS (
     SELECT key,
         value,

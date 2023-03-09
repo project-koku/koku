@@ -1,6 +1,7 @@
 SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'acct%'
 
-DROP FUNCTION IF EXISTS schema_rename();
+DROP FUNCTION IF EXISTS schema_rename()
+;
 
 CREATE FUNCTION schema_rename() RETURNS integer AS $$
 DECLARE
@@ -26,4 +27,4 @@ $$ LANGUAGE plpgsql;
 
 SELECT schema_rename();
 
-SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'acct%'
+SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'acct%';

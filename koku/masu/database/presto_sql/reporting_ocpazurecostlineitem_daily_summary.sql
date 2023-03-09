@@ -489,6 +489,6 @@ WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
     AND day in ({{days}})
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+    DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
 WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;

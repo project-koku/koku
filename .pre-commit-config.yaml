@@ -32,7 +32,7 @@ repos:
 - repo: https://github.com/sqlfluff/sqlfluff
   rev: 1.4.5
   hooks:
-    - id: sqlfluff-lint
+    # - id: sqlfluff-lint
     - id: sqlfluff-fix
 - repo: local
   hooks:

@@ -131,3 +131,4 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
             ou.deleted_timestamp is NULL
             OR ou.deleted_timestamp > ds.usage_start
         )
+;
