@@ -98,12 +98,19 @@ class CostModelDBAccessor(KokuDBAccess):
             return self.cost_model.markup
         return {}
 
+    # @property
+    # def distribution(self):
+    #     """Returns distribution choice in the cost model."""
+    #     if self.cost_model:
+    #         return self.cost_model.distribution
+    #     return None
+
     @property
-    def distribution(self):
-        """Returns distribution choice in the cost model."""
+    def distribution_info(self):
+        """Returns distribution info field in the cost model."""
         if self.cost_model:
-            return self.cost_model.distribution
-        return None
+            return self.cost_model.distribution_info
+        return {}
 
     def get_rates(self, value):
         """Get the rates."""

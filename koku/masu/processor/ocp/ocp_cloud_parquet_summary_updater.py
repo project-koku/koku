@@ -136,7 +136,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
 
         # OpenShift on AWS
         sql_params = {
@@ -253,7 +253,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
 
         # OpenShift on Azure
         sql_params = {
@@ -369,7 +369,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
 
         # OpenShift on GCP
         sql_params = {

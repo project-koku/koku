@@ -272,7 +272,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
 
         self.accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
             start_date,
