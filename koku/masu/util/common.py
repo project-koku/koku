@@ -490,10 +490,16 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
 
 def execute_trino_query(schema_name, sql, params=None):
     """Execute Trino SQL."""
-    rows = []
     connection = trino_db.connect(schema=schema_name)
-    rows, column_names = trino_db.execute(connection, sql, params=params)
-    return rows, column_names
+    cur = connection.cursor()
+    # rows, column_names = cur.execute(connection, sql, params=params)
+    cur.execute(sql, params=params)
+    results = cur.fetchall()
+    if cur.description is None:
+        columns = []
+    else:
+        columns = [col[0] for col in cur.description]
+    return results, columns
 
 
 def trino_table_exists(schema_name, table_name):
@@ -501,9 +507,7 @@ def trino_table_exists(schema_name, table_name):
     LOG.info(f"Checking for Trino table {schema_name}.{table_name}")
     table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
     table, _ = execute_trino_query(schema_name, table_check_sql)
-    if table:
-        return True
-    return False
+    return bool(table)
 
 
 def convert_account(account):
