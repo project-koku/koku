@@ -6,6 +6,45 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
+WITH platform_cost AS (
+    SELECT SUM(
+            COALESCE(infrastructure_raw_cost, 0) +
+            COALESCE(infrastructure_markup_cost, 0)+
+            COALESCE(cost_model_cpu_cost, 0) +
+            COALESCE(cost_model_memory_cost, 0) +
+            COALESCE(cost_model_volume_cost, 0)
+        ) as platform_cost,
+        lids.usage_start,
+        lids.source_uuid,
+        lids.cluster_id
+    FROM org1234567.reporting_ocpusagelineitem_daily_summary as lids
+    INNER JOIN org1234567.reporting_ocp_cost_category AS cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND report_period_id = {{report_period_id}}
+        AND source_uuid = {{source_uuid}}
+        AND cat.name = 'Platform'
+    GROUP BY lids.usage_start, lids.cluster_id, lids.source_uuid
+),
+user_defined_project_sum as (
+    SELECT sum(pod_effective_usage_cpu_core_hours) as usage_cpu_sum,
+        sum(pod_effective_usage_memory_gigabyte_hours) as usage_memory_sum,
+        cluster_id,
+        usage_start,
+        source_uuid
+    FROM org1234567.reporting_ocpusagelineitem_daily_summary as lids
+    LEFT OUTER JOIN org1234567.reporting_ocp_cost_category AS cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND report_period_id = {{report_period_id}}
+        AND lids.source_uuid = {{source_uuid}}
+        AND lids.namespace != 'Worker unallocated'
+        AND lids.namespace != 'Platform unallocated'
+        AND cost_category_id IS NULL
+    GROUP BY usage_start, cluster_id, source_uuid
+)
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -43,28 +82,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     cost_model_rate_type,
     distributed_cost
-)
-WITH node_to_platform_cost AS (
-    SELECT SUM(
-            COALESCE(infrastructure_raw_cost, 0) +
-            COALESCE(infrastructure_markup_cost, 0)+
-            COALESCE(cost_model_cpu_cost, 0) +
-            COALESCE(cost_model_memory_cost, 0) +
-            COALESCE(cost_model_volume_cost, 0)
-        ) as platform_cost,
-        lids.usage_start,
-        lids.source_uuid,
-        lids.cluster_id,
-        lids.node
-    FROM org1234567.reporting_ocpusagelineitem_daily_summary as lids
-    INNER JOIN org1234567.reporting_ocp_cost_category AS cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND report_period_id = {{report_period_id}}
-        AND source_uuid = {{source_uuid}}
-        AND cat.name = 'Platform'
-    GROUP BY lids.node, lids.usage_start, lids.cluster_id, lids.source_uuid
 )
 SELECT
     uuid_generate_v4(),
@@ -104,16 +121,19 @@ SELECT
     'platform_distributed' as cost_model_rate_type,
     CASE
         WHEN {{distribution}} = 'cpu'
-            THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * max(npc.platform_cost)::decimal
+            THEN sum(pod_effective_usage_cpu_core_hours) / max(udps.usage_cpu_sum) * max(pc.platform_cost)::decimal
         WHEN {{distribution}} = 'memory'
-            THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(npc.platform_cost)::decimal
+            THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(udps.usage_memory_sum) * max(pc.platform_cost)::decimal
     END AS distributed_cost
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-JOIN node_to_platform_cost as npc
-    ON npc.node = lids.node
-    AND npc.usage_start = lids.usage_start
-    AND npc.source_uuid = lids.source_uuid
-    AND npc.cluster_id = lids.cluster_id
+JOIN platform_cost as pc
+    ON pc.usage_start = lids.usage_start
+    AND pc.source_uuid = lids.source_uuid
+    AND pc.cluster_id = lids.cluster_id
+LEFT JOIN user_defined_project_sum as udps
+    ON udps.usage_start = lids.usage_start
+    AND udps.source_uuid = lids.source_uuid
+    AND udps.cluster_id = lids.cluster_id
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
@@ -124,14 +144,13 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
     AND cost_category_id IS NULL
-    AND npc.platform_cost != 0
     AND lids.namespace != 'Worker unallocated'
     AND lids.source_uuid = {{source_uuid}}
 GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id;
 
 -- Validation SQL
 -- SELECT
---     sum(distributed_cost),
+--     sum(distributed_cost) as distributed_cost,
 --     lids.node,
 --     lids.usage_start,
 --     lids.namespace,
