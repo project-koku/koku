@@ -10,6 +10,7 @@ from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
 from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
 from api.report.view import ReportView
 from reporting.models import AWSEnabledTagKeys
+from reporting.models import OCPEnabledTagKeys
 
 
 class OCPAWSView(ReportView):
@@ -19,7 +20,7 @@ class OCPAWSView(ReportView):
     provider = Provider.OCP_AWS
     serializer = OCPAWSQueryParamSerializer
     query_handler = OCPAWSReportQueryHandler
-    tag_handler = [AWSEnabledTagKeys]
+    tag_handler = [AWSEnabledTagKeys, OCPEnabledTagKeys]
 
 
 class OCPAWSCostView(OCPAWSView):
