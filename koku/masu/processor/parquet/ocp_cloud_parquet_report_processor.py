@@ -222,7 +222,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                         ocp_provider_uuids,
                         self.start_date,
                         self.end_date,
-                        self.invoice_month_date,
+                        invoice_month_date=self.invoice_month_date,
                     )
             for i, daily_data_frame in enumerate(daily_data_frames):
                 openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(

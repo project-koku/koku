@@ -349,12 +349,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.azure_provider_uuid, [self.ocp_on_azure_ocp_provider.uuid], start_date, end_date
+            self.azure_provider_uuid, tuple(self.ocp_on_azure_ocp_provider.uuid), start_date, end_date
         )
         mock_presto.assert_called()
 
