@@ -8,6 +8,7 @@ from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
 from api.tags.aws.openshift.serializers import OCPAWSTagsQueryParamSerializer
 from api.tags.view import TagView
+from reporting.models import OCPEnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledTagKeys
 
 
@@ -17,5 +18,5 @@ class OCPAWSTagView(TagView):
     provider = "ocp_aws"
     serializer = OCPAWSTagsQueryParamSerializer
     query_handler = OCPAWSTagQueryHandler
-    tag_handler = [AWSEnabledTagKeys]
+    tag_handler = [AWSEnabledTagKeys, OCPEnabledTagKeys]
     permission_classes = [AwsAccessPermission & OpenShiftAccessPermission]
