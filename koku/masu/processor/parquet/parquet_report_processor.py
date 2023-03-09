@@ -79,10 +79,14 @@ class ParquetReportProcessorError(Exception):
 class ParquetReportProcessor:
     """Parquet report processor."""
 
+    dh = DateHelper()
+
     def __init__(
-        self, schema_name, report_path, provider_uuid, provider_type, manifest_id, context={}, ingress_reports=None
+        self, schema_name, report_path, provider_uuid, provider_type, manifest_id, context=None, ingress_reports=None
     ):
         """initialize report processor."""
+        if context is None:
+            context = {}
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._report_file = report_path
@@ -90,9 +94,9 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.start_date = self._context.get("start_date")
-        self.invoice_month = self._context.get("invoice_month")
-        if self.invoice_month:
-            self.invoice_month_date = DateHelper().invoice_month_start(self.invoice_month).date()
+        self.invoice_month_date = None
+        if invoice_month := self._context.get("invoice_month"):
+            self.invoice_month_date = self.dh.invoice_month_start(invoice_month).date()
         self.presto_table_exists = {}
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
