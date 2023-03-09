@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-listener
-    minReplicas: ${{LISTENER_MIN_REPLICAS}}
+    replicas: ${{LISTENER_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -166,7 +166,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: LISTENER_MIN_REPLICAS
+    name: LISTENER_REPLICAS
     required: true
     value: '2'
 - op: add
