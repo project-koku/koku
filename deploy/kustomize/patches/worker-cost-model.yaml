@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-cost-model
-    minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
+    replicas: ${{WORKER_COST_MODEL_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -192,7 +192,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_COST_MODEL_MIN_REPLICAS
+    name: WORKER_COST_MODEL_REPLICAS
     required: true
     value: '2'
 - op: add

@@ -11,6 +11,7 @@ from api.report.view import ReportView
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
+from reporting.models import OCPEnabledTagKeys
 
 
 class OCPAllView(ReportView):
@@ -20,7 +21,7 @@ class OCPAllView(ReportView):
     provider = Provider.OCP_ALL
     serializer = OCPAllQueryParamSerializer
     query_handler = OCPAllReportQueryHandler
-    tag_handler = [AWSEnabledTagKeys, AzureEnabledTagKeys, GCPEnabledTagKeys]
+    tag_handler = [AWSEnabledTagKeys, AzureEnabledTagKeys, GCPEnabledTagKeys, OCPEnabledTagKeys]
 
 
 class OCPAllCostView(OCPAllView):
