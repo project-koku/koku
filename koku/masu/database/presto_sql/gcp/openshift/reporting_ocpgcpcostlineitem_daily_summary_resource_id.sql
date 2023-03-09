@@ -348,7 +348,7 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
     AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
-    AND gcp.usage_start_time >= TIMESTAMP {{start_date}}
+    AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id}}
