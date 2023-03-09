@@ -1,6 +1,5 @@
 import datetime
 import uuid
-from unittest.mock import patch
 
 from jinjasql import JinjaSql
 from trino.dbapi import Connection
@@ -134,7 +133,6 @@ select a from b;
 select x from y;
 select a from b;
 """
-        with patch("koku.trino_database._execute", side_effect=ValueError("Nope!")):
-            with self.assertRaises(trino_db.TrinoStatementExecError):
-                conn = FakePrestoConn()
-                trino_db.executescript(conn, sqlscript)
+        with self.assertRaises(trino_db.TrinoStatementExecError):
+            conn = FakePrestoConn()
+            trino_db.executescript(conn, sqlscript)

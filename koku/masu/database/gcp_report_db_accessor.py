@@ -81,7 +81,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "source_uuid": source_uuid,
                     "invoice_month": invoice_month,
                 }
-                summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
+                summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
                 self._execute_raw_sql_query(
                     table_name,
                     summary_sql,
