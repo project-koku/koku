@@ -26,8 +26,10 @@ class IngressReportsSerializer(serializers.ModelSerializer):
             "completed_timestamp",
             "reports_list",
             "source",
+            "source_id",
             "bill_year",
             "bill_month",
+            "status",
         ]
 
     def validate(self, data):

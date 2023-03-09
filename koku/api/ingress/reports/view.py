@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.ingress.reports.serializers import IngressReportsSerializer
+from api.provider.models import Sources
 from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
@@ -70,8 +71,21 @@ class IngressReportsView(APIView):
 
     def post(self, request):
         """Handle posted reports."""
+        source_uuid = request.data.get("source")
+        source_id = request.data.get("source")
+        try:
+            source = Sources.objects.filter(source_id=request.data.get("source")).first()
+        except ValueError:
+            try:
+                source = Sources.objects.filter(koku_uuid=request.data.get("source")).first()
+            except ValueError:
+                pass
+        if source:
+            source_uuid = source.koku_uuid
+            source_id = source.source_id
         data = {
-            "source": request.data.get("source"),
+            "source": source_uuid,
+            "source_id": source_id,
             "reports_list": request.data.get("reports_list"),
             "bill_year": request.data.get("bill_year"),
             "bill_month": request.data.get("bill_month"),
@@ -80,6 +94,7 @@ class IngressReportsView(APIView):
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             data["ingress_report_uuid"] = serializer.data.get("uuid")
+            data["status"] = serializer.data.get("status")
             IngressReports.ingest(data)
             paginator = ListPaginator(data, request)
             return paginator.get_paginated_response(data)

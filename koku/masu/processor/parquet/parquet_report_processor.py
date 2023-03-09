@@ -18,6 +18,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
@@ -80,7 +81,15 @@ class ParquetReportProcessor:
     """Parquet report processor."""
 
     def __init__(
-        self, schema_name, report_path, provider_uuid, provider_type, manifest_id, context={}, ingress_reports=None
+        self,
+        schema_name,
+        report_path,
+        provider_uuid,
+        provider_type,
+        manifest_id,
+        context={},
+        ingress_reports=None,
+        ingress_reports_uuid=None,
     ):
         """initialize report processor."""
         self._schema_name = schema_name
@@ -96,6 +105,7 @@ class ParquetReportProcessor:
         self.presto_table_exists = {}
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
+        self.ingress_reports_uuid = ingress_reports_uuid
 
     @property
     def schema_name(self):
@@ -461,7 +471,10 @@ class ParquetReportProcessor:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
                 if not set(col_names).issuperset(set(CSV_REQUIRED_COLUMNS.get(self._provider_type))):
-                    message = "Invalid report file, required column names missing from file."
+                    message = "Unable to process file(s) due to missing required columns."
+                    if self.ingress_reports_uuid:
+                        with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
+                            ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
                     raise ValidationError(message, code="Missing_columns")
             csv_converters = {
                 col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
