@@ -427,7 +427,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "schema": self.schema,
             "aws_source_uuid": aws_source_uuid,
-            "ocp_source_uuids": tuple(ocp_source_uuids),
+            "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
             "days": tuple(str(day.day) for day in days),

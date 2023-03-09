@@ -389,7 +389,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         invoice_month_date = dh.invoice_month_start(invoice_month)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.gcp_provider_uuid, [self.ocp_provider_uuid], start_date, end_date, invoice_month_date
+            self.gcp_provider_uuid, tuple(self.ocp_provider_uuid), start_date, end_date, invoice_month_date
         )
         mock_presto.assert_called()
 
