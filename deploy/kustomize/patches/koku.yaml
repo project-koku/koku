@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/0
   value:
     name: clowder-api
-    minReplicas: ${{KOKU_MIN_REPLICAS}}
+    replicas: ${{KOKU_REPLICAS}}
     webServices:
       public:
         enabled: true
@@ -193,7 +193,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: KOKU_MIN_REPLICAS
+    name: KOKU_REPLICAS
     required: true
     value: '3'
 - op: add

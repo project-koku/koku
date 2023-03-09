@@ -10,6 +10,7 @@ from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.serializers import OCPAzureQueryParamSerializer
 from api.report.view import ReportView
 from reporting.models import AzureEnabledTagKeys
+from reporting.models import OCPEnabledTagKeys
 
 
 class OCPAzureView(ReportView):
@@ -19,7 +20,7 @@ class OCPAzureView(ReportView):
     provider = Provider.OCP_AZURE
     serializer = OCPAzureQueryParamSerializer
     query_handler = OCPAzureReportQueryHandler
-    tag_handler = [AzureEnabledTagKeys]
+    tag_handler = [AzureEnabledTagKeys, OCPEnabledTagKeys]
 
 
 class OCPAzureCostView(OCPAzureView):
