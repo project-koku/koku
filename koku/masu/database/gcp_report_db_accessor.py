@@ -599,7 +599,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": invoice_month_date.strftime("%m"),
             "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(
             self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpgcp_matched_tags.sql"
         )
@@ -635,7 +635,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "report_period_id": report_period_id,
         }
-        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
         self._execute_presto_multipart_sql_query(self.schema, sql, bind_params=sql_params)
 
     def check_for_matching_enabled_keys(self):

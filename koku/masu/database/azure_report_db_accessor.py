@@ -408,7 +408,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(
             self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
         )

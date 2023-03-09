@@ -87,9 +87,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_gcp.cluster_id = rp.cluster_id
             AND DATE_TRUNC('month', ocp_gcp.usage_start)  = date(rp.report_period_start)
-    WHERE ocp_gcp.usage_start >= date('{{start_date | sqlsafe}}')
-        AND ocp_gcp.usage_start <= date('{{end_date | sqlsafe}}')
-        AND ocp_gcp.report_period_id = {{report_period_id | sqlsafe}}
+    WHERE ocp_gcp.usage_start >= {{start_date}}
+        AND ocp_gcp.usage_start <= {{end_date}}
+        AND ocp_gcp.report_period_id = {{report_period_id}}
     GROUP BY ocp_gcp.report_period_id,
         ocp_gcp.usage_start,
         ocp_gcp.cluster_id,
