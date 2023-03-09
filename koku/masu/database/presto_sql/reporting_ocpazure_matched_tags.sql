@@ -5,11 +5,11 @@ WITH cte_unnested_azure_tags AS (
         value
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     CROSS JOIN UNNEST(cast(json_parse(tags) as map(varchar, varchar))) AS tags(key, value)
-    WHERE source = '{{azure_source_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-        AND coalesce(usagedatetime, date) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(usagedatetime, date) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    WHERE source = {{azure_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND coalesce(usagedatetime, date) >= {{start_date}}
+        AND coalesce(usagedatetime, date) < date_add('day', 1, {{end_date}})
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT pod_key,
@@ -21,10 +21,10 @@ cte_unnested_ocp_tags AS (
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))
     ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
-    WHERE source IN ('{{ocp_source_uuids | sqlsafe}}')
-        AND year = '{{year | sqlsafe}}'
-        AND lpad(month, 2, '0') = '{{month | sqlsafe}}'
-        AND day IN ('{{days | sqlsafe}}')
+    WHERE source IN {{ocp_source_uuids | inclause}}
+        AND year = {{year}}
+        AND lpad(month, 2, '0') = {{month}}
+        AND day IN {{days | inclause}}
 )
 SELECT '{"' || key || '": "' || value || '"}' as tag
 FROM (

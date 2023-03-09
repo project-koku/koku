@@ -403,8 +403,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
 
-        days = DateHelper().list_days(start_date, end_date)
-        # days_str = "','".join([str(day.day) for day in days])
+        days = self.date_helper.list_days(start_date, end_date)
         days_list = [str(day.day) for day in days]
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
@@ -420,8 +419,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
             "source": str(source),
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
             "days": tuple(str(day.day) for day in days),
             "storage_exists": storage_exists,
         }

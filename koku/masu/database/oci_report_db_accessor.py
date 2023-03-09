@@ -37,6 +37,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._datetime_format = Config.OCI_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = OCI_CUR_TABLE_MAP
 
     @property
@@ -113,10 +114,10 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "markup": markup_value if markup_value else 0,
+            "markup": markup_value or 0,
             "bill_id": bill_id,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         LOG.info(f"Summary SQL: {str(summary_sql)}")
         self._execute_presto_raw_sql_query(self.schema, summary_sql)

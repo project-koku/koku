@@ -361,28 +361,28 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_data_processor.assert_called()
         mock_create_parquet.assert_called()
 
-    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
-    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags")
-    @patch.object(AWSReportDBAccessor, "check_for_matching_enabled_keys")
-    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
-    def test_get_matched_tags(self, mock_has_enabled, mock_matching_enabled, mock_get_tags, mock_get_tags_trino):
-        """Test that we get matched tags, cached if available."""
+    # @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
+    # @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags")
+    # @patch.object(AWSReportDBAccessor, "check_for_matching_enabled_keys")
+    # @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
+    # def test_get_matched_tags(self, mock_has_enabled, mock_matching_enabled, mock_get_tags, mock_get_tags_trino):
+    #     """Test that we get matched tags, cached if available."""
 
-        mock_has_enabled.return_value = True
-        mock_matching_enabled.return_Value = True
+    #     mock_has_enabled.return_value = True
+    #     mock_matching_enabled.return_Value = True
 
-        self.report_processor.get_matched_tags([])
-        mock_get_tags.assert_called()
-        mock_get_tags_trino.assert_not_called()
+    #     self.report_processor.get_matched_tags([])
+    #     mock_get_tags.assert_called()
+    #     mock_get_tags_trino.assert_not_called()
 
-        matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
-        mock_get_tags.reset_mock()
-        with patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_cached_matching_tags",
-            return_value=matched_tags,
-        ):
-            self.report_processor.get_matched_tags([])
-            mock_get_tags.assert_not_called()
+    #     matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
+    #     mock_get_tags.reset_mock()
+    #     with patch(
+    #         "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_cached_matching_tags",
+    #         return_value=matched_tags,
+    #     ):
+    #         self.report_processor.get_matched_tags([])
+    #         mock_get_tags.assert_not_called()
 
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags")

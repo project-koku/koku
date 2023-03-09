@@ -7,6 +7,7 @@ import json
 import logging
 import pkgutil
 import uuid
+from secrets import token_hex
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -51,7 +52,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         super().__init__(schema)
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
+        self.date_helper = DateHelper()
         self.jinja_sql = JinjaSql()
+        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
@@ -108,9 +111,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
             "bill_id": bill_id,
-            "markup": markup_value if markup_value else 0,
+            "markup": markup_value or 0,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_presto_raw_sql_query(
             self.schema, summary_sql, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
@@ -289,8 +292,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        days = DateHelper().list_days(start_date, end_date)
-        # days_str = "','".join([str(day.day) for day in days])
+        days = self.date_helper.list_days(start_date, end_date)
         days_list = [str(day.day) for day in days]
         self.delete_ocp_on_azure_hive_partition_by_day(
             days_list, azure_provider_uuid, openshift_provider_uuid, year, month
@@ -306,13 +308,14 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
+            "temp_table_hash": token_hex(8),
             "uuid": str(openshift_provider_uuid).replace("-", "_"),
             "schema": self.schema,
             "start_date": start_date,
             "end_date": end_date,
             "year": year,
             "month": month,
-            "days": (str(day.day) for day in days),
+            "days": tuple(str(day.day) for day in days),
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,
@@ -386,14 +389,14 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    def get_openshift_on_cloud_matched_tags_trino(self, azure_source_uuid, ocp_source_uuids, start_date, end_date):
+    def get_openshift_on_cloud_matched_tags_trino(
+        self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+    ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
 
-        days = DateHelper().list_days(start_date, end_date)
-        # days_str = "','".join([str(day.day) for day in days])
-        # ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
+        days = self.date_helper.list_days(start_date, end_date)
 
         sql_params = {
             "start_date": start_date,
@@ -403,7 +406,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": (str(day.day) for day in days),
+            "days": tuple(str(day.day) for day in days),
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(

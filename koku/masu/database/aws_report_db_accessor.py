@@ -7,6 +7,7 @@ import json
 import logging
 import pkgutil
 import uuid
+from secrets import token_hex
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -53,6 +54,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         super().__init__(schema)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
+        self.date_helper = DateHelper()
         self.jinja_sql = JinjaSql()
         self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = AWS_CUR_TABLE_MAP
@@ -147,7 +149,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "markup": markup_value if markup_value else 0,
+            "markup": markup_value or 0,
             "bill_id": bill_id,
         }
         summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -247,7 +249,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Default to cpu distribution
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        days = DateHelper().list_days(start_date, end_date)
+        days = self.date_helper.list_days(start_date, end_date)
         # days_str = "','".join([str(day.day) for day in days])
         days_list = [str(day.day) for day in days]
         self.delete_ocp_on_aws_hive_partition_by_day(
@@ -263,10 +265,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
+            "temp_table_hash": token_hex(8),
             "schema": self.schema,
             "start_date": start_date,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
             "days": tuple(str(day.day) for day in days),
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
@@ -410,14 +413,14 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    def get_openshift_on_cloud_matched_tags_trino(self, aws_source_uuid, ocp_source_uuids, start_date, end_date):
+    def get_openshift_on_cloud_matched_tags_trino(
+        self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+    ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
 
-        days = DateHelper().list_days(start_date, end_date)
-        # days_str = "','".join([str(day.day) for day in days])
-        # ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
+        days = self.date_helper.list_days(start_date, end_date)
 
         sql_params = {
             "start_date": start_date,
