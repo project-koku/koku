@@ -29,6 +29,11 @@ repos:
   rev: v0.0.3
   hooks:
     - id: check-pipfile-lock
+- repo: https://github.com/sqlfluff/sqlfluff
+  rev: 1.4.5
+  hooks:
+    - id: sqlfluff-lint
+    - id: sqlfluff-fix
 - repo: local
   hooks:
     - id: validate-dashboards
