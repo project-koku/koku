@@ -103,6 +103,25 @@ class ReportsViewTest(MasuTestCase):
             aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
         ),
     )
+    def test_post_ingress_reports_invalid_uuid(self, mock_get_sts_access):
+        """Test to post reports for a particular source."""
+        url = reverse("reports")
+        post_data = {
+            "source": "80ef",
+            "reports_list": ["test.csv", "test.csv"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
+        client = APIClient()
+        response = client.post(url, data=post_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
+    )
     def test_post_ingress_reports(self, mock_get_sts_access):
         """Test to post reports for a particular source."""
         url = reverse("reports")
