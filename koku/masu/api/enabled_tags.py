@@ -4,8 +4,10 @@
 #
 """View for enable_tags masu admin endpoint."""
 import logging
+import pkgutil
 
 from django.views.decorators.cache import never_cache
+from jinjasql import JinjaSql
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -13,6 +15,7 @@ from rest_framework.views import APIView
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
+from masu.util.common import execute_trino_query
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
@@ -28,6 +31,14 @@ PROVIDER_TYPE_TO_TABLE = {
     Provider.PROVIDER_GCP.lower(): GCPEnabledTagKeys,
     Provider.PROVIDER_OCI.lower(): OCIEnabledTagKeys,
     Provider.PROVIDER_OCP.lower(): OCPEnabledTagKeys,
+}
+
+PROVIDER_TYPE_TO_FILE_PATH = {
+    Provider.PROVIDER_AWS.lower(): "aws",
+    Provider.PROVIDER_AZURE.lower(): "azure",
+    Provider.PROVIDER_GCP.lower(): "gcp",
+    Provider.PROVIDER_OCI.lower(): "oci",
+    Provider.PROVIDER_OCP.lower(): "openshift",
 }
 
 
@@ -95,12 +106,23 @@ class EnabledTagView(APIView):
                     tag_key_to_enable.save()
                 msg = f"Enabled tags for schema: {schema_name}."
                 LOG.info(msg)
-            if action.lower() == "delete":
+            elif action.lower() == "delete":
                 for key in tag_keys:
                     enabled_tag_key = enabled_tag_model.objects.filter(key=key).first()
                     enabled_tag_key.enabled = False
                     enabled_tag_key.save()
                 msg = f"Disabled tags for schema: {schema_name}."
                 LOG.info(msg)
+            elif action.lower() == "remove_stale":
+                jinja_sql = JinjaSql()
+                sql = pkgutil.get_data(
+                    "masu.database",
+                    f"sql/{PROVIDER_TYPE_TO_FILE_PATH.get(provider_type)}/remove_stale_enabled_tags.sql",
+                )
+                sql = sql.decode("utf-8")
+                params = {"schema_name": schema_name}
+                sql, params = jinja_sql.prepare_query(sql, params)
+                LOG.info("Removing stale enabled tag keys.")
+                execute_trino_query(schema_name, sql, params=params)
 
         return Response({RESPONSE_KEY: tag_keys})
