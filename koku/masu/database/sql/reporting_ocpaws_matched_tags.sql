@@ -17,8 +17,8 @@ cte_matched_tag_keys AS (
         cte_aws_tag_keys.key AS aws_key,
         cte_ocp_tag_keys.key AS ocp_key
     FROM cte_aws_tag_keys
-        INNER JOIN cte_ocp_tag_keys
-            ON lower(cte_aws_tag_keys.key) = lower(cte_ocp_tag_keys.key)
+    INNER JOIN cte_ocp_tag_keys
+        ON lower(cte_aws_tag_keys.key) = lower(cte_ocp_tag_keys.key)
 ),
 
 cte_unnested_aws_tags AS (
@@ -47,8 +47,8 @@ FROM (
         cte_unnested_aws_tags.key,
         cte_unnested_aws_tags.value
     FROM cte_unnested_aws_tags
-        INNER JOIN cte_unnested_ocp_tags
-            ON lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.key)
-                AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.value)
+    INNER JOIN cte_unnested_ocp_tags
+        ON lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.key)
+        AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.value)
 ) AS matches
 ;

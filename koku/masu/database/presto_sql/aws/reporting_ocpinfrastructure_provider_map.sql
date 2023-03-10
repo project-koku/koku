@@ -35,6 +35,6 @@ SELECT DISTINCT
     cte_aws_resource_ids.source AS infra_uuid,
     'AWS' AS provider_type
 FROM cte_aws_resource_ids
-    INNER JOIN cte_ocp_resource_ids
-        ON strpos(cte_aws_resource_ids.lineitem_resourceid, cte_ocp_resource_ids.resource_id) != 0
+INNER JOIN cte_ocp_resource_ids
+    ON strpos(cte_aws_resource_ids.lineitem_resourceid, cte_ocp_resource_ids.resource_id) != 0
 ;

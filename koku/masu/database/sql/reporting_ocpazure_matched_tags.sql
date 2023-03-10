@@ -23,8 +23,8 @@ FROM (
         cte_unnested_azure_tags.key,
         cte_unnested_azure_tags.value
     FROM cte_unnested_azure_tags
-        INNER JOIN cte_unnested_ocp_tags
-            ON lower(cte_unnested_azure_tags.key) = lower(cte_unnested_ocp_tags.key)
-                AND lower(cte_unnested_azure_tags.value) = lower(cte_unnested_ocp_tags.value)
+    INNER JOIN cte_unnested_ocp_tags
+        ON lower(cte_unnested_azure_tags.key) = lower(cte_unnested_ocp_tags.key)
+        AND lower(cte_unnested_azure_tags.value) = lower(cte_unnested_ocp_tags.value)
 ) AS matches
 ;

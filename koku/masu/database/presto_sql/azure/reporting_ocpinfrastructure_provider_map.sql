@@ -33,6 +33,6 @@ SELECT DISTINCT
     cte_azure_instances.source AS infra_uuid,
     'Azure' AS provider_type
 FROM cte_azure_instances
-    INNER JOIN cte_ocp_nodes
-        ON cte_ocp_nodes.node = cte_azure_instances.instance
+INNER JOIN cte_ocp_nodes
+    ON cte_ocp_nodes.node = cte_azure_instances.instance
 ;

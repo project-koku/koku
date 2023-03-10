@@ -34,18 +34,19 @@ FROM (
         cte_unnested_aws_tags.key,
         cte_unnested_aws_tags.value
     FROM cte_unnested_aws_tags
-        INNER JOIN cte_unnested_ocp_tags
-            ON (
-                lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
-                AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.pod_value)
-            )
-            OR (
-                lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
-                AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
-            )
-        INNER JOIN postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS atk
+    INNER JOIN cte_unnested_ocp_tags
+        ON (
+            lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
+            AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.pod_value)
+        )
+        OR (
+            lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
+            AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
+        )
+    INNER JOIN postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS atk
         ON aws.key = atk.key
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
-        ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
+        ON ocp.pod_key = otk.key
+        OR ocp.volume_key = otk.key
 ) AS matches
 ;

@@ -10,9 +10,9 @@ exclude_rules = L003, L016, L026, L044
 
 [sqlfluff:indentation]
 # See https://docs.sqlfluff.com/en/stable/layout.html#configuring-indent-locations
-indented_joins = True
+indented_joins = False
 indented_ctes = True
-indented_using_on = True
+indented_using_on = False
 indented_on_contents = True
 template_blocks_indent = True
 
@@ -23,9 +23,15 @@ line_position = alone:strict
 [sqlfluff:rules]
 tab_space_size = 4
 
+[sqlfluff:rules:L003]
+hanging_indents = False
+
 [sqlfluff:rules:L010]
 # Keywords
 capitalisation_policy = upper
+
+[sqlfluff:rules:L011]
+aliasing = explicit
 
 [sqlfluff:rules:L014]
 # Unquoted identifiers
