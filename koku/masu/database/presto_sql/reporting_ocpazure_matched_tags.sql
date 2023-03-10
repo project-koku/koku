@@ -44,10 +44,10 @@ FROM (
             AND lower(cte_unnested_azure_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
         )
     INNER JOIN postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys AS atk
-        ON azure.key = atk.key
+        ON cte_unnested_azure_tags.key = atk.key
        AND atk.enabled = true
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
-        ON ocp.pod_key = otk.key
-        OR ocp.volume_key = otk.key
+        ON cte_unnested_ocp_tags.pod_key = otk.key
+        OR cte_unnested_ocp_tags.volume_key = otk.key
 ) AS matches
 ;
