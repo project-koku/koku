@@ -6,6 +6,7 @@
 import logging
 import pkgutil
 
+from django.db import connection
 from django.views.decorators.cache import never_cache
 from jinjasql import JinjaSql
 from rest_framework import status
@@ -15,7 +16,6 @@ from rest_framework.views import APIView
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
-from masu.util.common import execute_trino_query
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
@@ -120,9 +120,11 @@ class EnabledTagView(APIView):
                     f"sql/{PROVIDER_TYPE_TO_FILE_PATH.get(provider_type)}/remove_stale_enabled_tags.sql",
                 )
                 sql = sql.decode("utf-8")
-                params = {"schema_name": schema_name}
+                params = {"schema": schema_name}
                 sql, params = jinja_sql.prepare_query(sql, params)
                 LOG.info("Removing stale enabled tag keys.")
-                execute_trino_query(schema_name, sql, params=params)
+                with schema_context(schema_name=schema_name):
+                    with connection.cursor() as cursor:
+                        cursor.execute(sql, params=params)
 
         return Response({RESPONSE_KEY: tag_keys})

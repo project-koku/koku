@@ -1,5 +1,5 @@
 -- Delete stale enabled keys
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys etk
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
 WHERE NOT EXISTS (
     SELECT 1
     FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS pls
