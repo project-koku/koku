@@ -140,29 +140,29 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
         self.create_parquet_table(file_path, daily=True, partition_map=self.partition_map)
 
-    # def get_matched_tags(self, ocp_provider_uuids):
-    #     """Get tags that match between OCP and the cloud source."""
-    #     # Get matching tags
-    #     matched_tags = get_cached_matching_tags(self.schema_name, self.provider_type)
-    #     if matched_tags:
-    #         LOG.info("Retreived matching tags from cache.")
-    #         return matched_tags
-    #     if self.has_enabled_ocp_labels:
-    #         enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
-    #         if enabled_tags:
-    #             LOG.info("Getting matching tags from Postgres.")
-    #             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
-    #         if not matched_tags and enabled_tags:
-    #             LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
-    #             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
-    #                 self.provider_uuid,
-    #                 tuple(ocp_provider_uuids),
-    #                 self.start_date,
-    #                 self.end_date,
-    #                 invoice_month_date=self.invoice_month_date,
-    #             )
-    #     set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
-    #     return matched_tags
+    def get_matched_tags(self, ocp_provider_uuids):
+        """Get tags that match between OCP and the cloud source."""
+        # Get matching tags
+        matched_tags = get_cached_matching_tags(self.schema_name, self.provider_type)
+        if matched_tags:
+            LOG.info("Retreived matching tags from cache.")
+            return matched_tags
+        if self.has_enabled_ocp_labels:
+            enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
+            if enabled_tags:
+                LOG.info("Getting matching tags from Postgres.")
+                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
+            if not matched_tags and enabled_tags:
+                LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
+                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
+                    self.provider_uuid,
+                    tuple(ocp_provider_uuids),
+                    self.start_date,
+                    self.end_date,
+                    invoice_month_date=self.invoice_month_date,
+                )
+        set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
+        return matched_tags
 
     def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
         """Create a parquet file for daily aggregated data for each partition."""
@@ -206,24 +206,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Filter data and convert to parquet."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
+
+        # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
             cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
             # Get matching tags
-            matched_tags = []
-            if self.has_enabled_ocp_labels:
-                enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
-                if enabled_tags:
-                    LOG.info("Getting matching tags from Postgres.")
-                    matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
-                if not matched_tags and enabled_tags:
-                    LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
-                    matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
-                        self.provider_uuid,
-                        ocp_provider_uuids,
-                        self.start_date,
-                        self.end_date,
-                        invoice_month_date=self.invoice_month_date,
-                    )
+            matched_tags = self.get_matched_tags(ocp_provider_uuids)
             for i, daily_data_frame in enumerate(daily_data_frames):
                 openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
                     daily_data_frame, cluster_topology, matched_tags
