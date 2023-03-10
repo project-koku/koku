@@ -470,8 +470,12 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
-                if not set(col_names).issuperset(set(CSV_REQUIRED_COLUMNS.get(self._provider_type))):
-                    message = "Unable to process file(s) due to missing required columns."
+                REQUIRED_COLS = set(CSV_REQUIRED_COLUMNS.get(self._provider_type))
+                if not set(col_names).issuperset(REQUIRED_COLS):
+                    message = f"""
+                    Unable to process file(s) due to missing required columns:
+                    {[x for x in REQUIRED_COLS if x not in col_names]}.
+                    """
                     if self.ingress_reports_uuid:
                         with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
                             ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
