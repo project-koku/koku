@@ -54,7 +54,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self.date_accessor = DateAccessor()
         self.date_helper = DateHelper()
         self.jinja_sql = JinjaSql()
-        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
@@ -113,10 +112,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_id": bill_id,
             "markup": markup_value or 0,
         }
-        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_presto_raw_sql_query(
-            self.schema, summary_sql, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
         )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
@@ -326,7 +324,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on Azure SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
@@ -408,9 +406,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
+
         results = self._execute_presto_raw_sql_query(
-            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
+            sql, sql_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
         )
 
         return [json.loads(result[0]) for result in results]

@@ -56,7 +56,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self.date_accessor = DateAccessor()
         self.date_helper = DateHelper()
         self.jinja_sql = JinjaSql()
-        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = AWS_CUR_TABLE_MAP
 
     @property
@@ -152,10 +151,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }
-        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_presto_raw_sql_query(
-            self.schema, summary_sql, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
+            summary_sql, summary_sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
         )
 
     def mark_bill_as_finalized(self, bill_id):
@@ -282,7 +280,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on AWS SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
@@ -432,9 +430,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
+
         results = self._execute_presto_raw_sql_query(
-            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpaws_matched_tags.sql"
+            sql, sql_params=sql_params, log_ref="reporting_ocpaws_matched_tags.sql"
         )
 
         return [json.loads(result[0]) for result in results]

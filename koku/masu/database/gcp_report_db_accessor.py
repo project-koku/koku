@@ -54,7 +54,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self.date_accessor = DateAccessor()
         self.date_helper = DateHelper()
         self.jinja_sql = JinjaSql()
-        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = GCP_REPORT_TABLE_MAP
 
     @property
@@ -157,10 +156,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }
-        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_presto_raw_sql_query(
-            self.schema, summary_sql, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
         )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
@@ -331,9 +329,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
         """
 
-        topology = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_gcp_topology_trino")
-
-        return topology
+        return self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_gcp_topology_trino")
 
     def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
         """Overwrite the parent class to include invoice month for gcp.
@@ -435,7 +431,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         LOG.info("Running OCP on GCP SQL with params (BY NODE):")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_cost_daily_summary_presto(
         self,
@@ -512,7 +508,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on GCP SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
@@ -600,9 +596,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": invoice_month_date.strftime("%m"),
             "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.trino_jinja_sql.prepare_query(sql, sql_params)
+
         results = self._execute_presto_raw_sql_query(
-            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpgcp_matched_tags.sql"
+            sql, sql_params=sql_params, log_ref="reporting_ocpgcp_matched_tags.sql"
         )
         return [json.loads(result[0]) for result in results]
 

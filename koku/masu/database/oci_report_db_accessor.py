@@ -37,7 +37,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._datetime_format = Config.OCI_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
-        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self._table_map = OCI_CUR_TABLE_MAP
 
     @property
@@ -117,10 +116,11 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }
-        summary_sql, summary_sql_params = self.trino_jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         LOG.info(f"Summary SQL: {str(summary_sql)}")
-        self._execute_presto_raw_sql_query(self.schema, summary_sql)
+        self._execute_presto_raw_sql_query(
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_ocicostentrylineitem_daily_summary.sql"
+        )
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""

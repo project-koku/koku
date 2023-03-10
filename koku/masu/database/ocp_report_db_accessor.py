@@ -21,7 +21,6 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-import koku.trino_database as trino_db
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
@@ -75,7 +74,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.jinja_sql = JinjaSql()
-        self.trino_jinja_sql = JinjaSql(param_style="qmark")
         self.date_helper = DateHelper()
         self._table_map = OCP_REPORT_TABLE_MAP
         self._aws_table_map = AWS_CUR_TABLE_MAP
@@ -267,6 +265,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for source_type, check_flag in check_flags.items():
             db_results = {}
             if check_flag:
+                infra_sql = pkgutil.get_data(
+                    "masu.database", f"presto_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
+                )
+                infra_sql = infra_sql.decode("utf-8")
+
                 infra_sql_params = {
                     "start_date": start_date,
                     "end_date": end_date,
@@ -279,15 +282,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "gcp_provider_uuid": gcp_provider_uuid,
                     "resource_level": resource_level,
                 }
-                infra_sql = pkgutil.get_data(
-                    "masu.database", f"presto_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
-                )
-                infra_sql = infra_sql.decode("utf-8")
-                infra_sql, infra_sql_params = self.trino_jinja_sql.prepare_query(infra_sql, infra_sql_params)
+
                 results = self._execute_presto_raw_sql_query(
-                    self.schema,
                     infra_sql,
-                    bind_params=infra_sql_params,
+                    sql_params=infra_sql_params,
                     log_ref="reporting_ocpinfrastructure_provider_map.sql",
                 )
                 for entry in results:
@@ -408,8 +406,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         self.delete_ocp_hive_partition_by_day(days_list, source, year, month)
-        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
-        tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": source,
             "start_date": start_date,
@@ -425,35 +423,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_exists": storage_exists,
         }
 
-        LOG.info("TRINO OCP: Connect")
-        presto_conn = trino_db.connect(schema=self.schema)
-        try:
-            LOG.info("TRINO OCP: executing SQL buffer for OCP usage processing")
-            trino_db.executescript(
-                presto_conn,
-                tmpl_summary_sql,
-                params=summary_sql_params,
-                preprocessor=self.trino_jinja_sql.prepare_query,
-            )
-        except Exception as e:
-            LOG.warning(
-                f"TRINO OCP ERROR : {e}"
-                + os.linesep
-                + "File : masu/database/presto_sql/reporting_ocpusagelineitem_daily_summary.sql"
-            )
-            try:
-                presto_conn.rollback()
-            except RuntimeError:
-                # If presto has not started a transaction, it will throw
-                # a RuntimeError that we just want to ignore.
-                pass
-            raise e
-        else:
-            LOG.info("TRINO OCP: Commit actions")
-            presto_conn.commit()
-        finally:
-            LOG.info("TRINO OCP: Close connection")
-            presto_conn.close()
+        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
