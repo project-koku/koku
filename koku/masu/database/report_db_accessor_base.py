@@ -373,6 +373,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         self, schema, sql, bind_params=None, log_ref=None, attempts_left=0
     ):
         """Execute a single presto query and return cur.fetchall and cur.description"""
+        sql = sql.replace(";", "")  # trino doesn't like `;`, so remove it
         try:
             t1 = time.time()
             presto_conn = trino_db.connect(schema=schema)
