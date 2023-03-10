@@ -113,8 +113,9 @@ class ReportsViewTest(MasuTestCase):
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
         }
         client = APIClient()
-        response = client.post(url, data=post_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        with patch("api.ingress.reports.view.Sources", side_affect=ValueError):
+            response = client.post(url, data=post_data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch(
         "providers.aws.provider._get_sts_access",
