@@ -17,8 +17,8 @@ CREATE OR REPLACE PROCEDURE public.create_table_date_range_partition(
     partitioned_table text,
     date_from date,
     date_to date,
-    _default boolean DEFAULT false,
-    _commit boolean DEFAULT false
+    _default boolean DEFAULT FALSE,
+    _commit boolean DEFAULT FALSE
 ) AS $$
 DECLARE
     action_stmt text = '';

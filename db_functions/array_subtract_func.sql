@@ -2,15 +2,15 @@
 -- Copyright 2021 Red Hat Inc.
 -- SPDX-License-Identifier: Apache-2.0
 --
-create or replace function public.array_subtract(
-    minuend anyarray, subtrahend anyarray, out difference anyarray
+CREATE OR REPLACE FUNCTION public.array_subtract(
+    minuend anyarray, subtrahend anyarray, OUT difference anyarray
 )
-returns anyarray as
+RETURNS anyarray AS
 $$
 begin
     execute 'select array(select unnest($1) except select unnest($2))'
       using minuend, subtrahend
        into difference;
 end;
-$$ language plpgsql returns null on null input
+$$ LANGUAGE plpgsql RETURNS NULL ON NULL INPUT
 ;

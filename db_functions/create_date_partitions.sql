@@ -15,7 +15,7 @@ CREATE OR REPLACE PROCEDURE public.create_date_partitions(
     check_col text,
     schema text,
     partitioned_table text,
-    _commit boolean DEFAULT false
+    _commit boolean DEFAULT FALSE
 )
 AS $$
 DECLARE

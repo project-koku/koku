@@ -7,8 +7,8 @@ DROP FUNCTION IF EXISTS public.clone_schema(text, text, boolean, boolean);
 CREATE OR REPLACE FUNCTION public.clone_schema(
     source_schema text,
     dest_schema text,
-    copy_data boolean DEFAULT false,
-    _verbose boolean DEFAULT false
+    copy_data boolean DEFAULT FALSE,
+    _verbose boolean DEFAULT FALSE
 ) RETURNS boolean AS $$
 DECLARE
     sequence_objects jsonb[];

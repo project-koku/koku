@@ -2,7 +2,7 @@
 -- Copyright 2021 Red Hat Inc.
 -- SPDX-License-Identifier: Apache-2.0
 --
-create or replace function public.tr_presto_delete_wrapper_log_action() returns trigger as $$
+CREATE OR REPLACE FUNCTION public.tr_presto_delete_wrapper_log_action() RETURNS trigger AS $$
 begin
     if NEW.result_rows is null
     then
@@ -13,4 +13,4 @@ begin
 
     return NEW;
 end;
-$$ language plpgsql;
+$$ LANGUAGE plpgsql;

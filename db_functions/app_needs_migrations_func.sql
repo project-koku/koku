@@ -9,7 +9,7 @@
 -- Set _verbose to true to see notices raised during execution
 DROP FUNCTION IF EXISTS public.migrations_complete(jsonb, boolean);
 
-CREATE OR REPLACE FUNCTION public.migrations_complete(leaf_migrations jsonb, _verbose boolean DEFAULT false)
+CREATE OR REPLACE FUNCTION public.migrations_complete(leaf_migrations jsonb, _verbose boolean DEFAULT FALSE)
 RETURNS boolean AS $BODY$
 DECLARE
     schema_rec record;
@@ -151,5 +151,5 @@ BEGIN
 
     RETURN completed_migrations;
 END;
-$BODY$ LANGUAGE PLPGSQL
+$BODY$ LANGUAGE plpgsql
 ;
