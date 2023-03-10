@@ -12,6 +12,8 @@ from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku.cache import get_cached_matching_tags
+from koku.cache import set_cached_matching_tags
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
