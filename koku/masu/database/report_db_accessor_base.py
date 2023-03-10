@@ -503,7 +503,7 @@ class ReportDBAccessorBase(KokuDBAccess):
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_trino_raw_sql_query(self.schema, table_check_sql, log_ref="table_exists_trino")
+        table = self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")
         if table:
             return True
         return False
