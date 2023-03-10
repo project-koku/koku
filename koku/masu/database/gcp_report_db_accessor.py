@@ -329,7 +329,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
         """
 
-        return self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_gcp_topology_trino")
+        return self._execute_presto_raw_sql_query(sql, log_ref="get_gcp_topology_trino")
 
     def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
         """Overwrite the parent class to include invoice month for gcp.
@@ -552,7 +552,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
                         self._execute_presto_raw_sql_query(
-                            self.schema,
                             sql,
                             log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,

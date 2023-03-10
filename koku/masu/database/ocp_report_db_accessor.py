@@ -324,7 +324,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         AND day = '{day}'
                         """
                         self._execute_presto_raw_sql_query(
-                            self.schema,
                             sql,
                             log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -353,7 +352,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     WHERE {partition_column} = '{provider_uuid}'
                     """
                     self._execute_presto_raw_sql_query(
-                        self.schema,
                         sql,
                         log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
                         attempts_left=(retries - 1) - i,
@@ -1007,9 +1005,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 ocp.resource_id
         """  # noqa: E501
 
-        nodes = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_nodes_presto")
-
-        return nodes
+        return self._execute_presto_raw_sql_query(sql, log_ref="get_nodes_presto")
 
     def get_pvcs_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1024,9 +1020,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        pvcs = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_pvcs_presto")
-
-        return pvcs
+        return self._execute_presto_raw_sql_query(sql, log_ref="get_pvcs_presto")
 
     def get_projects_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1040,7 +1034,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        projects = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_projects_presto")
+        projects = self._execute_presto_raw_sql_query(sql, log_ref="get_projects_presto")
 
         return [project[0] for project in projects]
 
@@ -1166,7 +1160,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        timestamps = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
+        timestamps = self._execute_presto_raw_sql_query(sql, log_ref="get_max_min_timestamp_from_parquet")
         minim, maxim = timestamps[0]
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)

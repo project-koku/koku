@@ -153,7 +153,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         self._execute_presto_raw_sql_query(
-            summary_sql, summary_sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
         )
 
     def mark_bill_as_finalized(self, bill_id):
@@ -211,7 +211,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
                         self._execute_presto_raw_sql_query(
-                            self.schema,
                             sql,
                             log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,

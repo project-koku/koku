@@ -363,12 +363,14 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, sql, sql_params=None, log_ref=None, attempts_left=0):
+    def _execute_presto_raw_sql_query(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
         """Execute a single presto query returning only the fetchall results"""
-        results, _ = self._execute_presto_raw_sql_query_with_description(sql, sql_params, log_ref, attempts_left)
+        results, _ = self._execute_presto_raw_sql_query_with_description(
+            sql, sql_params=sql_params, log_ref=log_ref, attempts_left=attempts_left
+        )
         return results
 
-    def _execute_presto_raw_sql_query_with_description(self, sql, sql_params=None, log_ref=None, attempts_left=0):
+    def _execute_presto_raw_sql_query_with_description(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
         """Execute a single presto query and return cur.fetchall and cur.description"""
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         try:
@@ -393,7 +395,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 LOG.error(msg)
             raise ex
 
-    def _execute_presto_multipart_sql_query(self, sql, bind_params=None):
+    def _execute_presto_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Presto."""
         presto_conn = trino_db.connect(schema=self.schema)
         return trino_db.executescript(presto_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)

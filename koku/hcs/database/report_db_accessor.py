@@ -85,9 +85,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
 
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-            data, description = self._execute_presto_raw_sql_query_with_description(
-                self.schema, sql, bind_params=sql_params
-            )
+            data, description = self._execute_presto_raw_sql_query_with_description(sql, bind_params=sql_params)
             # The format for the description is:
             # [(name, type_code, display_size, internal_size, precision, scale, null_ok)]
             # col[0] grabs the column names from the query results
