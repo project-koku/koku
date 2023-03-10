@@ -1,7 +1,7 @@
 SELECT
-*,
-'{{ebs_acct_num | sqlsafe}}' AS ebs_account_id,
-'{{org_id | sqlsafe}}' AS org_id
+    *,
+    '{{ebs_acct_num | sqlsafe}}' AS ebs_account_id,
+    '{{org_id | sqlsafe}}' AS org_id
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE (sku_description LIKE '%RedHat%'
     OR sku_description LIKE '%Red Hat%'

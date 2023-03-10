@@ -20,9 +20,9 @@ cte_ocp_resource_ids AS (
         ocp.source
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
     WHERE ocp.interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-    AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND ocp.resource_id IS NOT NULL
-    AND ocp.resource_id != ''
+        AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.resource_id IS NOT NULL
+        AND ocp.resource_id != ''
     {% if ocp_provider_uuid %}
     AND ocp.source = '{{ocp_provider_uuid | sqlsafe}}'
     {% endif %}
@@ -35,6 +35,6 @@ SELECT DISTINCT
     cte_aws_resource_ids.source AS infra_uuid,
     'AWS' AS provider_type
 FROM cte_aws_resource_ids
-INNER JOIN cte_ocp_resource_ids
-    ON strpos(cte_aws_resource_ids.lineitem_resourceid, cte_ocp_resource_ids.resource_id) != 0
+    INNER JOIN cte_ocp_resource_ids
+        ON strpos(cte_aws_resource_ids.lineitem_resourceid, cte_ocp_resource_ids.resource_id) != 0
 ;

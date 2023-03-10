@@ -23,7 +23,23 @@ line_position = alone:strict
 [sqlfluff:rules]
 tab_space_size = 4
 
+[sqlfluff:rules:L010]
+# Keywords
+capitalisation_policy = upper
+
+[sqlfluff:rules:L014]
+# Unquoted identifiers
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:L040]
+# Unquoted identifiers
+capitalisation_policy = upper
+
 [sqlfluff:rules:L052]
 # Semi-colon formatting approach
 multiline_newline = True
 require_final_semicolon = True
+
+[sqlfluff:rules:L054]
+# GROUP BY/ORDER BY column references
+group_by_and_order_by_style = explicit

@@ -1,6 +1,6 @@
 WITH cte_unnested_aws_tags AS (
     SELECT DISTINCT
-key,
+        key,
         value
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
     CROSS JOIN UNNEST(cast(json_parse(resourcetags) as map(varchar, varchar))) AS tags(key, value)
@@ -13,7 +13,7 @@ key,
 
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT
-pod_key,
+        pod_key,
         pod_value,
         volume_key,
         volume_value
@@ -31,19 +31,19 @@ pod_key,
 SELECT '{"' || key || '": "' || value || '"}' AS tag
 FROM (
     SELECT DISTINCT
-cte_unnested_aws_tags.key,
+        cte_unnested_aws_tags.key,
         cte_unnested_aws_tags.value
     FROM cte_unnested_aws_tags
-    INNER JOIN cte_unnested_ocp_tags
-        ON (
-            lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
+        INNER JOIN cte_unnested_ocp_tags
+            ON (
+                lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
                 AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.pod_value)
-        )
-        OR (
-            lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
+            )
+            OR (
+                lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
                 AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
-        )
-    INNER JOIN postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS atk
+            )
+        INNER JOIN postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS atk
         ON aws.key = atk.key
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
         ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
