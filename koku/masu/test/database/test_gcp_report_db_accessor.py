@@ -164,7 +164,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
             self.assertEqual(cost_entries.count(), 0)
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
@@ -258,7 +258,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_presto(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
@@ -289,7 +289,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_delete.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_presto_resource_names(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
@@ -328,7 +328,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
                         self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
         self,
         mock_presto,
@@ -379,7 +379,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertGreater(len(matched_tags), 0)
         self.assertIsInstance(matched_tags[0], dict)
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         dh = DateHelper()
@@ -397,7 +397,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
@@ -405,13 +405,13 @@ class GCPReportDBAccessorTest(MasuTestCase):
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_back_populate_ocp_infrastructure_costs(self, mock_presto):
         """Test that ocp on gcp back populate runs"""
         dh = DateHelper()
@@ -462,7 +462,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             records = GCPTopology.objects.all()
             self.assertEqual(records.count(), len(mock_topo_record))
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_gcp_topology_trino(self, mock_trino):
         """Test that we call Trino to get topology."""
         dh = DateHelper()
@@ -502,7 +502,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_presto.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.table_exists_trino")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_on_gcp_hive_partition_by_day(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}

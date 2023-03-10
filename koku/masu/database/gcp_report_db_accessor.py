@@ -157,7 +157,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_id": bill_id,
         }
 
-        self._execute_presto_raw_sql_query(
+        self._execute_trino_raw_sql_query(
             summary_sql, sql_params=summary_sql_params, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
         )
 
@@ -329,7 +329,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
         """
 
-        return self._execute_presto_raw_sql_query(sql, log_ref="get_gcp_topology_trino")
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_gcp_topology_trino")
 
     def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
         """Overwrite the parent class to include invoice month for gcp.
@@ -431,7 +431,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         LOG.info("Running OCP on GCP SQL with params (BY NODE):")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_cost_daily_summary_presto(
         self,
@@ -508,7 +508,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on GCP SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
@@ -551,7 +551,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(
+                        self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -596,7 +596,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": tuple(str(day.day) for day in days),
         }
 
-        results = self._execute_presto_raw_sql_query(
+        results = self._execute_trino_raw_sql_query(
             sql, sql_params=sql_params, log_ref="reporting_ocpgcp_matched_tags.sql"
         )
         return [json.loads(result[0]) for result in results]

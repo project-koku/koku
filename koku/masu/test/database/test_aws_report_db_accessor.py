@@ -500,7 +500,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
@@ -521,7 +521,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_presto.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_aws_cost_daily_summary_presto(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
@@ -550,7 +550,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_presto.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
@@ -705,7 +705,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         start_date = self.dh.this_month_start.date()
@@ -724,7 +724,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
@@ -738,7 +738,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
@@ -746,7 +746,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()

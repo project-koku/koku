@@ -113,7 +113,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
         }
 
-        self._execute_presto_raw_sql_query(
+        self._execute_trino_raw_sql_query(
             summary_sql, sql_params=summary_sql_params, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
         )
 
@@ -263,7 +263,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(
+                        self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -323,7 +323,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on Azure SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
@@ -406,7 +406,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": tuple(str(day.day) for day in days),
         }
 
-        results = self._execute_presto_raw_sql_query(
+        results = self._execute_trino_raw_sql_query(
             sql, sql_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
         )
 

@@ -659,7 +659,7 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertEqual(self.accessor._table_map, OCP_REPORT_TABLE_MAP)
         self.assertEqual(self.accessor._aws_table_map, AWS_CUR_TABLE_MAP)
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         dh = DateHelper()
@@ -669,7 +669,7 @@ select * from eek where val1 in {{report_period_id}} ;
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_presto.assert_called()
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_presto):
         """Test that Trino is used to find matched resource names."""
         dh = DateHelper()
@@ -687,7 +687,7 @@ select * from eek where val1 in {{report_period_id}} ;
                 mock_presto.assert_called()
                 self.assertIn(expected_log, logger.output)
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_presto):
         """Test that Trino is used to find matched resource names."""
         dh = DateHelper()
@@ -863,7 +863,7 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertEqual(count, 0)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_hive_partition_by_day(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
@@ -876,7 +876,7 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_hive_partitions_by_source_success(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         result = self.accessor.delete_hive_partitions_by_source("table", "partition_column", self.ocp_provider_uuid)
@@ -884,7 +884,7 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertTrue(result)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
@@ -899,7 +899,7 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_max_min_timestamp_from_parquet(self, mock_query):
         """Get the max and min timestamps for parquet data given a date range"""
         start_date, end_date = datetime(2022, 3, 1), datetime(2022, 3, 30)

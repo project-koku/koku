@@ -283,7 +283,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "resource_level": resource_level,
                 }
 
-                results = self._execute_presto_raw_sql_query(
+                results = self._execute_trino_raw_sql_query(
                     infra_sql,
                     sql_params=infra_sql_params,
                     log_ref="reporting_ocpinfrastructure_provider_map.sql",
@@ -323,7 +323,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         AND day = '{day}'
                         """
-                        self._execute_presto_raw_sql_query(
+                        self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -351,7 +351,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     DELETE FROM hive.{self.schema}.{table}
                     WHERE {partition_column} = '{provider_uuid}'
                     """
-                    self._execute_presto_raw_sql_query(
+                    self._execute_trino_raw_sql_query(
                         sql,
                         log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
                         attempts_left=(retries - 1) - i,
@@ -421,7 +421,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_exists": storage_exists,
         }
 
-        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
@@ -1005,7 +1005,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 ocp.resource_id
         """  # noqa: E501
 
-        return self._execute_presto_raw_sql_query(sql, log_ref="get_nodes_presto")
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_nodes_presto")
 
     def get_pvcs_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1020,7 +1020,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        return self._execute_presto_raw_sql_query(sql, log_ref="get_pvcs_presto")
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_pvcs_presto")
 
     def get_projects_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1034,7 +1034,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        projects = self._execute_presto_raw_sql_query(sql, log_ref="get_projects_presto")
+        projects = self._execute_trino_raw_sql_query(sql, log_ref="get_projects_presto")
 
         return [project[0] for project in projects]
 
@@ -1160,7 +1160,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        timestamps = self._execute_presto_raw_sql_query(sql, log_ref="get_max_min_timestamp_from_parquet")
+        timestamps = self._execute_trino_raw_sql_query(sql, log_ref="get_max_min_timestamp_from_parquet")
         minim, maxim = timestamps[0]
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)

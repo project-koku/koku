@@ -114,7 +114,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
             cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
             self.assertEqual(cost_entries.count(), 0)
 
-    @patch("masu.database.oci_report_db_accessor.OCIReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.oci_report_db_accessor.OCIReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()

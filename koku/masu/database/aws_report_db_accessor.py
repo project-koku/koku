@@ -152,7 +152,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_id": bill_id,
         }
 
-        self._execute_presto_raw_sql_query(
+        self._execute_trino_raw_sql_query(
             summary_sql, sql_params=summary_sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
         )
 
@@ -210,7 +210,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(
+                        self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -279,7 +279,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on AWS SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
@@ -430,7 +430,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": tuple(str(day.day) for day in days),
         }
 
-        results = self._execute_presto_raw_sql_query(
+        results = self._execute_trino_raw_sql_query(
             sql, sql_params=sql_params, log_ref="reporting_ocpaws_matched_tags.sql"
         )
 
