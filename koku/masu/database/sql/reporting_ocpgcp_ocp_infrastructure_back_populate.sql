@@ -1,4 +1,3 @@
-
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -89,7 +88,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             AND DATE_TRUNC('month', ocp_gcp.usage_start)::date = date(rp.report_period_start)
     WHERE ocp_gcp.usage_start >= {{start_date}}::date
         AND ocp_gcp.usage_start <= {{end_date}}::date
-        AND ocp_gcp.report_period_id = {{report_period_id | sqlsafe}}
+        AND ocp_gcp.report_period_id = {{report_period_id}}
     GROUP BY ocp_gcp.report_period_id,
         ocp_gcp.usage_start,
         ocp_gcp.cluster_id,
