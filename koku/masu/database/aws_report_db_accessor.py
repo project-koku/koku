@@ -442,7 +442,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         match_sql = f"""
             SELECT COUNT(*) FROM {self.schema}.reporting_awsenabledtagkeys as aws
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key;
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key
+                WHERE aws.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)

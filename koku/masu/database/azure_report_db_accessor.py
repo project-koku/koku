@@ -433,7 +433,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         match_sql = f"""
             SELECT COUNT(*) FROM {self.schema}.reporting_azureenabledtagkeys as azure
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key;
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key
+                WHERE azure.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
