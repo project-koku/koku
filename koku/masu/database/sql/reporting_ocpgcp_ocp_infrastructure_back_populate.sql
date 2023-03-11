@@ -39,7 +39,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolumeclaim_usage_gigabyte_months,
     raw_currency
 )
-    SELECT uuid() as uuid,
+    SELECT uuid_generate_v4() as uuid,
         ocp_gcp.report_period_id,
         ocp_gcp.usage_start,
         ocp_gcp.usage_start,
