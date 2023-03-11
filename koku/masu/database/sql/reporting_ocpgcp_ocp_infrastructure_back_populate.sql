@@ -1,5 +1,5 @@
 
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     usage_start,
@@ -39,7 +39,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolumeclaim_usage_gigabyte_months,
     raw_currency
 )
-    SELECT uuid() as uuid,
+    SELECT uuid_generate_v4() as uuid,
         ocp_gcp.report_period_id,
         ocp_gcp.usage_start,
         ocp_gcp.usage_start,
@@ -83,8 +83,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months,
         max(ocp_gcp.currency) as raw_currency
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS ocp_gcp
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+    FROM {{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS ocp_gcp
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_gcp.cluster_id = rp.cluster_id
             AND DATE_TRUNC('month', ocp_gcp.usage_start)::date  = date(rp.report_period_start)
     WHERE ocp_gcp.usage_start >= {{start_date}}::date
