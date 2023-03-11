@@ -54,18 +54,18 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
         ocp_gcp.resource_id,
         CASE WHEN ocp_gcp.data_source = 'Pod'
             THEN ocp_gcp.pod_labels
-            ELSE CAST('{}' AS JSON)
+            ELSE '{}'::jsonb
         END as pod_labels,
         CASE WHEN ocp_gcp.data_source = 'Storage'
             THEN ocp_gcp.pod_labels
-            ELSE CAST('{}' AS JSON)
+            ELSE '{}'::jsonb
         END as volume_labels,
         max(ocp_gcp.cost_category_id) as cost_category_id,
         rp.provider_id as source_uuid,
         sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
         sum(ocp_gcp.unblended_cost + ocp_gcp.project_markup_cost + ocp_gcp.pod_credit) AS infrastructure_project_raw_cost,
-        CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as infrastructure_usage_cost,
-        CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as supplementary_usage_cost,
+        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
+        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,
         0 as pod_request_cpu_core_hours,
         0 as pod_limit_cpu_core_hours,
@@ -86,9 +86,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS ocp_gcp
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_gcp.cluster_id = rp.cluster_id
-            AND DATE_TRUNC('month', ocp_gcp.usage_start)  = date(rp.report_period_start)
-    WHERE ocp_gcp.usage_start >= date('{{start_date | sqlsafe}}')
-        AND ocp_gcp.usage_start <= date('{{end_date | sqlsafe}}')
+            AND DATE_TRUNC('month', ocp_gcp.usage_start)::date = date(rp.report_period_start)
+    WHERE ocp_gcp.usage_start >= {{start_date}}::date
+        AND ocp_gcp.usage_start <= {{end_date}}::date
         AND ocp_gcp.report_period_id = {{report_period_id | sqlsafe}}
     GROUP BY ocp_gcp.report_period_id,
         ocp_gcp.usage_start,
