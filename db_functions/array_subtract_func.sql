@@ -9,12 +9,8 @@ RETURNS anyarray AS
 $$
 begin
     execute 'select array(select unnest($1) except select unnest($2))'
-                     using minuend, subtrahend
+      using minuend, subtrahend
        into difference;
 end;
-
-
-
-
 $$ LANGUAGE plpgsql RETURNS NULL ON NULL INPUT
 ;

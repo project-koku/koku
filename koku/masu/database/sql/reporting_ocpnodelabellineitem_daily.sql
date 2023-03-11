@@ -54,6 +54,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpnodelabellineitem_daily (
     FROM reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}}
 ;
 
-    -- no need to wait on commit
-    TRUNCATE TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}};
-    DROP TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}};
+-- no need to wait on commit
+TRUNCATE TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}};

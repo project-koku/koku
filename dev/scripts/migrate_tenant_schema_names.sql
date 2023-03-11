@@ -1,6 +1,6 @@
 SELECT
-id,
-schema_name
+    id,
+    schema_name
 FROM public.api_tenant WHERE schema_name LIKE 'acct%'
 ;
 
@@ -32,7 +32,7 @@ $$ LANGUAGE plpgsql;
 SELECT tenant_schema_rename();
 
 SELECT
-id,
-schema_name
+    id,
+    schema_name
 FROM public.api_tenant WHERE schema_name LIKE 'acct%'
 ;

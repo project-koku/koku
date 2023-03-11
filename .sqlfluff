@@ -6,7 +6,7 @@ runaway_limit = 10
 processes = -1
 large_file_skip_byte_limit = 40000
 warning = L052
-exclude_rules = L003, L016, L026, L044
+exclude_rules = L016, L026, L044
 
 [sqlfluff:indentation]
 indent_unit = space
