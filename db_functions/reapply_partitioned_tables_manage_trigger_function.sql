@@ -3,7 +3,7 @@
 -- SPDX-License-Identifier: Apache-2.0
 --
 
-CREATE OR REPLACE FUNCTION public.trfn_manage_date_range_partition() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public . trfn_manage_date_range_partition() RETURNS TRIGGER AS $$
 DECLARE
     alter_stmt text = '';
     action_stmt text = '';

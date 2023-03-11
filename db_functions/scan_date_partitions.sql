@@ -8,8 +8,8 @@
 --   check_col (text)        : Name of the column that holds the date values to check
 --   schema (text)           : Schema of the partitioned table
 --   parttioned_table (text) : Name of the partitioned table within the schema
-DROP FUNCTION IF EXISTS public.scan_for_date_partitions(text, text, text, text);
-CREATE OR REPLACE FUNCTION public.scan_for_date_partitions(
+DROP FUNCTION IF EXISTS public . scan_for_date_partitions(text, text, text, text);
+CREATE OR REPLACE FUNCTION public . scan_for_date_partitions(
     check_table text,
     check_col text,
     schema text,

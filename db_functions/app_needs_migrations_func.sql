@@ -7,9 +7,9 @@
 -- leaf_migrations (jsonb) = leaf migration names by app from the django code
 --    Ex: '{<django-app>: <latest-leaf-migration-name>}'
 -- Set _verbose to true to see notices raised during execution
-DROP FUNCTION IF EXISTS public.migrations_complete(jsonb, boolean);
+DROP FUNCTION IF EXISTS public . migrations_complete(jsonb, boolean);
 
-CREATE OR REPLACE FUNCTION public.migrations_complete(leaf_migrations jsonb, _verbose boolean DEFAULT FALSE)
+CREATE OR REPLACE FUNCTION public . migrations_complete(leaf_migrations jsonb, _verbose boolean DEFAULT FALSE)
 RETURNS boolean AS $BODY$
 DECLARE
     schema_rec record;

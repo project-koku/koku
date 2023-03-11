@@ -4,8 +4,8 @@
 --
 
 -- This **WILL** drop the associated trigger!
-DROP FUNCTION IF EXISTS public.trfn_partition_manager() CASCADE;
-CREATE OR REPLACE FUNCTION public.trfn_partition_manager() RETURNS TRIGGER AS $$
+DROP FUNCTION IF EXISTS public . trfn_partition_manager() CASCADE;
+CREATE OR REPLACE FUNCTION public . trfn_partition_manager() RETURNS TRIGGER AS $$
 DECLARE
     item text = '';
     n_partition_type text = null;

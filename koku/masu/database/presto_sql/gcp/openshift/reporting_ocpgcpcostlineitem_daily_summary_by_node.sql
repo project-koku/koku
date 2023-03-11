@@ -560,4 +560,4 @@ WHERE gcp_source = '{{gcp_source_uuid | sqlsafe}}'
     AND day IN ({{days}})
 ;
 
-    DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp;
+DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp;

@@ -9,5 +9,5 @@ CREATE TRIGGER tr_manage_date_range_partition
     OR DELETE
     OR UPDATE OF partition_parameters
     ON partitioned_tables
-   FOR EACH ROW EXECUTE FUNCTION public.trfn_manage_date_range_partition()
+   FOR EACH ROW EXECUTE FUNCTION public . trfn_manage_date_range_partition()
 ;

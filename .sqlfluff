@@ -9,43 +9,39 @@ warning = L052
 exclude_rules = L003, L016, L026, L044
 
 [sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 4
 # See https://docs.sqlfluff.com/en/stable/layout.html#configuring-indent-locations
 indented_joins = False
 indented_ctes = True
 indented_using_on = False
 indented_on_contents = True
 template_blocks_indent = True
+allow_implicit_indents = False
 
 [sqlfluff:layout:type:statement_terminator]
 spacing_before = touch
 line_position = alone:strict
 
-[sqlfluff:rules]
-tab_space_size = 4
-
-[sqlfluff:rules:L003]
-hanging_indents = False
-
-[sqlfluff:rules:L010]
+[sqlfluff:rules:capitalisation.keywords]
 # Keywords
 capitalisation_policy = upper
 
-[sqlfluff:rules:L011]
-aliasing = explicit
-
-[sqlfluff:rules:L014]
+[sqlfluff:rules:capitalisation.identifiers]
 # Unquoted identifiers
 extended_capitalisation_policy = lower
 
-[sqlfluff:rules:L040]
-# Unquoted identifiers
+[sqlfluff:rules:capitalisation.literals]
+# Null & Boolean Literals
 capitalisation_policy = upper
 
-[sqlfluff:rules:L052]
+[sqlfluff:rules:ambiguous.column_references]
+# GROUP BY/ORDER BY column references
+group_by_and_order_by_style = explicit
+
+
+
+[sqlfluff:rules:convention.terminator]
 # Semi-colon formatting approach
 multiline_newline = True
 require_final_semicolon = True
-
-[sqlfluff:rules:L054]
-# GROUP BY/ORDER BY column references
-group_by_and_order_by_style = explicit

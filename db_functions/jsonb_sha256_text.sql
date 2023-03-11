@@ -3,7 +3,7 @@
 -- SPDX-License-Identifier: Apache-2.0
 --
 
-CREATE OR REPLACE FUNCTION public.jsonb_sha256_text(j_param jsonb, OUT hash_val text)
+CREATE OR REPLACE FUNCTION public . jsonb_sha256_text(j_param jsonb, OUT hash_val text)
 RETURNS text
 AS $$
 begin

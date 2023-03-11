@@ -9,5 +9,5 @@ CREATE TRIGGER tr_partition_manager
     OR DELETE
     OR UPDATE
     ON partitioned_tables
-   FOR EACH ROW EXECUTE FUNCTION public.trfn_partition_manager()
+   FOR EACH ROW EXECUTE FUNCTION public . trfn_partition_manager()
 ;
