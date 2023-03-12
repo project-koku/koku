@@ -353,7 +353,12 @@ class AzureReportDBAccessorTest(MasuTestCase):
         end_date = self.dh.this_month_end.date()
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.azure_provider_uuid, tuple(self.ocp_on_azure_ocp_provider.uuid), start_date, end_date
+            self.azure_provider_uuid,
+            tuple(
+                self.ocp_on_azure_ocp_provider.uuid,
+            ),
+            start_date,
+            end_date,
         )
         mock_presto.assert_called()
 
