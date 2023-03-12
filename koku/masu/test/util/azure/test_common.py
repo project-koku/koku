@@ -13,7 +13,7 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_json_converter
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import match_openshift_resources_and_labels
-from reporting.provider.azure.models import PRESTO_COLUMNS
+from reporting.provider.azure.models import TRINO_COLUMNS
 
 
 class TestAzureUtils(MasuTestCase):
@@ -60,7 +60,7 @@ class TestAzureUtils(MasuTestCase):
         columns = list(result)
 
         expected_columns = sorted(
-            col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in PRESTO_COLUMNS
+            col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_COLUMNS
         )
 
         self.assertEqual(columns, expected_columns)

@@ -13,8 +13,8 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
-from reporting.provider.azure.models import PRESTO_OCP_ON_AZURE_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -39,9 +39,9 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             "boolean_columns": boolean_columns,
         }
         if "openshift" in s3_path:
-            table_name = PRESTO_OCP_ON_AZURE_DAILY_TABLE
+            table_name = TRINO_OCP_ON_AZURE_DAILY_TABLE
         else:
-            table_name = PRESTO_LINE_ITEM_TABLE
+            table_name = TRINO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
             account=account,

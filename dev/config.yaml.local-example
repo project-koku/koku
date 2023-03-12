@@ -34,6 +34,8 @@ apps:
         WORKER_HCS_MIN_REPLICAS: 1
         PRESTO_PORT: 8000
         PRESTO_HOST: presto-coordinator
+        TRINO_PORT: 8000
+        TRINO_HOST: trino-coordinator
         S3_BUCKET_NAME: koku-eph-s3
         AWS_ACCESS_KEY_ID_EPH: <insert-base64-encoded-value>
         AWS_SECRET_ACCESS_KEY_EPH: <insert-base64-encoded-value>

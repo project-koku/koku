@@ -11,14 +11,14 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
-PRESTO_LINE_ITEM_TABLE_MAP = {
+TRINO_LINE_ITEM_TABLE_MAP = {
     "pod_usage": "openshift_pod_usage_line_items",
     "storage_usage": "openshift_storage_usage_line_items",
     "node_labels": "openshift_node_labels_line_items",
     "namespace_labels": "openshift_namespace_labels_line_items",
 }
 
-PRESTO_LINE_ITEM_TABLE_DAILY_MAP = {
+TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
     "pod_usage": "openshift_pod_usage_line_items_daily",
     "storage_usage": "openshift_storage_usage_line_items_daily",
     "node_labels": "openshift_node_labels_line_items_daily",

@@ -124,7 +124,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 operation="DELETE/INSERT",
             )
 
-    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -135,7 +135,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_awscostentrylineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
@@ -151,7 +151,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
-        self._execute_presto_raw_sql_query(
+        self._execute_trino_raw_sql_query(
             self.schema, summary_sql, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
         )
 
@@ -209,7 +209,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(
+                        self._execute_trino_raw_sql_query(
                             self.schema,
                             sql,
                             log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day}",
@@ -222,7 +222,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         else:
                             raise err
 
-    def populate_ocp_on_aws_cost_daily_summary_presto(
+    def populate_ocp_on_aws_cost_daily_summary_trino(
         self,
         start_date,
         end_date,
@@ -259,7 +259,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "schema": self.schema,
@@ -278,7 +278,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on AWS SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
@@ -411,7 +411,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags_trino(self, aws_source_uuid, ocp_source_uuids, start_date, end_date):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = DateHelper().list_days(start_date, end_date)
@@ -429,7 +429,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-        results = self._execute_presto_raw_sql_query(
+        results = self._execute_trino_raw_sql_query(
             self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpaws_matched_tags.sql"
         )
 
@@ -441,7 +441,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         match_sql = f"""
             SELECT COUNT(*) FROM {self.schema}.reporting_awsenabledtagkeys as aws
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key;
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key
+                WHERE aws.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
