@@ -112,7 +112,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid, start, end, filters
                 )
-                accessor.populate_line_item_daily_summary_table_presto(
+                accessor.populate_line_item_daily_summary_table_trino(
                     start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month_date
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)
