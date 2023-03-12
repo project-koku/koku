@@ -14,6 +14,15 @@ try:
 except ValueError:
     PRESTO_PORT = 8080
 
+TRINO_HOST = os.environ.get("TRINO_HOST", "localhost")
+TRINO_USER = os.environ.get("TRINO_USER", "admin")
+TRINO_CATALOG = os.environ.get("TRINO_CATALOG", "hive")
+try:
+    TRINO_PORT = int(os.environ.get("TRINO_PORT", "8080"))
+except ValueError:
+    TRINO_PORT = 8080
+
+# After the TRINO_* params land in app-interface, these CONNECT_PARAMS can be switched to TRINO_*
 CONNECT_PARAMS = {
     "host": PRESTO_HOST,
     "port": PRESTO_PORT,

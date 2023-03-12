@@ -15,16 +15,16 @@ from hcs.csv_file_handler import CSVFileHandler
 from hcs.exceptions import HCSTableNotFoundError
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE as GCP_PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
 HCS_TABLE_MAP = {
-    Provider.PROVIDER_AWS: AWS_PRESTO_LINE_ITEM_DAILY_TABLE,
-    Provider.PROVIDER_AZURE: AZURE_PRESTO_LINE_ITEM_DAILY_TABLE,
-    Provider.PROVIDER_GCP: GCP_PRESTO_LINE_ITEM_DAILY_TABLE,
+    Provider.PROVIDER_AWS: AWS_TRINO_LINE_ITEM_DAILY_TABLE,
+    Provider.PROVIDER_AZURE: AZURE_TRINO_LINE_ITEM_DAILY_TABLE,
+    Provider.PROVIDER_GCP: GCP_TRINO_LINE_ITEM_DAILY_TABLE,
 }
 
 
@@ -85,7 +85,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
 
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-            data, description = self._execute_presto_raw_sql_query_with_description(
+            data, description = self._execute_trino_raw_sql_query_with_description(
                 self.schema, sql, bind_params=sql_params
             )
             # The format for the description is:

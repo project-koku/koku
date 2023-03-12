@@ -25,12 +25,12 @@ class TrinoStatementExecError(Exception):
 
 def _type_transform(v):
     """
-    Simple transform to change various Python types to a PrestoSQL token for
+    Simple transform to change various Python types to a TrinoSQL token for
     insert into a statement. No casts are emitted.
     Params:
         v (various) : Query parameter value
     Returns:
-        str : Proper string representation of value for a PrestoSQL query.
+        str : Proper string representation of value for a TrinoSQL query.
     """
     if v is None:
         # convert None to keyword null
@@ -49,9 +49,9 @@ def _type_transform(v):
 
 def _has_params(sql):
     """
-    Detect parameter substitution tokens in a PrestoSQL statement
+    Detect parameter substitution tokens in a TrinoSQL statement
     Params:
-        sql (str) : PrestoSQL statement
+        sql (str) : TrinoSQL statement
     Returns:
         bool : True if substitution tokens found else False
     """
@@ -93,10 +93,8 @@ def connect(**connect_args):
     Returns:
         trino.dbapi.Connection : connection to trino if successful
     """
-    presto_connect_args = {
-        "host": (
-            connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "presto"
-        ),
+    trino_connect_args = {
+        "host": (connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "trino"),
         "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or os.environ.get("PRESTO_PORT") or 8080),
         "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or os.environ.get("PRESTO_USER") or "admin"),
         "catalog": (
@@ -113,46 +111,45 @@ def connect(**connect_args):
         ),
         "schema": connect_args["schema"],
     }
-    conn = trino.dbapi.connect(**presto_connect_args)
-    return conn
+    return trino.dbapi.connect(**trino_connect_args)
 
 
-def _fetchall(presto_cur):
+def _fetchall(trino_cur):
     """
     Wrapper around the trino.dbapi.Cursor.fetchall() method
     Params:
-        presto_cur (presto.dbapi.Cursor) : Presto cursor that has already called the execute method
+        trino_cur (trino.dbapi.Cursor) : Trino cursor that has already called the execute method
     Returns:
         list : Results of cursor execution and results fetch
     """
-    return presto_cur.fetchall()
+    return trino_cur.fetchall()
 
 
-def _cursor(presto_conn):
+def _cursor(trino_conn):
     """
     Wrapper around the trino.dbapi.Connection.cursor() method
     Params:
-        presto_conn (trino.dbapi.Connection) Active presto connection
+        trino_conn (trino.dbapi.Connection) Active trino connection
     Returns:
         trino.dbapi.Cursor : Cursor for the connection
     """
-    return presto_conn.cursor()
+    return trino_conn.cursor()
 
 
-def _execute(presto_cur, presto_stmt):
+def _execute(trino_cur, trino_stmt):
     """
     Wrapper around the trino.dbapi.Cursor.execute() method
     Params:
-        presto_cur (trino.dbapi.Cursor) : presto connection cursor
-        presto_stmt (str) : presto SQL statement
+        trino_cur (trino.dbapi.Cursor) : trino connection cursor
+        trino_stmt (str) : trino SQL statement
     Returns:
         trino.dbapi.Cursor : Cursor after execute method called
     """
-    presto_cur.execute(presto_stmt)
-    return presto_cur
+    trino_cur.execute(trino_stmt)
+    return trino_cur
 
 
-def execute(presto_conn, sql, params=None):
+def execute(trino_conn, sql, params=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -160,7 +157,7 @@ def execute(presto_conn, sql, params=None):
     then it should be a callable taking two positional arguments and returning a 2-element tuple:
         pre_process(sql, parameters) -> (processed_sql, processed_parameters)
     Parameters:
-        presto_conn (trino.dbapi.Connection) : Connection to presto
+        trino_conn (trino.dbapi.Connection) : Connection to trino
         sql (str) : Buffer of one or more semicolon-terminated SQL statements.
         params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
     Returns:
@@ -169,19 +166,19 @@ def execute(presto_conn, sql, params=None):
     # trino.Cursor.execute does not use parameters.
     # The sql_mogrify function will do any needed parameter substitution
     # and only returns the SQL with parameters formatted inline.
-    presto_stmt = sql_mogrify(sql, params)
-    presto_cur = _cursor(presto_conn)
-    presto_cur = _execute(presto_cur, presto_stmt)
-    results = _fetchall(presto_cur)
-    if presto_cur.description is None:
+    trino_stmt = sql_mogrify(sql, params)
+    trino_cur = _cursor(trino_conn)
+    trino_cur = _execute(trino_cur, trino_stmt)
+    results = _fetchall(trino_cur)
+    if trino_cur.description is None:
         columns = []
     else:
-        columns = [col[0] for col in presto_cur.description]
+        columns = [col[0] for col in trino_cur.description]
 
     return results, columns
 
 
-def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
+def executescript(trino_conn, sqlscript, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -189,7 +186,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
     then it should be a callable taking two positional arguments and returning a 2-element tuple:
         pre_process(sql, parameters) -> (processed_sql, processed_parameters)
     Parameters:
-        presto_conn (trino.dbapi.Connection) : Connection to presto
+        trino_conn (trino.dbapi.Connection) : Connection to trino
         sqlscript (str) : Buffer of one or more semicolon-terminated SQL statements.
         params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
         preprocessor (Callable, None) : Callable taking two args and returning a 2-element tuple
@@ -204,7 +201,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
         stmt_count = stmt_count + 1
         p_stmt = str(p_stmt).strip()
         if p_stmt:
-            # A semicolon statement terminator is invalid in the Presto dbapi interface
+            # A semicolon statement terminator is invalid in the Trino dbapi interface
             if p_stmt.endswith(";"):
                 p_stmt = p_stmt[:-1]
 
@@ -227,7 +224,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 stmt, s_params = p_stmt, params
 
             try:
-                results, _ = execute(presto_conn, stmt, params=s_params)
+                results, _ = execute(trino_conn, stmt, params=s_params)
             except Exception as e:
                 exc_msg = (
                     f"Trino Query Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}"
