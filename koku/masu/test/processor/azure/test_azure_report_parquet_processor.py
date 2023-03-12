@@ -10,8 +10,8 @@ from masu.processor.azure.azure_report_parquet_processor import AzureReportParqu
 from masu.test import MasuTestCase
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
-from reporting.provider.azure.models import PRESTO_OCP_ON_AZURE_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 
 
 class AzureReportParquetProcessorTest(MasuTestCase):
@@ -32,13 +32,13 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
     def test_azure_table_name(self):
         """Test the Azure table name generation."""
-        self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+        self.assertEqual(self.processor._table_name, TRINO_LINE_ITEM_TABLE)
 
         s3_path = "/s3/path/openshift/daily"
         processor = AzureReportParquetProcessor(
             self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
         )
-        self.assertEqual(processor._table_name, PRESTO_OCP_ON_AZURE_DAILY_TABLE)
+        self.assertEqual(processor._table_name, TRINO_OCP_ON_AZURE_DAILY_TABLE)
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""
