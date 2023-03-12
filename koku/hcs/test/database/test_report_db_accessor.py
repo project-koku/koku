@@ -51,7 +51,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
             self.assertRaises(FileNotFoundError)
 
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase")
-    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query_with_description")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query_with_description")
     def test_no_data_hcs_customer(self, mock_dba_query, mock_dba):
         """Test no data found for specified date"""
         mock_dba_query.return_value = (MagicMock(), MagicMock())
@@ -71,7 +71,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
     @patch("hcs.csv_file_handler.CSVFileHandler")
     @patch("hcs.csv_file_handler.CSVFileHandler.write_csv_to_s3")
-    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query_with_description")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query_with_description")
     def test_data_hcs_customer(self, mock_dba_query, mock_fh_writer, mock_fh):
         """Test data found for specified date"""
         mock_dba_query.return_value = (MagicMock(), MagicMock())
