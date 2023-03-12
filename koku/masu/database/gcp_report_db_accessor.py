@@ -641,7 +641,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         match_sql = f"""
             SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key
+                WHERE gcp.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
