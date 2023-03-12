@@ -351,12 +351,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that Trino is used to find matched tags."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
+        ocp_uuids = (self.ocp_on_azure_ocp_provider.uuid,)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
             self.azure_provider_uuid,
-            tuple(
-                self.ocp_on_azure_ocp_provider.uuid,
-            ),
+            ocp_uuids,
             start_date,
             end_date,
         )
