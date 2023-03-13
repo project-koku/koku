@@ -7,7 +7,6 @@ import json
 import logging
 import pkgutil
 import uuid
-from secrets import token_hex
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -262,7 +261,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "temp_table_hash": token_hex(8),
             "schema": self.schema,
             "start_date": start_date,
             "year": year,

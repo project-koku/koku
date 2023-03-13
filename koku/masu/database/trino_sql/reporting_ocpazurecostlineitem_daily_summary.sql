@@ -1,5 +1,5 @@
 -- First we'll store the data in a "temp" table to do our grouping against
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
 (
     azure_uuid varchar,
     cluster_id varchar,
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ;
 
 -- Directly resource_id matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} (
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
     cluster_alias,
@@ -198,7 +198,7 @@ SELECT azure.uuid as azure_uuid,
 ;
 
 -- Tag matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} (
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
     cluster_alias,
@@ -300,7 +300,7 @@ SELECT azure.uuid as azure_uuid,
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
-    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} AS pds
+    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
         ON azure.uuid = pds.azure_uuid
     WHERE azure.source = {{azure_source_uuid}}
         AND azure.year = {{year}}
@@ -354,7 +354,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
 WITH cte_rankings AS (
     SELECT pds.azure_uuid,
         count(*) as azure_uuid_count
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} AS pds
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
     GROUP BY azure_uuid
 )
 SELECT pds.azure_uuid,
@@ -411,7 +411,7 @@ SELECT pds.azure_uuid,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} AS pds
+FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.azure_uuid = r.azure_uuid
 WHERE pds.ocp_source = {{ocp_source_uuid}}
@@ -485,5 +485,6 @@ WHERE azure_source = {{azure_source_uuid}}
     AND day in {{days | inclause}}
 ;
 
-DROP TABLE hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}}
+DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+WHERE ocp_source = {{ocp_source_uuid}}
 ;

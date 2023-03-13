@@ -1,5 +1,5 @@
 -- First we'll store the data in a "temp" table to do our grouping against
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
 (
     aws_uuid varchar,
     cluster_id varchar,
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ;
 
 -- Direct resource_id matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} (
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
     aws_uuid,
     cluster_id,
     cluster_alias,
@@ -221,7 +221,7 @@ SELECT aws.uuid as aws_uuid,
 ;
 
 -- Tag matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} (
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
     aws_uuid,
     cluster_id,
     cluster_alias,
@@ -336,7 +336,7 @@ SELECT aws.uuid as aws_uuid,
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
-    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} AS pds
+    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
         ON aws.uuid = pds.aws_uuid
     WHERE aws.source = {{aws_source_uuid}}
         AND aws.year = {{year}}
@@ -396,7 +396,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
 WITH cte_rankings AS (
     SELECT pds.aws_uuid,
         count(*) as aws_uuid_count
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} AS pds
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
     GROUP BY aws_uuid
 )
 SELECT pds.aws_uuid,
@@ -473,7 +473,7 @@ SELECT pds.aws_uuid,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}} AS pds
+FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.aws_uuid = r.aws_uuid
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
@@ -565,5 +565,6 @@ WHERE aws_source = {{aws_source_uuid}}
     AND day IN {{days | inclause}}
 ;
 
-DROP TABLE hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp_{{temp_table_hash | sqlsafe}}
+DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
+WHERE ocp_source = {{ocp_source_uuid}}
 ;
