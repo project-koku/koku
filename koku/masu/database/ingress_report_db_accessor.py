@@ -45,7 +45,21 @@ class IngressReportDBAccessor(KokuDBAccess):
                 ingress_report.save()
             msg = (
                 f"Marking ingress report {ingress_report.uuid} "
-                f"\nfor provider {ingress_report.source} "
+                f"\nfor source {ingress_report.source} "
                 f"\ncompleted_datetime: {ingress_report.completed_timestamp}."
+            )
+            self.update_ingress_report_status(ingress_report_uuid, "Complete")
+            LOG.info(msg)
+
+    def update_ingress_report_status(self, ingress_report_uuid, status):
+        """Update the status field for ingress reports."""
+        if ingress_report_uuid:
+            ingress_report = self._get_db_obj_query().filter(uuid=ingress_report_uuid).first()
+            ingress_report.status = status
+            ingress_report.save()
+            msg = (
+                f"Updating ingress report {ingress_report.uuid} "
+                f"\nfor source {ingress_report.source} "
+                f"\nStatus: {ingress_report.status}"
             )
             LOG.info(msg)
