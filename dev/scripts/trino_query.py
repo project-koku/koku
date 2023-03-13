@@ -8,6 +8,10 @@ PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
 PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
 PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
 PRESTO_SCHEMA = os.environ.get("PRESTO_SCHEMA", "default")
+TRINO_HOST = os.environ.get("TRINO_HOST", "localhost")
+TRINO_USER = os.environ.get("TRINO_USER", "admin")
+TRINO_CATALOG = os.environ.get("TRINO_CATALOG", "hive")
+TRINO_SCHEMA = os.environ.get("TRINO_SCHEMA", "default")
 
 parquet_dir = sys.argv[1]
 
@@ -69,12 +73,12 @@ conn.close()
 
 schema_conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
 schema_cur = conn.cursor()
-print("Presto table create SQL:")
+print("Trino table create SQL:")
 print(sql)
 schema_cur.execute(sql)
 rows = schema_cur.fetchall()
 
-print("\nPresto Line Item Example Query:")
+print("\nTrino Line Item Example Query:")
 schema_cur.execute(f"SELECT * FROM {table_name} LIMIT 3")
 rows = schema_cur.fetchall()
 for row in rows:

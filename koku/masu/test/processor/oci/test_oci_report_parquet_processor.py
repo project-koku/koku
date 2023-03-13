@@ -13,8 +13,8 @@ from masu.test import MasuTestCase
 from reporting.models import PartitionedTable
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE_MAP
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_TABLE_MAP
+from reporting.provider.oci.models import TRINO_LINE_ITEM_DAILY_TABLE_MAP
+from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
 
 
 class OCIReportProcessorParquetTest(MasuTestCase):
@@ -34,13 +34,13 @@ class OCIReportProcessorParquetTest(MasuTestCase):
 
     def test_oci_table_name(self):
         """Test the OCI table name generation."""
-        self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE_MAP["usage"])
+        self.assertEqual(self.processor._table_name, TRINO_LINE_ITEM_TABLE_MAP["usage"])
 
         s3_path = "/s3/path/daily"
         processor = OCIReportParquetProcessor(
             self.manifest_id, self.account, s3_path, self.oci_provider_uuid, self.local_parquet, "usage"
         )
-        self.assertEqual(processor._table_name, PRESTO_LINE_ITEM_DAILY_TABLE_MAP["usage"])
+        self.assertEqual(processor._table_name, TRINO_LINE_ITEM_DAILY_TABLE_MAP["usage"])
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""
