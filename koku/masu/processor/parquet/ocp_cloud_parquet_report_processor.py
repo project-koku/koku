@@ -211,22 +211,22 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
-        ocp_provider_uuids = self.get_ocp_provider_uuids()
-
-        # # Get OpenShift topology data
-        if ocp_provider_uuids != []:
-            with OCPReportDBAccessor(self.schema_name) as accessor:
-                cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
-                # Get matching tags
-                matched_tags = self.get_matched_tags(ocp_provider_uuids)
-                for i, daily_data_frame in enumerate(daily_data_frames):
-                    openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
-                        daily_data_frame, cluster_topology, matched_tags
-                    )
-
-                    if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                        self.create_partitioned_ocp_on_cloud_parquet(
-                            openshift_filtered_data_frame, parquet_base_filename, i
+        if daily_data_frames != []:
+            ocp_provider_uuids = self.get_ocp_provider_uuids()
+            # Get OpenShift topology data
+            if ocp_provider_uuids != []:
+                with OCPReportDBAccessor(self.schema_name) as accessor:
+                    cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
+                    # Get matching tags
+                    matched_tags = self.get_matched_tags(ocp_provider_uuids)
+                    for i, daily_data_frame in enumerate(daily_data_frames):
+                        openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
+                            daily_data_frame, cluster_topology, matched_tags
                         )
-                    else:
-                        self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, i)
+
+                        if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                            self.create_partitioned_ocp_on_cloud_parquet(
+                                openshift_filtered_data_frame, parquet_base_filename, i
+                            )
+                        else:
+                            self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, i)
