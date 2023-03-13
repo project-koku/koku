@@ -177,7 +177,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
     def test_populate_line_item_daily_summary_table_trino_preprocess_exception(
         self, mock_connect, mock_get_data, mock_table_exists
     ):

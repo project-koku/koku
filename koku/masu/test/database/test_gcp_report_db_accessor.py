@@ -412,7 +412,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
     def test_back_populate_ocp_infrastructure_costs_trino(self, mock_trino):
         """Test that ocp on gcp back populate runs"""
         dh = DateHelper()
