@@ -158,7 +158,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid,
-                    tuple(ocp_provider_uuids),
+                    ocp_provider_uuids,
                     self.start_date,
                     self.end_date,
                     invoice_month_date=self.invoice_month_date,

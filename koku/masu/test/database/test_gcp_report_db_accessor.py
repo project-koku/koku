@@ -413,7 +413,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertTrue(value)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
-    def test_back_populate_ocp_infrastructure_costs_trino(self, mock_trino):
+    def test_back_populate_ocp_infrastructure_costs(self, mock_sql_execute):
         """Test that ocp on gcp back populate runs"""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -421,7 +421,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         report_period_id = 4
         self.accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
 
-        mock_trino.assert_called()
+        mock_sql_execute.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
     def test_populate_gcp_topology_information_tables(self, mock_get_topo):

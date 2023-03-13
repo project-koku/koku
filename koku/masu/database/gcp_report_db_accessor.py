@@ -632,7 +632,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-        self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))
+        self._execute_raw_sql_query(table_name, sql, bind_params=sql_params)
 
     def check_for_matching_enabled_keys(self):
         """

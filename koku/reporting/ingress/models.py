@@ -18,18 +18,22 @@ class IngressReports(models.Model):
     completed_timestamp = models.DateTimeField(null=True)
     reports_list = ArrayField(models.CharField(max_length=256, blank=False))
     source = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    sources_id = models.IntegerField(null=True)
     bill_year = models.CharField(max_length=4, blank=False)
     bill_month = models.CharField(max_length=2, blank=False)
+    status = models.TextField(default="pending")
 
     def __str__(self):
         """Get the string representation."""
         return (
+            f"Sources ID: {self.sources_id}\n"
             f"Source UUID: {self.source}\n"
             f"Report location: {self.reports_list}\n"
             f"Report bill year: {self.bill_year}\n"
             f"Report bill month: {self.bill_month}\n"
             f"Created time: {self.created_timestamp}\n"
             f"Processing completed: {self.completed_timestamp}\n"
+            f"Processing status: {self.status}\n"
             f"Processing ID: {self.uuid}\n"
         )
 
