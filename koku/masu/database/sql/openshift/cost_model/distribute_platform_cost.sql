@@ -2,7 +2,7 @@ DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lid
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
-    AND lids.cost_model_rate_type = {{rate_type}}
+    AND lids.cost_model_rate_type = 'platform_distributed'
     AND source_uuid = {{source_uuid}}
 ;
 
@@ -119,7 +119,7 @@ SELECT
     NULL as volume_request_storage_gigabyte_months,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
-    {{rate_type}} as cost_model_rate_type,
+    'platform_distributed' as cost_model_rate_type,
     CASE
         WHEN {{distribution}} = 'cpu' AND (cost_category_id IS NULL OR max(cat.name) != 'Platform')
             THEN sum(pod_effective_usage_cpu_core_hours) / max(udps.usage_cpu_sum) * max(pc.platform_cost)::decimal

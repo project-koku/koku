@@ -22,7 +22,6 @@ from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 import koku.trino_database as trino_db
-from api.metrics.constants import DISTRIBUTE_PLATFORM_RATE_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
@@ -563,7 +562,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "schema": self.schema,
             "report_period_id": report_period_id,
-            "rate_type": DISTRIBUTE_PLATFORM_RATE_TYPE,
             "distribution": distribution,
             "source_uuid": provider_uuid,
         }
