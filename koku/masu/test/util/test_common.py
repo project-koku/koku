@@ -517,7 +517,6 @@ class CommonUtilTests(MasuTestCase):
         result = common_utils.strip_characters_from_column_name(bad_str)
         self.assertEqual(result, expected)
 
-    # @patch("masu.util.common.trino_db.execute")
     @patch("masu.util.common.trino_db.connect")
     def test_execute_trino_query(self, mock_connect):
         """Test that the trino query util executes."""

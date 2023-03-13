@@ -400,7 +400,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         return results, description
 
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
-        """Execute multiple related SQL queries in Presto."""
+        """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
         return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 

@@ -182,7 +182,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
-        """Test that we construst our SQL and query using Presto."""
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -203,7 +203,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_azure_cost_daily_summary_trino(self, mock_trino, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
