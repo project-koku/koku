@@ -281,9 +281,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_list = [str(day.day) for day in days]
+        days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_azure_hive_partition_by_day(
-            days_list, azure_provider_uuid, openshift_provider_uuid, year, month
+            days_tup, azure_provider_uuid, openshift_provider_uuid, year, month
         )
 
         # default to cpu distribution
@@ -302,7 +302,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "year": year,
             "month": month,
-            "days": tuple(str(day.day) for day in days),
+            "days": days_tup,
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,

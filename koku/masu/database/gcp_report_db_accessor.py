@@ -382,11 +382,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        # days_str = "','".join([str(day.day) for day in days])
-        days_list = [str(day.day) for day in days]
-        self.delete_ocp_on_gcp_hive_partition_by_day(
-            days_list, gcp_provider_uuid, openshift_provider_uuid, year, month
-        )
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
 
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
@@ -406,7 +403,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "year": year,
             "month": month,
-            "days": tuple(str(day.day) for day in days),
+            "days": days_tup,
             "end_date": end_date,
             "gcp_source_uuid": gcp_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
@@ -453,10 +450,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_list = [str(day.day) for day in days]
-        self.delete_ocp_on_gcp_hive_partition_by_day(
-            days_list, gcp_provider_uuid, openshift_provider_uuid, year, month
-        )
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
 
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
@@ -483,7 +478,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "year": year,
             "month": month,
-            "days": tuple(str(day.day) for day in days),
+            "days": days_tup,
             "end_date": end_date,
             "gcp_source_uuid": gcp_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,

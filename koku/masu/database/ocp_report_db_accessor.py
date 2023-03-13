@@ -399,11 +399,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
 
-        days = self.date_helper.list_days(start_date, end_date)
-        days_list = [str(day.day) for day in days]
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        self.delete_ocp_hive_partition_by_day(days_list, source, year, month)
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
+
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpusagelineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -417,7 +418,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source": str(source),
             "year": year,
             "month": month,
-            "days": tuple(str(day.day) for day in days),
+            "days": days_tup,
             "storage_exists": storage_exists,
         }
 

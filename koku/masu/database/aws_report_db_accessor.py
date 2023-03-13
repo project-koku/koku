@@ -240,11 +240,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        # days_str = "','".join([str(day.day) for day in days])
-        days_list = [str(day.day) for day in days]
-        self.delete_ocp_on_aws_hive_partition_by_day(
-            days_list, aws_provider_uuid, openshift_provider_uuid, year, month
-        )
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_on_aws_hive_partition_by_day(days_tup, aws_provider_uuid, openshift_provider_uuid, year, month)
 
         pod_column = "pod_effective_usage_cpu_core_hours"
         node_column = "node_capacity_cpu_core_hours"
@@ -259,7 +256,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "year": year,
             "month": month,
-            "days": tuple(str(day.day) for day in days),
+            "days": days_tup,
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
