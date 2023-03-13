@@ -1000,7 +1000,6 @@ select * from eek where val1 in {{report_period_id}} ;
             ).count()
 
         self.assertNotEqual(initial_non_raw_count, new_non_raw_count)
-        # This shows the platform distributed cost is deleted.
         self.assertEqual(initial_raw_count, 0)
         self.assertEqual(new_raw_count, 0)
 
