@@ -108,6 +108,10 @@
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE

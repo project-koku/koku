@@ -16,7 +16,7 @@ from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from reporting.provider.oci.models import PRESTO_REQUIRED_COLUMNS
+from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 
 LOG = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ def oci_post_processor(data_frame):
         return res_col_name.split(".")[-1]
 
     columns = set(list(data_frame))
-    columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
+    columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
     resource_tag_columns = [column for column in columns if "tags/" in column]

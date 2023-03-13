@@ -430,7 +430,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                         "create_table": True,
                                     },
                                 )
-                                report_processor.presto_table_exists["pod_usage"] = True
+                                report_processor.trino_table_exists["pod_usage"] = True
                                 result = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
                                 self.assertTrue(result)
                                 mock_create_table.assert_not_called()

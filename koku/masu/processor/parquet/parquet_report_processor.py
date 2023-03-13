@@ -102,7 +102,7 @@ class ParquetReportProcessor:
         self.invoice_month = self._context.get("invoice_month")
         if self.invoice_month:
             self.invoice_month_date = DateHelper().invoice_month_start(self.invoice_month).date()
-        self.presto_table_exists = {}
+        self.trino_table_exists = {}
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
@@ -450,7 +450,7 @@ class ParquetReportProcessor:
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()
-        self.presto_table_exists[self.report_type] = True
+        self.trino_table_exists[self.report_type] = True
 
     def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
@@ -506,7 +506,7 @@ class ParquetReportProcessor:
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
-            if self.create_table and not self.presto_table_exists.get(self.report_type):
+            if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
         except Exception as err:
