@@ -12,6 +12,7 @@ from unittest.mock import patch
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
 from api.utils import DateHelper
 from koku.database import get_model
@@ -93,7 +94,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_map.return_value = {self.ocpaws_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=provider, manifest=None)
         updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
-        distribution = "cpu"
         mock_ocp_on_aws.assert_called_with(
             start_date,
             end_date,
@@ -102,7 +102,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
-            distribution,
+            DEFAULT_DISTRIBUTION_TYPE,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
@@ -162,7 +162,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_azure_summary_tables(
             self.ocpazure_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
         )
-        distribution = "cpu"
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
@@ -171,7 +170,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
-            distribution,
+            DEFAULT_DISTRIBUTION_TYPE,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
@@ -231,7 +230,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_azure_summary_tables(
             self.ocpazure_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
         )
-        distribution = "cpu"
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
@@ -240,7 +238,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
-            distribution,
+            DEFAULT_DISTRIBUTION_TYPE,
         )
 
     @patch(
@@ -313,7 +311,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "cluster_alias": cluster_alias,
             "source_type": "GCP",
         }
-        distribution = "cpu"
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
@@ -323,7 +320,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
-            distribution,
+            DEFAULT_DISTRIBUTION_TYPE,
         )
         mock_ui_tables.assert_called_with(sql_params)
 
@@ -407,7 +404,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "cluster_alias": cluster_alias,
             "source_type": "GCP",
         }
-        distribution = "cpu"
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
@@ -417,7 +413,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
-            distribution,
+            DEFAULT_DISTRIBUTION_TYPE,
             node_name,
             1,
         )
@@ -488,7 +484,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         )
         cluster_id = get_cluster_id_from_provider(self.ocpgcp_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
-        distribution = "cpu"
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
@@ -498,7 +493,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
-            distribution,
+            DEFAULT_DISTRIBUTION_TYPE,
         )
         sql_params = {
             "schema_name": self.schema_name,

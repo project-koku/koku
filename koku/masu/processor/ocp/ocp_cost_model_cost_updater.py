@@ -47,7 +47,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._supplementary_rates = cost_model_accessor.supplementary_rates
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
-            self._distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
+            self._distribution = cost_model_accessor.distribution_info.get(
+                "distribution_type", metric_constants.DEFAULT_DISTRIBUTION_TYPE
+            )
             self._distribute_platform = cost_model_accessor.distribution_info.get("platform_cost", True)
             # TODO: COST-3548
             # self._distribute_worker = cost_model_accessor.distribution_info.get("worker_cost", True)
@@ -428,11 +430,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with OCPReportDBAccessor(self._schema) as accessor:
             if self._distribute_platform:
                 accessor.populate_platform_distributed_cost_sql(
-                    start_date,
-                    end_date,
-                    self._distribution,
-                    self._provider_uuid,
-                    metric_constants.DISTRIBUTE_PLATFORM_RATE_TYPE,
+                    start_date, end_date, self._distribution, self._provider_uuid
                 )
 
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)

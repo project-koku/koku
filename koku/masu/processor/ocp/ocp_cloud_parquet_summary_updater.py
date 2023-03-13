@@ -10,6 +10,7 @@ from dateutil import parser
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -136,7 +137,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on AWS
         sql_params = {
@@ -253,7 +254,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on Azure
         sql_params = {
@@ -369,7 +370,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on GCP
         sql_params = {
