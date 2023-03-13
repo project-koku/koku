@@ -28,7 +28,7 @@ from masu.util import common as utils
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
-from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
+from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
@@ -523,7 +523,7 @@ def aws_post_processor(data_frame):
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
     columns = set(list(data_frame))
-    columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
+    columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
     tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, RESOURCE_TAG_USER_PREFIX)

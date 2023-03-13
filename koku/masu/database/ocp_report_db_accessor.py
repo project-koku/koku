@@ -32,16 +32,16 @@ from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE as GCP_PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
+from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -233,18 +233,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         check_gcp = False
         resource_level = False
 
-        if not self.table_exists_trino(PRESTO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
+        if not self.table_exists_trino(TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
         if aws_provider_uuid or ocp_provider_uuid:
-            check_aws = self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE)
+            check_aws = self.table_exists_trino(AWS_TRINO_LINE_ITEM_DAILY_TABLE)
             if aws_provider_uuid and not check_aws:
                 return {}
         if azure_provider_uuid or ocp_provider_uuid:
-            check_azure = self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE)
+            check_azure = self.table_exists_trino(AZURE_TRINO_LINE_ITEM_DAILY_TABLE)
             if azure_provider_uuid and not check_azure:
                 return {}
         if gcp_provider_uuid or ocp_provider_uuid:
-            check_gcp = self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE)
+            check_gcp = self.table_exists_trino(GCP_TRINO_LINE_ITEM_DAILY_TABLE)
             # Check for GCP resource level data
             if gcp_provider_uuid:
                 resource_level = check_resource_level(gcp_provider_uuid)
@@ -266,7 +266,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             db_results = {}
             if check_flag:
                 infra_sql = pkgutil.get_data(
-                    "masu.database", f"presto_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
+                    "masu.database", f"trino_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
                 )
                 infra_sql = infra_sql.decode("utf-8")
 
@@ -372,7 +372,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             return True
         return False
 
-    def populate_line_item_daily_summary_table_presto(
+    def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
     ):
         """Populate the daily aggregate of line items table.
@@ -404,7 +404,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         self.delete_ocp_hive_partition_by_day(days_list, source, year, month)
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpusagelineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": source,
@@ -917,11 +917,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
         cluster = self.populate_cluster_table(provider, cluster_id, cluster_alias)
 
-        nodes = self.get_nodes_presto(str(provider.uuid), start_date, end_date)
+        nodes = self.get_nodes_trino(str(provider.uuid), start_date, end_date)
         pvcs = []
         if trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
-            pvcs = self.get_pvcs_presto(str(provider.uuid), start_date, end_date)
-        projects = self.get_projects_presto(str(provider.uuid), start_date, end_date)
+            pvcs = self.get_pvcs_trino(str(provider.uuid), start_date, end_date)
+        projects = self.get_projects_trino(str(provider.uuid), start_date, end_date)
 
         # pvcs = self.match_node_to_pvc(pvcs, projects)
 
@@ -977,7 +977,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for project in projects:
                 OCPProject.objects.get_or_create(project=project, cluster=cluster)
 
-    def get_nodes_presto(self, source_uuid, start_date, end_date):
+    def get_nodes_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT ocp.node,
@@ -1005,9 +1005,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 ocp.resource_id
         """  # noqa: E501
 
-        return self._execute_trino_raw_sql_query(sql, log_ref="get_nodes_presto")
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_nodes_trino")
 
-    def get_pvcs_presto(self, source_uuid, start_date, end_date):
+    def get_pvcs_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT distinct persistentvolume,
@@ -1020,9 +1020,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        return self._execute_trino_raw_sql_query(sql, log_ref="get_pvcs_presto")
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_pvcs_trino")
 
-    def get_projects_presto(self, source_uuid, start_date, end_date):
+    def get_projects_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT distinct namespace
@@ -1034,7 +1034,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        projects = self._execute_trino_raw_sql_query(sql, log_ref="get_projects_presto")
+        projects = self._execute_trino_raw_sql_query(sql, log_ref="get_projects_trino")
 
         return [project[0] for project in projects]
 

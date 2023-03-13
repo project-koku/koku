@@ -11,9 +11,9 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
-from reporting.provider.aws.models import PRESTO_OCP_ON_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
@@ -45,11 +45,11 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
         }
 
         if "openshift" in s3_path:
-            table_name = PRESTO_OCP_ON_AWS_DAILY_TABLE
+            table_name = TRINO_OCP_ON_AWS_DAILY_TABLE
         elif "daily" in s3_path:
-            table_name = PRESTO_LINE_ITEM_DAILY_TABLE
+            table_name = TRINO_LINE_ITEM_DAILY_TABLE
         else:
-            table_name = PRESTO_LINE_ITEM_TABLE
+            table_name = TRINO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
             account=account,

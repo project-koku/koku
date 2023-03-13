@@ -34,10 +34,8 @@ def connect(**connect_args):
     Returns:
         trino.dbapi.Connection : connection to trino if successful
     """
-    presto_connect_args = {
-        "host": (
-            connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "presto"
-        ),
+    trino_connect_args = {
+        "host": (connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "trino"),
         "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or os.environ.get("PRESTO_PORT") or 8080),
         "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or os.environ.get("PRESTO_USER") or "admin"),
         "catalog": (
@@ -54,10 +52,10 @@ def connect(**connect_args):
         ),
         "schema": connect_args["schema"],
     }
-    return trino.dbapi.connect(**presto_connect_args)
+    return trino.dbapi.connect(**trino_connect_args)
 
 
-def executescript(presto_conn, sqlscript, *, params=None, preprocessor=None):
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -65,7 +63,7 @@ def executescript(presto_conn, sqlscript, *, params=None, preprocessor=None):
     then it should be a callable taking two positional arguments and returning a 2-element tuple:
         pre_process(sql, parameters) -> (processed_sql, processed_parameters)
     Parameters:
-        presto_conn (trino.dbapi.Connection) : Connection to presto
+        trino_conn (trino.dbapi.Connection) : Connection to trino
         sqlscript (str) : Buffer of one or more semicolon-terminated SQL statements.
         params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
         preprocessor (Callable, None) : Callable taking two args and returning a 2-element tuple
@@ -98,7 +96,7 @@ def executescript(presto_conn, sqlscript, *, params=None, preprocessor=None):
                 stmt, s_params = p_stmt, params
 
             try:
-                cur = presto_conn.cursor()
+                cur = trino_conn.cursor()
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
             except Exception as e:

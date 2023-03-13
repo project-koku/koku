@@ -126,7 +126,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 operation="DELETE/INSERT",
             )
 
-    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -137,7 +137,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_awscostentrylineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
@@ -222,7 +222,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         else:
                             raise err
 
-    def populate_ocp_on_aws_cost_daily_summary_presto(
+    def populate_ocp_on_aws_cost_daily_summary_trino(
         self,
         start_date,
         end_date,
@@ -259,7 +259,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "temp_table_hash": token_hex(8),
@@ -414,7 +414,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)

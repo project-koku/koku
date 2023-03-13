@@ -492,7 +492,6 @@ def execute_trino_query(schema_name, sql, params=None):
     """Execute Trino SQL."""
     connection = trino_db.connect(schema=schema_name)
     cur = connection.cursor()
-    # rows, column_names = cur.execute(connection, sql, params=params)
     cur.execute(sql, params=params)
     results = cur.fetchall()
     if cur.description is None:

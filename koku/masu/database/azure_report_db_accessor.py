@@ -32,7 +32,7 @@ from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 
@@ -84,7 +84,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -95,9 +95,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/reporting_azurecostentrylineitem_daily_summary.sql"
-        )
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_azurecostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
@@ -105,7 +103,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": PRESTO_LINE_ITEM_TABLE,
+            "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
@@ -275,7 +273,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         else:
                             raise err
 
-    def populate_ocp_on_azure_cost_daily_summary_presto(
+    def populate_ocp_on_azure_cost_daily_summary_trino(
         self,
         start_date,
         end_date,
@@ -302,7 +300,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "temp_table_hash": token_hex(8),
@@ -390,7 +388,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)

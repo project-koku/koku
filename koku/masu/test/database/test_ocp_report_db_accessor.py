@@ -21,7 +21,7 @@ from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-from api.iam.test.iam_test_case import FakePrestoConn
+from api.iam.test.iam_test_case import FakeTrinoConn
 from api.utils import DateHelper
 from koku import trino_database as trino_db
 from masu.database import AWS_CUR_TABLE_MAP
@@ -159,9 +159,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_ocp_hive_partition_by_day")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_line_item_daily_summary_table_presto(self, mock_execute, *args):
+    def test_populate_line_item_daily_summary_table_trino(self, mock_execute, *args):
         """
-        Test that OCP presto processing calls executescript
+        Test that OCP trino processing calls executescript
         """
         dh = DateHelper()
         start_date = dh.this_month_start
@@ -170,24 +170,23 @@ class OCPReportDBAccessorTest(MasuTestCase):
         cluster_alias = "OCP FTW"
         report_period_id = 1
         source = self.provider_uuid
-        self.accessor.populate_line_item_daily_summary_table_presto(
+        self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, report_period_id, cluster_id, cluster_alias, source
         )
         mock_execute.assert_called()
 
-    # @patch("masu.util.common.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.report_db_accessor_base.trino_db.connect")
-    def test_populate_line_item_daily_summary_table_presto_preprocess_exception(
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
+    def test_populate_line_item_daily_summary_table_trino_preprocess_exception(
         self, mock_connect, mock_get_data, mock_table_exists
     ):
         """
-        Test that OCP presto processing converts datetime to date for start, end dates
+        Test that OCP trino processing converts datetime to date for start, end dates
         """
-        presto_conn = FakePrestoConn()
+        trino_conn = FakeTrinoConn()
         mock_table_exists.return_value = True
-        mock_connect.return_value = presto_conn
+        mock_connect.return_value = trino_conn
         mock_get_data.return_value = b"""
 select * from eek where val1 in {{report_period_id}} ;
 """
@@ -198,7 +197,7 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_alias = "OCP FTW"
         source = self.provider_uuid
         with self.assertRaises(trino_db.PreprocessStatementError):
-            self.accessor.populate_line_item_daily_summary_table_presto(
+            self.accessor.populate_line_item_daily_summary_table_trino(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
 
@@ -655,17 +654,17 @@ select * from eek where val1 in {{report_period_id}} ;
         self.assertEqual(self.accessor._aws_table_map, AWS_CUR_TABLE_MAP)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_get_ocp_infrastructure_map_trino(self, mock_presto):
+    def test_get_ocp_infrastructure_map_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_presto):
+    def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -679,11 +678,11 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
                 )
-                mock_presto.assert_called()
+                mock_trino.assert_called()
                 self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_presto):
+    def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -694,13 +693,13 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
                 )
-                mock_presto.assert_called()
+                mock_trino.assert_called()
                 self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_trino")
     def test_populate_openshift_cluster_information_tables(
         self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
     ):
@@ -751,9 +750,9 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_get_pvcs.assert_not_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_trino")
     def test_get_openshift_topology_for_multiple_providers(
         self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
     ):

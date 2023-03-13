@@ -33,7 +33,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
-from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.gcp.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
@@ -118,7 +118,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
             return cost_entry_bill_query
 
-    def populate_line_item_daily_summary_table_presto(
+    def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month_date
     ):
         """Populate the daily aggregated summary of line items table.
@@ -141,7 +141,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self.delete_line_item_daily_summary_entries_for_date_range(source_uuid, end_date, new_end_date)
             end_date = new_end_date
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
@@ -149,7 +149,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": PRESTO_LINE_ITEM_TABLE,
+            "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
             "year": invoice_month_date.strftime("%Y"),
             "month": invoice_month_date.strftime("%m"),
@@ -359,7 +359,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
 
-    def populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
+    def populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
         self,
         start_date,
         end_date,
@@ -405,7 +405,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary_by_node.sql"
+            "masu.database", "trino_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary_by_node.sql"
         )
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -433,7 +433,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(summary_sql_params)
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
-    def populate_ocp_on_gcp_cost_daily_summary_presto(
+    def populate_ocp_on_gcp_cost_daily_summary_trino(
         self,
         start_date,
         end_date,
@@ -484,7 +484,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
             matching_type = "tag"
 
-        summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{sql_level}.sql")
+        summary_sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "temp_table_hash": token_hex(8),
@@ -580,7 +580,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     ):
         """Return a list of matched tags."""
         invoice_month_date = kwargs.get("invoice_month_date")
-        sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)

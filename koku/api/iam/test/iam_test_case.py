@@ -32,7 +32,7 @@ from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
 
 
-class FakePrestoCur(trino.dbapi.Cursor):
+class FakeTrinoCur(trino.dbapi.Cursor):
     def __init__(self, *args, **kwargs):
         pass
 
@@ -47,12 +47,12 @@ class FakePrestoCur(trino.dbapi.Cursor):
         return []
 
 
-class FakePrestoConn(trino.dbapi.Connection):
+class FakeTrinoConn(trino.dbapi.Connection):
     def __init__(self, *args, **kwargs):
         pass
 
     def cursor(self):
-        return FakePrestoCur()
+        return FakeTrinoCur()
 
     def commit(self):
         pass

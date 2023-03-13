@@ -4,15 +4,15 @@ from jinjasql import JinjaSql
 from trino.dbapi import Connection
 
 from . import trino_database as trino_db
-from api.iam.test.iam_test_case import FakePrestoConn
-from api.iam.test.iam_test_case import FakePrestoCur
+from api.iam.test.iam_test_case import FakeTrinoConn
+from api.iam.test.iam_test_case import FakeTrinoCur
 from api.iam.test.iam_test_case import IamTestCase
 
 
-class TestPrestoDatabaseUtils(IamTestCase):
+class TestTrinoDatabaseUtils(IamTestCase):
     def test_connect(self):
         """
-        Test connection to presto returns presto.dbapi.Connection instance
+        Test connection to trino returns trino.dbapi.Connection instance
         """
         conn = trino_db.connect(schema=self.schema_name, catalog="hive")
         self.assertTrue(isinstance(conn, Connection))
@@ -42,7 +42,7 @@ select t_data from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_d
 
 drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
 """
-        conn = FakePrestoConn()
+        conn = FakeTrinoConn()
         params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema_name,
@@ -56,7 +56,7 @@ drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
         """
         Test executescript will raise a preprocessor error
         """
-        conn = FakePrestoConn()
+        conn = FakeTrinoConn()
         sqlscript = """
 select * from eek where val1 in {{val_list}};
 """
@@ -72,7 +72,7 @@ select * from eek where val1 in {{val_list}};
 select x from y;
 select a from b;
 """
-        conn = FakePrestoConn()
+        conn = FakeTrinoConn()
         res = trino_db.executescript(conn, sqlscript)
         self.assertEqual(res, [["eek"], ["eek"]])
 
@@ -85,7 +85,7 @@ select x from y;
 select a from b;
 """
         params = {"eek": 1}
-        conn = FakePrestoConn()
+        conn = FakeTrinoConn()
         with self.assertRaises(trino_db.PreprocessStatementError):
             trino_db.executescript(conn, sqlscript, params=params, preprocessor=t_preprocessor)
 
@@ -93,18 +93,18 @@ select a from b;
         def t_exec_error(*args, **kwargs):
             raise ValueError("Nope!")
 
-        class FakerFakePrestoCur(FakePrestoCur):
+        class FakerFakeTrinoCur(FakeTrinoCur):
             def execute(*args, **kwargs):
                 t_exec_error(*args, **kwargs)
 
-        class FakerFakePrestoConn(FakePrestoConn):
+        class FakerFakeTrinoConn(FakeTrinoConn):
             def cursor(self):
-                return FakerFakePrestoCur()
+                return FakerFakeTrinoCur()
 
         sqlscript = """
 select x from y;
 select a from b;
 """
         with self.assertRaises(trino_db.TrinoStatementExecError):
-            conn = FakerFakePrestoConn()
+            conn = FakerFakeTrinoConn()
             trino_db.executescript(conn, sqlscript)

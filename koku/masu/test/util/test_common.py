@@ -18,6 +18,8 @@ from django.test import TestCase
 from tenant_schemas.utils import schema_context
 
 import masu.util.common as common_utils
+from api.iam.test.iam_test_case import FakeTrinoConn
+from api.iam.test.iam_test_case import FakeTrinoCur
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -515,12 +517,22 @@ class CommonUtilTests(MasuTestCase):
         result = common_utils.strip_characters_from_column_name(bad_str)
         self.assertEqual(result, expected)
 
-    @patch("masu.util.common.trino_db.execute")
+    # @patch("masu.util.common.trino_db.execute")
     @patch("masu.util.common.trino_db.connect")
-    def test_execute_trino_query(self, mock_connect, mock_execute):
+    def test_execute_trino_query(self, mock_connect):
         """Test that the trino query util executes."""
         expected = ["one", "two", "three"]
-        mock_execute.return_value = (expected, "")
+
+        class FakeCur(FakeTrinoCur):
+            def fetchall(self, *args):
+                return expected
+
+        class FakeConn(FakeTrinoConn):
+            def cursor(self):
+                return FakeCur()
+
+        mock_connect.return_value = FakeConn()
+
         result, _ = common_utils.execute_trino_query(self.schema, "SELECT 'one', 'two', 'three';")
         self.assertEqual(result, expected)
 
