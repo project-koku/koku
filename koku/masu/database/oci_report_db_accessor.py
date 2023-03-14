@@ -113,13 +113,14 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "markup": markup_value if markup_value else 0,
+            "markup": markup_value or 0,
             "bill_id": bill_id,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         LOG.info(f"Summary SQL: {str(summary_sql)}")
-        self._execute_trino_raw_sql_query(self.schema, summary_sql)
+        self._execute_trino_raw_sql_query(
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_ocicostentrylineitem_daily_summary.sql"
+        )
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""

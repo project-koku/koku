@@ -1,12 +1,11 @@
-import datetime
 import uuid
-from unittest.mock import patch
 
 from jinjasql import JinjaSql
 from trino.dbapi import Connection
 
 from . import trino_database as trino_db
 from api.iam.test.iam_test_case import FakeTrinoConn
+from api.iam.test.iam_test_case import FakeTrinoCur
 from api.iam.test.iam_test_case import IamTestCase
 
 
@@ -19,42 +18,6 @@ class TestTrinoDatabaseUtils(IamTestCase):
         self.assertTrue(isinstance(conn, Connection))
         self.assertEqual(conn.schema, self.schema_name)
         self.assertEqual(conn.catalog, "hive")
-
-    def test_sql_mogrify(self):
-        """
-        Test that sql_mogrify renders a syntactically correct SQL statement
-        """
-
-        class SQLTest:
-            def __init__(self, sql_test, params, sql_verify):
-                self.sql_test = sql_test
-                self.params = params
-                self.sql_verify = sql_verify
-                self.sql_result = None
-
-        tests = [
-            SQLTest("""select * from public.api_tenant""", None, """select * from public.api_tenant"""),
-            SQLTest(
-                """select * from public.api_tenant where schema_name = %s""",
-                ["public"],
-                """select * from public.api_tenant where schema_name = 'public'""",
-            ),
-            SQLTest(
-                """select * from eek where date_col = %(date_val)s and bool_col = %(bool_val)s""",
-                {"date_val": datetime.date(2020, 4, 30), "bool_val": False},
-                """select * from eek where date_col = '2020-04-30' and bool_col = False""",
-            ),
-            SQLTest("""select * from eek where col1 in %s""", [(11,)], """select * from eek where col1 in (11)"""),
-            SQLTest(
-                """select * from eek where col1 in %s""",
-                [("11", "12")],
-                """select * from eek where col1 in ('11', '12')""",
-            ),
-        ]
-
-        for test in tests:
-            test.sql_result = trino_db.sql_mogrify(test.sql_test, test.params)
-            self.assertEqual(test.sql_verify, test.sql_result)
 
     def test_executescript(self):
         """
@@ -130,11 +93,18 @@ select a from b;
         def t_exec_error(*args, **kwargs):
             raise ValueError("Nope!")
 
+        class FakerFakeTrinoCur(FakeTrinoCur):
+            def execute(*args, **kwargs):
+                t_exec_error(*args, **kwargs)
+
+        class FakerFakeTrinoConn(FakeTrinoConn):
+            def cursor(self):
+                return FakerFakeTrinoCur()
+
         sqlscript = """
 select x from y;
 select a from b;
 """
-        with patch("koku.trino_database._execute", side_effect=ValueError("Nope!")):
-            with self.assertRaises(trino_db.TrinoStatementExecError):
-                conn = FakeTrinoConn()
-                trino_db.executescript(conn, sqlscript)
+        with self.assertRaises(trino_db.TrinoStatementExecError):
+            conn = FakerFakeTrinoConn()
+            trino_db.executescript(conn, sqlscript)

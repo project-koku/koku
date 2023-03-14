@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+WHERE ocp_source = {{ocp_source_uuid}}
 ;
 
 -- OCP ON GCP kubernetes-io-cluster-{cluster_id} label is applied on the VM and is exclusively a pod cost
@@ -204,19 +205,19 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             OR strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
-WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
-    AND gcp.year = '{{year | sqlsafe}}'
-    AND gcp.month = '{{month | sqlsafe}}'
-    AND TRIM(LEADING '0' FROM gcp.day) IN ({{days}}) -- external partitions have a leading zero
-    AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
-    AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
-    AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE gcp.source = {{gcp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
+    AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
+    AND gcp.usage_start_time >= {{start_date}}
+    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
+    AND gcp.cluster_id = {{cluster_id}}
+    AND ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
-    AND ocp.node = '{{node | sqlsafe}}'
+    AND ocp.node = {{node}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND ocp.day IN ({{days}})
+    AND ocp.day IN {{days | inclause}}
     AND ocp.data_source = 'Pod' -- this cost is only associated with pod costs
 GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source
 ;
@@ -324,19 +325,19 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             AND namespace != 'Platform unallocated'
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
-WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
-    AND gcp.year = '{{year | sqlsafe}}'
-    AND gcp.month = '{{month | sqlsafe}}'
-    AND TRIM(LEADING '0' FROM gcp.day) IN ({{days}}) -- external partitions have a leading zero
-    AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
-    AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
-    AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE gcp.source = {{gcp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
+    AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
+    AND gcp.usage_start_time >= {{start_date}}
+    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
+    AND gcp.cluster_id = {{cluster_id}}
+    AND ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
-    AND ocp.node = '{{node | sqlsafe}}'
+    AND ocp.node = {{node}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND ocp.day IN ({{days}})
+    AND ocp.day IN {{days | inclause}}
     AND pds.gcp_uuid IS NULL
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
@@ -468,15 +469,15 @@ SELECT pds.gcp_uuid,
     volume_labels,
     tags,
     cost_category_id,
-    '{{gcp_source_uuid | sqlsafe }}' as gcp_source,
-    '{{ocp_source_uuid | sqlsafe }}' as ocp_source,
+    {{gcp_source_uuid}} as gcp_source,
+    {{ocp_source_uuid}} as ocp_source,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
     ON pds.gcp_uuid = r.gcp_uuid
-WHERE pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE pds.ocp_source = {{ocp_source_uuid}}
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (
@@ -554,12 +555,13 @@ SELECT uuid(),
     credit_amount,
     invoice_month
 FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
-WHERE gcp_source = '{{gcp_source_uuid | sqlsafe}}'
-    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE gcp_source = {{gcp_source_uuid}}
+    AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND day IN ({{days}})
+    AND day IN {{days | inclause}}
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+WHERE ocp_source = {{ocp_source_uuid}}
 ;
