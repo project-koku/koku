@@ -22,6 +22,7 @@ from trino.exceptions import TrinoExternalError
 from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
+from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
@@ -617,13 +618,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def back_populate_ocp_infrastructure_costs_trino(self, start_date, end_date, report_period_id):
+    def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP on GCP and OCP daily summary tables. after populating the project table."""
-        # table_name = GCP_REPORT_TABLE_MAP["ocp_on_gcp_daily_summary"]
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         sql = pkgutil.get_data(
             "masu.database",
-            "trino_sql/gcp/openshift/reporting_ocpgcp_ocp_infrastructure_back_populate.sql",
+            "sql/reporting_ocpgcp_ocp_infrastructure_back_populate.sql",
         )
         sql = sql.decode("utf-8")
         sql_params = {
@@ -633,7 +634,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-        self._execute_trino_multipart_sql_query(self.schema, sql, bind_params=sql_params)
+        self._execute_raw_sql_query(table_name, sql, bind_params=sql_params)
 
     def check_for_matching_enabled_keys(self):
         """

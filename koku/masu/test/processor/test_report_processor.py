@@ -32,6 +32,22 @@ class ReportProcessorTest(MasuTestCase):
         mock_parquet_process.assert_called()
         mock_ocp_cloud_process.assert_called()
 
+    @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, []))
+    @patch("masu.processor.report_processor.OCPCloudParquetReportProcessor.process", return_value=2)
+    def test_aws_process_returns_false(self, mock_ocp_cloud_process, mock_parquet_process):
+        """Test to check no data frames returned from process."""
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path="/my/report/file",
+            compression="GZIP",
+            provider=Provider.PROVIDER_AWS,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
+        )
+        result = processor.process()
+        self.assertFalse(result)
+
     def test_set_processor_parquet(self):
         """Test that the Parquet class is returned."""
         processor = ReportProcessor(

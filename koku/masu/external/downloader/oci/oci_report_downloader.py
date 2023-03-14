@@ -244,7 +244,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
 
         last_reports = self.get_last_reports(assembly_id)
-        initial_ingest = last_reports == {"cost": "", "usage": ""}
         usage_report = last_reports.get("usage", "")
         cost_report = last_reports.get("cost", "")
         # Collecting CUR's from OCI bucket
@@ -254,13 +253,11 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # create a list of monthly files for downloading
         file_names = []
         for report in reports:
-            if initial_ingest:
-                # Reduce initial ingest download footprint
-                # by only downloading files created within the ingest month
-                if report.time_created.strftime("%Y%m") == ingest_month.strftime("%Y%m"):
-                    file_names.append(report.name)
-            else:
+            # Reduce initial ingest download footprint
+            # by only downloading files created within the ingest month
+            if report.time_created.strftime("%Y%m") == ingest_month.strftime("%Y%m"):
                 file_names.append(report.name)
+
         LOG.info(f"{str(ingest_month)} filenames: {file_names}")
         return file_names
 
