@@ -14,16 +14,16 @@ from masu.util.common import month_date_range
 from masu.util.ocp import common as utils
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
-from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
+from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
+from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         if "daily" in s3_path:
-            ocp_table_name = PRESTO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
+            ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
         else:
-            ocp_table_name = PRESTO_LINE_ITEM_TABLE_MAP[report_type]
+            ocp_table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",

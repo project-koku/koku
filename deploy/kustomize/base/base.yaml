@@ -358,6 +358,12 @@ parameters:
 - displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "10000"
+- displayName: Trino host
+  name: TRINO_HOST
+  value: "trino-coordinator"
+- displayName: Trino port
+  name: TRINO_PORT
+  value: "10000"
 
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY

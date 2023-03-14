@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-scheduler
-    minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
+    replicas: ${{SCHEDULER_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -108,6 +108,10 @@
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -181,7 +185,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: SCHEDULER_MIN_REPLICAS
+    name: SCHEDULER_REPLICAS
     required: true
     value: '1'
 - op: add

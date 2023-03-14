@@ -28,11 +28,11 @@ UI_SUMMARY_TABLES = (
 UI_SUMMARY_TABLES_MARKUP_SUBSET = UI_SUMMARY_TABLES
 
 
-PRESTO_LINE_ITEM_TABLE = "aws_line_items"
-PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
-PRESTO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
+TRINO_LINE_ITEM_TABLE = "aws_line_items"
+TRINO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
+TRINO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
 
-PRESTO_REQUIRED_COLUMNS = (
+TRINO_REQUIRED_COLUMNS = (
     "bill/BillingEntity",
     "lineItem/UsageStartDate",
     "lineItem/ProductCode",

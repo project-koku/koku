@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-sources-client
-    minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
+    replicas: ${{SOURCES_CLIENT_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -172,7 +172,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: SOURCES_CLIENT_MIN_REPLICAS
+    name: SOURCES_CLIENT_REPLICAS
     required: true
     value: '1'
 - op: add

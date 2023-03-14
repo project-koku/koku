@@ -13,9 +13,9 @@ from masu.test import MasuTestCase
 from reporting.models import PartitionedTable
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
-from reporting.provider.aws.models import PRESTO_OCP_ON_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportProcessorParquetTest(MasuTestCase):
@@ -35,19 +35,19 @@ class AWSReportProcessorParquetTest(MasuTestCase):
 
     def test_aws_table_name(self):
         """Test the AWS table name generation."""
-        self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+        self.assertEqual(self.processor._table_name, TRINO_LINE_ITEM_TABLE)
 
         s3_path = "/s3/path/daily"
         processor = AWSReportParquetProcessor(
             self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
         )
-        self.assertEqual(processor._table_name, PRESTO_LINE_ITEM_DAILY_TABLE)
+        self.assertEqual(processor._table_name, TRINO_LINE_ITEM_DAILY_TABLE)
 
         s3_path = "/s3/path/openshift/daily"
         processor = AWSReportParquetProcessor(
             self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
         )
-        self.assertEqual(processor._table_name, PRESTO_OCP_ON_AWS_DAILY_TABLE)
+        self.assertEqual(processor._table_name, TRINO_OCP_ON_AWS_DAILY_TABLE)
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""
