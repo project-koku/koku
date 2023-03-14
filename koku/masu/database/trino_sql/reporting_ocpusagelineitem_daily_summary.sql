@@ -493,6 +493,9 @@ WITH cte_unallocated_capacity AS (
         AND lids.year = {{year}}
         AND lpad(lids.month, 2, '0') = {{month}}
         AND lids.usage_start >= {{start_date}}
+        AND lids.usage_start < date_add('day', 1, {{end_date}})
+        AND lids.namespace != 'Platform unallocated'
+        AND lids.namespace != 'Worker unallocated'
         AND lids.node IS NOT NULL
         AND lids.data_source = 'Pod'
     GROUP BY lids.node, lids.usage_start, lids.source_uuid
