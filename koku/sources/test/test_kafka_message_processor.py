@@ -263,7 +263,7 @@ class KafkaMessageProcessorTest(IamTestCase):
                 "header_list": (
                     ("event_type", bytes(event, encoding="utf-8")),
                     ("x-rh-identity", bytes(header_missing_account_number, encoding="utf-8")),
-                    ("x-rh-sources-account-number", bytes()),
+                    ("x-rh-sources-account-number", b''),
                 )
             },
         ]
