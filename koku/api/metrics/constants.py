@@ -17,11 +17,11 @@ OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
 OCP_NODE_MONTH = "node_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
-DISTRIBUTE_PLATFORM_RATE_TYPE = "platform_distributed"
 
 MEMORY_DISTRIBUTION = "memory"
 CPU_DISTRIBUTION = "cpu"
 PVC_DISTRIBUTION = "pvc"
+DEFAULT_DISTRIBUTION_TYPE = CPU_DISTRIBUTION
 INFRASTRUCTURE_COST_TYPE = "Infrastructure"
 SUPPLEMENTARY_COST_TYPE = "Supplementary"
 

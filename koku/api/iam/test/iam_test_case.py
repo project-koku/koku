@@ -26,6 +26,7 @@ from api.models import Tenant
 from api.models import User
 from api.provider.models import Sources
 from api.query_params import QueryParameters
+from api.utils import DateHelper
 from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
 from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
@@ -67,6 +68,7 @@ class IamTestCase(TestCase):
     """Parent Class for IAM test cases."""
 
     fake = Faker()
+    dh = DateHelper()
 
     @classmethod
     def setUpClass(cls):

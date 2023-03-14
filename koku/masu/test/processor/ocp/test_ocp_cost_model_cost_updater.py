@@ -161,11 +161,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         infrastructure_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
-        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = {
-            "distribution_type": "cpu",
-            "platform_cost": False,
-            "worker_cost": False,
-        }
+        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = self.distribution_info
 
         usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date()
