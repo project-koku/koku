@@ -50,7 +50,7 @@ def _get_sts_access(role_arn):
     )
 
 
-def _check_s3_access(bucket, credentials, region_name=None):
+def _check_s3_access(bucket, credentials, region_name="us-east-1"):
     """Check for access to s3 bucket."""
     s3_exists = True
     s3_resource = boto3.resource("s3", region_name=region_name, **credentials)
