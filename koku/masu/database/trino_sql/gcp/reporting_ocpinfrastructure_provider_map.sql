@@ -9,9 +9,9 @@
     SELECT DISTINCT labels,
         source
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
-    WHERE source = '{{gcp_provider_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
+    WHERE source = {{gcp_provider_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
     ),
     cte_label_keys AS (
     SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
@@ -33,27 +33,27 @@
         SELECT DISTINCT gcp.resource_name,
             gcp.source
         FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
-        WHERE gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
-            AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        WHERE gcp.usage_start_time >= {{start_date}}
+            AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
             {% if gcp_provider_uuid %}
-            AND gcp.source = '{{gcp_provider_uuid | sqlsafe}}'
+            AND gcp.source = {{gcp_provider_uuid}}
             {% endif %}
-            AND gcp.year = '{{year | sqlsafe}}'
-            AND gcp.month = '{{month | sqlsafe}}'
+            AND gcp.year = {{year}}
+            AND gcp.month = {{month}}
     ),
     cte_ocp_nodes AS (
         SELECT DISTINCT ocp.node,
             ocp.source
         FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
-        WHERE ocp.interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-            AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        WHERE ocp.interval_start >= {{start_date}}
+            AND ocp.interval_start < date_add('day', 1, {{end_date}})
             AND ocp.node IS NOT NULL
             AND ocp.node != ''
             {% if ocp_provider_uuid %}
-            AND ocp.source = '{{ocp_provider_uuid | sqlsafe}}'
+            AND ocp.source = {{ocp_provider_uuid}}
             {% endif %}
-            AND ocp.year = '{{year | sqlsafe}}'
-            AND ocp.month = '{{month | sqlsafe}}'
+            AND ocp.year = {{year}}
+            AND ocp.month = {{month}}
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,

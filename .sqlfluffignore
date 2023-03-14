@@ -5,6 +5,7 @@
 
 
 # Ignore anything called "testing.sql"
+post-db-upgrade.sql
 tenant-from-template0.sql
 testing.sql
 

@@ -5,12 +5,11 @@ WITH
             value
         FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     CROSS JOIN UNNEST(cast(json_parse(tags) as map(varchar, varchar))) AS tags(key, value)
-        WHERE
-            source = '{{azure_source_uuid | sqlsafe}}'
-            AND year = '{{year | sqlsafe}}'
-            AND month = '{{month | sqlsafe}}'
-            AND coalesce(usagedatetime, date) >= TIMESTAMP '{{start_date | sqlsafe}}'
-            AND coalesce(usagedatetime, date) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        WHERE source = {{azure_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND coalesce(usagedatetime, date) >= {{start_date}}
+        AND coalesce(usagedatetime, date) < date_add('day', 1, {{end_date}})
     ),
 
     cte_unnested_ocp_tags AS (
@@ -24,18 +23,17 @@ WITH
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))
     ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
-        WHERE
-            source IN ('{{ocp_source_uuids | sqlsafe}}')
-            AND year = '{{year | sqlsafe}}'
-            AND lpad(month, 2, '0') = '{{month | sqlsafe}}'
-            AND day IN ('{{days | sqlsafe}}')
+        WHERE source IN {{ocp_source_uuids | inclause}}
+        AND year = {{year}}
+        AND lpad(month, 2, '0') = {{month}}
+        AND day IN {{days | inclause}}
     )
 
 SELECT '{"' || key || '": "' || value || '"}' AS tag
 FROM (
     SELECT DISTINCT
-        cte_unnested_azure_tags.key,
-        cte_unnested_azure_tags.value
+        azure.key,
+        azure.value
     FROM cte_unnested_azure_tags
     INNER JOIN cte_unnested_ocp_tags
     ON (
@@ -50,7 +48,6 @@ FROM (
         ON cte_unnested_azure_tags.key = atk.key
        AND atk.enabled = true
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
-        ON cte_unnested_ocp_tags.pod_key = otk.key
-        OR cte_unnested_ocp_tags.volume_key = otk.key
+        ON cte_unnested_ocp_tags.pod_key = otk.key or cte_unnested_ocp_tags.volume_key = otk.key
 ) AS matches
 ;
