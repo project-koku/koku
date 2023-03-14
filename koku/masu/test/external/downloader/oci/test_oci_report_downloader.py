@@ -167,6 +167,33 @@ class OCIReportDownloaderTest(MasuTestCase):
         self.assertEqual(result_file_names, expected_filenames)
         self.assertNotEqual(result_file_names, filenames)
 
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
+    def test_extract_no_file_names(self, mock_collect_reports):
+        """Test _extract_names returns no filenames outside expected month range."""
+
+        start_date = self.dh.this_month_start
+        filenames = [
+            "test_cost_last_month.csv",
+            "test_usage_last_month.csv",
+        ]
+        cost_report = MagicMock()
+        cost_report.name = filenames[0]
+        cost_report.time_created = self.dh.last_month_start
+        usage_report = MagicMock()
+        usage_report.name = filenames[1]
+        usage_report.time_created = self.dh.last_month_start
+        cost_reports = MagicMock()
+        cost_reports.data.objects = [cost_report]
+        usage_reports = MagicMock()
+        usage_reports.data.objects = [usage_report]
+        mock_collect_reports.side_effect = [cost_reports, usage_reports]
+        invoice_month = start_date.strftime("%Y%m")
+        assembly_id = ":".join([str(self.provider_uuid), str(invoice_month)])
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
+        result_file_names = downloader._extract_names(assembly_id, start_date)
+        mock_collect_reports.assert_called()
+        self.assertEqual(result_file_names, [])
+
     def test_generate_monthly_pseudo_manifest(self):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
 
