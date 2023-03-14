@@ -11,6 +11,7 @@ import pkgutil
 import random
 import string
 from decimal import Decimal
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import django.apps
@@ -708,12 +709,15 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        ocp_uuids = (self.ocp_on_aws_ocp_provider.uuid,)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.aws_provider_uuid, [self.ocp_on_aws_ocp_provider.uuid], start_date, end_date
+            self.aws_provider_uuid,
+            ocp_uuids,
+            start_date,
+            end_date,
         )
         mock_trino.assert_called()
 
@@ -754,9 +758,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertTrue(value)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
-    @patch("masu.database.aws_report_db_accessor.JinjaSql.prepare_query")
     @patch("masu.database.aws_report_db_accessor.enable_ocp_savings_plan_cost")
-    def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_jinja, mock_execute):
+    def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_execute):
         """Test that we back populate raw cost to OCP."""
         is_savingsplan_cost = True
         mock_unleash.return_value = is_savingsplan_cost
@@ -776,10 +779,13 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "is_savingsplan_cost": is_savingsplan_cost,
         }
 
-        mock_jinja.return_value = sql, sql_params
+        mock_jinja = Mock()
+
+        mock_jinja.prepare_query.return_value = sql, sql_params
         accessor = AWSReportDBAccessor(schema=self.schema)
+        accessor.jinja_sql = mock_jinja
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
-        mock_jinja.assert_called_with(sql, sql_params)
+        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
         mock_jinja.reset_mock()
@@ -797,5 +803,5 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "is_savingsplan_cost": is_savingsplan_cost,
         }
 
-        mock_jinja.assert_called_with(sql, sql_params)
+        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()

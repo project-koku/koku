@@ -12,18 +12,15 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
-from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-from api.utils import DateHelper
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.external.date_accessor import DateAccessor
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -50,8 +47,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
-        self.date_accessor = DateAccessor()
-        self.jinja_sql = JinjaSql()
         self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
@@ -106,12 +101,11 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
             "bill_id": bill_id,
-            "markup": markup_value if markup_value else 0,
+            "markup": markup_value or 0,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_trino_raw_sql_query(
-            self.schema, summary_sql, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
         )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
@@ -261,7 +255,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
                         self._execute_trino_raw_sql_query(
-                            self.schema,
                             sql,
                             log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -287,11 +280,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        days_list = [str(day.day) for day in days]
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_azure_hive_partition_by_day(
-            days_list, azure_provider_uuid, openshift_provider_uuid, year, month
+            days_tup, azure_provider_uuid, openshift_provider_uuid, year, month
         )
 
         # default to cpu distribution
@@ -310,7 +302,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "year": year,
             "month": month,
-            "days": days_str,
+            "days": days_tup,
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,
@@ -321,7 +313,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info("Running OCP on Azure SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_trino_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
@@ -384,28 +376,28 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    def get_openshift_on_cloud_matched_tags_trino(self, azure_source_uuid, ocp_source_uuids, start_date, end_date):
+    def get_openshift_on_cloud_matched_tags_trino(
+        self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+    ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
 
-        days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
+        days = self.date_helper.list_days(start_date, end_date)
 
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "azure_source_uuid": azure_source_uuid,
-            "ocp_source_uuids": ocp_uuids,
+            "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": days_str,
+            "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+
         results = self._execute_trino_raw_sql_query(
-            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
+            sql, sql_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
         )
 
         return [json.loads(result[0]) for result in results]
