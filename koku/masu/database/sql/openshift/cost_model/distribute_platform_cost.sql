@@ -144,7 +144,7 @@ LEFT JOIN user_defined_project_sum as udps
     AND udps.source_uuid = lids.source_uuid
     AND udps.cluster_id = lids.cluster_id
 LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON lids.cost_category_id = cat.id
+    ON lids.cost_category_id = cat.id
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
