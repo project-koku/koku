@@ -14,10 +14,21 @@ from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
 
-PROVIDER_LIST = ["aws", "aws-local", "azure", "azure-local"]
+PROVIDER_LIST = ["aws", "aws-local", "azure", "azure-local", "gcp", "gcp-local"]
 
 
 class IngressReportsSerializer(serializers.ModelSerializer):
+    """Serializer for the Ingress Reports model."""
+
+    uuid = serializers.UUIDField(read_only=True)
+    created_timestamp = serializers.DateTimeField(read_only=True)
+    completed_timestamp = serializers.DateTimeField(read_only=True)
+    reports_list = serializers.ListField()
+    sources_id = serializers.IntegerField(required=False, allow_null=True)
+    bill_year = serializers.CharField(required=True, max_length=4)
+    bill_month = serializers.CharField(required=True, max_length=2)
+    status = serializers.CharField(read_only=True)
+
     class Meta:
         model = IngressReports
         fields = [
@@ -26,8 +37,10 @@ class IngressReportsSerializer(serializers.ModelSerializer):
             "completed_timestamp",
             "reports_list",
             "source",
+            "sources_id",
             "bill_year",
             "bill_month",
+            "status",
         ]
 
     def validate(self, data):

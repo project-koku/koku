@@ -39,6 +39,7 @@ class ReportProcessor:
         manifest_id,
         context=None,
         ingress_reports=None,
+        ingress_reports_uuid=None,
     ):
         """Set the processor based on the data provider."""
         self.schema_name = schema_name
@@ -50,6 +51,7 @@ class ReportProcessor:
         self.context = context
         self.tracing_id = context.get("tracing_id") if context else None
         self.ingress_reports = ingress_reports
+        self.ingress_reports_uuid = ingress_reports_uuid
         try:
             self._processor = self._set_processor()
         except Exception as err:
@@ -90,6 +92,7 @@ class ReportProcessor:
             manifest_id=self.manifest_id,
             context=self.context,
             ingress_reports=self.ingress_reports,
+            ingress_reports_uuid=self.ingress_reports_uuid,
         )
 
     def process(self):
@@ -109,12 +112,15 @@ class ReportProcessor:
             parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
-            return
+            if daily_data_frames != []:
+                return True
+            else:
+                return False
         except (InterfaceError, DjangoInterfaceError) as err:
-            raise ReportProcessorDBError(str(err)) from err
+            raise ReportProcessorDBError(f"Interface error: {err}") from err
         except OperationalError as o_err:
             db_exc = get_extended_exception_by_type(o_err)
-            LOG.error(log_json(self.tracing_id, str(db_exc), context=db_exc.as_dict()))
+            LOG.error(log_json(self.tracing_id, f"Operation error: {db_exc}", context=db_exc.as_dict()))
             raise db_exc from o_err
         except Exception as err:
-            raise ReportProcessorError(str(err)) from err
+            raise ReportProcessorError(f"Unknown processor error: {err}") from err

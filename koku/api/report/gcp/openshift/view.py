@@ -10,7 +10,8 @@ from api.models import Provider
 from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
 from api.report.gcp.openshift.serializers import OCPGCPQueryParamSerializer
 from api.report.view import ReportView
-from reporting.models import OCPGCPTagsSummary
+from reporting.models import GCPEnabledTagKeys
+from reporting.models import OCPEnabledTagKeys
 
 
 class OCPGCPView(ReportView):
@@ -20,7 +21,7 @@ class OCPGCPView(ReportView):
     provider = Provider.OCP_GCP
     serializer = OCPGCPQueryParamSerializer
     query_handler = OCPGCPReportQueryHandler
-    tag_handler = [OCPGCPTagsSummary]
+    tag_handler = [GCPEnabledTagKeys, OCPEnabledTagKeys]
 
 
 class OCPGCPCostView(OCPGCPView):

@@ -500,9 +500,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -515,15 +515,15 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        self.accessor.populate_line_item_daily_summary_table_presto(
+        self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, self.aws_provider_uuid, current_bill_id, markup_value
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_presto(self, mock_presto, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_aws_cost_daily_summary_trino(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -537,7 +537,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
             distribution = cost_model_accessor.distribution
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+        self.accessor.populate_ocp_on_aws_cost_daily_summary_trino(
             start_date,
             end_date,
             self.ocp_provider_uuid,
@@ -547,12 +547,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value,
             distribution,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_aws_cost_daily_summary_trino_memory_distribution(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -566,7 +566,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
             distribution = "memory"
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+        self.accessor.populate_ocp_on_aws_cost_daily_summary_trino(
             start_date,
             end_date,
             self.ocp_provider_uuid,
@@ -576,7 +576,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value,
             distribution,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
@@ -602,8 +602,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
         with schema_context(self.schema):
             AWSTagsSummary.objects.all().delete()
-            key_to_keep = AWSEnabledTagKeys.objects.first()
-            AWSEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            key_to_keep = AWSEnabledTagKeys.objects.filter(key="app").first()
+            AWSEnabledTagKeys.objects.all().update(enabled=False)
+            AWSEnabledTagKeys.objects.filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (
@@ -704,8 +705,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -714,7 +715,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
             self.aws_provider_uuid, [self.ocp_on_aws_ocp_provider.uuid], start_date, end_date
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     def test_bad_sql_execution(self):
         script_file_name = "reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
@@ -724,7 +725,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
@@ -738,16 +739,16 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
             AWSEnabledTagKeys.objects.all().delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_check_for_matching_enabled_keys(self, mock_presto):
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_check_for_matching_enabled_keys(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)

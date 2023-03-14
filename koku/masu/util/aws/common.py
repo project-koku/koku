@@ -28,12 +28,91 @@ from masu.util import common as utils
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
-from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
+from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
+ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
+RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
+COST_CATEGORY_PREFIX = "costCategory/"
+CSV_COLUMN_PREFIX = (
+    ALL_RESOURCE_TAG_PREFIX,
+    COST_CATEGORY_PREFIX,
+    "bill/",
+    "lineItem/",
+    "pricing/",
+    "discount/",
+    "product/sku",
+)
 
-def get_assume_role_session(arn, session="MasuSession"):
+
+# pylint: disable=too-few-public-methods
+class AwsArn:
+    """
+    Object representing an AWS ARN.
+
+    See also:
+        https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
+
+    General ARN formats:
+        arn:partition:service:region:account-id:resource
+        arn:partition:service:region:account-id:resourcetype/resource
+        arn:partition:service:region:account-id:resourcetype:resource
+
+    Example ARNs:
+        <!-- Elastic Beanstalk application version -->
+        arn:aws:elasticbeanstalk:us-east-1:123456789012:environment/My App/foo
+        <!-- IAM user name -->
+        arn:aws:iam::123456789012:user/David
+        <!-- Amazon RDS instance used for tagging -->
+        arn:aws:rds:eu-west-1:123456789012:db:mysql-db
+        <!-- Object in an Amazon S3 bucket -->
+        arn:aws:s3:::my_corporate_bucket/exampleobject.png
+
+    """
+
+    arn_regex = re.compile(
+        r"^arn:(?P<partition>\w+):(?P<service>\w+):"
+        r"(?P<region>\w+(?:-\w+)+)?:"
+        r"(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)"
+        r"(?P<resource_separator>[:/])?(?P<resource>.*)"
+    )
+
+    partition = None
+    service = None
+    region = None
+    account_id = None
+    resource_type = None
+    resource_separator = None
+    resource = None
+
+    def __init__(self, arn):
+        """
+        Parse ARN string into its component pieces.
+
+        Args:
+            arn (str): Amazon Resource Name
+
+        """
+        match = False
+        self.arn = arn
+        if arn:
+            match = self.arn_regex.match(arn)
+
+        if not match:
+            raise SyntaxError(f"Invalid ARN: {arn}")
+
+        for key, val in match.groupdict().items():
+            setattr(self, key, val)
+
+    def __repr__(self):
+        """Return the ARN itself."""
+        return self.arn
+
+
+def get_assume_role_session(
+    arn: AwsArn, session: str = "MasuSession", region: str = "us-east-1"
+) -> boto3.session.Session:
     """
     Assume a Role and obtain session credentials for the given role.
 
@@ -55,8 +134,29 @@ def get_assume_role_session(arn, session="MasuSession"):
         aws_access_key_id=response["Credentials"]["AccessKeyId"],
         aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
         aws_session_token=response["Credentials"]["SessionToken"],
-        region_name="us-east-1",
+        region_name=region,
     )
+
+
+def get_available_regions(service_name: str = "ec2") -> list[str]:
+    """
+    Return a list of available regions for the given service.
+
+    This list is not comprehensive as it comes from the internal boto3 library
+    and does not query AWS directly.
+
+    Args:
+        service_name: Amazon service name
+
+    Usage:
+        regions = get_available_regions("s3")
+
+    See:https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.get_available_regions
+
+    """
+
+    session = boto3.Session()
+    return session.get_available_regions(service_name)
 
 
 def get_cur_report_definitions(role_arn, session=None):
@@ -422,18 +522,14 @@ def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
-    all_resource_tag_prefix = "resourceTags/"
-    resource_tag_user_prefix = "resourceTags/user:"
-    cost_category_prefix = "costCategory/"
-
     columns = set(list(data_frame))
-    columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
+    columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
-    tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, resource_tag_user_prefix)
+    tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, RESOURCE_TAG_USER_PREFIX)
     data_frame["resourceTags"] = tags
 
-    cost_categories, _ = handle_user_defined_json_columns(data_frame, columns, cost_category_prefix)
+    cost_categories, _ = handle_user_defined_json_columns(data_frame, columns, COST_CATEGORY_PREFIX)
     data_frame["costCategory"] = cost_categories
 
     # Make sure we have entries for our required columns
@@ -445,7 +541,7 @@ def aws_post_processor(data_frame):
     for column in columns:
         new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
-        if all_resource_tag_prefix in column or cost_category_prefix in column:
+        if ALL_RESOURCE_TAG_PREFIX in column or COST_CATEGORY_PREFIX in column:
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
@@ -578,67 +674,3 @@ def get_column_converters():
         "pricing/publicondemandrate": safe_float,
         "savingsplan/savingsplaneffectivecost": safe_float,
     }
-
-
-# pylint: disable=too-few-public-methods
-class AwsArn:
-    """
-    Object representing an AWS ARN.
-
-    See also:
-        https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
-
-    General ARN formats:
-        arn:partition:service:region:account-id:resource
-        arn:partition:service:region:account-id:resourcetype/resource
-        arn:partition:service:region:account-id:resourcetype:resource
-
-    Example ARNs:
-        <!-- Elastic Beanstalk application version -->
-        arn:aws:elasticbeanstalk:us-east-1:123456789012:environment/My App/foo
-        <!-- IAM user name -->
-        arn:aws:iam::123456789012:user/David
-        <!-- Amazon RDS instance used for tagging -->
-        arn:aws:rds:eu-west-1:123456789012:db:mysql-db
-        <!-- Object in an Amazon S3 bucket -->
-        arn:aws:s3:::my_corporate_bucket/exampleobject.png
-
-    """
-
-    arn_regex = re.compile(
-        r"^arn:(?P<partition>\w+):(?P<service>\w+):"
-        r"(?P<region>\w+(?:-\w+)+)?:"
-        r"(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)"
-        r"(?P<resource_separator>[:/])?(?P<resource>.*)"
-    )
-
-    partition = None
-    service = None
-    region = None
-    account_id = None
-    resource_type = None
-    resource_separator = None
-    resource = None
-
-    def __init__(self, arn):
-        """
-        Parse ARN string into its component pieces.
-
-        Args:
-            arn (str): Amazon Resource Name
-
-        """
-        match = False
-        self.arn = arn
-        if arn:
-            match = self.arn_regex.match(arn)
-
-        if not match:
-            raise SyntaxError(f"Invalid ARN: {arn}")
-
-        for key, val in match.groupdict().items():
-            setattr(self, key, val)
-
-    def __repr__(self):
-        """Return the ARN itself."""
-        return self.arn

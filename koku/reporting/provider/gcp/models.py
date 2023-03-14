@@ -10,9 +10,9 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
-PRESTO_LINE_ITEM_DAILY_TABLE = "gcp_line_items_daily"
-PRESTO_LINE_ITEM_TABLE = "gcp_line_items"
-PRESTO_OCP_ON_GCP_DAILY_TABLE = "gcp_openshift_daily"
+TRINO_LINE_ITEM_DAILY_TABLE = "gcp_line_items_daily"
+TRINO_LINE_ITEM_TABLE = "gcp_line_items"
+TRINO_OCP_ON_GCP_DAILY_TABLE = "gcp_openshift_daily"
 
 UI_SUMMARY_TABLES = (
     "reporting_gcp_cost_summary_p",
@@ -213,7 +213,7 @@ class GCPEnabledTagKeys(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=True)
+    enabled = models.BooleanField(null=False, default=False)
 
 
 class GCPTagsSummary(models.Model):

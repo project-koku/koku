@@ -8,8 +8,10 @@ from api.models import Provider
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.report.all.openshift.serializers import OCPAllQueryParamSerializer
 from api.report.view import ReportView
-from reporting.models import OCPAWSTagsSummary
-from reporting.models import OCPAzureTagsSummary
+from reporting.models import AWSEnabledTagKeys
+from reporting.models import AzureEnabledTagKeys
+from reporting.models import GCPEnabledTagKeys
+from reporting.models import OCPEnabledTagKeys
 
 
 class OCPAllView(ReportView):
@@ -19,7 +21,7 @@ class OCPAllView(ReportView):
     provider = Provider.OCP_ALL
     serializer = OCPAllQueryParamSerializer
     query_handler = OCPAllReportQueryHandler
-    tag_handler = [OCPAWSTagsSummary, OCPAzureTagsSummary]
+    tag_handler = [AWSEnabledTagKeys, AzureEnabledTagKeys, GCPEnabledTagKeys, OCPEnabledTagKeys]
 
 
 class OCPAllCostView(OCPAllView):

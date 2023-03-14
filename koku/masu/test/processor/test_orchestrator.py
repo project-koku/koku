@@ -270,7 +270,7 @@ class OrchestratorTest(MasuTestCase):
         mock_labeler().get_label_details.return_value = (True, True)
         ingress_reports = ["test"]
 
-        orchestrator = Orchestrator(ingress_reports=ingress_reports)
+        orchestrator = Orchestrator(ingress_reports=ingress_reports, bill_date="202302")
         orchestrator.prepare()
         mock_labeler.assert_called()
 

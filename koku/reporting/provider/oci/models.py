@@ -25,10 +25,10 @@ UI_SUMMARY_TABLES = (
 )
 
 
-PRESTO_LINE_ITEM_TABLE_MAP = {"cost": "oci_cost_line_items", "usage": "oci_usage_line_items"}
-PRESTO_LINE_ITEM_DAILY_TABLE_MAP = {"cost": "oci_cost_line_items_daily", "usage": "oci_usage_line_items_daily"}
+TRINO_LINE_ITEM_TABLE_MAP = {"cost": "oci_cost_line_items", "usage": "oci_usage_line_items"}
+TRINO_LINE_ITEM_DAILY_TABLE_MAP = {"cost": "oci_cost_line_items_daily", "usage": "oci_usage_line_items_daily"}
 
-PRESTO_REQUIRED_COLUMNS = (
+TRINO_REQUIRED_COLUMNS = (
     "lineItem/referenceNo",
     "lineItem/tenantId",
     "lineItem/intervalUsageStart",

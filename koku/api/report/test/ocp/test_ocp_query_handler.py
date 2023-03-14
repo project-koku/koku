@@ -21,6 +21,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
+from api.report.constants import TAG_PREFIX
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
@@ -613,9 +614,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ["tag:" + group_by_key])
 
-    def test_set_tag_filters(self):
+    def test__build_prefix_filters(self):
         """Test that tag filters are created properly."""
-        filters = QueryFilterCollection()
+        filter_collection = QueryFilterCollection()
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -632,11 +633,16 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?filter[tag:{filter_key}]={filter_value}&group_by[tag:{group_by_key}]={group_by_value}"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        filters = handler._set_tag_filters(filters)
+        filter_keys = handler.get_tag_filter_keys()
+        group_keys = handler.get_tag_group_by_keys()
+        filter_keys.extend(group_keys)
+        filter_collection = handler._set_prefix_based_filters(
+            filter_collection, handler._mapper.tag_column, filter_keys, TAG_PREFIX
+        )
 
         expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('pod_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('pod_labels__{group_by_key}__icontains', '{group_by_value}')), """  # noqa: E501
 
-        self.assertEqual(repr(filters), expected)
+        self.assertEqual(repr(filter_collection), expected)
 
     def test_get_tag_group_by(self):
         """Test that tag based group bys work."""

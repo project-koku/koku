@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
-    """Class to update OCP report summary data from Presto/Parquet data."""
+    """Class to update OCP report summary data from Trino/Parquet data."""
 
     def __init__(self, schema, provider, manifest):
         """Establish the database connection.
@@ -59,6 +59,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
+                    if (
+                        bill_date.year == self._date_accessor.today().year
+                        and bill_date.month == self._date_accessor.today().month
+                    ):
+                        end_date = bill_date.replace(day=self._date_accessor.today().day)
                     LOG.info("Overriding start and end date to process full month.")
 
         if isinstance(start_date, str):
@@ -139,7 +144,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
                     self._provider.uuid, report_period_id, start, end
                 )
-                accessor.populate_line_item_daily_summary_table_presto(
+                accessor.populate_line_item_daily_summary_table_trino(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)

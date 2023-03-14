@@ -7,7 +7,7 @@ from api.common.permissions.oci_access import OCIAccessPermission
 from api.tags.oci.queries import OCITagQueryHandler
 from api.tags.oci.serializers import OCITagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.provider.oci.models import OCITagsSummary
+from reporting.provider.oci.models import OCIEnabledTagKeys
 
 
 class OCITagView(TagView):
@@ -16,5 +16,5 @@ class OCITagView(TagView):
     provider = "oci"
     serializer = OCITagsQueryParamSerializer
     query_handler = OCITagQueryHandler
-    tag_handler = [OCITagsSummary]
+    tag_handler = [OCIEnabledTagKeys]
     permission_classes = [OCIAccessPermission]

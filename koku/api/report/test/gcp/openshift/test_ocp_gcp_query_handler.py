@@ -1371,7 +1371,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                     query_params = self.mocked_query_params(overall_url, view)
                     handler = OCPGCPReportQueryHandler(query_params)
                     overall_output = handler.execute_query()
-                    LOG.info(f"overall_output: {overall_output}")
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     opt_dict = overall_output.get("data", [{}])[0]
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]

@@ -142,6 +142,7 @@ def get_report_files(  # noqa: C901
     report_month,
     report_context,
     ingress_reports=None,
+    ingress_reports_uuid=None,
     tracing_id=None,
 ):
     """
@@ -248,26 +249,32 @@ def get_report_files(  # noqa: C901
             report_dict["tracing_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
-            _process_report_file(schema_name, provider_type, report_dict, ingress_reports)
+            result = _process_report_file(
+                schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid
+            )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(log_json(tracing_id, str(processing_error), context))
+            LOG.error(log_json(tracing_id, f"Report processing error: {processing_error}", context))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
-            LOG.info(log_json(tracing_id, str(err), context))
+            LOG.info(log_json(tracing_id, f"Not implemented error: {err}", context))
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
+        if not result:
+            msg = "No report files processed, skipping summary"
+            LOG.info(log_json(tracing_id, msg, context))
+            return None
 
         return report_meta
     except ReportDownloaderWarning as err:
-        LOG.warning(log_json(tracing_id, str(err), context))
+        LOG.warning(log_json(tracing_id, f"Report downloader Warning: {err}", context))
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(log_json(tracing_id, str(err), context))
+        LOG.error(log_json(tracing_id, f"Unknown downloader exception: {err}", context))
         WorkerCache().remove_task_from_cache(cache_key)
 
 

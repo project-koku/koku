@@ -89,12 +89,12 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     )
     @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_tags_summary_table")
     @patch(
-        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     def test_update_daily_summary_tables(
-        self, mock_presto, mock_tag_update, mock_summary_update, mock_delete, mock_topo
+        self, mock_trino, mock_tag_update, mock_summary_update, mock_delete, mock_topo
     ):
-        """Test that we run Presto summary."""
+        """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
@@ -117,7 +117,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_delete.assert_called_with(
             self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
-        mock_presto.assert_called_with(
+        mock_trino.assert_called_with(
             expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, start
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
@@ -137,18 +137,18 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     )
     @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_tags_summary_table")
     @patch(
-        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     def test_update_daily_summary_tables_no_invoice_month(
-        self, mock_presto, mock_tag_update, mock_summary_update, mock_delete, mock_topo
+        self, mock_trino, mock_tag_update, mock_summary_update, mock_delete, mock_topo
     ):
-        """Test that we run Presto summary."""
+        """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
         start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=None)
         mock_delete.assert_not_called()
-        mock_presto.assert_not_called()
+        mock_trino.assert_not_called()
         mock_tag_update.assert_not_called()
         mock_summary_update.assert_not_called()
 

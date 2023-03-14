@@ -13,8 +13,8 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE_MAP
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_TABLE_MAP
+from reporting.provider.oci.models import TRINO_LINE_ITEM_DAILY_TABLE_MAP
+from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -36,9 +36,9 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
             "boolean_columns": boolean_columns,
         }
         if "daily" in s3_path:
-            table_name = PRESTO_LINE_ITEM_DAILY_TABLE_MAP[report_type]
+            table_name = TRINO_LINE_ITEM_DAILY_TABLE_MAP[report_type]
         else:
-            table_name = PRESTO_LINE_ITEM_TABLE_MAP[report_type]
+            table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
         super().__init__(
             manifest_id=manifest_id,
             account=account,

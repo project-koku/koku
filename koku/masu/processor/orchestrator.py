@@ -234,7 +234,6 @@ class Orchestrator:
                     assembly_id = manifest.get("assembly_id", None)
                     if assembly_id:
                         report_month = assembly_id.split("|")[0]
-
                 # add the tracing id to the report context
                 # This defaults to the celery queue
                 report_tasks.append(
@@ -248,6 +247,7 @@ class Orchestrator:
                         report_month,
                         report_context,
                         ingress_reports=self.ingress_reports,
+                        ingress_reports_uuid=self.ingress_report_uuid,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
@@ -348,7 +348,10 @@ class Orchestrator:
         """
         LOG.info("Getting latest report files for account (provider uuid): %s", provider_uuid)
         dh = DateHelper()
-        start_date = dh.today
+        if self.ingress_reports:
+            start_date = DateAccessor().get_billing_month_start(self.bill_date + "01")
+        else:
+            start_date = dh.today
         account["report_month"] = start_date
         try:
             _, reports_tasks_queued = self.start_manifest_processing(**account)

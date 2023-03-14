@@ -21,7 +21,7 @@ class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
-    enabled = OCPEnabledTagKeys.objects.filter(key=OuterRef("key"))
+    enabled = OCPEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
     data_sources = [
         {
             "db_table": OCPUsagePodLabelSummary,

@@ -332,6 +332,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
+            if not markup:
+                msg = f"No markup to calculate for {self._provider_uuid}."
+                LOG.info(msg)
+                return
             markup = Decimal(markup.get("value", 0)) / 100
         with OCPReportDBAccessor(self._schema) as accessor:
             LOG.info(

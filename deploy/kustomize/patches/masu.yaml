@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-masu
-    minReplicas: ${{MASU_MIN_REPLICAS}}
+    replicas: ${{MASU_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -138,6 +138,10 @@
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness
@@ -194,7 +198,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: MASU_MIN_REPLICAS
+    name: MASU_REPLICAS
     required: true
     value: '1'
 - op: add

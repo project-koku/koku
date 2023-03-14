@@ -29,7 +29,7 @@ from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSes
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
-from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
+from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -78,6 +78,30 @@ class TestAWSUtils(MasuTestCase):
         """Test get_assume_role_session is successful."""
         session = utils.get_assume_role_session(self.arn)
         self.assertIsInstance(session, boto3.Session)
+
+    def test_get_available_regions(self):
+        regions = utils.get_available_regions()
+        expected_subset = {
+            "us-east-1",
+            "us-east-2",
+            "eu-central-1",
+            "sa-east-1",
+        }
+        self.assertTrue(expected_subset.issubset(regions))
+
+    def test_get_available_regions_service_name(self):
+        regions = utils.get_available_regions("ec2")
+        expected_subset = {
+            "us-east-1",
+            "us-east-2",
+            "eu-central-1",
+            "sa-east-1",
+        }
+        self.assertTrue(expected_subset.issubset(regions))
+
+    def test_get_available_regions_bad_service_name(self):
+        regions = utils.get_available_regions("not a service")
+        self.assertEqual(regions, [])
 
     def test_month_date_range(self):
         """Test month_date_range returns correct month range."""
@@ -385,7 +409,7 @@ class TestAWSUtils(MasuTestCase):
         self.assertIn(column_three.replace("-", "_"), columns)
         self.assertNotIn(column_four, columns)
         self.assertIn("resourcetags", columns)
-        for column in PRESTO_REQUIRED_COLUMNS:
+        for column in TRINO_REQUIRED_COLUMNS:
             self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
     def test_aws_generate_daily_data(self):
