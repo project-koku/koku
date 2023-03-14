@@ -18,7 +18,7 @@ from masu.processor.report_processor import ReportProcessorError
 LOG = logging.getLogger(__name__)
 
 
-def _process_report_file(schema_name, provider, report_dict, ingress_reports=None):
+def _process_report_file(schema_name, provider, report_dict, ingress_reports=None, ingress_reports_uuid=None):
     """
     Task to process a Report.
 
@@ -65,9 +65,10 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
             manifest_id=manifest_id,
             context=report_dict,
             ingress_reports=ingress_reports,
+            ingress_reports_uuid=ingress_reports_uuid,
         )
 
-        processor.process()
+        result = processor.process()
     except (ReportProcessorError, ReportProcessorDBError) as processing_error:
         with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
             stats_recorder.clear_last_started_datetime()
@@ -90,4 +91,4 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         provider_accessor.setup_complete()
 
-    return True
+    return result
