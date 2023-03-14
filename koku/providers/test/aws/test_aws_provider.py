@@ -126,6 +126,26 @@ class AWSProviderTestCase(TestCase):
         s3_exists = _check_s3_access("bucket", {})
         self.assertFalse(s3_exists)
 
+    @patch("providers.aws.provider.boto3.resource", side_effect=AttributeError("Raised intentionally"))
+    def test_check_s3_access_default_region(self, mock_boto3_resource):
+        """Test that the default region value is used"""
+        expected_region_name = "us-east-1"
+        with self.assertRaisesRegex(AttributeError, "Raised intentionally"):
+            _check_s3_access("bucket", {})
+
+        self.assertIn("region_name", mock_boto3_resource.call_args.kwargs)
+        self.assertEqual(expected_region_name, mock_boto3_resource.call_args.kwargs.get("region_name"))
+
+    @patch("providers.aws.provider.boto3.resource", side_effect=AttributeError("Raised intentionally"))
+    def test_check_s3_access_with_region(self, mock_boto3_resource):
+        """Test that the provided region value is used"""
+        expected_region_name = "eu-south-2"
+        with self.assertRaisesRegex(AttributeError, "Raised intentionally"):
+            _check_s3_access("bucket", {}, region_name=expected_region_name)
+
+        self.assertIn("region_name", mock_boto3_resource.call_args.kwargs)
+        self.assertEqual(expected_region_name, mock_boto3_resource.call_args.kwargs.get("region_name"))
+
     @patch("providers.aws.provider.boto3.client")
     def test_check_cost_report_access(self, mock_boto3_client):
         """Test _check_cost_report_access success."""
@@ -283,8 +303,29 @@ class AWSProviderTestCase(TestCase):
         data_source = {"bucket": "bucket_name", "bucket_region": "me-south-1"}
         provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
-        self.assertIn("me-south-1", mock_check_s3_access.call_args.args)
+        self.assertIn("region_name", mock_check_s3_access.call_args.kwargs)
         self.assertIn("region_name", mock_check_cost_report_access.call_args.kwargs)
+
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
+    )
+    @patch("providers.aws.provider._check_s3_access", return_value=True)
+    @patch("providers.aws.provider._check_cost_report_access")
+    def test_cost_usage_source_is_call_no_region(
+        self, mock_check_cost_report_access, mock_check_s3_access, mock_get_sts_access
+    ):
+        """Verify that the bucket region is not passed in when not availeble in the data source
+        so that the default value in the function definiton is used."""
+        provider_interface = AWSProvider()
+        credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
+        data_source = {"bucket": "bucket_name"}
+        provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+
+        self.assertNotIn("region_name", mock_check_s3_access.call_args.kwargs)
+        self.assertNotIn("region_name", mock_check_cost_report_access.call_args.kwargs)
 
     def test_cost_usage_source_is_reachable_no_arn(self):
         """Verify that the cost usage source is authenticated and created."""

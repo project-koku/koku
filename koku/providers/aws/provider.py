@@ -136,14 +136,17 @@ class AWSProvider(ProviderInterface):
             internal_message = f"Unable to access account resources with ARN {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        region_name = data_source.get("bucket_region")
-        s3_exists = _check_s3_access(storage_resource_name, creds, region_name)
+        region_kwargs = {}
+        if region_name := data_source.get("bucket_region"):
+            region_kwargs["region_name"] = region_name
+
+        s3_exists = _check_s3_access(storage_resource_name, creds, **region_kwargs)
         if not s3_exists:
             key = ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND
             internal_message = f"Bucket {storage_resource_name} could not be found with {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        _check_cost_report_access(credential_name, creds, bucket=storage_resource_name, region_name=region_name)
+        _check_cost_report_access(credential_name, creds, bucket=storage_resource_name, **region_kwargs)
 
         return True
 
