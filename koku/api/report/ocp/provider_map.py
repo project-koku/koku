@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for OCP Reports."""
+import logging
 from functools import cached_property
 
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -28,6 +29,8 @@ from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPProviderMap(ProviderMap):
@@ -207,7 +210,8 @@ class OCPProviderMap(ProviderMap):
                             "cost_markup": self.markup_cost_by_project,
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
-                            + self.cost_model_cost,
+                            + self.cost_model_cost
+                            + self.cost_model_distributed_cost_by_project,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
@@ -226,7 +230,8 @@ class OCPProviderMap(ProviderMap):
                             "cost_markup": self.markup_cost_by_project,
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
-                            + self.cost_model_cost,
+                            + self.cost_model_cost
+                            + self.cost_model_distributed_cost_by_project,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -238,7 +243,8 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
-                            + self.cost_model_cost,
+                            + self.cost_model_cost
+                            + self.cost_model_distributed_cost_by_project,
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -594,4 +600,12 @@ class OCPProviderMap(ProviderMap):
         return Sum(
             Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
             * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
+
+    @cached_property
+    def cost_model_distributed_cost_by_project(self):
+        """Return all cost model distributed costs."""
+        return Sum(
+            (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
+            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
         )
