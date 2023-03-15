@@ -262,7 +262,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": openshift_provider_uuid,
             "bill_id": bill_id,
             "report_period_id": report_period_id,
-            "markup": markup_value,
+            "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
         }
