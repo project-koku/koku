@@ -684,8 +684,8 @@ class QueryParametersTests(TestCase):
             "filter[resolution]=monthly&"
             "filter[time_scope_value]=-1&"
             "filter[time_scope_units]=month&"
-            "filter%5Btag:environment]=prod&"  # urlencoded search now use for tag
-            "group_by%5Btag:app]=stage"
+            "filter[tag:environment]=prod&"
+            "group_by[tag:app]=stage"
         )
         tag_keys = ["app", "az", "environment", "cost_center", "fake", "other", "this"]
         expected = {"tag:app", "tag:environment"}
