@@ -29,6 +29,7 @@ from psycopg2.errors import DeadlockDetected
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.utils import DateHelper
 from koku.database import get_model
 from koku.database_exc import ExtendedDBException
@@ -536,7 +537,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         self.accessor.populate_ocp_on_aws_cost_daily_summary_trino(
             start_date,
