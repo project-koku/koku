@@ -185,7 +185,7 @@ class BaseSerializer(serializers.Serializer):
             return
 
         for key in prefix_keys:
-            if len(prefix_keys) > 1 and "child" in fkwargs.keys():
+            if len(prefix_keys) > 1 and "child" in fkwargs:
                 # when there are multiple filters, each filter needs its own
                 # instantiated copy of the child field.
                 fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
