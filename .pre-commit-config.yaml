@@ -34,7 +34,9 @@ repos:
     - id: validate-dashboards
       name: Validate Grafana Dashboards
       description: Ensures dashboard files are valid JSON
-      entry: dev/scripts/validate_dashboards.sh
-      language: script
+      entry: dev/scripts/validate_dashboards.py
+      language: python
       pass_filenames: false
-      files: dashboards\/.*\.yaml
+      files: dashboards/.*\.yaml
+      additional_dependencies:
+        - pyyaml
