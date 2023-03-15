@@ -46,7 +46,9 @@ repos:
         description: Ensures dashboard files are valid JSON
         entry: dev/scripts/validate_dashboards.py
         language: python
-        pass_filenames: false
-        files: dashboards/.*\.yaml
+        # pass_filenames: true
+        files: dashboards/
+        types:
+          - yaml
         additional_dependencies:
           - pyyaml
