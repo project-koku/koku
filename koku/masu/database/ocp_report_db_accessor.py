@@ -540,7 +540,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.debug(platform_sql_params)
         platform_sql, platform_sql_params = self.jinja_sql.prepare_query(platform_sql, platform_sql_params)
         LOG.info(
-            f"Distributing platform cost for provider:{provider_uuid}, dates: {start_date} - {end_date}, report_period: {report_period_id}"  # noqa: E501
+            "Distributing platform cost for provider: "
+            f"{provider_uuid}, dates: {start_date} - {end_date}, report_period: {report_period_id}"
         )
         self._execute_raw_sql_query(
             table_name,
