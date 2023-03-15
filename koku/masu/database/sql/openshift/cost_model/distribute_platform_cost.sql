@@ -135,7 +135,7 @@ FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN platform_cost as pc
     ON pc.usage_start = lids.usage_start
     AND pc.cluster_id = lids.cluster_id
-LEFT JOIN user_defined_project_sum as udps
+JOIN user_defined_project_sum as udps
     ON udps.usage_start = lids.usage_start
     AND udps.cluster_id = lids.cluster_id
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
