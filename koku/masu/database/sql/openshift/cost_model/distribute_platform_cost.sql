@@ -3,7 +3,6 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
     AND lids.cost_model_rate_type = 'platform_distributed'
-    AND source_uuid = {{source_uuid}}
 ;
 
 WITH platform_cost AS (
@@ -23,7 +22,6 @@ WITH platform_cost AS (
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
         AND report_period_id = {{report_period_id}}
-        AND source_uuid = {{source_uuid}}
         AND cat.name = 'Platform'
     GROUP BY lids.usage_start, lids.cluster_id, lids.source_uuid
 ),
@@ -39,7 +37,6 @@ user_defined_project_sum as (
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
         AND report_period_id = {{report_period_id}}
-        AND lids.source_uuid = {{source_uuid}}
         AND lids.namespace != 'Worker unallocated'
         AND lids.namespace != 'Platform unallocated'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
@@ -137,11 +134,9 @@ SELECT
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN platform_cost as pc
     ON pc.usage_start = lids.usage_start
-    AND pc.source_uuid = lids.source_uuid
     AND pc.cluster_id = lids.cluster_id
 LEFT JOIN user_defined_project_sum as udps
     ON udps.usage_start = lids.usage_start
-    AND udps.source_uuid = lids.source_uuid
     AND udps.cluster_id = lids.cluster_id
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
     ON lids.cost_category_id = cat.id
@@ -155,7 +150,6 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
     AND lids.namespace != 'Worker unallocated'
-    AND lids.source_uuid = {{source_uuid}}
 GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id;
 
 -- Notes:
