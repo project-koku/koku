@@ -186,10 +186,9 @@ class BaseSerializer(serializers.Serializer):
 
         for key in prefix_keys:
             if len(prefix_keys) > 1 and (child_kwargs := fkwargs.get("child")):
-                fkwargs["child"] = copy.deepcopy(child_kwargs)
                 # when there are multiple filters, each filter needs its own
                 # instantiated copy of the child field.
-                fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
+                fkwargs["child"] = copy.deepcopy(child_kwargs)
             fields[key] = field(*fargs, **fkwargs)
 
         for key, val in fields.items():
