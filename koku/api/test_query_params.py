@@ -685,7 +685,7 @@ class QueryParametersTests(TestCase):
             "filter[time_scope_value]=-1&"
             "filter[time_scope_units]=month&"
             "filter[tag:environment]=prod&"
-            "group_by[tag:app]=stage"
+            "group_by[tag:app]=*"
         )
         tag_keys = ["app", "az", "environment", "cost_center", "fake", "other", "this"]
         expected = {"tag:app", "tag:environment"}
