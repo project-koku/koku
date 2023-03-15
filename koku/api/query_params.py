@@ -9,6 +9,7 @@ import operator
 from collections import OrderedDict
 from functools import reduce
 from pprint import pformat
+from urllib.parse import unquote
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
@@ -484,14 +485,15 @@ class QueryParameters:
         # https://en.wikipedia.org/wiki/URL_encoding
         # [tag: == %5Btag
         # or:tag == or%3Atag
-        for url_encoded_prefix in ["%5B", "%3A"]:
+        decoded_url = unquote(self.url_data)
+        for url_prefix in ["[", ":"]:
             if self.report_type != "tags":
-                tag_search = url_encoded_prefix + TAG_PREFIX.replace(":", "")
-                if tag_search in self.url_data and not serializer_kwargs.get("tag_keys"):
+                tag_search = f"{url_prefix}{TAG_PREFIX}"
+                if tag_search in decoded_url and not serializer_kwargs.get("tag_keys"):
                     self.tag_keys = self._process_tag_query_params(query_params)
                     serializer_kwargs["tag_keys"] = self.tag_keys
-            aws_category_search = url_encoded_prefix + AWS_CATEGORY_PREFIX.replace(":", "")
-            if aws_category_search in self.url_data and not serializer_kwargs.get("aws_category_keys"):
+            aws_category_search = f"{url_prefix}{AWS_CATEGORY_PREFIX}"
+            if aws_category_search in decoded_url and not serializer_kwargs.get("aws_category_keys"):
                 self.aws_category_keys = self._process_aws_category_query_params(query_params)
                 serializer_kwargs["aws_category_keys"] = self.aws_category_keys
 

@@ -140,8 +140,8 @@ class BaseSerializer(serializers.Serializer):
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
-        self.tag_keys = kwargs.pop("tag_keys", None)
-        self.aws_category_keys = kwargs.pop("aws_category_keys", None)
+        self.tag_keys = kwargs.pop("tag_keys", set())
+        self.aws_category_keys = kwargs.pop("aws_category_keys", set())
         super().__init__(*args, **kwargs)
 
         fkwargs = {"child": serializers.CharField(), "required": False}
@@ -179,10 +179,8 @@ class BaseSerializer(serializers.Serializer):
 
         fields = {}
         prefix_keys = set()
-        if self.tag_keys is not None:
-            prefix_keys.update(self.tag_keys)
-        if self._aws_category and self.aws_category_keys:
-            prefix_keys.update(self.aws_category_keys)
+        prefix_keys.update(self.tag_keys)
+        prefix_keys.update(self.aws_category_keys)
         if not prefix_keys:
             return
 
