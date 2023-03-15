@@ -18,7 +18,7 @@ WITH platform_cost AS (
         lids.source_uuid,
         lids.cluster_id
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-    INNER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON lids.cost_category_id = cat.id
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
@@ -34,7 +34,7 @@ user_defined_project_sum as (
         usage_start,
         source_uuid
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-    LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON lids.cost_category_id = cat.id
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
@@ -143,7 +143,7 @@ LEFT JOIN user_defined_project_sum as udps
     ON udps.usage_start = lids.usage_start
     AND udps.source_uuid = lids.source_uuid
     AND udps.cluster_id = lids.cluster_id
-LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
     ON lids.cost_category_id = cat.id
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
