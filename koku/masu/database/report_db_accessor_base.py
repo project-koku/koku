@@ -474,16 +474,18 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
-        self, source_uuid, start_date, end_date, filters, null_filters=None, table=None
+        self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
     ):
 
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table._meta.db_table} for source {source_uuid} from {start_date} to {end_date}"
+        if not isinstance(table, str):
+            table = table._meta.db_table
+        msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
-            DELETE FROM {self.schema}.{table._meta.db_table}
+            DELETE FROM {self.schema}.{table}
             WHERE usage_start >= %(start_date)s::date
                 AND usage_start <= %(end_date)s::date
         """
