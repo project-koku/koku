@@ -55,6 +55,7 @@ class OCPReportViewTest(IamTestCase):
             cls.provider_map.cloud_infrastructure_cost_by_project
             + cls.provider_map.markup_cost_by_project
             + cls.provider_map.cost_model_cost
+            + cls.provider_map.cost_model_distributed_cost_by_project
         )
 
     def setUp(self):
