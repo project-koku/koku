@@ -394,10 +394,7 @@ class QueryParameters:
         # %5Btag == [tag:
         # %5Bor%3Atag == [or:tag
         decoded_url = unquote(self.url_data)
-        for prefix in prefix_list:
-            if f"[{prefix}" in decoded_url:
-                return True
-        return False
+        return any(f"[{prefix}" in decoded_url for prefix in prefix_list)
 
     def _set_tag_keys(self, query_params):
         """Set the valid tag keys"""
