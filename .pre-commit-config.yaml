@@ -1,42 +1,54 @@
 default_language_version:
   python: python3
+
 repos:
-- repo: https://github.com/asottile/reorder_python_imports
-  rev: v1.6.0
-  hooks:
-  - id: reorder-python-imports
-    args: [--py3-plus, --application-directories, "koku"]
-- repo: https://github.com/asottile/pyupgrade
-  rev: v2.31.1
-  hooks:
-  - id: pyupgrade
-    args: [--py36-plus]
-- repo: https://github.com/ambv/black
-  rev: 22.3.0
-  hooks:
-  - id: black
-    args: [--line-length, "119"]
-    require_serial: true
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v2.2.3
-  hooks:
-  - id: trailing-whitespace
-  - id: end-of-file-fixer
-    exclude: ".unleash/"
-  - id: debug-statements
-  - id: flake8
-- repo: https://github.com/haizaar/check-pipfile-lock
-  rev: v0.0.3
-  hooks:
-    - id: check-pipfile-lock
-- repo: local
-  hooks:
-    - id: validate-dashboards
-      name: Validate Grafana Dashboards
-      description: Ensures dashboard files are valid JSON
-      entry: dev/scripts/validate_dashboards.py
-      language: python
-      pass_filenames: false
-      files: dashboards/.*\.yaml
-      additional_dependencies:
-        - pyyaml
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v3.9.0
+    hooks:
+      - id: reorder-python-imports
+        args: [--py3-plus, --application-directories, "koku"]
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py36-plus]
+
+  - repo: https://github.com/ambv/black
+    rev: 22.12.0
+    hooks:
+      - id: black
+        args: [--line-length, "119"]
+        require_serial: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: debug-statements
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        exclude: ".unleash/"
+
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/haizaar/check-pipfile-lock
+    rev: v0.0.5
+    hooks:
+      - id: check-pipfile-lock
+
+  - repo: local
+    hooks:
+      - id: validate-dashboards
+        name: Validate Grafana Dashboards
+        description: Ensures dashboard files are valid JSON
+        entry: dev/scripts/validate_dashboards.py
+        language: python
+        # pass_filenames: true
+        files: dashboards/
+        types:
+          - yaml
+        additional_dependencies:
+          - pyyaml
