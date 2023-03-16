@@ -806,7 +806,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_invoice_id_trino(self, mock_trino):
         """Check that an invoice ID exists or not."""
         mock_trino.return_value = [
