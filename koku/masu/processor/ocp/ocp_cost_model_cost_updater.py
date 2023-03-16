@@ -47,7 +47,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._supplementary_rates = cost_model_accessor.supplementary_rates
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
-            self._distribution = cost_model_accessor.distribution
+            self._distribution = cost_model_accessor.distribution_info.get(
+                "distribution_type", metric_constants.DEFAULT_DISTRIBUTION_TYPE
+            )
+            self._distribute_platform = cost_model_accessor.distribution_info.get("platform_cost", True)
+            # TODO: COST-3548
+            # self._distribute_worker = cost_model_accessor.distribution_info.get("worker_cost", True)
 
     def _build_node_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}, unallocated=False):
         """Given a tag key, value, and rate return a CASE SQL statement for tag based monthly SQL."""
@@ -423,6 +428,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
         with OCPReportDBAccessor(self._schema) as accessor:
+            if self._distribute_platform:
+                accessor.populate_platform_distributed_cost_sql(
+                    start_date, end_date, self._distribution, self._provider_uuid
+                )
+
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
