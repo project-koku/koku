@@ -216,7 +216,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.ingress_downloader.tracing_id = "1111-2222-4444-5555"
         self.ingress_downloader._azure_client.get_file_for_key = Mock(side_effect=AzureCostReportNotFound("Oops!"))
         manifest, last_modified = self.ingress_downloader._get_manifest(self.mock_data.test_date)
-        self.assertEqual(manifest, {"assemblyId": None})
+        self.assertEqual(manifest, {})
         self.assertEqual(last_modified, None)
         call_arg = mock_log.info.call_args.args[0]
         self.assertEqual(call_arg.get("tracing_id"), self.ingress_downloader.tracing_id)
@@ -266,7 +266,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             side_effect=AzureCostReportNotFound("Oops!")
         )
         manifest, last_modified = self.downloader._get_manifest(self.mock_data.test_date)
-        self.assertEqual(manifest, {"assemblyId": None})
+        self.assertEqual(manifest, {})
         self.assertEqual(last_modified, None)
         call_arg = log_mock.info.call_args.args[0]
         self.assertEqual(call_arg.get("tracing_id"), self.downloader.tracing_id)

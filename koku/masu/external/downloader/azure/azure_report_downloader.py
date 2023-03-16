@@ -150,7 +150,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = {}
-        manifest["assemblyId"] = None
         if self.ingress_reports:
             report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
             year = date_time.strftime("%Y")
@@ -217,7 +216,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
                 manifest["reportKeys"] = [report_name]
 
-        if not manifest["assemblyId"]:
             try:
                 manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
             except IndexError:
