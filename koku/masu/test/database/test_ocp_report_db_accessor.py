@@ -932,10 +932,15 @@ select * from eek where val1 in {{report_period_id}} ;
 
         with schema_context(self.schema):
             report_period_id = report_period.id
-            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            initial_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(cost_model_rate_type="platform_distributed")
+                .count()
+            )
+            # the distributed cost is being added so the initial count is no longer zero.
             initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,

@@ -19,7 +19,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
     cost_model_rate_type,
     source_uuid,
     cost_category_id,
-    raw_currency
+    raw_currency,
+    distributed_cost
 )
     SELECT uuid_generate_v4() as id,
         cluster_id,
@@ -35,7 +36,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
         cost_model_rate_type,
         {{source_uuid}}::uuid as source_uuid,
         max(cost_category_id) as cost_category_id,
-        max(raw_currency) as raw_currency
+        max(raw_currency) as raw_currency,
+        sum(distributed_cost) as distributed_cost
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
