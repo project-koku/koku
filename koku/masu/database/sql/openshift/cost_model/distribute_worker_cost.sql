@@ -158,7 +158,7 @@ GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id;
 
 -- Validation SQL
 -- SELECT
---     sum(distributed_cost) as distributed_cost
+--     sum(distributed_cost) as distributed_cost,
 --     lids.node,
 --     lids.usage_start,
 --     lids.namespace,
@@ -166,6 +166,6 @@ GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id;
 -- FROM org1234567.reporting_ocpusagelineitem_daily_summary AS lids
 -- WHERE distributed_cost IS NOT NULL
 -- AND usage_start = '2023-03-01'
--- AND lids.namespace = 'Worker unallocated'
+-- AND lids.namespace != 'Worker unallocated'
 -- AND cost_model_rate_type = 'worker_distributed'
 -- GROUP BY lids.usage_start, lids.cluster_id, lids.node, lids.namespace;
