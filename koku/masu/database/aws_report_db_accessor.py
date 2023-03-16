@@ -460,7 +460,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND source = '{source_uuid}'
         """
 
-        results = self._execute_trino_raw_sql_query(self.schema, sql, log_ref="check_for_invoice_id_trino")
+        results = self._execute_trino_raw_sql_query(sql, log_ref="check_for_invoice_id_trino")
 
         invoice_ids = [result[0] for result in results if result[0] != ""]
         return invoice_ids
