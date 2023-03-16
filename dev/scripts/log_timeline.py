@@ -271,7 +271,7 @@ values (%(log_name)s, %(log_line)s, %(log_ts)s, %(log_level)s, %(log_ident)s, %(
     def open_dump_file(self):
         # LOG.critical(f"DUMP = {self.dump}")
         if self.dump:
-            return open(self.dump[0], "wt")
+            return open(self.dump[0], "w")
         return sys.stdout
 
     def get_error_log_ts_start_end(self):

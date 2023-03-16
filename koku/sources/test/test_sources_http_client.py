@@ -243,6 +243,11 @@ class SourcesHTTPClientTest(TestCase):
                 "expected": {"bucket": bucket, "storage_only": True},
             },
             {
+                "source-type": Provider.PROVIDER_AWS,
+                "json": {"extra": {"bucket": bucket, "bucket_region": "me-south-1"}},
+                "expected": {"bucket": bucket, "bucket_region": "me-south-1"},
+            },
+            {
                 "source-type": Provider.PROVIDER_AZURE,
                 "json": {
                     "extra": {
