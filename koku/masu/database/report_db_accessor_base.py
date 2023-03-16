@@ -500,6 +500,20 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
 
+    def truncate_partition(self, partition_name):
+        """Issue a TRUNCATE command on a specific partition of a table"""
+        # Currently all partitions are date based and if the partition does not have YYYY_MM on the end, do not truncate
+        year, month = partition_name.split("_")[-2:]
+        try:
+            int(year)
+            int(month)
+        except ValueError:
+            msg = "Invalid paritition provided. No TRUNCATE performed."
+            LOG.warning(msg)
+            return
+        sql = f"TRUNCATE {self.schema}.{partition_name}"
+        self._execute_raw_sql_query(partition_name, sql, operation="TRUNCATE")
+
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
