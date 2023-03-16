@@ -114,9 +114,9 @@ class OCIReportDBAccessorTest(MasuTestCase):
             cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
             self.assertEqual(cost_entries.count(), 0)
 
-    @patch("masu.database.oci_report_db_accessor.OCIReportDBAccessor._execute_presto_raw_sql_query")
-    def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.oci_report_db_accessor.OCIReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -129,10 +129,10 @@ class OCIReportDBAccessorTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        self.accessor.populate_line_item_daily_summary_table_presto(
+        self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, self.oci_provider_uuid, current_bill_id, markup_value
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""

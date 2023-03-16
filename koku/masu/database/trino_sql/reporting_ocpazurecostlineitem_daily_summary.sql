@@ -89,6 +89,7 @@ DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
 WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
 ;
 
+
 -- Directly resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
@@ -179,7 +180,7 @@ SELECT azure.uuid as azure_uuid,
     max(azure.tags) as tags,
     max(azure.resource_id_matched) as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
-    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
+    {{ocp_source_uuid}} as ocp_source
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         on coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
@@ -187,16 +188,16 @@ SELECT azure.uuid as azure_uuid,
                 (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
                     OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
             )
-    WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
+    WHERE azure.source = {{azure_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
-        AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+        AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
+        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
+        AND ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-        AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.usage_start >= {{start_date}}
+        AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source
 ;
@@ -291,7 +292,7 @@ SELECT azure.uuid as azure_uuid,
     max(azure.tags) as tags,
     max(azure.resource_id_matched) as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
-    '{{ocp_source_uuid | sqlsafe}}' as ocp_source
+    {{ocp_source_uuid}} as ocp_source
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
@@ -306,16 +307,16 @@ SELECT azure.uuid as azure_uuid,
         AND namespace != 'Platform unallocated'
     LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
         ON azure.uuid = pds.azure_uuid
-    WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
+    WHERE azure.source = {{azure_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
-        AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+        AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
+        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
+        AND ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-        AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.usage_start >= {{start_date}}
+        AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND pds.azure_uuid is NULL
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source
 ;
@@ -410,15 +411,15 @@ SELECT pds.azure_uuid,
             ) as JSON))
     END as tags,
     cost_category_id,
-    '{{azure_source_uuid | sqlsafe}}' as azure_source,
-    '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
+    {{azure_source_uuid}} as azure_source,
+    {{ocp_source_uuid}} as ocp_source,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.azure_uuid = r.azure_uuid
-WHERE pds.ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE pds.ocp_source = {{ocp_source_uuid}}
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
@@ -482,13 +483,13 @@ SELECT uuid(),
     cost_category_id,
     cast(azure_source as UUID)
 FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
-WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
-    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE azure_source = {{azure_source_uuid}}
+    AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND day in ({{days}})
+    AND day in {{days | inclause}}
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
-WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+WHERE ocp_source = {{ocp_source_uuid}}
 ;

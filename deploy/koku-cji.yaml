@@ -28,6 +28,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: CLOWDER_ENABLED
@@ -75,6 +79,12 @@ parameters:
   value: trino-coordinator
 - displayName: Presto/Trino port
   name: PRESTO_PORT
+  value: "10000"
+- displayName: Presto/Trino host
+  name: TRINO_HOST
+  value: trino-coordinator
+- displayName: Presto/Trino port
+  name: TRINO_PORT
   value: "10000"
 - displayName: Prometheus multiproc dir
   name: PROMETHEUS_DIR

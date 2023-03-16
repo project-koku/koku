@@ -126,9 +126,9 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     )
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_tags_summary_table")
     @patch(
-        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_presto, mock_tag_update, mock_delete, _):
+    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _):
         """Test that we run Presto summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
@@ -152,7 +152,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_delete.assert_called_with(
             self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
-        mock_presto.assert_called_with(
+        mock_trino.assert_called_with(
             expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)

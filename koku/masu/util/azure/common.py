@@ -22,7 +22,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
-from reporting.provider.azure.models import PRESTO_COLUMNS
+from reporting.provider.azure.models import TRINO_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ def azure_post_processor(data_frame):
     data_frame = data_frame.rename(columns=column_name_map)
 
     columns = set(data_frame)
-    columns = set(PRESTO_COLUMNS).union(columns)
+    columns = set(TRINO_COLUMNS).union(columns)
     columns = sorted(columns)
 
     data_frame = data_frame.reindex(columns=columns)

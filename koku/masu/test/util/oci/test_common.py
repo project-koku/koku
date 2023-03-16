@@ -19,7 +19,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.util.oci import common as utils
 from reporting.models import OCICostEntryBill
-from reporting.provider.oci.models import PRESTO_REQUIRED_COLUMNS
+from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 # the cn endpoints aren't supported by moto, so filter them out
 OCI_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), OCI_REGIONS))
@@ -165,7 +165,7 @@ class TestOCIUtils(MasuTestCase):
         self.assertIn(column_three.replace("-", "_"), columns)
         self.assertNotIn(column_four, columns)
         self.assertIn("tags", columns)
-        for column in PRESTO_REQUIRED_COLUMNS:
+        for column in TRINO_REQUIRED_COLUMNS:
             self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
     def test_oci_generate_daily_data_usage(self):
