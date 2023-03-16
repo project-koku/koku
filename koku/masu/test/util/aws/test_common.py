@@ -29,7 +29,7 @@ from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSes
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
-from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
+from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -409,7 +409,7 @@ class TestAWSUtils(MasuTestCase):
         self.assertIn(column_three.replace("-", "_"), columns)
         self.assertNotIn(column_four, columns)
         self.assertIn("resourcetags", columns)
-        for column in PRESTO_REQUIRED_COLUMNS:
+        for column in TRINO_REQUIRED_COLUMNS:
             self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
     def test_aws_generate_daily_data(self):

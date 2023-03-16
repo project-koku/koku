@@ -11,6 +11,7 @@ import pkgutil
 import random
 import string
 from decimal import Decimal
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import django.apps
@@ -500,9 +501,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -515,15 +516,15 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        self.accessor.populate_line_item_daily_summary_table_presto(
+        self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, self.aws_provider_uuid, current_bill_id, markup_value
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_presto(self, mock_presto, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_aws_cost_daily_summary_trino(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -537,7 +538,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
             distribution = cost_model_accessor.distribution
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+        self.accessor.populate_ocp_on_aws_cost_daily_summary_trino(
             start_date,
             end_date,
             self.ocp_provider_uuid,
@@ -547,12 +548,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value,
             distribution,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_aws_cost_daily_summary_trino_memory_distribution(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -566,7 +567,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
             distribution = "memory"
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+        self.accessor.populate_ocp_on_aws_cost_daily_summary_trino(
             start_date,
             end_date,
             self.ocp_provider_uuid,
@@ -576,7 +577,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             markup_value,
             distribution,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
@@ -705,17 +706,20 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        ocp_uuids = (self.ocp_on_aws_ocp_provider.uuid,)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.aws_provider_uuid, [self.ocp_on_aws_ocp_provider.uuid], start_date, end_date
+            self.aws_provider_uuid,
+            ocp_uuids,
+            start_date,
+            end_date,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     def test_bad_sql_execution(self):
         script_file_name = "reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
@@ -725,7 +729,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
@@ -739,24 +743,23 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
             AWSEnabledTagKeys.objects.all().delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
-    def test_check_for_matching_enabled_keys(self, mock_presto):
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_check_for_matching_enabled_keys(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
-    @patch("masu.database.aws_report_db_accessor.JinjaSql.prepare_query")
     @patch("masu.database.aws_report_db_accessor.enable_ocp_savings_plan_cost")
-    def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_jinja, mock_execute):
+    def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_execute):
         """Test that we back populate raw cost to OCP."""
         is_savingsplan_cost = True
         mock_unleash.return_value = is_savingsplan_cost
@@ -776,10 +779,13 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "is_savingsplan_cost": is_savingsplan_cost,
         }
 
-        mock_jinja.return_value = sql, sql_params
+        mock_jinja = Mock()
+
+        mock_jinja.prepare_query.return_value = sql, sql_params
         accessor = AWSReportDBAccessor(schema=self.schema)
+        accessor.jinja_sql = mock_jinja
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
-        mock_jinja.assert_called_with(sql, sql_params)
+        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
         mock_jinja.reset_mock()
@@ -797,5 +803,5 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "is_savingsplan_cost": is_savingsplan_cost,
         }
 
-        mock_jinja.assert_called_with(sql, sql_params)
+        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()

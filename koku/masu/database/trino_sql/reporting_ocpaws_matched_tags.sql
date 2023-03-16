@@ -13,11 +13,11 @@ cte_unnested_aws_tags AS (
     CROSS JOIN UNNEST(cast(json_parse(resourcetags) as map(varchar, varchar))) AS tags(key, value)
     JOIN cte_enabled_tag_keys AS etk
         ON any_match(etk.key_array, x->strpos(aws.resourcetags, x) != 0)
-    WHERE source = '{{aws_source_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-        AND lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    WHERE source = {{aws_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND lineitem_usagestartdate >= {{start_date}}
+        AND lineitem_usagestartdate < date_add('day', 1, {{end_date}})
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT pod_key,
@@ -32,10 +32,10 @@ cte_unnested_ocp_tags AS (
     JOIN cte_enabled_tag_keys AS etk
         ON any_match(etk.key_array, x->strpos(ocp.pod_labels, x) != 0)
             OR any_match(etk.key_array, x->strpos(ocp.volume_labels, x) != 0)
-    WHERE source IN ('{{ocp_source_uuids | sqlsafe}}')
-        AND year = '{{year | sqlsafe}}'
-        AND lpad(month, 2, '0') = '{{month | sqlsafe}}'
-        AND day IN ('{{days | sqlsafe}}')
+    WHERE source IN {{ocp_source_uuids | inclause}}
+        AND year = {{year}}
+        AND lpad(month, 2, '0') = {{month}}
+        AND day IN {{days | inclause}}
 )
 SELECT '{"' || key || '": "' || value || '"}' as tag
 FROM (

@@ -18,6 +18,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
@@ -79,10 +80,22 @@ class ParquetReportProcessorError(Exception):
 class ParquetReportProcessor:
     """Parquet report processor."""
 
+    dh = DateHelper()
+
     def __init__(
-        self, schema_name, report_path, provider_uuid, provider_type, manifest_id, context={}, ingress_reports=None
+        self,
+        schema_name,
+        report_path,
+        provider_uuid,
+        provider_type,
+        manifest_id,
+        context=None,
+        ingress_reports=None,
+        ingress_reports_uuid=None,
     ):
         """initialize report processor."""
+        if context is None:
+            context = {}
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._report_file = report_path
@@ -90,12 +103,13 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.start_date = self._context.get("start_date")
-        self.invoice_month = self._context.get("invoice_month")
-        if self.invoice_month:
-            self.invoice_month_date = DateHelper().invoice_month_start(self.invoice_month).date()
-        self.presto_table_exists = {}
+        self.invoice_month_date = None
+        if invoice_month := self._context.get("invoice_month"):
+            self.invoice_month_date = self.dh.invoice_month_start(invoice_month).date()
+        self.trino_table_exists = {}
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
+        self.ingress_reports_uuid = ingress_reports_uuid
 
     @property
     def schema_name(self):
@@ -440,7 +454,7 @@ class ParquetReportProcessor:
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()
-        self.presto_table_exists[self.report_type] = True
+        self.trino_table_exists[self.report_type] = True
 
     def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
@@ -460,8 +474,13 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
-                if not set(col_names).issuperset(set(CSV_REQUIRED_COLUMNS.get(self._provider_type))):
-                    message = "Invalid report file, required column names missing from file."
+                REQUIRED_COLS = set(CSV_REQUIRED_COLUMNS.get(self._provider_type))
+                if not set(col_names).issuperset(REQUIRED_COLS):
+                    missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
+                    message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
+                    if self.ingress_reports_uuid:
+                        with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
+                            ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
                     raise ValidationError(message, code="Missing_columns")
             csv_converters = {
                 col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
@@ -491,7 +510,7 @@ class ParquetReportProcessor:
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
-            if self.create_table and not self.presto_table_exists.get(self.report_type):
+            if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
         except Exception as err:
