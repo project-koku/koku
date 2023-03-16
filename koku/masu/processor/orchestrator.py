@@ -247,6 +247,7 @@ class Orchestrator:
                         report_month,
                         report_context,
                         ingress_reports=self.ingress_reports,
+                        ingress_reports_uuid=self.ingress_report_uuid,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))

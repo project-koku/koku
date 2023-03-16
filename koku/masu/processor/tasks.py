@@ -142,6 +142,7 @@ def get_report_files(  # noqa: C901
     report_month,
     report_context,
     ingress_reports=None,
+    ingress_reports_uuid=None,
     tracing_id=None,
 ):
     """
@@ -248,7 +249,9 @@ def get_report_files(  # noqa: C901
             report_dict["tracing_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
-            _process_report_file(schema_name, provider_type, report_dict, ingress_reports)
+            result = _process_report_file(
+                schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid
+            )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
@@ -260,6 +263,10 @@ def get_report_files(  # noqa: C901
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
+        if not result:
+            msg = "No report files processed, skipping summary"
+            LOG.info(log_json(tracing_id, msg, context))
+            return None
 
         return report_meta
     except ReportDownloaderWarning as err:
@@ -466,12 +473,8 @@ def update_summary_tables(  # noqa: C901
 
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
-        if provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month)
-            updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month)
-        else:
-            start_date, end_date = updater.update_daily_tables(start_date, end_date)
-            updater.update_summary_tables(start_date, end_date, tracing_id)
+        start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month=invoice_month)
+        updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month=invoice_month)
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:

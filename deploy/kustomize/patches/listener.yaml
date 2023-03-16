@@ -73,6 +73,10 @@
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: USE_RABBIT

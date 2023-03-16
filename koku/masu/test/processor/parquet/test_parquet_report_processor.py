@@ -14,10 +14,12 @@ from unittest.mock import PropertyMock
 
 import faker
 import pandas as pd
+from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -74,6 +76,27 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        ingress_uuid = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        self.ingress_report_dict = {
+            "uuid": ingress_uuid,
+            "created_timestamp": DateHelper().today,
+            "completed_timestamp": None,
+            "reports_list": ["test"],
+            "source": self.aws_provider,
+        }
+        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
+        with schema_context(self.schema):
+            self.added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
+        self.report_processor_ingress = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS,
+            manifest_id=self.manifest_id,
+            ingress_reports=["test.csv"],
+            ingress_reports_uuid=ingress_uuid,
             context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
 
@@ -217,6 +240,18 @@ class TestParquetReportProcessor(MasuTestCase):
             )
 
             self.assertEqual(report_processor.post_processor, test.get("expected"))
+
+    @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
+    @patch("masu.processor.parquet.parquet_report_processor.os.remove")
+    def test_convert_to_parquet_validation_error(self, mock_remove, mock_exists):
+        """Test the convert_to_parquet task hits column validation error."""
+        with patch("masu.processor.parquet.parquet_report_processor.Path"):
+            with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
+                mock_os.path.split.return_value = ("path", "file.csv.gz")
+                with patch("masu.processor.parquet.parquet_report_processor.pd.read_csv") as mock_cols:
+                    mock_cols.columns.return_value = {"columns"}
+                    _, __, result = self.report_processor_ingress.convert_csv_to_parquet("csv_filename.csv.gz")
+                    self.assertFalse(result)
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -395,7 +430,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                         "create_table": True,
                                     },
                                 )
-                                report_processor.presto_table_exists["pod_usage"] = True
+                                report_processor.trino_table_exists["pod_usage"] = True
                                 result = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
                                 self.assertTrue(result)
                                 mock_create_table.assert_not_called()

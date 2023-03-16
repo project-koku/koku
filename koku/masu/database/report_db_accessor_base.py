@@ -21,11 +21,13 @@ from tenant_schemas.utils import schema_context
 
 import koku.trino_database as trino_db
 from api.common import log_json
+from api.utils import DateHelper
 from koku.database import execute_delete_sql as exec_del_sql
 from koku.database_exc import get_extended_exception_by_type
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
+from masu.external.date_accessor import DateAccessor
 from reporting.models import PartitionedTable
 from reporting_common import REPORT_COLUMN_MAP
 
@@ -73,6 +75,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         super().__init__(schema)
         self.report_schema = ReportSchema(django.apps.apps.get_models())
+        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
+
+        self.date_accessor = DateAccessor()
+        self.date_helper = DateHelper()
+        self.jinja_sql = JinjaSql()
 
     @property
     def decimal_precision(self):
@@ -362,43 +369,40 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, attempts_left=0):
-        """Execute a single presto query returning only the fetchall results"""
-        results, _ = self._execute_presto_raw_sql_query_with_description(
-            schema, sql, bind_params, log_ref, attempts_left
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
+        """Execute a single trino query returning only the fetchall results"""
+        results, _ = self._execute_trino_raw_sql_query_with_description(
+            sql, sql_params=sql_params, log_ref=log_ref, attempts_left=attempts_left
         )
         return results
 
-    def _execute_presto_raw_sql_query_with_description(
-        self, schema, sql, bind_params=None, log_ref=None, attempts_left=0
+    def _execute_trino_raw_sql_query_with_description(
+        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0
     ):
-        """Execute a single presto query and return cur.fetchall and cur.description"""
+        """Execute a single trino query and return cur.fetchall and cur.description"""
+        if sql_params is None:
+            sql_params = {}
+        sql, bind_params = self.trino_prepare_query(sql, sql_params)
+        t1 = time.time()
+        trino_conn = trino_db.connect(schema=self.schema)
         try:
-            t1 = time.time()
-            presto_conn = trino_db.connect(schema=schema)
-            presto_cur = presto_conn.cursor()
-            presto_cur.execute(sql, bind_params)
-            results = presto_cur.fetchall()
-            description = presto_cur.description
-            t2 = time.time()
-            if log_ref:
-                msg = f"{log_ref} for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
-            else:
-                msg = f"Trino query for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
-            LOG.info(msg)
-            return results, description
+            trino_cur = trino_conn.cursor()
+            trino_cur.execute(sql, bind_params)
+            results = trino_cur.fetchall()
+            description = trino_cur.description
         except Exception as ex:
             if attempts_left == 0:
-                msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
+                msg = f"Failing SQL:\n{sql}\nwith bind_params:\n\t{bind_params}"
                 LOG.error(msg)
             raise ex
+        t2 = time.time()
+        LOG.info(f"{log_ref} for {self.schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds.")
+        return results, description
 
-    def _execute_presto_multipart_sql_query(
-        self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
-    ):
-        """Execute multiple related SQL queries in Presto."""
-        presto_conn = trino_db.connect(schema=self.schema)
-        return trino_db.executescript(presto_conn, sql, params=bind_params, preprocessor=preprocessor)
+    def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
+        """Execute multiple related SQL queries in Trino."""
+        trino_conn = trino_db.connect(schema=self.schema)
+        return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):
@@ -505,7 +509,7 @@ class ReportDBAccessorBase(KokuDBAccess):
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql, log_ref="table_exists_trino")
+        table = self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")
         if table:
             return True
         return False
