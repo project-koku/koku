@@ -5,7 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0271_alter_ocpenabledtagkeys_enabled"),
+        ("reporting", "0274_alter_ocpallcostlineitemprojectdailysummaryp_namespace"),
     ]
     operations = [
         migrations.RemoveField(
