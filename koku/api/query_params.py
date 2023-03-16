@@ -407,6 +407,9 @@ class QueryParameters:
         for tag_model in self.tag_handler:
             with tenant_context(self.tenant):
                 self.tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
+        if not self.tag_keys:
+            # in case there are no tag keys in the models.
+            return
         param_tag_keys = set()
         # Reduce the set of tag keys based on those being queried.
         for key, value in query_params.items():
