@@ -181,7 +181,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_ids": bill_ids,
             "cluster_id": cluster_id,
             "schema": self.schema,
-            "markup": markup_value,
+            "markup": markup_value or 0,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
@@ -307,7 +307,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,
             "bill_id": bill_id,
-            "markup": markup_value,
+            "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
         }
