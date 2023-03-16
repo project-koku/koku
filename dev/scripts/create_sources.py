@@ -33,6 +33,7 @@ def create_parser():
     parser.add_argument(
         "--s3_bucket", dest="s3_bucket", required=False, help="AWS S3 bucket with cost and usage report"
     )
+    parser.add_argument("--s3_region", required=False, help="AWS S3 region")
     parser.add_argument("--resource_group", dest="resource_group", required=False, help="AZURE Storage Resource Group")
     parser.add_argument("--storage_account", dest="storage_account", required=False, help="AZURE Storage Account")
     parser.add_argument("--scope", dest="scope", required=False, help="AZURE Cost Export Scope")
@@ -70,8 +71,13 @@ class SourcesClientDataGenerator:
         header = {"x-rh-identity": auth_header}
         self._identity_header = header
 
-    def create_s3_bucket(self, parameters, billing_source):
-        json_data = {"billing_source": {"bucket": billing_source}}
+    def create_s3_bucket(self, parameters, billing_source, s3_region=None):
+        json_data = {
+            "billing_source": {
+                "bucket": billing_source,
+                "bucket_region": s3_region,
+            }
+        }
 
         url = "{}/{}/".format(self._base_url, parameters.get("source_id"))
         response = requests.patch(url, headers=self._identity_header, json=json_data)
@@ -220,11 +226,12 @@ def main(args):  # noqa
     if parameters.get("aws"):
         role_arn = parameters.get("role_arn")
         s3_bucket = parameters.get("s3_bucket")
+        s3_region = parameters.get("s3_region")
         source_id_param = parameters.get("source_id")
 
         if s3_bucket and source_id_param:
             sources_client = SourcesClientDataGenerator(identity_header)
-            billing_source_response = sources_client.create_s3_bucket(parameters, s3_bucket)
+            billing_source_response = sources_client.create_s3_bucket(parameters, s3_bucket, s3_region)
             print(f"Associating S3 bucket: {billing_source_response.content}")
             return
 
