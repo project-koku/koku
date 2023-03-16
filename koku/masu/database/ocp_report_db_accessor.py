@@ -506,6 +506,52 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             return [(pvc[0], pvc[1], pvc[2]) for pvc in unique_pvcs]
 
+    def populate_platform_distributed_cost_sql(self, start_date, end_date, distribution, provider_uuid):
+        """
+        Populate the platform cost distribution of a customer.
+
+        args:
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            distribution: Choice of monthly distribution ex. memory
+            provider_uuid (str): The str of the provider UUID
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            LOG.info(
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_platform_distributed_cost_sql update."
+            )
+            return
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        platform_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/distribute_platform_cost.sql")
+        platform_sql = platform_sql.decode("utf-8")
+        platform_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "report_period_id": report_period_id,
+            "distribution": distribution,
+            "source_uuid": provider_uuid,
+        }
+        LOG.debug(platform_sql_params)
+        platform_sql, platform_sql_params = self.jinja_sql.prepare_query(platform_sql, platform_sql_params)
+        LOG.info(
+            "Distributing platform cost for provider: "
+            f"{provider_uuid}, dates: {start_date} - {end_date}, report_period: {report_period_id}"
+        )
+        self._execute_raw_sql_query(
+            table_name,
+            platform_sql,
+            start_date,
+            end_date,
+            bind_params=list(platform_sql_params),
+            operation="INSERT",
+        )
+
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
         """
         Populate the monthly cost of a customer.
