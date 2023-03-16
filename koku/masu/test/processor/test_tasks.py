@@ -531,6 +531,18 @@ class TestProcessorTasks(MasuTestCase):
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch("masu.processor.tasks._process_report_file", return_value=False)
+    def test_get_report_files_returns_none(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test to check no reports are return for summary after failed csv to parquet conversion."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "PLAIN"}
+
+        result = get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+        self.assertFalse(result)
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files", side_effect=Exception("Mocked download error!"))
     def test_get_report_broad_exception(self, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising download broad exception is handled."""
@@ -650,7 +662,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
-        mock_cost_model.return_value.__enter__.return_value.distribution = "cpu"
+        mock_cost_model.return_value.__enter__.return_value.distribution_info = {
+            "distribution_type": "cpu",
+            "platform_cost": False,
+            "worker_cost": False,
+        }
         # We need to bypass the None check for cost model in update_cost_model_costs
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 

@@ -10,6 +10,7 @@ from dateutil import parser
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -136,7 +137,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on AWS
         sql_params = {
@@ -166,7 +167,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid, start, end, filters, table=OCPAWSCostLineItemProjectDailySummaryP
                 )
-                accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+                accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
                     end,
                     openshift_provider_uuid,
@@ -253,7 +254,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on Azure
         sql_params = {
@@ -283,7 +284,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid, start, end, filters, table=OCPAzureCostLineItemProjectDailySummaryP
                 )
-                accessor.populate_ocp_on_azure_cost_daily_summary_presto(
+                accessor.populate_ocp_on_azure_cost_daily_summary_trino(
                     start,
                     end,
                     openshift_provider_uuid,
@@ -369,7 +370,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on GCP
         sql_params = {
@@ -402,7 +403,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 if summarize_ocp_on_gcp_by_node(self._schema):
                     for node in nodes:
                         LOG.info(f"Summarizing ocp on gcp daily for node: {node}")
-                        accessor.populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
+                        accessor.populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
                             start,
                             end,
                             openshift_provider_uuid,
@@ -416,7 +417,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                             node_count,
                         )
                 else:
-                    accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
+                    accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
                         start,
                         end,
                         openshift_provider_uuid,
@@ -428,7 +429,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         distribution,
                     )
 
-            accessor.back_populate_ocp_infrastructure_costs_trino(start_date, end_date, current_ocp_report_period_id)
+            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
 

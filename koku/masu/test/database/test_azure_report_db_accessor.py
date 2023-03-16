@@ -16,6 +16,7 @@ from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.utils import DateHelper
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -172,9 +173,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertAlmostEqual(sum_markup_cost_project, sum_project_cost * markup_value, 4)
             self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 4)
 
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
-    def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -187,15 +188,15 @@ class AzureReportDBAccessorTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        self.accessor.populate_line_item_daily_summary_table_presto(
+        self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, self.azure_provider_uuid, current_bill_id, markup_value
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_presto(self, mock_presto, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_azure_cost_daily_summary_trino(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -207,9 +208,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
-        self.accessor.populate_ocp_on_azure_cost_daily_summary_presto(
+        self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
             start_date,
             end_date,
             self.ocp_provider_uuid,
@@ -219,13 +220,13 @@ class AzureReportDBAccessorTest(MasuTestCase):
             markup_value,
             distribution,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
         mock_delete.assert_called()
 
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
-        """Test that we construst our SQL and query using Presto."""
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_azure_cost_daily_summary_trino_memory_distribution(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
@@ -239,7 +240,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
             distribution = "memory"
 
-        self.accessor.populate_ocp_on_azure_cost_daily_summary_presto(
+        self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
             start_date,
             end_date,
             self.ocp_provider_uuid,
@@ -249,7 +250,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             markup_value,
             distribution,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
         mock_delete.assert_called()
 
     def test_populate_enabled_tag_keys(self):
@@ -338,20 +339,23 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.assertGreater(len(matched_tags), 0)
         self.assertIsInstance(matched_tags[0], dict)
 
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
-    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        ocp_uuids = (self.ocp_on_azure_ocp_provider.uuid,)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.azure_provider_uuid, [self.ocp_on_azure_ocp_provider.uuid], start_date, end_date
+            self.azure_provider_uuid,
+            ocp_uuids,
+            start_date,
+            end_date,
         )
-        mock_presto.assert_called()
+        mock_trino.assert_called()
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist):
         """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
@@ -365,16 +369,16 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
-    def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
             AzureEnabledTagKeys.objects.all().delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
-    def test_check_for_matching_enabled_keys(self, mock_presto):
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_check_for_matching_enabled_keys(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)

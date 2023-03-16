@@ -37,7 +37,7 @@ def set_srr(yaml_file_name, git_ref):
 
     target_file = os.path.join(os.environ["E2E_REPO"], "buildfactory", yaml_file_name)
     LOG.info(f'Processing "{target_file}"')
-    with open(target_file, "rt+") as e2e_yaml:
+    with open(target_file, "r+") as e2e_yaml:
         buff = e2e_yaml.read()
         e2e_yaml.seek(0)
         e2e_yaml.write(SRR.sub(repl, buff))

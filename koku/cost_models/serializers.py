@@ -16,6 +16,7 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
+from api.report.serializers import BaseSerializer
 from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
@@ -52,6 +53,28 @@ class MarkupSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10, coerce_to_string=True)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
+
+
+class DistributionSerializer(BaseSerializer):
+    """Serializer for distribution options"""
+
+    DISTRIBUTION_OPTIONS = {"distribution_type", "worker_cost", "platform_cost"}
+
+    distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
+    platform_cost = serializers.BooleanField(required=False)
+    worker_cost = serializers.BooleanField(required=False)
+
+    def validate(self, data):
+        """Run validation for distribution options."""
+
+        diff = self.DISTRIBUTION_OPTIONS.difference(data)
+        if diff == self.DISTRIBUTION_OPTIONS:
+            return {"distribution_type": metric_constants.CPU_DISTRIBUTION, "platform_cost": True, "worker_cost": True}
+        if diff:
+            distribution_info_str = ", ".join(diff)
+            error_msg = f"Missing distribution information: one of {distribution_info_str}"
+            raise serializers.ValidationError(error_msg)
+        return data
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -363,7 +386,7 @@ class RateSerializer(serializers.Serializer):
         return data
 
 
-class CostModelSerializer(serializers.Serializer):
+class CostModelSerializer(BaseSerializer):
     """Serializer for a list of tiered rates."""
 
     class Meta:
@@ -394,6 +417,8 @@ class CostModelSerializer(serializers.Serializer):
     distribution = serializers.ChoiceField(
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
+
+    distribution_info = DistributionSerializer(required=False)
 
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
@@ -450,6 +475,13 @@ class CostModelSerializer(serializers.Serializer):
 
         if not data.get("currency"):
             data["currency"] = get_currency(self.context.get("request"))
+
+        if not data.get("distribution_info"):
+            data["distribution_info"] = {
+                "distribution_type": data.get("distribution", metric_constants.CPU_DISTRIBUTION),
+                "platform_cost": True,
+                "worker_cost": True,
+            }
 
         if (
             data.get("markup")

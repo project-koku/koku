@@ -2,7 +2,6 @@
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer
 from api.provider.models import Provider
-from api.utils import DateHelper
 
 
 class MasuTestCase(IamTestCase):
@@ -19,7 +18,7 @@ class MasuTestCase(IamTestCase):
     def setUp(self):
         """Set up each test case."""
         self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema)
-        self.start_date = DateHelper().today
+        self.start_date = self.dh.today
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
         self.ocp_provider = Provider.objects.get(
             type=Provider.PROVIDER_OCP, authentication__credentials__cluster_id="OCP-on-Prem"

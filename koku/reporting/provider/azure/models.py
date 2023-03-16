@@ -10,11 +10,11 @@ from django.db import models
 from django.db.models import JSONField
 
 
-PRESTO_LINE_ITEM_TABLE = "azure_line_items"
-PRESTO_LINE_ITEM_DAILY_TABLE = PRESTO_LINE_ITEM_TABLE
-PRESTO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
+TRINO_LINE_ITEM_TABLE = "azure_line_items"
+TRINO_LINE_ITEM_DAILY_TABLE = TRINO_LINE_ITEM_TABLE
+TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
 
-PRESTO_COLUMNS = [
+TRINO_COLUMNS = [
     "billingperiodstartdate",
     "billingperiodenddate",
     "usagedatetime",

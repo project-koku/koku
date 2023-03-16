@@ -17,8 +17,7 @@ objects:
     - rbac
     - sources-api
     deployments:
-    - minReplicas: ${{KOKU_MIN_REPLICAS}}
-      name: clowder-api
+    - name: clowder-api
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -196,6 +195,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{KOKU_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -204,8 +204,7 @@ objects:
         public:
           apiPath: cost-management
           enabled: true
-    - minReplicas: ${{LISTENER_MIN_REPLICAS}}
-      name: clowder-listener
+    - name: clowder-listener
       podSpec:
         command:
         - /bin/bash
@@ -268,6 +267,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: USE_RABBIT
@@ -357,6 +360,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{LISTENER_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -364,8 +368,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{MASU_MIN_REPLICAS}}
-      name: clowder-masu
+    - name: clowder-masu
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -490,6 +493,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -546,6 +553,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{MASU_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -553,8 +561,7 @@ objects:
           enabled: true
         public:
           enabled: false
-    - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
-      name: clowder-scheduler
+    - name: clowder-scheduler
       podSpec:
         command:
         - /bin/bash
@@ -646,6 +653,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -723,6 +734,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
         metrics:
           enabled: false
@@ -730,8 +742,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
-      name: clowder-sources-client
+    - name: clowder-sources-client
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -889,6 +900,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -896,8 +908,7 @@ objects:
           enabled: true
         public:
           enabled: false
-    - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
-      name: clowder-sources-listener
+    - name: clowder-sources-listener
       podSpec:
         command:
         - /bin/bash
@@ -1062,6 +1073,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1069,8 +1081,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
-      name: clowder-worker-celery
+    - name: clowder-worker-celery
       podSpec:
         command:
         - /bin/bash
@@ -1150,6 +1161,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -1245,6 +1260,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1252,8 +1268,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
-      name: clowder-worker-cost-model
+    - name: clowder-worker-cost-model
       podSpec:
         command:
         - /bin/bash
@@ -1333,6 +1348,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -1430,6 +1449,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1437,8 +1457,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
-      name: clowder-worker-download
+    - name: clowder-worker-download
       podSpec:
         command:
         - /bin/bash
@@ -1518,6 +1537,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -1613,6 +1636,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1620,8 +1644,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
-      name: clowder-worker-ocp
+    - name: clowder-worker-ocp
       podSpec:
         command:
         - /bin/bash
@@ -1701,6 +1724,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -1798,6 +1825,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1805,8 +1833,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
-      name: clowder-worker-priority
+    - name: clowder-worker-priority
       podSpec:
         command:
         - /bin/bash
@@ -1886,6 +1913,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -1981,6 +2012,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -1988,8 +2020,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
-      name: clowder-worker-refresh
+    - name: clowder-worker-refresh
       podSpec:
         command:
         - /bin/bash
@@ -2069,6 +2100,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -2166,6 +2201,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2173,8 +2209,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
-      name: clowder-worker-summary
+    - name: clowder-worker-summary
       podSpec:
         command:
         - /bin/bash
@@ -2254,6 +2289,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -2351,6 +2390,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2358,8 +2398,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - minReplicas: ${{WORKER_HCS_MIN_REPLICAS}}
-      name: clowder-worker-hcs
+    - name: clowder-worker-hcs
       podSpec:
         command:
         - /bin/bash
@@ -2441,6 +2480,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -2538,6 +2581,7 @@ objects:
             - key: oci-credentials
               path: oci-credentials.pem
             secretName: koku-oci
+      replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2845,6 +2889,12 @@ parameters:
 - displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "10000"
+- displayName: Trino host
+  name: TRINO_HOST
+  value: trino-coordinator
+- displayName: Trino port
+  name: TRINO_PORT
+  value: "10000"
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
@@ -2910,7 +2960,7 @@ parameters:
   name: CACHE_TIMEOUT
   value: "3600"
 - displayName: Minimum replicas
-  name: KOKU_MIN_REPLICAS
+  name: KOKU_REPLICAS
   required: true
   value: "3"
 - displayName: Memory Request
@@ -2934,7 +2984,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: LISTENER_MIN_REPLICAS
+  name: LISTENER_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -2958,7 +3008,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: MASU_MIN_REPLICAS
+  name: MASU_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -2982,7 +3032,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: SCHEDULER_MIN_REPLICAS
+  name: SCHEDULER_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3012,7 +3062,7 @@ parameters:
   name: SOURCE_STATUS_FREQUENCY_MINUTES
   value: "60"
 - displayName: Minimum replicas
-  name: SOURCES_CLIENT_MIN_REPLICAS
+  name: SOURCES_CLIENT_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3036,7 +3086,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: SOURCES_LISTENER_MIN_REPLICAS
+  name: SOURCES_LISTENER_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3060,7 +3110,7 @@ parameters:
   required: true
   value: INFO
 - displayName: Minimum replicas
-  name: WORKER_CELERY_MIN_REPLICAS
+  name: WORKER_CELERY_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
@@ -3084,7 +3134,7 @@ parameters:
   required: true
   value: celery
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_MIN_REPLICAS
+  name: WORKER_COST_MODEL_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3108,7 +3158,7 @@ parameters:
   required: true
   value: cost_model
 - displayName: Minimum replicas
-  name: WORKER_DOWNLOAD_MIN_REPLICAS
+  name: WORKER_DOWNLOAD_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3132,7 +3182,7 @@ parameters:
   required: true
   value: download
 - displayName: Minimum replicas
-  name: WORKER_OCP_MIN_REPLICAS
+  name: WORKER_OCP_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3156,7 +3206,7 @@ parameters:
   required: true
   value: ocp
 - displayName: Minimum replicas
-  name: WORKER_PRIORITY_MIN_REPLICAS
+  name: WORKER_PRIORITY_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3180,7 +3230,7 @@ parameters:
   required: true
   value: priority
 - displayName: Minimum replicas
-  name: WORKER_REFRESH_MIN_REPLICAS
+  name: WORKER_REFRESH_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3204,7 +3254,7 @@ parameters:
   required: true
   value: refresh
 - displayName: Minimum replicas
-  name: WORKER_SUMMARY_MIN_REPLICAS
+  name: WORKER_SUMMARY_REPLICAS
   required: true
   value: "2"
 - displayName: Memory Request
@@ -3228,7 +3278,7 @@ parameters:
   required: true
   value: summary
 - displayName: Minimum replicas
-  name: WORKER_HCS_MIN_REPLICAS
+  name: WORKER_HCS_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request

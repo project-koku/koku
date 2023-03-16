@@ -82,7 +82,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating Azure report summary tables via Presto: \n\tSchema: %s"
+                    "Updating Azure report summary tables via Trino: \n\tSchema: %s"
                     "\n\tProvider: %s \n\tDates: %s - %s",
                     self._schema,
                     self._provider.uuid,
@@ -95,7 +95,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid, start, end, filters
                 )
-                accessor.populate_line_item_daily_summary_table_presto(
+                accessor.populate_line_item_daily_summary_table_trino(
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)

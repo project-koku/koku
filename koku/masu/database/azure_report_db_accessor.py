@@ -12,18 +12,15 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
-from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-from api.utils import DateHelper
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.external.date_accessor import DateAccessor
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -31,7 +28,7 @@ from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 
@@ -50,8 +47,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
-        self.date_accessor = DateAccessor()
-        self.jinja_sql = JinjaSql()
         self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
@@ -82,7 +77,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -93,9 +88,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/reporting_azurecostentrylineitem_daily_summary.sql"
-        )
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_azurecostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
@@ -103,17 +96,16 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": PRESTO_LINE_ITEM_TABLE,
+            "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
             "bill_id": bill_id,
-            "markup": markup_value if markup_value else 0,
+            "markup": markup_value or 0,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
-        self._execute_presto_raw_sql_query(
-            self.schema, summary_sql, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
+        self._execute_trino_raw_sql_query(
+            summary_sql, sql_params=summary_sql_params, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
         )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
@@ -189,7 +181,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_ids": bill_ids,
             "cluster_id": cluster_id,
             "schema": self.schema,
-            "markup": markup_value,
+            "markup": markup_value or 0,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
@@ -262,8 +254,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(
-                            self.schema,
+                        self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -275,7 +266,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         else:
                             raise err
 
-    def populate_ocp_on_azure_cost_daily_summary_presto(
+    def populate_ocp_on_azure_cost_daily_summary_trino(
         self,
         start_date,
         end_date,
@@ -289,11 +280,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        days_list = [str(day.day) for day in days]
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_azure_hive_partition_by_day(
-            days_list, azure_provider_uuid, openshift_provider_uuid, year, month
+            days_tup, azure_provider_uuid, openshift_provider_uuid, year, month
         )
 
         # default to cpu distribution
@@ -303,7 +293,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(openshift_provider_uuid).replace("-", "_"),
@@ -312,18 +302,18 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "year": year,
             "month": month,
-            "days": days_str,
+            "days": days_tup,
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,
             "bill_id": bill_id,
-            "markup": markup_value,
+            "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
         }
         LOG.info("Running OCP on Azure SQL with params:")
         LOG.info(summary_sql_params)
-        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
@@ -386,28 +376,28 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    def get_openshift_on_cloud_matched_tags_trino(self, azure_source_uuid, ocp_source_uuids, start_date, end_date):
+    def get_openshift_on_cloud_matched_tags_trino(
+        self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+    ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
 
-        days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
+        days = self.date_helper.list_days(start_date, end_date)
 
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "azure_source_uuid": azure_source_uuid,
-            "ocp_source_uuids": ocp_uuids,
+            "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": days_str,
+            "days": tuple(str(day.day) for day in days),
         }
-        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-        results = self._execute_presto_raw_sql_query(
-            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
+
+        results = self._execute_trino_raw_sql_query(
+            sql, sql_params=sql_params, log_ref="reporting_ocpazure_matched_tags.sql"
         )
 
         return [json.loads(result[0]) for result in results]
@@ -433,7 +423,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         match_sql = f"""
             SELECT COUNT(*) FROM {self.schema}.reporting_azureenabledtagkeys as azure
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key;
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key
+                WHERE azure.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)

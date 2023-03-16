@@ -2,7 +2,7 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-celery
-    minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
+    replicas: ${{WORKER_CELERY_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -91,6 +91,10 @@
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         - name: AUTO_DATA_INGEST
           value: ${AUTO_DATA_INGEST}
         - name: REPORT_PROCESSING_BATCH_SIZE
@@ -190,7 +194,7 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_CELERY_MIN_REPLICAS
+    name: WORKER_CELERY_REPLICAS
     required: true
     value: '1'
 - op: add
