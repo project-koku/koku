@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import uuid
 
 from django.conf import settings
 
@@ -149,6 +150,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = {}
+        manifest["assemblyId"] = None
         if self.ingress_reports:
             report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
             year = date_time.strftime("%Y")
@@ -167,6 +169,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_name = blob.name
             last_modified = blob.last_modified
             manifest["reportKeys"] = [blob.name]
+            manifest["assemblyId"] = uuid.uuid4()
         else:
             report_path = self._get_report_path(date_time)
             billing_period = {
@@ -213,11 +216,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 last_modified = blob.last_modified
                 LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
                 manifest["reportKeys"] = [report_name]
-        try:
-            manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
-        except IndexError:
-            message = f"Unable to extract assemblyID from {report_name}"
-            raise AzureReportDownloaderError(message)
+
+        if not manifest["assemblyId"]:
+            try:
+                manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
+            except IndexError:
+                message = f"Unable to extract assemblyID from {report_name}"
+                raise AzureReportDownloaderError(message)
 
         manifest["billingPeriod"] = billing_period
         manifest["Compression"] = UNCOMPRESSED
