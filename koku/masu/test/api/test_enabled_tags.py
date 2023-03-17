@@ -121,6 +121,28 @@ class EnabledTagsTest(MasuTestCase):
                     self.assertEqual(enabled_table_class.objects.filter(enabled=True).count(), 0)
 
     @patch("koku.middleware.MASU", return_value=True)
+    def test_post_enabled_tags_remove_stale(self, _):
+        """Test the GET enabled_tags endpoint."""
+        for provider_type in self.provider_type_options:
+            with self.subTest(provider_type=provider_type):
+                enabled_table_class = self.provider_type_to_table.get(provider_type)
+                with schema_context(self.schema):
+                    keys = enabled_table_class.objects.values_list("key")
+                    keys = [key[0] for key in keys]
+                    print(keys)
+
+                post_data = {
+                    "schema": "org1234567",
+                    "action": "remove_stale",
+                    "provider_type": provider_type,
+                }
+
+                response = self.client.post(reverse("enabled_tags"), post_data, content_type="application/json")
+                body = response.json()
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(body.get("tag_keys"), [])
+
+    @patch("koku.middleware.MASU", return_value=True)
     def test_post_enabled_tags_no_schema(self, _):
         """Test the GET enabled_tags endpoint."""
         with schema_context(self.schema):

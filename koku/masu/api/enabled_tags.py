@@ -4,8 +4,11 @@
 #
 """View for enable_tags masu admin endpoint."""
 import logging
+import pkgutil
 
+from django.db import connection
 from django.views.decorators.cache import never_cache
+from jinjasql import JinjaSql
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -28,6 +31,14 @@ PROVIDER_TYPE_TO_TABLE = {
     Provider.PROVIDER_GCP.lower(): GCPEnabledTagKeys,
     Provider.PROVIDER_OCI.lower(): OCIEnabledTagKeys,
     Provider.PROVIDER_OCP.lower(): OCPEnabledTagKeys,
+}
+
+PROVIDER_TYPE_TO_FILE_PATH = {
+    Provider.PROVIDER_AWS.lower(): "aws",
+    Provider.PROVIDER_AZURE.lower(): "azure",
+    Provider.PROVIDER_GCP.lower(): "gcp",
+    Provider.PROVIDER_OCI.lower(): "oci",
+    Provider.PROVIDER_OCP.lower(): "openshift",
 }
 
 
@@ -85,7 +96,7 @@ class EnabledTagView(APIView):
             errmsg = "action is required."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        tag_keys = data.get("tag_keys")
+        tag_keys = data.get("tag_keys", [])
 
         with schema_context(schema_name):
             if action.lower() == "create":
@@ -95,12 +106,25 @@ class EnabledTagView(APIView):
                     tag_key_to_enable.save()
                 msg = f"Enabled tags for schema: {schema_name}."
                 LOG.info(msg)
-            if action.lower() == "delete":
+            elif action.lower() == "delete":
                 for key in tag_keys:
                     enabled_tag_key = enabled_tag_model.objects.filter(key=key).first()
                     enabled_tag_key.enabled = False
                     enabled_tag_key.save()
                 msg = f"Disabled tags for schema: {schema_name}."
                 LOG.info(msg)
+            elif action.lower() == "remove_stale":
+                jinja_sql = JinjaSql()
+                sql = pkgutil.get_data(
+                    "masu.database",
+                    f"sql/{PROVIDER_TYPE_TO_FILE_PATH.get(provider_type)}/remove_stale_enabled_tags.sql",
+                )
+                sql = sql.decode("utf-8")
+                params = {"schema": schema_name}
+                sql, params = jinja_sql.prepare_query(sql, params)
+                LOG.info("Removing stale enabled tag keys.")
+                with schema_context(schema_name=schema_name):
+                    with connection.cursor() as cursor:
+                        cursor.execute(sql, params=params)
 
         return Response({RESPONSE_KEY: tag_keys})

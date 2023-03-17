@@ -193,7 +193,6 @@ WHERE EXISTS (
 )
 ;
 
-
 TRUNCATE TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
 DROP TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
 TRUNCATE TABLE {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}};
