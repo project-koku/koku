@@ -45,6 +45,8 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
@@ -612,9 +614,9 @@ def delete_openshift_on_cloud_data(
     """Clear existing data from tables for date range."""
     updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
 
-    if operation == "truncate":
+    if operation == TRUNCATE_TABLE:
         updater._ocp_cloud_updater.truncate_summary_table_data(table_name)
-    elif operation == "delete":
+    elif operation == DELETE_TABLE:
         updater._ocp_cloud_updater.delete_summary_table_data(start_date, end_date, table_name)
 
 

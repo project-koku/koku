@@ -40,6 +40,9 @@ from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
 LOG = logging.getLogger(__name__)
 
+TRUNCATE_TABLE = "truncate"
+DELETE_TABLE = "delete"
+
 
 class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
     """Class to update OCP report summary data."""
@@ -114,13 +117,13 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         trunc_delete_map = {}
         if self._can_truncate(start_date, end_date):
             partition_str = f"_{start_date.strftime('%Y')}_{start_date.strftime('%m')}"
-            trunc_delete_map[self.daily_summary_table.objects.model._meta.db_table + partition_str] = "truncate"
+            trunc_delete_map[self.daily_summary_table.objects.model._meta.db_table + partition_str] = TRUNCATE_TABLE
             for table in self.ui_summary_tables:
-                trunc_delete_map[table + partition_str] = "truncate"
+                trunc_delete_map[table + partition_str] = TRUNCATE_TABLE
         else:
-            trunc_delete_map[self.daily_summary_table.objects.model._meta.db_table] = "delete"
+            trunc_delete_map[self.daily_summary_table.objects.model._meta.db_table] = DELETE_TABLE
             for table in self.ui_summary_tables:
-                trunc_delete_map[table] = "delete"
+                trunc_delete_map[table] = DELETE_TABLE
 
         return trunc_delete_map
 
