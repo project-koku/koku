@@ -600,7 +600,7 @@ class OCPProviderMap(ProviderMap):
 
     @cached_property
     def cost_model_distributed_cost_by_project(self):
-        """Return all cost model distributed costs."""
+        """Return ORM term for cost model distributed costs."""
         return Sum(
             (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
             * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
