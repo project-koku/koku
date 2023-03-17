@@ -32,7 +32,6 @@ from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDai
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
-from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
 LOG = logging.getLogger(__name__)
 
@@ -177,20 +176,21 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     markup_value,
                     distribution,
                 )
-            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
-            accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
+                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start, end)
+                accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
-                LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start_date} e={end_date})")
-                ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
-                ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
-                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
-
-                ocp_accessor.populate_ui_summary_tables(
-                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    sql_params["start_date"] = start
+                    sql_params["end_date"] = end
+                    LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start} e={end})")
+                    ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
+                    ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
+                    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
         with schema_context(self._schema):
@@ -294,20 +294,21 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     markup_value,
                     distribution,
                 )
-            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
-            accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
+                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start, end)
+                accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "Azure"
-                LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    sql_params["start_date"] = start
+                    sql_params["end_date"] = end
+                LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start} e={end})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
-
-                ocp_accessor.populate_ui_summary_tables(
-                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
         with schema_context(self._schema):
@@ -429,20 +430,22 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         distribution,
                     )
 
-            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
-            accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
+                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
+                accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start, end)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
-                LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
-                ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
-                ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
-                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    sql_params["start_date"] = start
+                    sql_params["end_date"] = end
+                    LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start} e={end})")
+                    ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
+                    ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
+                    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
-                ocp_accessor.populate_ui_summary_tables(
-                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
         LOG.info("Updating ocp_on_cloud_updated_datetime on OpenShift report periods")
         with schema_context(self._schema):
             report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
