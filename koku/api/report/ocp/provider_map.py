@@ -208,6 +208,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost,
+                            "cost_distributed": self.cost_model_distributed_cost_by_project,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
@@ -227,6 +228,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost,
+                            "cost_distributed": self.cost_model_distributed_cost_by_project,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -594,4 +596,12 @@ class OCPProviderMap(ProviderMap):
         return Sum(
             Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
             * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
+
+    @cached_property
+    def cost_model_distributed_cost_by_project(self):
+        """Return all cost model distributed costs."""
+        return Sum(
+            (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
+            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
         )
