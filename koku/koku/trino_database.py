@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-from decimal import Decimal
 
 import sqlparse
 import trino
@@ -21,64 +20,6 @@ class PreprocessStatementError(Exception):
 
 class TrinoStatementExecError(Exception):
     pass
-
-
-def _type_transform(v):
-    """
-    Simple transform to change various Python types to a TrinoSQL token for
-    insert into a statement. No casts are emitted.
-    Params:
-        v (various) : Query parameter value
-    Returns:
-        str : Proper string representation of value for a TrinoSQL query.
-    """
-    if v is None:
-        # convert None to keyword null
-        return "null"
-    elif isinstance(v, (int, float, Decimal, complex, bool, list)):
-        # Convert to string without surrounding quotes making a bare token
-        return str(v)
-    elif isinstance(v, tuple):
-        # Convert to string without surrounding quotes making a bare token
-        # Also convert (val,) to (val) for length 1 tuples
-        return EOT.sub(")", str(v))
-    else:
-        # Convert to string *with* surrounding single-quote characters
-        return f"'{str(v)}'"
-
-
-def _has_params(sql):
-    """
-    Detect parameter substitution tokens in a TrinoSQL statement
-    Params:
-        sql (str) : TrinoSQL statement
-    Returns:
-        bool : True if substitution tokens found else False
-    """
-    return bool(POSITIONAL_VARS.search(sql)) or bool(NAMED_VARS.search(sql))
-
-
-def sql_mogrify(sql, params=None):
-    """
-    Cheap version of psycopg2.Cursor.mogrify method. Does not inject type casting.
-    None type will be converted to "null"
-    int, float, Decimal, complex, bool, list, tuple types will be converted to string
-    All other types will be converted to strings surrounded by single-quote characters
-    Params:
-        sql (str) : SQL formatted for the driver using %s or %(name)s placeholders
-        params (list, tuple, dict) : Parameter values
-    Returns:
-        str : SQL statement with parameter values substituted
-    """
-    if params is not None and _has_params(sql):
-        if isinstance(params, dict):
-            mog_params = {k: _type_transform(v) for k, v in params.items()}
-        else:
-            mog_params = tuple(_type_transform(p) for p in params)
-
-        return sql % mog_params
-    else:
-        return sql
 
 
 def connect(**connect_args):
@@ -114,71 +55,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-def _fetchall(trino_cur):
-    """
-    Wrapper around the trino.dbapi.Cursor.fetchall() method
-    Params:
-        trino_cur (trino.dbapi.Cursor) : Trino cursor that has already called the execute method
-    Returns:
-        list : Results of cursor execution and results fetch
-    """
-    return trino_cur.fetchall()
-
-
-def _cursor(trino_conn):
-    """
-    Wrapper around the trino.dbapi.Connection.cursor() method
-    Params:
-        trino_conn (trino.dbapi.Connection) Active trino connection
-    Returns:
-        trino.dbapi.Cursor : Cursor for the connection
-    """
-    return trino_conn.cursor()
-
-
-def _execute(trino_cur, trino_stmt):
-    """
-    Wrapper around the trino.dbapi.Cursor.execute() method
-    Params:
-        trino_cur (trino.dbapi.Cursor) : trino connection cursor
-        trino_stmt (str) : trino SQL statement
-    Returns:
-        trino.dbapi.Cursor : Cursor after execute method called
-    """
-    trino_cur.execute(trino_stmt)
-    return trino_cur
-
-
-def execute(trino_conn, sql, params=None):
-    """
-    Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
-    will be parsed into individual statements for execution. If preprocessor is None,
-    then the resulting SQL and bind parameters are used. If a preprocessor is needed,
-    then it should be a callable taking two positional arguments and returning a 2-element tuple:
-        pre_process(sql, parameters) -> (processed_sql, processed_parameters)
-    Parameters:
-        trino_conn (trino.dbapi.Connection) : Connection to trino
-        sql (str) : Buffer of one or more semicolon-terminated SQL statements.
-        params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
-    Returns:
-        list : Results of SQL statement execution.
-    """
-    # trino.Cursor.execute does not use parameters.
-    # The sql_mogrify function will do any needed parameter substitution
-    # and only returns the SQL with parameters formatted inline.
-    trino_stmt = sql_mogrify(sql, params)
-    trino_cur = _cursor(trino_conn)
-    trino_cur = _execute(trino_cur, trino_stmt)
-    results = _fetchall(trino_cur)
-    if trino_cur.description is None:
-        columns = []
-    else:
-        columns = [col[0] for col in trino_cur.description]
-
-    return results, columns
-
-
-def executescript(trino_conn, sqlscript, params=None, preprocessor=None):
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -199,42 +76,38 @@ def executescript(trino_conn, sqlscript, params=None, preprocessor=None):
     # sqlparse.split() should be a safer means to split a sql script into discrete statements
     for stmt_num, p_stmt in enumerate(sqlparse.split(sqlscript)):
         stmt_count = stmt_count + 1
-        p_stmt = str(p_stmt).strip()
-        if p_stmt:
-            # A semicolon statement terminator is invalid in the Trino dbapi interface
-            if p_stmt.endswith(";"):
-                p_stmt = p_stmt[:-1]
-
+        if p_stmt := str(p_stmt).strip():
+            # A semicolon statement terminator is invalid in the Presto dbapi interface
+            p_stmt = p_stmt.removesuffix(";")
             # This is typically for jinjasql templated sql
             if preprocessor and params:
                 try:
                     stmt, s_params = preprocessor(p_stmt, params)
-                # If a different preprocessor is used, we can't know what the exception type is.
                 except Exception as e:
                     LOG.warning(
-                        f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}"
-                        + os.linesep
+                        f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}{os.linesep}"
                         + f"Statement template : {p_stmt}"
                         + os.linesep
                         + f"Parameters : {params}"
                     )
                     exc_type = e.__class__.__name__
-                    raise PreprocessStatementError(f"{exc_type} :: {e}")
+                    raise PreprocessStatementError(f"{exc_type} :: {e}") from e
             else:
                 stmt, s_params = p_stmt, params
 
             try:
-                results, _ = execute(trino_conn, stmt, params=s_params)
+                cur = trino_conn.cursor()
+                cur.execute(stmt, params=s_params)
+                results = cur.fetchall()
             except Exception as e:
                 exc_msg = (
-                    f"Trino Query Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}"
-                    + os.linesep
+                    f"Trino Query Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}{os.linesep}"
                     + f"Statement: {stmt}"
                     + os.linesep
                     + f"Parameters: {s_params}"
                 )
                 LOG.warning(exc_msg)
-                raise TrinoStatementExecError(exc_msg)
+                raise TrinoStatementExecError(exc_msg) from e
 
             all_results.extend(results)
 
