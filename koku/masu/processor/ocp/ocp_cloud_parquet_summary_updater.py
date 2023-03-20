@@ -184,10 +184,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
+                LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start_date} e={end_date})")
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
-                    LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start} e={end})")
                     ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
                     ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
                     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
@@ -302,10 +302,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "Azure"
+                LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
-                LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start} e={end})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
@@ -438,10 +438,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
+                LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
-                    LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start} e={end})")
                     ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
                     ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
                     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
