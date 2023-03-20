@@ -550,8 +550,8 @@ class OCPReportViewTest(IamTestCase):
         self.assertNotEqual(total, Decimal(0))
         self.assertAlmostEqual(total, expected_total, 6)
 
-    def test_execute_query_ocp_costs_group_by_project__distributed(self):
-        """Test that the costs endpoint is reachable."""
+    def test_execute_query_ocp_costs_group_by_project__distributed_costs(self):
+        """Test that the costs endpoint is reachable and returns distributed costs."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
         params = {

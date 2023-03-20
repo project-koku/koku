@@ -115,25 +115,13 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __cost_model_distributed_cost(self, cost_model_rate_type=None):
+    def __cost_model_distributed_cost(self):
         """Return ORM term for cost model distributed cost."""
 
-        if cost_model_rate_type:
-            return Sum(
-                Case(
-                    When(
-                        cost_model_rate_type=cost_model_rate_type,
-                        then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                    ),
-                    default=Value(0, output_field=DecimalField()),
-                )
-                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-            )
-        else:
-            return Sum(
-                (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
-                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-            )
+        return Sum(
+            (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
+            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+        )
 
     def __init__(self, provider, report_type):
         """Constructor."""
