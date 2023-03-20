@@ -9,7 +9,6 @@ import operator
 from collections import OrderedDict
 from functools import reduce
 from pprint import pformat
-from urllib.parse import unquote
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
@@ -387,20 +386,11 @@ class QueryParameters:
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
 
-    def search_url_for_prefixes(self, prefix_list):
-        """Searches url and returns true if any prefix is found in a url."""
-        # the url_data property is percent encoded
-        # https://en.wikipedia.org/wiki/URL_encoding
-        # %5Btag == [tag:
-        # %5Bor%3Atag == [or:tag
-        decoded_url = unquote(self.url_data)
-        return any(f"[{prefix}" in decoded_url for prefix in prefix_list)
-
     def _set_tag_keys(self, query_params):
         """Set the valid tag keys"""
         prefix_list = [TAG_PREFIX, OR_TAG_PREFIX, AND_TAG_PREFIX]
         self.tag_keys = set()
-        if self.report_type == "tags" or not self.search_url_for_prefixes(prefix_list):
+        if self.report_type == "tags" or not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             # we do not need to fetch the tags for tags report type.
             # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
@@ -428,7 +418,7 @@ class QueryParameters:
         """Set the valid aws_category keys"""
         prefix_list = [AWS_CATEGORY_PREFIX, AND_AWS_CATEGORY_PREFIX, OR_AWS_CATEGORY_PREFIX]
         self.aws_category_keys = set()
-        if not self.search_url_for_prefixes(prefix_list):
+        if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             return
         param_aws_category_keys = set()
         for key, value in query_params.items():
@@ -562,7 +552,7 @@ class QueryParameters:
     @property
     def url_data(self):
         """Get the url_data."""
-        return self.request.GET.urlencode()
+        return self.request.GET.urlencode(safe="[]:")
 
     @property
     def user(self):
