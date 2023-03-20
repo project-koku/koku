@@ -6,6 +6,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
@@ -30,7 +31,8 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self.updater = AWSReportParquetSummaryUpdater(self.schema_name, self.aws_provider, self.manifest)
 
-    def test_get_sql_inputs(self):
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    def test_get_sql_inputs(self, _):
         """Test that dates are returned."""
         # Previous month
         start_str = (self.dh.last_month_end - timedelta(days=3)).isoformat()
@@ -58,7 +60,50 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
-    def test_update_daily_tables(self):
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    def test_check_for_finalized_report(self, mock_invoice_check):
+        """Test that we properly adjust start date for non-finalized reports."""
+        dh = DateHelper()
+
+        # Test current month
+        mock_invoice_check.return_value = []
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        bill_date = dh.this_month_start
+        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
+            bill_date, start_date, end_date
+        )
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+        mock_invoice_check.reset_mock()
+        # Test previous month IS finalized
+        mock_invoice_check.return_value = ["1"]
+        start_date = dh.last_month_start
+        end_date = dh.last_month_end
+        bill_date = dh.last_month_start
+        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
+            bill_date, start_date, end_date
+        )
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+        mock_invoice_check.reset_mock()
+        # Test previous month NOT finalized
+        mock_invoice_check.return_value = []
+        start_date = dh.last_month_start
+        end_date = dh.last_month_end
+        bill_date = dh.last_month_start
+        expected_start_date = end_date - relativedelta(days=2)
+        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
+            bill_date, start_date, end_date
+        )
+        self.assertNotEqual(result_start_date, start_date)
+        self.assertEqual(result_start_date, expected_start_date)
+        self.assertEqual(result_end_date, end_date)
+
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    def test_update_daily_tables(self, _):
         """Test that this is a placeholder method."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
@@ -75,6 +120,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
 
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
@@ -82,8 +128,8 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete):
-        """Test that we run Trino summary."""
+    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _):
+        """Test that we run Presto summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
