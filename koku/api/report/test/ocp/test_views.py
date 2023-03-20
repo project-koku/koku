@@ -57,6 +57,13 @@ class OCPReportViewTest(IamTestCase):
             + cls.provider_map.cost_model_cost
         )
 
+        cls.distributed_cost_term_by_project = (
+            cls.provider_map.cloud_infrastructure_cost_by_project
+            + cls.provider_map.markup_cost_by_project
+            + cls.provider_map.cost_model_cost
+            + cls.provider_map.cost_model_distributed_cost_by_project
+        )
+
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
@@ -542,6 +549,38 @@ class OCPReportViewTest(IamTestCase):
         total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertNotEqual(total, Decimal(0))
         self.assertAlmostEqual(total, expected_total, 6)
+
+    def test_execute_query_ocp_costs_group_by_project__distributed(self):
+        """Test that the costs endpoint is reachable."""
+        url = reverse("reports-openshift-costs")
+        client = APIClient()
+        params = {
+            "group_by[project]": "*",
+            "filter[time_scope_value]": "-1",
+            "filter[time_scope_units]": "month",
+            "filter[resolution]": "monthly",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Using .data instead of .json() retains the Decimal types for
+        # direct value and type comparisons
+        data = response.data
+
+        with tenant_context(self.tenant):
+            cost = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.distributed_cost_term_by_project)
+                .get("total")
+            )
+            expected_total = cost if cost is not None else 0
+        total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        distributed_cost = data.get("meta", {}).get("total", {}).get("cost", {}).get("distributed", {}).get("value", 0)
+        self.assertNotEqual(total, Decimal(0))
+        self.assertNotEqual(distributed_cost, Decimal(0))
+        self.assertAlmostEqual(distributed_cost, expected_total, 6)
 
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
