@@ -173,7 +173,8 @@ class GCPProviderTestCase(TestCase):
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
     def test_cost_usage_source_raised_errors(self, mock_auth, mock_discovery):
-        """Test that cost_usage_source_is_reachable succeeds."""
+        """Test that cost_usage_source_is_reachable succeeds fails as expected
+        when a 502 error is returned by GCP."""
         mock_discovery.build.side_effect = RefreshError()
         mock_auth.return_value = (MagicMock(), MagicMock())
         project = FAKE.word()
