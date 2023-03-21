@@ -6,6 +6,10 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/nginx.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/listener.yaml
   target:
     version: v1
