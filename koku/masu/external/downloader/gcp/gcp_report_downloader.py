@@ -272,7 +272,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"  Customer: {self.customer_name}"
                 f"  Response: {err.message}"
             )
-            LOG.warning(log_json(self.tracing_id, err_msg))
+            extra_context = {"customer", self.customer_name, "response": err.message}
+            LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
             raise GCPReportDownloaderError(err_msg)
         return mapping
 
@@ -339,7 +340,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         if self.ingress_reports:
             manifest = self._generate_monthly_pseudo_manifest(date)
-            log_msg = log_base + f" Manifest Data: {str(manifest)}"
+            log_msg = f"{log_base} Manifest Data: {manifest}"
             assembly_id = manifest.get("assembly_id")
             LOG.info(log_json(self.tracing_id, log_msg, self.context))
             manifest_id = self._process_manifest_db_record(
@@ -362,7 +363,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             bigquery_mapping = self.bigquery_export_to_partition_mapping()
             new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
             for manifest in new_manifest_list:
-                log_msg = log_base + f" Manifest Data: {str(manifest)}"
+                log_msg = f"{log_base} Manifest Data: {manifest}"
                 LOG.info(log_json(self.tracing_id, log_msg, self.context))
                 manifest_id = self._process_manifest_db_record(
                     manifest["assembly_id"],
