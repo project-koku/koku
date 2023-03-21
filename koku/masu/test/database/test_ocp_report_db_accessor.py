@@ -1057,6 +1057,7 @@ select * from eek where val1 in {{report_period_id}} ;
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
+        accessor = OCPReportDBAccessor(schema=self.schema)
         for distribute in ["platform", "worker"]:
             with self.subTest(distribute=distribute):
                 sql_file = f"distribute_{distribute}_cost.sql"
@@ -1072,14 +1073,14 @@ select * from eek where val1 in {{report_period_id}} ;
                 }
                 mock_jinja = Mock()
                 mock_jinja.prepare_query.return_value = sql, default_sql_params
-                self.accessor.jinja_sql = mock_jinja
-                self.accessor.populate_platform_and_worker_distributed_cost_sql(
+                accessor.jinja_sql = mock_jinja
+                accessor.populate_platform_and_worker_distributed_cost_sql(
                     start_date, end_date, self.ocp_test_provider_uuid, {f"{distribute}_cost": True}
                 )
                 mock_data_get.assert_called_with("masu.database", f"sql/openshift/cost_model/{sql_file}")
                 mock_sql_execute.assert_called()
         # test empty distribution info
-        result = self.accessor.populate_platform_and_worker_distributed_cost_sql(
+        result = accessor.populate_platform_and_worker_distributed_cost_sql(
             start_date, end_date, self.ocp_test_provider_uuid, {}
         )
         self.assertIsNone(result)
