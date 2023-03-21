@@ -129,6 +129,68 @@ objects:
     oci-cli-fingerprint: "${OCI_CLI_FINGERPRINT_EPH}"
     oci-cli-tenancy: "${OCI_CLI_TENANCY_EPH}"
 
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: nginx-conf
+  data:
+    nginx.conf: |-
+      worker_processes  1;
+      error_log  /dev/stderr warn;
+      pid        /run/nginx.pid;
+
+      events {
+        worker_connections  1024;
+      }
+      http {
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_proto" "$http_x_forwarded_for"';
+
+        access_log  /dev/stdout  main;
+
+        sendfile            on;
+        tcp_nopush          on;
+        tcp_nodelay         on;
+        keepalive_timeout   65;
+        server_tokens       off;
+
+        upstream koku-api {
+          server koku-api:8000;
+        }
+        upstream ros-ocp-api {
+          server ${ROS_OCP_API}:8000;
+        }
+
+        server {
+          error_log  stderr;
+          listen 8000;
+
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+          proxy_set_header Host $http_host;
+          proxy_redirect off;
+
+          client_max_body_size 500M;
+          client_header_buffer_size 46k;
+          location /healthz {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location ^~/ {
+            proxy_pass http://koku-api;
+          }
+          location /api/cost-management/v1/recommendations/ {
+            proxy_pass http://ros-ocp-api;
+          }
+        }
+      }
+
+
+
+
+
 parameters:
 - name: ENV_NAME
   required: true
