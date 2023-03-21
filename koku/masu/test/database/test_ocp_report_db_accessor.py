@@ -8,6 +8,7 @@ import string
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -1032,3 +1033,47 @@ select * from eek where val1 in {{report_period_id}} ;
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
             self.assertIn(expected, logger.output)
+
+    def test_populate_platform_and_worker_distributed_cost_sql_no_report_period(self):
+        """Test that updating monthly costs without a matching report period no longer throws an error"""
+        start_date = "2000-01-01"
+        end_date = "2000-02-01"
+        expected = (
+            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
+            f" {self.provider_uuid} with start date {start_date}, skipping"
+            " platform_and_worker_distributed_cost_sql update."
+        )
+
+        with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
+            self.accessor.populate_platform_and_worker_distributed_cost_sql(
+                start_date, end_date, self.provider_uuid, {"platform_cost": True}
+            )
+            self.assertIn(expected, logger.output)
+
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    def populate_platform_and_worker_distributed_cost_sql_called(self, mock_sql_execute, mock_data_get):
+        """Test that the platform distribution is called."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        for distribute in ["platform", "worker"]:
+            with self.subTest(distribute=distribute):
+                self.accessor.populate_platform_and_worker_distributed_cost_sql(
+                    start_date, end_date, self.provider_uuid, {f"{distribute}_cost": True}
+                )
+                sql_file = f"distribute_{distribute}_cost.sql"
+                mock_data_get.assert_called_with("masu.database", f"sql/openshift/cost_model/{sql_file}")
+                mock_sql_execute.assert_called_with(
+                    table=self.accessor._table_map["line_item_daily_summary"],
+                    sql=ANY,
+                    start=start_date,
+                    end=end_date,
+                    bind_params=ANY,
+                    operation="INSERT",
+                )
+        # test empty distribution info
+        result = self.accessor.populate_platform_and_worker_distributed_cost_sql(
+            start_date, end_date, self.provider_uuid, {}
+        )
+        self.assertIsNone(result)
