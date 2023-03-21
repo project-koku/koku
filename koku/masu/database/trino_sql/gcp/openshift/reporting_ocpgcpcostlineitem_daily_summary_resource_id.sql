@@ -1,4 +1,56 @@
 -- First we'll store the data in a "temp" table to do our grouping against
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp
+(
+    uuid varchar,
+    usage_start timestamp,
+    account_id varchar,
+    project_id varchar,
+    project_name varchar,
+    resource_name varchar,
+    instance_type varchar,
+    service_id varchar,
+    service_alias varchar,
+    sku_id varchar,
+    sku_alias varchar,
+    region varchar,
+    unit varchar,
+    usage_amount double,
+    currency varchar,
+    invoice_month varchar,
+    credit_amount double,
+    unblended_cost double,
+    labels varchar,
+    ocp_matched boolean,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+;
+
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp
+(
+    uuid varchar,
+    usage_start timestamp,
+    account_id varchar,
+    project_id varchar,
+    project_name varchar,
+    resource_name varchar,
+    instance_type varchar,
+    service_id varchar,
+    service_alias varchar,
+    sku_id varchar,
+    sku_alias varchar,
+    region varchar,
+    unit varchar,
+    usage_amount double,
+    currency varchar,
+    invoice_month varchar,
+    credit_amount double,
+    unblended_cost double,
+    labels varchar,
+    matched_tag varchar,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+;
+
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 (
     gcp_uuid varchar,
@@ -111,6 +163,156 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['gcp_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp
+WHERE ocp_source = {{ocp_source_uuid}}
+;
+
+INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp (
+    uuid,
+    usage_start,
+    account_id,
+    project_id,
+    project_name,
+    resource_name,
+    instance_type,
+    service_id,
+    service_alias,
+    sku_id,
+    sku_alias,
+    region,
+    unit,
+    usage_amount,
+    currency,
+    invoice_month,
+    credit_amount,
+    unblended_cost,
+    labels,
+    ocp_matched,
+    ocp_source
+)
+SELECT cast(uuid() as varchar),
+    max(gcp.usage_start_time) as usage_start,
+    max(gcp.billing_account_id) as account_id,
+    gcp.project_id as project_id,
+    max(gcp.project_name) as project_name,
+    gcp.resource_name,
+    json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
+    gcp.service_id,
+    max(nullif(gcp.service_description, '')) as service_alias,
+    max(nullif(gcp.sku_id, '')) as sku_id,
+    max(nullif(gcp.sku_description, '')) as sku_alias,
+    gcp.location_region as region,
+    max(gcp.usage_pricing_unit) as unit,
+    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    max(gcp.currency) as currency,
+    gcp.invoice_month as invoice_month,
+    sum(daily_credits) as credit_amount,
+    cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
+    gcp.labels,
+    max(gcp.ocp_matched) as ocp_matched,
+    {{ocp_source_uuid}} as ocp_source
+FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
+WHERE gcp.source = {{gcp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
+    AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
+    AND gcp.ocp_source_uuid = {{ocp_source_uuid}}
+    AND gcp.ocp_matched = TRUE
+GROUP BY gcp.project_id,
+    gcp.resource_name,
+    gcp.system_labels,
+    gcp.service_id,
+    gcp.location_region,
+    gcp.invoice_month,
+    gcp.labels
+;
+
+DELETE FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp
+WHERE ocp_source = {{ocp_source_uuid}}
+;
+
+INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
+    uuid,
+    usage_start,
+    account_id,
+    project_id,
+    project_name,
+    resource_name,
+    instance_type,
+    service_id,
+    service_alias,
+    sku_id,
+    sku_alias,
+    region,
+    unit,
+    usage_amount,
+    currency,
+    invoice_month,
+    credit_amount,
+    unblended_cost,
+    labels,
+    matched_tag,
+    ocp_source
+)
+WITH cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN ARRAY['openshift-cluster', 'openshift-node', 'openshift-project'] || array_agg(key)
+        ELSE ARRAY['openshift-cluster', 'openshift-node', 'openshift-project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+    WHERE enabled = TRUE
+)
+SELECT cast(uuid() as varchar),
+    max(gcp.usage_start_time) as usage_start,
+    max(gcp.billing_account_id) as account_id,
+    gcp.project_id as project_id,
+    max(gcp.project_name) as project_name,
+    gcp.resource_name,
+    json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
+    gcp.service_id,
+    max(nullif(gcp.service_description, '')) as service_alias,
+    max(nullif(gcp.sku_id, '')) as sku_id,
+    max(nullif(gcp.sku_description, '')) as sku_alias,
+    gcp.location_region as region,
+    max(gcp.usage_pricing_unit) as unit,
+    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    max(gcp.currency) as currency,
+    gcp.invoice_month as invoice_month,
+    sum(daily_credits) as credit_amount,
+    cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
+    -- gcp.labels,
+    json_format(
+        cast(
+            map_filter(
+                cast(json_parse(gcp.labels) as map(varchar, varchar)),
+                (k, v) -> contains(etk.enabled_keys, k)
+            ) as json
+        )
+    ) as labels,
+    gcp.matched_tag,
+    {{ocp_source_uuid}} as ocp_source
+FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
+CROSS JOIN cte_enabled_tag_keys as etk
+WHERE gcp.source = {{gcp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
+    AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
+    AND gcp.ocp_source_uuid = {{ocp_source_uuid}}
+    AND gcp.usage_start_time >= {{start_date}}
+    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
+    AND gcp.ocp_matched = FALSE
+GROUP BY gcp.project_id,
+    gcp.resource_name,
+    gcp.system_labels,
+    gcp.service_id,
+    gcp.location_region,
+    gcp.invoice_month,
+    19,
+    gcp.matched_tag
+;
+
+
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 WHERE ocp_source = {{ocp_source_uuid}}
 ;
@@ -177,24 +379,24 @@ SELECT gcp.uuid as gcp_uuid,
     cast(NULL as varchar) as storageclass,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.resource_id) as resource_id,
-    max(gcp.usage_start_time) as usage_start,
-    max(gcp.usage_start_time) as usage_end,
-    max(gcp.billing_account_id) as account_id,
+    max(gcp.usage_start) as usage_start,
+    max(gcp.usage_start) as usage_end,
+    max(gcp.account_id) as account_id,
     max(gcp.project_id) as project_id,
     max(gcp.project_name) as project_name,
-    max(json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]')) as instance_type,
+    max(instance_type) as instance_type,
     max(nullif(gcp.service_id, '')) as service_id,
-    max(nullif(gcp.service_description, '')) as service_alias,
-    max(nullif(gcp.sku_id, '')) as sku_id,
-    max(nullif(gcp.sku_description, '')) as sku_alias,
-    max(nullif(gcp.location_region, '')) as region,
-    max(gcp.usage_pricing_unit) as unit,
-    cast(max(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    max(gcp.service_alias) as service_alias,
+    max(gcp.sku_id) as sku_id,
+    max(gcp.sku_alias) as sku_alias,
+    max(nullif(gcp.region, '')) as region,
+    max(gcp.unit) as unit,
+    max(gcp.usage_amount) as usage_amount,
     max(gcp.currency) as currency,
-    gcp.invoice_month as invoice_month,
-    max(daily_credits) as credit_amount,
-    cast(max(gcp.cost) AS decimal(24,9)) as unblended_cost,
-    cast(max(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
+    max(gcp.invoice_month) as invoice_month,
+    max(gcp.credit_amount) as credit_amount,
+    max(gcp.unblended_cost) as unblended_cost,
+    max(gcp.unblended_cost * {{markup | sqlsafe}}) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
     cast(NULL AS double) AS pod_cost,
     cast(NULL AS double) AS pod_credit,
@@ -210,29 +412,20 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     NULL as volume_labels,
-    max(json_format(json_parse(gcp.labels))) as tags,
+    max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     max(gcp.ocp_matched) as ocp_matched,
     {{ocp_source_uuid}} as ocp_source
-FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
-JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    ON gcp.usage_start_time = ocp.usage_start
+FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
+    ON gcp.usage_start = ocp.usage_start
         AND strpos(gcp.resource_name, ocp.node) != 0
-WHERE gcp.source = {{gcp_source_uuid}}
-    AND gcp.year = {{year}}
-    AND gcp.month = {{month}}
-    AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
-    AND gcp.ocp_source_uuid = {{ocp_source_uuid}}
-    AND gcp.usage_start_time >= {{start_date}}
-    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
-    AND ocp.source = {{ocp_source_uuid}}
-    AND ocp.report_period_id = {{report_period_id | sqlsafe}}
+WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days | inclause}}
-    AND ocp.data_source = 'Pod' -- this cost is only associated with pod costs
     AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
-GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source
+GROUP BY gcp.uuid, ocp.namespace, ocp.data_source
 ;
 
 -- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
@@ -297,24 +490,24 @@ SELECT gcp.uuid as gcp_uuid,
     max(nullif(ocp.storageclass, '')) as storageclass,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.resource_id) as resource_id,
-    max(gcp.usage_start_time) as usage_start,
-    max(gcp.usage_start_time) as usage_end,
-    max(gcp.billing_account_id) as account_id,
+    max(gcp.usage_start) as usage_start,
+    max(gcp.usage_start) as usage_end,
+    max(gcp.account_id) as account_id,
     max(gcp.project_id) as project_id,
     max(gcp.project_name) as project_name,
-    max(json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]')) as instance_type,
+    max(instance_type) as instance_type,
     max(nullif(gcp.service_id, '')) as service_id,
-    max(nullif(gcp.service_description, '')) as service_alias,
-    max(nullif(gcp.sku_id, '')) as sku_id,
-    max(nullif(gcp.sku_description, '')) as sku_alias,
-    max(nullif(gcp.location_region, '')) as region,
-    max(gcp.usage_pricing_unit) as unit,
-    cast(max(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    max(gcp.service_alias) as service_alias,
+    max(gcp.sku_id) as sku_id,
+    max(gcp.sku_alias) as sku_alias,
+    max(nullif(gcp.region, '')) as region,
+    max(gcp.unit) as unit,
+    max(gcp.usage_amount) as usage_amount,
     max(gcp.currency) as currency,
-    gcp.invoice_month as invoice_month,
-    max(daily_credits) as credit_amount,
-    cast(max(gcp.cost) AS decimal(24,9)) as unblended_cost,
-    cast(max(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
+    max(gcp.invoice_month) as invoice_month,
+    max(gcp.credit_amount) as credit_amount,
+    max(gcp.unblended_cost) as unblended_cost,
+    max(gcp.unblended_cost * {{markup | sqlsafe}}) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
     cast(NULL AS double) AS pod_cost,
     cast(NULL AS double) AS pod_credit,
@@ -330,13 +523,13 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(ocp.volume_labels) as volume_labels,
-    max(json_format(json_parse(gcp.labels))) as tags,
+    max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
-    max(gcp.ocp_matched) as ocp_matched,
+    FALSE as ocp_matched,
     {{ocp_source_uuid}} as ocp_source
-FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
-JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    ON date(gcp.usage_start_time) = ocp.usage_start
+FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
+    ON date(gcp.usage_start) = ocp.usage_start
         AND (
                 (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
                 OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
@@ -346,31 +539,22 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             )
     AND ocp.namespace != 'Worker unallocated'
     AND ocp.namespace != 'Platform unallocated'
-LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
-    ON gcp.uuid = pds.gcp_uuid
-WHERE gcp.source = {{gcp_source_uuid}}
-    AND gcp.year = {{year}}
-    AND gcp.month = {{month}}
-    AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
-    AND gcp.usage_start_time >= {{start_date}}
-    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
-    AND ocp.source = {{ocp_source_uuid}}
+WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days | inclause}}
-    AND pds.gcp_uuid IS NULL
-    AND (
-    (
-      gcp.matched_tag != ''
-      AND gcp.matched_tag IS NOT NULL
-    )
-    OR (
-      strpos(gcp.labels, 'openshift_project') != 0
-      OR strpos(gcp.labels, 'openshift_node') != 0
-      OR strpos(gcp.labels, 'openshift_cluster') != 0
-    )
-  )
+--     AND (
+--     (
+--       gcp.matched_tag != ''
+--       AND gcp.matched_tag IS NOT NULL
+--     )
+--     OR (
+--       strpos(gcp.labels, 'openshift_project') != 0
+--       OR strpos(gcp.labels, 'openshift_node') != 0
+--       OR strpos(gcp.labels, 'openshift_cluster') != 0
+--     )
+--   )
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
