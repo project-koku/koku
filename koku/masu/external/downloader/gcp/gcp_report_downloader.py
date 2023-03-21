@@ -272,7 +272,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"  Customer: {self.customer_name}"
                 f"  Response: {err.message}"
             )
-            extra_context = {"customer", self.customer_name, "response": err.message}
+            extra_context = {"customer": self.customer_name, "response": err.message}
             LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
             raise GCPReportDownloaderError(err_msg)
         return mapping
