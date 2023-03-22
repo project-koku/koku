@@ -98,8 +98,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         if start_date == month_start and end_date == month_end:
             return True
-        else:
-            return False
+
+        return False
 
     def get_infra_map(self, start_date, end_date):
         """Get the map of cloud source and associated OpenShift clusters."""
