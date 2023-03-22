@@ -51,6 +51,7 @@ def connect(**connect_args):
             or IsolationLevel.AUTOCOMMIT
         ),
         "schema": connect_args["schema"],
+        "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
     }
     return trino.dbapi.connect(**trino_connect_args)
 
