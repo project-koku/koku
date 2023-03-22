@@ -421,7 +421,10 @@ SELECT gcp.uuid as gcp_uuid,
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
-        AND strpos(gcp.resource_name, ocp.node) != 0
+        AND (
+            (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.persistentvolume IS NULL)
+            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0)
+        )
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
