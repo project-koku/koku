@@ -157,7 +157,6 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
             accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
 
             LOG.info("Updating OpenShift report periods")
             if report_period.summary_data_creation_datetime is None:

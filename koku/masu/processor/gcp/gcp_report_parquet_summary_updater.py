@@ -119,7 +119,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date, invoice_month_date)
-            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
