@@ -13,6 +13,7 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
+from masu.config import Config as masu_config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.ocp import common as utils
 
@@ -87,8 +88,7 @@ class RosReportProcessor:
     def send_kafka_confirmation(self, uploaded_reports):
         producer = get_producer()
         msg = self.build_ros_json(uploaded_reports)
-        LOG.warning(f"ROS MESSAGE: {msg}")
-        producer.produce(Config.ROS_TOPIC, value=msg, callback=delivery_callback)
+        producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)
         # Wait up to 1 second for events. Callbacks will be invoked during
         # this method call if the message is acknowledged.
         # `flush` makes this process synchronous compared to async with `poll`
@@ -113,5 +113,4 @@ class RosReportProcessor:
             "files": uploaded_reports,
         }
         msg = bytes(json.dumps(ros_json), "utf-8")
-        LOG.warning(f"ROS kafka message: {msg}")
         return msg
