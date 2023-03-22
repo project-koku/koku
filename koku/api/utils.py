@@ -472,7 +472,7 @@ def get_months_in_date_range(report=None, start=None, end=None, invoice_month=No
     if start_date < summary_month.strftime("%Y-%m-01"):
         start_date = summary_month.strftime("%Y-%m-01")
 
-    if end_date < summary_month.strftime("%Y-%m-%d"):
+    if end_date and end_date < summary_month.strftime("%Y-%m-%d"):
         end_date = dh.today.strftime("%Y-%m-%d")
 
     if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
