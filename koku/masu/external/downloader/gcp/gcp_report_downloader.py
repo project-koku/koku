@@ -178,8 +178,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
-            msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
-            LOG.warning(log_json(self.tracing_id, msg, self.context))
+            msg = "GCP source for  is not reachable."
+            extra_context = {"customer": self.customer_name, "response": str(ex)}
+            LOG.warning(log_json(self.tracing_id, msg, self.context | extra_context))
             raise GCPReportDownloaderError(str(ex))
         self.big_query_export_time = None
         if self.ingress_reports:
@@ -296,13 +297,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 }
                 new_manifests.append(manifest_metadata)
         if not new_manifests:
-            stmt = (
-                "No new manifests created: "
-                f" dates {self.scan_start} - {self.scan_end}"
-                f" bigquery mapping count: {len(bigquery_mappings)}"
-                f" current manifest count: {len(current_manifests)}"
-            )
-            LOG.info(log_json(self.tracing_id, stmt, self.context))
+            stmt = "No new manifests created."
+            extra_context = {
+                "dates": f"{self.scan_start} - {self.scan_end}",
+                "bigquery mapping count": {len(bigquery_mappings)},
+                "current manifest count": {len(current_manifests)},
+            }
+            LOG.info(log_json(self.tracing_id, stmt, self.context | extra_context))
         return new_manifests
 
     def get_manifest_context_for_date(self, date):
@@ -328,16 +329,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dh = DateHelper()
         if isinstance(date, datetime.datetime):
             date = date.date()
-        log_base = (
-            "New manifest to be created:"
-            f" dates {self.scan_start} - {self.scan_end}"
-            f" ingress: {bool(self.ingress_reports)}"
-        )
+        log_msg = "New manifest to be created."
+        extra_context = {"dates": f"{self.scan_start} - {self.scan_end}", "ingress": bool(self.ingress_reports)}
         if self.ingress_reports:
             manifest = self._generate_monthly_pseudo_manifest(date)
-            log_msg = f"{log_base} Manifest Data: {manifest}"
+            extra_context["manifest_data"] = manifest
             assembly_id = manifest.get("assembly_id")
-            LOG.info(log_json(self.tracing_id, log_msg, self.context))
+            LOG.info(log_json(self.tracing_id, log_msg, self.context | extra_context))
             manifest_id = self._process_manifest_db_record(
                 assembly_id,
                 date.strftime("%Y-%m-%d"),
@@ -358,8 +356,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             bigquery_mapping = self.bigquery_export_to_partition_mapping()
             new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
             for manifest in new_manifest_list:
-                log_msg = f"{log_base} Manifest Data: {manifest}"
-                LOG.info(log_json(self.tracing_id, log_msg, self.context))
+                extra_context["manifest_data"] = manifest
+                LOG.info(log_json(self.tracing_id, log_msg, self.context | extra_context))
                 manifest_id = self._process_manifest_db_record(
                     manifest["assembly_id"],
                     manifest["bill_date"],
@@ -439,13 +437,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 full_local_path = self._get_local_file_path(directory_path, key)
                 blob.download_to_filename(full_local_path)
             except GoogleCloudError as err:
-                err_msg = (
-                    "Could not find or download file from bucket."
-                    f"  Provider: {self._provider_uuid}"
-                    f"  Customer: {self.customer_name}"
-                    f"  Response: {err.message}"
-                )
-                LOG.warning(log_json(self.tracing_id, err_msg, self.context))
+                err_msg = "Could not find or download file from bucket."
+                extra_context = {"customer": self.customer_name, "response": err.message}
+                LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
                 raise GCPReportDownloaderError(err_msg)
             paths_list.append(full_local_path)
         else:
@@ -460,12 +454,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 client = bigquery.Client()
                 query_job = client.query(query).result()
             except GoogleCloudError as err:
-                err_msg = (
-                    "Could not query table for billing information."
-                    f"  Provider: {self._provider_uuid}"
-                    f"  Customer: {self.customer_name}"
-                    f"  Response: {err.message}"
-                )
+                err_msg = "Could not query table for billing information."
+                extra_context = {"customer": self.customer_name, "response": err.message}
                 LOG.warning(log_json(self.tracing_id, err_msg, self.context))
                 raise GCPReportDownloaderError(err_msg)
             except UnboundLocalError:
