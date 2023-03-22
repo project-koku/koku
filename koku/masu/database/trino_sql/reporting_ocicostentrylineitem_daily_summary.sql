@@ -17,10 +17,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
     source_uuid,
     markup_cost
 )
-with cte_pg_enabled_keys as (
-    select array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_ocienabledtagkeys
-     where enabled = true
+WITH cte_enabled_tag_keys as (
+    SELECT array_agg(key order by key) as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocienabledtagkeys
+    WHERE enabled = TRUE
 )
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
@@ -64,7 +64,7 @@ SELECT uuid() as uuid,
     cast(
         map_filter(
             cast(json_parse(tags) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
+            (k,v) -> contains(etk.enabled_keys, k)
         ) as json
      ) as tags,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
@@ -101,4 +101,4 @@ FROM (
         u.product_resource,
         u.usage_consumedquantityunits
 ) AS ds
-CROSS JOIN cte_pg_enabled_keys AS pek
+CROSS JOIN cte_enabled_tag_keys AS etk
