@@ -10,8 +10,8 @@ from django.conf import settings
 from api.common import log_json
 from api.provider.models import Sources
 from api.utils import DateHelper
-from kafka_utils import delivery_callback
-from kafka_utils import get_producer
+from kafka_utils.utils import delivery_callback
+from kafka_utils.utils import get_producer
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.aws.common import get_s3_resource
 from masu.util.ocp import common as utils
