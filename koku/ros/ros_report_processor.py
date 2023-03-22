@@ -2,6 +2,7 @@ import json
 import logging
 from functools import cached_property
 
+import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
@@ -13,7 +14,6 @@ from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.util.aws.common import get_s3_resource
 from masu.util.ocp import common as utils
 
 
@@ -22,6 +22,20 @@ LOG = logging.getLogger(__name__)
 
 def is_ros_report(file_path):
     return utils.detect_type(file_path) == "ros_metrics"
+
+
+def get_ros_s3_resource():  # pragma: no cover
+    """
+    Obtain the ROS s3 session client
+    """
+    config = Config(connect_timeout=settings.S3_TIMEOUT)
+    aws_session = boto3.Session(
+        aws_access_key_id=settings.S3_ROS_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_ROS_SECRET,
+        region_name=settings.S3_REGION,
+    )
+    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
+    return s3_resource
 
 
 class RosReportProcessor:
@@ -60,7 +74,7 @@ class RosReportProcessor:
         extra_args = {"Metadata": {"ManifestId": str(self.manifest_id)}}
         try:
             upload_key = f"{s3_path}/{filename}"
-            s3_resource = get_s3_resource()
+            s3_resource = get_ros_s3_resource()
             s3_obj = {"bucket_name": settings.S3_ROS_BUCKET_NAME, "key": upload_key}
             upload = s3_resource.Object(**s3_obj)
             upload.upload_fileobj(data, ExtraArgs=extra_args)
