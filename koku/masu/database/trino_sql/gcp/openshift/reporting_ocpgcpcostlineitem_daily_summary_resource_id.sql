@@ -376,9 +376,9 @@ SELECT gcp.uuid as gcp_uuid,
     ocp.data_source,
     ocp.namespace,
     max(ocp.node) as node,
-    cast(NULL as varchar) as persistentvolumeclaim,
-    cast(NULL as varchar) as persistentvolume,
-    cast(NULL as varchar) as storageclass,
+    max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
+    max(nullif(ocp.persistentvolume, '')) as persistentvolume,
+    max(nullif(ocp.storageclass, '')) as storageclass,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.resource_id) as resource_id,
     max(gcp.usage_start) as usage_start,
@@ -422,14 +422,15 @@ FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
-            (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.persistentvolume IS NULL)
-            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0)
+            (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
+            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
         )
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days | inclause}}
     AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+    AND gcp.ocp_source = {{ocp_source_uuid}}
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source
 ;
 
@@ -549,17 +550,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days | inclause}}
---     AND (
---     (
---       gcp.matched_tag != ''
---       AND gcp.matched_tag IS NOT NULL
---     )
---     OR (
---       strpos(gcp.labels, 'openshift_project') != 0
---       OR strpos(gcp.labels, 'openshift_node') != 0
---       OR strpos(gcp.labels, 'openshift_cluster') != 0
---     )
---   )
+    AND gcp.ocp_source = {{ocp_source_uuid}}
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
