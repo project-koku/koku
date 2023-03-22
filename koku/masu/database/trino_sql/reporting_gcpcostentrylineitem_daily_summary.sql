@@ -23,6 +23,11 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_s
     invoice_month,
     credit_amount
 )
+WITH cte_enabled_tag_keys as (
+    SELECT array_agg(key order by key) as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+    WHERE enabled = true
+)
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
     billing_account_id as account_id,
@@ -38,7 +43,12 @@ SELECT uuid() as uuid,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
     max(usage_pricing_unit) as unit,
     cast(sum(usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-    json_parse(labels) as tags,
+    cast(
+        map_filter(
+            cast(json_parse(labels) as map(varchar, varchar)),
+            (k,v) -> contains(etk.enabled_keys, k)
+        ) as json
+    ) as tags,
     max(currency) as currency,
     cost_type as line_item_type,
     cast(sum(cost) AS decimal(24,9)) as unblended_cost,
@@ -47,6 +57,7 @@ SELECT uuid() as uuid,
     invoice_month,
     sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+CROSS JOIN cte_enabled_tag_keys AS etk
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'

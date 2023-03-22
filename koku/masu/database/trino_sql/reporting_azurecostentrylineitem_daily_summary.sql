@@ -17,7 +17,12 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     source_uuid,
     markup_cost
 )
-WITH cte_line_items AS (
+WITH cte_enabled_tag_keys as (
+    SELECT array_agg(key) as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys
+    WHERE enabled = TRUE
+),
+cte_line_items AS (
     SELECT date(coalesce(date, usagedatetime)) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
         coalesce(subscriptionid, subscriptionguid) as subscription_guid,
@@ -27,7 +32,12 @@ WITH cte_line_items AS (
         cast(coalesce(quantity, usagequantity) as DECIMAL(24,9)) as usage_quantity,
         cast(coalesce(costinbillingcurrency, pretaxcost) as DECIMAL(24,9)) as pretax_cost,
         coalesce(billingcurrencycode, currency, billingcurrency) as currency,
-        json_parse(tags) as tags,
+        cast(
+            map_filter(
+                cast(json_parse(tags) as map(varchar, varchar)),
+                (k,v) -> contains(etk.enabled_keys, k)
+            ) as json
+        ) as tags,
         coalesce(resourceid, instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
         CASE
@@ -45,6 +55,7 @@ WITH cte_line_items AS (
             ELSE unitofmeasure
         END as unit_of_measure
     FROM hive.{{schema | sqlsafe}}.azure_line_items
+    CROSS JOIN cte_enabled_tag_keys AS etk
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'

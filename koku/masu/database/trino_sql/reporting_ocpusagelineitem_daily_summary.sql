@@ -148,6 +148,11 @@ cte_ocp_cluster_capacity AS (
         sum(nc.node_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
     FROM cte_ocp_node_capacity AS nc
     GROUP BY nc.usage_start
+),
+cte_enabled_tag_keys AS (
+    SELECT array_agg(key) as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys
+    WHERE enabled = TRUE
 )
 {% if storage_exists %}
 ,
@@ -242,10 +247,13 @@ FROM (
         li.node,
         max(cat.id) as cost_category_id,
         li.source as source_uuid,
-        map_concat(
-            cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
-            cast(json_parse(coalesce(nsli.namespace_labels, '{}')) as map(varchar, varchar)),
-            cast(json_parse(li.pod_labels) as map(varchar, varchar))
+        map_filter(
+            map_concat(
+                cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
+                cast(json_parse(coalesce(nsli.namespace_labels, '{}')) as map(varchar, varchar)),
+                cast(json_parse(li.pod_labels) as map(varchar, varchar))
+            ),
+            (k, v) -> contains(etk.enabled_keys, k)
         ) as pod_labels,
         max(li.resource_id) as resource_id,
         sum(li.pod_usage_cpu_core_seconds) / 3600.0 as pod_usage_cpu_core_hours,
@@ -276,6 +284,7 @@ FROM (
         ON cc.usage_start = date(li.interval_start)
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category as cat
         ON any_match(cat.namespace, x -> li.namespace LIKE x)
+    CROSS JOIN cte_enabled_tag_keys AS etk
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -362,11 +371,14 @@ FROM (
         sli.persistentvolume,
         sli.storageclass,
         date(sli.interval_start) as usage_start,
-        map_concat(
-            cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
-            cast(json_parse(coalesce(nsli.namespace_labels, '{}')) as map(varchar, varchar)),
-            cast(json_parse(sli.persistentvolume_labels) as map(varchar, varchar)),
-            cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))
+        map_filter(
+            map_concat(
+                cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
+                cast(json_parse(coalesce(nsli.namespace_labels, '{}')) as map(varchar, varchar)),
+                cast(json_parse(sli.persistentvolume_labels) as map(varchar, varchar)),
+                cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))
+            ),
+            (k, v) -> contains(etk.enabled_keys, k)
         ) as volume_labels,
         sli.source as source_uuid,
         max(cat.id) as cost_category_id,
@@ -392,6 +404,7 @@ FROM (
             AND nsli.usage_start = date(sli.interval_start)
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category as cat
         ON any_match(cat.namespace, x -> sli.namespace LIKE x)
+    CROSS JOIN cte_enabled_tag_keys AS etk
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
