@@ -86,6 +86,7 @@ class RosReportProcessor:
     def send_kafka_confirmation(self, uploaded_reports):
         producer = get_producer()
         msg = self.build_ros_json(uploaded_reports)
+        LOG.warning(f"ROS MESSAGE: {msg}")
         producer.produce(Config.ROS_TOPIC, value=msg, callback=delivery_callback)
         # Wait up to 1 second for events. Callbacks will be invoked during
         # this method call if the message is acknowledged.
