@@ -185,10 +185,10 @@ if [[ $exit_code == 0 ]]; then
     fi
 fi
 
-if [[ $exit_code > 0 ]]; then
+if [[ $exit_code -gt 0 ]]; then
     echo "PR check failed"
     make_failed_results_xml
-elif [[ $exit_code < 0 ]]; then
+elif [[ $exit_code -lt 0 ]]; then
     echo "PR check skipped"
     make_skipped_xml
     exit_code=0
