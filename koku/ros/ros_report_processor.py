@@ -15,6 +15,8 @@ from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config as masu_config
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
 
@@ -63,6 +65,7 @@ class RosReportProcessor:
         ]
         # fire off the kafka message
         self.send_kafka_confirmation(uploaded_reports)
+        self.mark_report_as_completed()
 
     def add_report_to_manifest(self, filename, report_path):
         self.reports_to_upload.append((filename, report_path))
@@ -85,6 +88,7 @@ class RosReportProcessor:
             LOG.warning(log_json(self.request_id, msg))
         return upload_key
 
+    @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
     def send_kafka_confirmation(self, uploaded_reports):
         producer = get_producer()
         msg = self.build_ros_json(uploaded_reports)
@@ -114,3 +118,8 @@ class RosReportProcessor:
         }
         msg = bytes(json.dumps(ros_json), "utf-8")
         return msg
+
+    def mark_report_as_completed(self):
+        for file_name, _ in self.reports_to_upload:
+            with ReportStatsDBAccessor(file_name, self.manifest_id) as stats_recorder:
+                stats_recorder.log_last_completed_datetime()
