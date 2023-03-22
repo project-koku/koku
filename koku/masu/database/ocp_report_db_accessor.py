@@ -21,6 +21,7 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
@@ -524,16 +525,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if distribution_info.get("platform_cost"):
             distribute_mapping["distribute_platform_cost.sql"] = "platform"
         if distribution_info.get("worker_cost"):
-            distribute_mapping["distribute_worker_cost.sql"] = "worker"
+            distribute_mapping["distribute_worker_cost.sql"] = "worker unallocated"
         if not distribute_mapping:
             return
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
-                " skipping platform_and_worker_distributed_cost_sql update."
-            )
+            msg = "No report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update."
+            context = {"provider_uuid": provider_uuid, "start_date": {start_date}}
+            # TODO: Figure out a way to pass the tracing id down here
+            # in a separate PR. For now I am just going to use the
+            # provider_uuid
+            LOG.info(log_json(provider_uuid, msg, context))
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
@@ -551,10 +554,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{sql_file}")
             templated_sql = templated_sql.decode("utf-8")
             templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, default_sql_params)
-            LOG.info(
-                f"Distributing {log_msg} for provider: "
-                f"{provider_uuid}, dates: {start_date} - {end_date}, report_period: {report_period_id}"
-            )
+            log_msg = f"Distributing {log_msg} cost."
+            context = {
+                "provider_uuid": provider_uuid,
+                "dates": f"{start_date} - {end_date}",
+                "report_period": report_period_id,
+            }
+            LOG.info(log_json(provider_uuid, log_msg, context))
             self._execute_raw_sql_query(
                 table_name,
                 templated_sql,
