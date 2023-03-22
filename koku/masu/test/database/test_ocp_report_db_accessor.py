@@ -22,6 +22,7 @@ from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from api.iam.test.iam_test_case import FakeTrinoConn
 from api.utils import DateHelper
 from koku import trino_database as trino_db
@@ -1038,11 +1039,9 @@ select * from eek where val1 in {{report_period_id}} ;
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping"
-            " platform_and_worker_distributed_cost_sql update."
-        )
+        msg = "No report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update."
+        context = {"provider_uuid": self.provider_uuid, "start_date": {start_date}}
+        expected = f"INFO:masu.database.ocp_report_db_accessor:{log_json(self.provider_uuid, msg, context)}"
 
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_platform_and_worker_distributed_cost_sql(
