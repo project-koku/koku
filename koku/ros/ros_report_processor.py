@@ -44,7 +44,7 @@ class RosReportProcessor:
         self.cluster_id = cluster_id
         self.dh = DateHelper()
         self.manifest_id = manifest_id
-        self.provider_uuid = provider_uuid
+        self.provider_uuid = str(provider_uuid)
         self.reports_to_upload = []
         self.request_id = request_id
         self.schema_name = schema_name
