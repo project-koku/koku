@@ -22,7 +22,6 @@ LOG = logging.getLogger(__name__)
 
 def is_ros_report(file_path):
     _, enum = utils.detect_type(file_path)
-    LOG.warning(f"\nenum is\n\t{enum}")
     return enum == utils.OCPReportTypes.ROS_METRICS
 
 
@@ -52,7 +51,7 @@ class RosReportProcessor:
 
     @cached_property
     def get_ros_s3_path(self):
-        return f"{self.schema}/source={self.provider_uuid}/{self.dh.today.date()}"
+        return f"{self.schema_name}/source={self.provider_uuid}/{self.dh.today.date()}"
 
     def process_manifest_reports(self):
         if not self.reports_to_upload:
