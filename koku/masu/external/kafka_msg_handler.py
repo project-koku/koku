@@ -45,6 +45,8 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
+from ros.ros_report_processor import is_ros_report
+from ros.ros_report_processor import RosReportProcessor
 
 
 LOG = logging.getLogger(__name__)
@@ -329,6 +331,9 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Copy report payload
     report_metas = []
+    ros_processor = RosReportProcessor(
+        cluster_id, report_meta["manifest_id"], report_meta["provider_uuid"], request_id, schema_name
+    )
     for report_file in report_meta.get("files"):
         current_meta = report_meta.copy()
         subdirectory = os.path.dirname(full_manifest_path)
@@ -341,15 +346,22 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
             if not record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(manifest_uuid, msg, context))
-                construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
-                report_metas.append(current_meta)
+                if is_ros_report(payload_destination_path):
+                    LOG.warning(
+                        f"Report {report_file} with destination {payload_destination_path}"
+                        f" for manifest {report_meta['manifest_id']} is a ROS report."
+                    )
+                    ros_processor.add_report_to_manifest(report_file, payload_destination_path)
+                else:
+                    construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
+                    report_metas.append(current_meta)
             else:
                 # Report already processed
                 pass
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))
-
+    ros_processor.process_manifest_reports()
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_metas, manifest_uuid

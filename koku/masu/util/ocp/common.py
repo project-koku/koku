@@ -34,6 +34,7 @@ class OCPReportTypes(Enum):
     STORAGE = 2
     NODE_LABELS = 3
     NAMESPACE_LABELS = 4
+    ROS_METRICS = 5
 
 
 STORAGE_COLUMNS = {
@@ -147,6 +148,45 @@ NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
 
 NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 
+ROS_METRICS_COLUMNS = {
+    "interval_start",
+    "interval_end",
+    "report_period_start",
+    "report_period_end",
+    "namespace",
+    "node",
+    "resource_id",
+    "pod",
+    "container_name",
+    "owner_name",
+    "owner_kind",
+    "workload",
+    "workload_type",
+    "image_name",
+    "cpu_request_container_avg",
+    "cpu_request_container_sum",
+    "cpu_limit_container_avg",
+    "cpu_limit_container_sum",
+    "cpu_usage_container_avg",
+    "cpu_usage_container_min",
+    "cpu_usage_container_max",
+    "cpu_usage_container_sum",
+    "cpu_throttle_container_avg",
+    "cpu_throttle_container_max",
+    "cpu_throttle_container_sum",
+    "memory_request_container_avg",
+    "memory_request_container_sum",
+    "memory_limit_container_avg",
+    "memory_limit_container_sum",
+    "memory_usage_container_avg",
+    "memory_usage_container_min",
+    "memory_usage_container_max",
+    "memory_usage_container_sum",
+    "memory_rss_usage_container_avg",
+    "memory_rss_usage_container_min",
+    "memory_rss_usage_container_max",
+    "memory_rss_usage_container_sum",
+}
 
 # new_required_columns are columns that appear in new operator reports.
 # today, we cannot guarantee that all reports received will contain all
@@ -180,6 +220,10 @@ REPORT_TYPES = {
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
         "new_required_columns": [],
+    },
+    "ros_metrics": {
+        "columns": ROS_METRICS_COLUMNS,
+        "enum": OCPReportTypes.ROS_METRICS,
     },
 }
 
