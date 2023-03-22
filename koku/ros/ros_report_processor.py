@@ -50,7 +50,7 @@ class RosReportProcessor:
         self.schema_name = schema_name
 
     @cached_property
-    def get_ros_s3_path(self):
+    def ros_s3_path(self):
         return f"{self.schema_name}/source={self.provider_uuid}/{self.dh.today.date()}"
 
     def process_manifest_reports(self):
@@ -71,7 +71,7 @@ class RosReportProcessor:
             return self.copy_data_to_ros_s3_bucket(filename, fin)
 
     def copy_data_to_ros_s3_bucket(self, filename, data):
-        s3_path = self.get_ros_s3_path()
+        s3_path = self.ros_s3_path
         extra_args = {"Metadata": {"ManifestId": str(self.manifest_id)}}
         try:
             upload_key = f"{s3_path}/{filename}"
