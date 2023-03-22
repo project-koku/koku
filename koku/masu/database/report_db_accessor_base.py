@@ -377,14 +377,16 @@ class ReportDBAccessorBase(KokuDBAccess):
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0
+        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
             sql_params = {}
+        if conn_params is None:
+            conn_params = {}
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
-        trino_conn = trino_db.connect(schema=self.schema)
+        trino_conn = trino_db.connect(schema=self.schema, **conn_params)
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
