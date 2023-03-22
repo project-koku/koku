@@ -21,7 +21,9 @@ LOG = logging.getLogger(__name__)
 
 
 def is_ros_report(file_path):
-    return utils.detect_type(file_path) == "ros_metrics"
+    _, enum = utils.detect_type(file_path)
+    LOG.warning(f"\nenum is\n\t{enum}")
+    return enum == utils.OCPReportTypes.ROS_METRICS
 
 
 def get_ros_s3_resource():  # pragma: no cover
