@@ -191,7 +191,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp 
     ocp_source
 )
 SELECT cast(uuid() as varchar),
-    max(gcp.usage_start_time) as usage_start,
+    gcp.usage_start_time as usage_start,
     max(gcp.billing_account_id) as account_id,
     gcp.project_id as project_id,
     max(gcp.project_name) as project_name,
@@ -218,7 +218,8 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
     AND gcp.ocp_source_uuid = {{ocp_source_uuid}}
     AND gcp.ocp_matched = TRUE
-GROUP BY gcp.project_id,
+GROUP BY gcp.usage_start_time,
+    gcp.project_id,
     gcp.resource_name,
     gcp.system_labels,
     gcp.service_id,
@@ -264,7 +265,7 @@ WITH cte_enabled_tag_keys AS (
     WHERE enabled = TRUE
 )
 SELECT cast(uuid() as varchar),
-    max(gcp.usage_start_time) as usage_start,
+    gcp.usage_start_time as usage_start,
     max(gcp.billing_account_id) as account_id,
     gcp.project_id as project_id,
     max(gcp.project_name) as project_name,
@@ -302,7 +303,8 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND gcp.ocp_matched = FALSE
-GROUP BY gcp.project_id,
+GROUP BY gcp.usage_start_time,
+    gcp.project_id,
     gcp.resource_name,
     gcp.system_labels,
     gcp.service_id,
