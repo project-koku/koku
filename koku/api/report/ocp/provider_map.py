@@ -258,7 +258,7 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
                             "cost_platform_distributed": self.platform_distributed_cost_by_project,
-                            "cost_worker_unallocated": self.worker_unallocated_distributed_cost_by_project,
+                            "cost_worker_unallocated_distributed": self.worker_unallocated_distributed_cost_by_project,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
