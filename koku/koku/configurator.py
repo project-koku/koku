@@ -117,6 +117,11 @@ class Configurator:
         pass
 
     @staticmethod
+    def get_object_store_region(requestedName: str = ""):
+        """Obtain object store bucket."""
+        pass
+
+    @staticmethod
     def get_database_name():
         """Obtain database name."""
         pass
@@ -290,6 +295,11 @@ class EnvConfigurator(Configurator):
     def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
         return ENVIRONMENT.get_value("S3_BUCKET_NAME", default=requestedName)
+
+    @staticmethod
+    def get_object_store_region(requestedName: str = ""):
+        """Obtain object store bucket."""
+        return ENVIRONMENT.get_value("S3_REGION", default=requestedName)
 
     @staticmethod
     def get_database_name():
@@ -491,6 +501,13 @@ class ClowderConfigurator(Configurator):
         """Obtain object store bucket."""
         if ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).name
+        return requestedName
+
+    @staticmethod
+    def get_object_store_region(requestedName: str = ""):
+        """Obtain object store region."""
+        if ObjectBuckets.get(requestedName):
+            return ObjectBuckets.get(requestedName).region
         return requestedName
 
     @staticmethod

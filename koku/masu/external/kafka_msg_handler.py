@@ -349,9 +349,6 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                 else:
                     construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                     report_metas.append(current_meta)
-            else:
-                # Report already processed
-                pass
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))

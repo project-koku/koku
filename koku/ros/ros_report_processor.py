@@ -34,10 +34,9 @@ def get_ros_s3_resource():  # pragma: no cover
     aws_session = boto3.Session(
         aws_access_key_id=settings.S3_ROS_ACCESS_KEY,
         aws_secret_access_key=settings.S3_ROS_SECRET,
-        region_name=settings.S3_REGION,
+        region_name=settings.S3_ROS_REGION,
     )
-    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
-    return s3_resource
+    return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
 
 
 class RosReportProcessor:
@@ -61,9 +60,9 @@ class RosReportProcessor:
         Uploads the ROS reports for a manifest to S3 and sends a kafka message containing
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
-        self.mark_reports_as_started(reports_to_upload)
         if not reports_to_upload:
             return
+        self.mark_reports_as_started(reports_to_upload)
         uploaded_reports = [
             self.copy_local_report_file_to_ros_s3_bucket(filename, report) for filename, report in reports_to_upload
         ]
