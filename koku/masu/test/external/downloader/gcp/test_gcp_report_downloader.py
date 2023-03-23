@@ -144,9 +144,10 @@ class GCPReportDownloaderTest(MasuTestCase):
         key = "202011_1234_2020-12-05:2020-12-08.csv"
         downloader = self.downloader
         err_msg = "GCP Error"
+        expected_error_msg = "Could not query table for billing information."
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegex(GCPReportDownloaderError, expected_error_msg):
                 downloader.download_file(key)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.open")
@@ -299,9 +300,10 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test GCP error retrieving partition data."""
         downloader = self.downloader
         err_msg = "GCP Error"
+        expected_error_msg = "Could not query table for partition date information."
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegex(GCPReportDownloaderError, expected_error_msg):
                 downloader.bigquery_export_to_partition_mapping()
 
     def test_bigquery_export_to_partition_mapping_success(self):

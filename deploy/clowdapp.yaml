@@ -2761,6 +2761,7 @@ objects:
         server {
           error_log  stderr;
           listen 8000;
+          listen 9000;
 
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
@@ -2770,6 +2771,11 @@ objects:
           client_max_body_size 500M;
           client_header_buffer_size 46k;
           location /healthz {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location /metrics {
               auth_basic          off;
               allow               all;
               return              200;
