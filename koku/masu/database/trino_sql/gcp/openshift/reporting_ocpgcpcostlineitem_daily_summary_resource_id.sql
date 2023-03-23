@@ -258,8 +258,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
 WITH cte_enabled_tag_keys AS (
     SELECT
     CASE WHEN array_agg(key) IS NOT NULL
-        THEN ARRAY['openshift-cluster', 'openshift-node', 'openshift-project'] || array_agg(key)
-        ELSE ARRAY['openshift-cluster', 'openshift-node', 'openshift-project']
+        THEN ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'] || array_agg(key)
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
     END as enabled_keys
     FROM postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys
     WHERE enabled = TRUE
@@ -302,7 +302,7 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.ocp_source_uuid = {{ocp_source_uuid}}
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
-    AND gcp.ocp_matched = FALSE
+    AND (gcp.ocp_matched = FALSE OR gcp.ocp_matched IS NULL)
 GROUP BY gcp.usage_start_time,
     gcp.project_id,
     gcp.resource_name,
