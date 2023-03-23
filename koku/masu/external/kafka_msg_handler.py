@@ -345,7 +345,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(manifest_uuid, msg, context))
                 if is_ros_report(payload_destination_path):
-                    ros_reports.append(report_file, payload_destination_path)
+                    ros_reports.append((report_file, payload_destination_path))
                 else:
                     construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                     report_metas.append(current_meta)
