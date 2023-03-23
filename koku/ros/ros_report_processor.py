@@ -62,12 +62,12 @@ class RosReportProcessor:
         """
         if not reports_to_upload:
             return
-        self.mark_reports_as_started(reports_to_upload)
+        # self.mark_reports_as_started(reports_to_upload)
         uploaded_reports = [
             self.copy_local_report_file_to_ros_s3_bucket(filename, report) for filename, report in reports_to_upload
         ]
         self.send_kafka_confirmation(uploaded_reports)
-        self.mark_reports_as_completed(reports_to_upload)
+        # self.mark_reports_as_completed(reports_to_upload)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
         """Copy a local report file to the ROS S3 bucket."""
