@@ -339,15 +339,15 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         payload_destination_path = f"{destination_dir}/{report_file}"
         try:
             shutil.copy(payload_source_path, payload_destination_path)
-            if is_ros_report(payload_destination_path):
-                ros_reports.append((report_file, payload_destination_path))
-                continue
             current_meta["current_file"] = payload_destination_path
-            record_all_manifest_files(report_meta["manifest_id"], [report_file], manifest_uuid)
+            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
             if not record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(manifest_uuid, msg, context))
-                construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
+                if is_ros_report(payload_destination_path):
+                    ros_reports.append((report_file, payload_destination_path))
+                else:
+                    construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                 report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
