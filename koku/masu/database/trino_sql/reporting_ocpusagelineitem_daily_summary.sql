@@ -98,8 +98,8 @@ WITH cte_ocp_node_label_line_item_daily AS (
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
-       AND nli.interval_start >= TIMESTAMP {{start_date}}
-       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+       AND nli.interval_start >= {{start_date}}
+       AND nli.interval_start < date_add('day', 1, {{end_date}})
     GROUP BY date(nli.interval_start),
         nli.node,
         nli.node_labels
@@ -113,8 +113,8 @@ cte_ocp_namespace_label_line_item_daily AS (
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
-       AND nli.interval_start >= TIMESTAMP {{start_date}}
-       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+       AND nli.interval_start >= {{start_date}}
+       AND nli.interval_start < date_add('day', 1, {{end_date}})
     GROUP BY date(nli.interval_start),
         nli.namespace,
         nli.namespace_labels
@@ -134,8 +134,8 @@ cte_ocp_node_capacity AS (
         WHERE li.source = {{source}}
             AND li.year = {{year}}
             AND li.month = {{month}}
-            AND li.interval_start >= TIMESTAMP {{start_date}}
-            AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+            AND li.interval_start >= {{start_date}}
+            AND li.interval_start < date_add('day', 1, {{end_date}})
         GROUP BY li.interval_start,
             li.node
     ) as nc
@@ -169,8 +169,8 @@ cte_volume_nodes AS (
      WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
-        AND sli.interval_start >= TIMESTAMP {{start_date}}
-        AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+        AND sli.interval_start >= {{start_date}}
+        AND sli.interval_start < date_add('day', 1, {{end_date}})
         AND uli.source = {{source}}
         AND uli.year = {{year}}
         AND uli.month = {{month}}
@@ -279,8 +279,8 @@ FROM (
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
-        AND li.interval_start >= TIMESTAMP {{start_date}}
-        AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+        AND li.interval_start >= {{start_date}}
+        AND li.interval_start < date_add('day', 1, {{end_date}})
     GROUP BY date(li.interval_start),
         li.namespace,
         li.node,
@@ -395,8 +395,8 @@ FROM (
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
-        AND sli.interval_start >= TIMESTAMP {{start_date}}
-        AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+        AND sli.interval_start >= {{start_date}}
+        AND sli.interval_start < date_add('day', 1, {{end_date}})
     GROUP BY sli.namespace,
         vn.node,
         vn.resource_id,
@@ -492,7 +492,10 @@ WITH cte_unallocated_capacity AS (
     WHERE lids.source = {{source}}
         AND lids.year = {{year}}
         AND lpad(lids.month, 2, '0') = {{month}}
-        AND lids.usage_start >= TIMESTAMP {{start_date}}
+        AND lids.usage_start >= {{start_date}}
+        AND lids.usage_start < date_add('day', 1, {{end_date}})
+        AND lids.namespace != 'Platform unallocated'
+        AND lids.namespace != 'Worker unallocated'
         AND lids.node IS NOT NULL
         AND lids.data_source = 'Pod'
     GROUP BY lids.node, lids.usage_start, lids.source_uuid
@@ -609,5 +612,5 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lpad(lids.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND lids.day IN ({{days}})
+    AND lids.day IN {{days | inclause}}
 ;

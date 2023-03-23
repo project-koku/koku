@@ -85,8 +85,11 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
 
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+            # trino-python-client 0.321.0 released a breaking change to map results to python types by default
+            # This altered the timestamp values present in generated CSVs, impacting consumers of these files
+            # legacy_primitive_types restores previous functionality of using primitive types
             data, description = self._execute_trino_raw_sql_query_with_description(
-                self.schema, sql, bind_params=sql_params
+                sql, sql_params=sql_params, conn_params={"legacy_primitive_types": True}
             )
             # The format for the description is:
             # [(name, type_code, display_size, internal_size, precision, scale, null_ok)]

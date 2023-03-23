@@ -21,11 +21,13 @@ from tenant_schemas.utils import schema_context
 
 import koku.trino_database as trino_db
 from api.common import log_json
+from api.utils import DateHelper
 from koku.database import execute_delete_sql as exec_del_sql
 from koku.database_exc import get_extended_exception_by_type
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
+from masu.external.date_accessor import DateAccessor
 from reporting.models import PartitionedTable
 from reporting_common import REPORT_COLUMN_MAP
 
@@ -73,6 +75,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         super().__init__(schema)
         self.report_schema = ReportSchema(django.apps.apps.get_models())
+        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
+
+        self.date_accessor = DateAccessor()
+        self.date_helper = DateHelper()
+        self.jinja_sql = JinjaSql()
 
     @property
     def decimal_precision(self):
@@ -362,41 +369,42 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_trino_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, attempts_left=0):
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
-            schema, sql, bind_params, log_ref, attempts_left
+            sql, sql_params=sql_params, log_ref=log_ref, attempts_left=attempts_left
         )
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, schema, sql, bind_params=None, log_ref=None, attempts_left=0
+        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
+        if sql_params is None:
+            sql_params = {}
+        if conn_params is None:
+            conn_params = {}
+        sql, bind_params = self.trino_prepare_query(sql, sql_params)
+        t1 = time.time()
+        trino_conn = trino_db.connect(schema=self.schema, **conn_params)
         try:
-            t1 = time.time()
-            trino_conn = trino_db.connect(schema=schema)
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
             results = trino_cur.fetchall()
             description = trino_cur.description
-            t2 = time.time()
-            if log_ref:
-                msg = f"{log_ref} for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
-            else:
-                msg = f"Trino query for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
-            LOG.info(msg)
-            return results, description
         except Exception as ex:
             if attempts_left == 0:
-                msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
+                msg = f"Failing SQL:\n{sql}\nwith bind_params:\n\t{bind_params}"
                 LOG.error(msg)
             raise ex
+        t2 = time.time()
+        LOG.info(f"{log_ref} for {self.schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds.")
+        return results, description
 
-    def _execute_trino_multipart_sql_query(self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query):
+    def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
-        return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=preprocessor)
+        return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):
@@ -474,16 +482,18 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
-        self, source_uuid, start_date, end_date, filters, null_filters=None, table=None
+        self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
     ):
 
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table._meta.db_table} for source {source_uuid} from {start_date} to {end_date}"
+        if not isinstance(table, str):
+            table = table._meta.db_table
+        msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
-            DELETE FROM {self.schema}.{table._meta.db_table}
+            DELETE FROM {self.schema}.{table}
             WHERE usage_start >= %(start_date)s::date
                 AND usage_start <= %(end_date)s::date
         """
@@ -500,10 +510,38 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
 
+    def truncate_partition(self, partition_name):
+        """Issue a TRUNCATE command on a specific partition of a table"""
+        # Currently all partitions are date based and if the partition does not have YYYY_MM on the end, do not truncate
+        year, month = partition_name.split("_")[-2:]
+        try:
+            int(year)
+            int(month)
+        except ValueError:
+            msg = "Invalid paritition provided. No TRUNCATE performed."
+            LOG.warning(msg)
+            return
+
+        sql = f"""
+            DO $$
+            BEGIN
+            IF exists(
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = '{self.schema}'
+                    AND table_name='{partition_name}'
+            )
+            THEN
+                TRUNCATE {self.schema}.{partition_name};
+            END IF;
+            END $$;
+        """
+        self._execute_raw_sql_query(partition_name, sql, operation="TRUNCATE")
+
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_trino_raw_sql_query(self.schema, table_check_sql, log_ref="table_exists_trino")
+        table = self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")
         if table:
             return True
         return False

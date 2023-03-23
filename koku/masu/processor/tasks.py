@@ -45,6 +45,8 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
@@ -70,6 +72,7 @@ REMOVE_EXPIRED_DATA_QUEUE = "summary"
 SUMMARIZE_REPORTS_QUEUE = "summary"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
 UPDATE_SUMMARY_TABLES_QUEUE = "summary"
+DELETE_TRUNCATE_QUEUE = "refresh"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [
@@ -473,12 +476,8 @@ def update_summary_tables(  # noqa: C901
 
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
-        if provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month)
-            updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month)
-        else:
-            start_date, end_date = updater.update_daily_tables(start_date, end_date)
-            updater.update_summary_tables(start_date, end_date, tracing_id)
+        start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month=invoice_month)
+        updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month=invoice_month)
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
@@ -522,12 +521,31 @@ def update_summary_tables(  # noqa: C901
             cost_model = cost_model_accessor.cost_model
 
     # Create queued tasks for each OpenShift on Cloud cluster
+    delete_signature_list = []
+    if ocp_on_cloud_infra_map:
+        trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
+        for table_name, operation in trunc_delete_map.items():
+            delete_signature_list.append(
+                delete_openshift_on_cloud_data.si(
+                    schema_name,
+                    provider_uuid,
+                    start_date,
+                    end_date,
+                    table_name,
+                    operation,
+                    manifest_id=manifest_id,
+                    queue_name=queue_name,
+                    synchronous=synchronous,
+                    tracing_id=tracing_id,
+                ).set(queue=queue_name or DELETE_TRUNCATE_QUEUE)
+            )
+
     signature_list = []
     for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
         infra_provider_uuid = infrastructure_tuple[0]
         infra_provider_type = infrastructure_tuple[1]
         signature_list.append(
-            update_openshift_on_cloud.s(
+            update_openshift_on_cloud.si(
                 schema_name,
                 openshift_provider_uuid,
                 infra_provider_uuid,
@@ -543,10 +561,13 @@ def update_summary_tables(  # noqa: C901
 
     # Apply OCP on Cloud tasks
     if signature_list:
+        deletes = group(delete_signature_list)
+        summaries = group(signature_list)
+        c = chain(deletes, summaries)
         if synchronous:
-            group(signature_list).apply()
+            c.apply()
         else:
-            group(signature_list).apply_async()
+            c.apply_async()
 
     if not manifest_list and manifest_id:
         manifest_list = [manifest_id]
@@ -575,6 +596,28 @@ def update_summary_tables(  # noqa: C901
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
+
+
+@celery_app.task(name="masu.processor.tasks.delete_openshift_on_cloud_data", queue=DELETE_TRUNCATE_QUEUE)  # noqa: C901
+def delete_openshift_on_cloud_data(
+    schema_name,
+    infrastructure_provider_uuid,
+    start_date,
+    end_date,
+    table_name,
+    operation,
+    manifest_id=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
+):
+    """Clear existing data from tables for date range."""
+    updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+
+    if operation == TRUNCATE_TABLE:
+        updater._ocp_cloud_updater.truncate_summary_table_data(table_name)
+    elif operation == DELETE_TABLE:
+        updater._ocp_cloud_updater.delete_summary_table_data(start_date, end_date, table_name)
 
 
 @celery_app.task(

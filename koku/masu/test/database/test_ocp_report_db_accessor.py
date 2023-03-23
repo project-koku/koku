@@ -157,16 +157,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertEqual(period.provider_id, provider_uuid)
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.trino_db.executescript")
-    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
-    def test_populate_line_item_daily_summary_table_trino(self, mock_connect, mock_executescript, mock_table_exists):
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_ocp_hive_partition_by_day")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_line_item_daily_summary_table_trino(self, mock_execute, *args):
         """
         Test that OCP trino processing calls executescript
         """
-        trino_conn = FakeTrinoConn()
-        mock_table_exists.return_value = True
-        mock_connect.return_value = trino_conn
-        mock_executescript.return_value = []
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.next_month_start
@@ -177,13 +173,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, report_period_id, cluster_id, cluster_alias, source
         )
-        mock_connect.assert_called()
-        mock_executescript.assert_called()
+        mock_execute.assert_called()
 
-    # @patch("masu.util.common.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
     def test_populate_line_item_daily_summary_table_trino_preprocess_exception(
         self, mock_connect, mock_get_data, mock_table_exists
     ):
@@ -938,10 +932,15 @@ select * from eek where val1 in {{report_period_id}} ;
 
         with schema_context(self.schema):
             report_period_id = report_period.id
-            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            initial_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(cost_model_rate_type="platform_distributed")
+                .count()
+            )
+            # the distributed cost is being added so the initial count is no longer zero.
             initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,

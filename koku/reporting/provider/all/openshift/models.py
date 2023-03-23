@@ -260,7 +260,7 @@ class OCPAllCostLineItemProjectDailySummaryP(models.Model):
     # Whether the data comes from a pod or volume report
     data_source = models.CharField(max_length=64, null=True)
     # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
+    namespace = models.CharField(max_length=253, null=True)
     node = models.CharField(max_length=253, null=True)
     pod_labels = JSONField(null=True)
     resource_id = models.CharField(max_length=253, null=True)

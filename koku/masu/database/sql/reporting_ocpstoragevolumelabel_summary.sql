@@ -156,6 +156,7 @@ WHERE not exists (
            WHERE rp.key = tv.key
              AND rp.value = tv.value
       )
+ON CONFLICT DO NOTHING
 ;
 
 
@@ -192,7 +193,6 @@ WHERE EXISTS (
         AND tv.key = etk.key
 )
 ;
-
 
 TRUNCATE TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
 DROP TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};

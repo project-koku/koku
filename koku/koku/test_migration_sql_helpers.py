@@ -26,7 +26,7 @@ class TestMigrationSQLHelpers(IamTestCase):
         """
         filename = "./___test_apply_sql_file.sql"
         try:
-            with open(filename, "wt") as f:
+            with open(filename, "w") as f:
                 print("select 1;", file=f)
             self.assertEqual(msh.apply_sql_file(conn.schema_editor(), filename), True)
         finally:
@@ -38,7 +38,7 @@ class TestMigrationSQLHelpers(IamTestCase):
         """
         filename = "./___test_apply_sql_file.sql"
         try:
-            with open(filename, "wt") as f:
+            with open(filename, "w") as f:
                 print("select 1;", file=f)
             with self.assertRaises(TypeError):
                 msh.apply_sql_file(None, filename)

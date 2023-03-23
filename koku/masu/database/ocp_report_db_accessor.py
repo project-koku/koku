@@ -21,7 +21,6 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-import koku.trino_database as trino_db
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
@@ -266,6 +265,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for source_type, check_flag in check_flags.items():
             db_results = {}
             if check_flag:
+                infra_sql = pkgutil.get_data(
+                    "masu.database", f"trino_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
+                )
+                infra_sql = infra_sql.decode("utf-8")
+
                 infra_sql_params = {
                     "start_date": start_date,
                     "end_date": end_date,
@@ -278,15 +282,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "gcp_provider_uuid": gcp_provider_uuid,
                     "resource_level": resource_level,
                 }
-                infra_sql = pkgutil.get_data(
-                    "masu.database", f"trino_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
-                )
-                infra_sql = infra_sql.decode("utf-8")
-                infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
+
                 results = self._execute_trino_raw_sql_query(
-                    self.schema,
                     infra_sql,
-                    bind_params=infra_sql_params,
+                    sql_params=infra_sql_params,
                     log_ref="reporting_ocpinfrastructure_provider_map.sql",
                 )
                 for entry in results:
@@ -325,7 +324,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         AND day = '{day}'
                         """
                         self._execute_trino_raw_sql_query(
-                            self.schema,
                             sql,
                             log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
                             attempts_left=(retries - 1) - i,
@@ -354,7 +352,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     WHERE {partition_column} = '{provider_uuid}'
                     """
                     self._execute_trino_raw_sql_query(
-                        self.schema,
                         sql,
                         log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
                         attempts_left=(retries - 1) - i,
@@ -402,16 +399,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
 
-        days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
-        days_list = [str(day.day) for day in days]
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        self.delete_ocp_hive_partition_by_day(days_list, source, year, month)
-        tmpl_summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpusagelineitem_daily_summary.sql")
-        tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
+
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": str(source).replace("-", "_"),
+            "uuid": source,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -421,36 +418,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source": str(source),
             "year": year,
             "month": month,
-            "days": days_str,
+            "days": days_tup,
             "storage_exists": storage_exists,
         }
 
-        LOG.info("TRINO OCP: Connect")
-        trino_conn = trino_db.connect(schema=self.schema)
-        try:
-            LOG.info("TRINO OCP: executing SQL buffer for OCP usage processing")
-            trino_db.executescript(
-                trino_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
-            )
-        except Exception as e:
-            LOG.warning(
-                f"TRINO OCP ERROR : {e}"
-                + os.linesep
-                + "File : masu/database/trino_sql/reporting_ocpusagelineitem_daily_summary.sql"
-            )
-            try:
-                trino_conn.rollback()
-            except RuntimeError:
-                # If trino has not started a transaction, it will throw
-                # a RuntimeError that we just want to ignore.
-                pass
-            raise e
-        else:
-            LOG.info("TRINO OCP: Commit actions")
-            trino_conn.commit()
-        finally:
-            LOG.info("TRINO OCP: Close connection")
-            trino_conn.close()
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
@@ -533,6 +505,52 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 .distinct()
             )
             return [(pvc[0], pvc[1], pvc[2]) for pvc in unique_pvcs]
+
+    def populate_platform_distributed_cost_sql(self, start_date, end_date, distribution, provider_uuid):
+        """
+        Populate the platform cost distribution of a customer.
+
+        args:
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            distribution: Choice of monthly distribution ex. memory
+            provider_uuid (str): The str of the provider UUID
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            LOG.info(
+                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
+                " skipping populate_platform_distributed_cost_sql update."
+            )
+            return
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+
+        platform_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/distribute_platform_cost.sql")
+        platform_sql = platform_sql.decode("utf-8")
+        platform_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "report_period_id": report_period_id,
+            "distribution": distribution,
+            "source_uuid": provider_uuid,
+        }
+        LOG.debug(platform_sql_params)
+        platform_sql, platform_sql_params = self.jinja_sql.prepare_query(platform_sql, platform_sql_params)
+        LOG.info(
+            "Distributing platform cost for provider: "
+            f"{provider_uuid}, dates: {start_date} - {end_date}, report_period: {report_period_id}"
+        )
+        self._execute_raw_sql_query(
+            table_name,
+            platform_sql,
+            start_date,
+            end_date,
+            bind_params=list(platform_sql_params),
+            operation="INSERT",
+        )
 
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
         """
@@ -1034,9 +1052,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 ocp.resource_id
         """  # noqa: E501
 
-        nodes = self._execute_trino_raw_sql_query(self.schema, sql, log_ref="get_nodes_trino")
-
-        return nodes
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_nodes_trino")
 
     def get_pvcs_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1051,9 +1067,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        pvcs = self._execute_trino_raw_sql_query(self.schema, sql, log_ref="get_pvcs_trino")
-
-        return pvcs
+        return self._execute_trino_raw_sql_query(sql, log_ref="get_pvcs_trino")
 
     def get_projects_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1067,7 +1081,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        projects = self._execute_trino_raw_sql_query(self.schema, sql, log_ref="get_projects_trino")
+        projects = self._execute_trino_raw_sql_query(sql, log_ref="get_projects_trino")
 
         return [project[0] for project in projects]
 
@@ -1193,7 +1207,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        timestamps = self._execute_trino_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
+        timestamps = self._execute_trino_raw_sql_query(sql, log_ref="get_max_min_timestamp_from_parquet")
         minim, maxim = timestamps[0]
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)

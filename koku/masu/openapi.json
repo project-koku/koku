@@ -2277,7 +2277,7 @@
           },
           "action": {
             "type": "string",
-            "enum": ["create", "delete"]
+            "enum": ["create", "delete", "remove_stale"]
           }
         }
       },

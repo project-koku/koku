@@ -16,6 +16,7 @@ from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.utils import DateHelper
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -215,7 +216,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
             start_date,
@@ -349,12 +350,15 @@ class AzureReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        ocp_uuids = (self.ocp_on_azure_ocp_provider.uuid,)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.azure_provider_uuid, [self.ocp_on_azure_ocp_provider.uuid], start_date, end_date
+            self.azure_provider_uuid,
+            ocp_uuids,
+            start_date,
+            end_date,
         )
         mock_trino.assert_called()
 

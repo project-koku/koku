@@ -43,6 +43,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self.cluster_id = self.ocp_cluster_id
         self.provider_uuid = self.ocp_provider_uuid
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        self.distribution_info = {"distribution_type": "cpu", "platform_cost": False, "worker_cost": False}
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_markup_cost(self, mock_cost_accessor):
@@ -133,6 +134,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 cluster_id=self.cluster_id,
                 cost_model_rate_type="Infrastructure",
                 monthly_cost_type__isnull=True,
+                distributed_cost__gt=0,
             ).all()
             for line_item in pod_line_items:
                 self.assertNotEqual(line_item.cost_model_cpu_cost, 0)
@@ -159,7 +161,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         infrastructure_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
-        mock_cost_accessor.return_value.__enter__.return_value.distribution = "cpu"
+        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = self.distribution_info
+
         usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date()
         end_date = usage_period.report_period_end.date() - relativedelta(days=1)
@@ -195,7 +198,11 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         supplementary_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = supplementary_rates
-        mock_cost_accessor.return_value.__enter__.return_value.distribution = ""
+        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = {
+            "distribution_type": "",
+            "platform_cost": False,
+            "worker_cost": False,
+        }
         usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
