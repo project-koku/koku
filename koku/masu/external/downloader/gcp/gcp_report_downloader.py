@@ -299,9 +299,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not new_manifests:
             stmt = "No new manifests created."
             extra_context = {
-                "dates": f"{self.scan_start} - {self.scan_end}",
-                "bigquery mapping count": {len(bigquery_mappings)},
-                "current manifest count": {len(current_manifests)},
+                "scan_start": str(self.scan_start),
+                "scan_end": str(self.scan_end),
+                "bigquery mapping count": len(bigquery_mappings),
+                "current manifest count": len(current_manifests),
             }
             LOG.info(log_json(self.tracing_id, stmt, self.context | extra_context))
         return new_manifests
@@ -330,7 +331,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if isinstance(date, datetime.datetime):
             date = date.date()
         log_msg = "New manifest to be created."
-        extra_context = {"dates": f"{self.scan_start} - {self.scan_end}", "ingress": bool(self.ingress_reports)}
+        extra_context = {
+            "scan_start": str(self.scan_start),
+            "scan_end": str(self.scan_end),
+            "ingress": bool(self.ingress_reports),
+        }
         if self.ingress_reports:
             manifest = self._generate_monthly_pseudo_manifest(date)
             extra_context["manifest_data"] = manifest
