@@ -348,7 +348,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                     ros_reports.append((report_file, payload_destination_path))
                 else:
                     construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
-                    report_metas.append(current_meta)
+                report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))
