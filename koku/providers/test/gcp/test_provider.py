@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from faker import Faker
+from google.auth.exceptions import RefreshError
 from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.exceptions import NotFound
@@ -165,6 +166,21 @@ class GCPProviderTestCase(TestCase):
         mock_auth.return_value = (MagicMock(), MagicMock())
         billing_source_param = {"dataset": FAKE.word(), "table_id": FAKE.word()}
         credentials_param = {"project_id": FAKE.word()}
+        with self.assertRaisesRegex(ValidationError, err_msg):
+            provider = GCPProvider()
+            provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    @patch("providers.gcp.provider.discovery")
+    @patch("providers.gcp.provider.google.auth.default")
+    def test_cost_usage_source_raised_errors(self, mock_auth, mock_discovery):
+        """Test that cost_usage_source_is_reachable succeeds fails as expected
+        when a 502 error is returned by GCP."""
+        mock_discovery.build.side_effect = RefreshError()
+        mock_auth.return_value = (MagicMock(), MagicMock())
+        project = FAKE.word()
+        billing_source_param = {"dataset": FAKE.word(), "table_id": FAKE.word()}
+        credentials_param = {"project_id": project}
+        err_msg = f"{project} encountered a refresh error. Retryable: False"
         with self.assertRaisesRegex(ValidationError, err_msg):
             provider = GCPProvider()
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)

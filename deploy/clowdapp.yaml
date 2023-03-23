@@ -17,7 +17,7 @@ objects:
     - rbac
     - sources-api
     deployments:
-    - name: clowder-api
+    - name: api
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -93,7 +93,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-clowder-api
+              containerName: koku-api
               resource: limits.cpu
         - name: GUNICORN_WORKERS
           value: ${GUNICORN_WORKERS}
@@ -196,6 +196,64 @@ objects:
               path: oci-credentials.pem
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
+      webServices:
+        metrics:
+          enabled: true
+        private:
+          enabled: false
+        public:
+          enabled: true
+    - name: clowder-api
+      podSpec:
+        command:
+        - nginx
+        - -g
+        - daemon off;
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ROS_OCP_API
+          value: ${ROS_OCP_API}
+        image: quay.io/app-sre/ubi8-nginx-118
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${NGINX_CPU_LIMIT}
+            memory: ${NGINX_MEMORY_LIMIT}
+          requests:
+            cpu: ${NGINX_CPU_REQUEST}
+            memory: ${NGINX_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/nginx
+          name: koku-api-nginx-conf
+        volumes:
+        - configMap:
+            name: nginx-conf
+          name: koku-api-nginx-conf
+      replicas: ${{NGINX_REPLICAS}}
       webServices:
         metrics:
           enabled: true
@@ -2670,6 +2728,69 @@ objects:
     oci-cli-fingerprint: ${OCI_CLI_FINGERPRINT_EPH}
     oci-cli-tenancy: ${OCI_CLI_TENANCY_EPH}
     oci-cli-user: ${OCI_CLI_USER_EPH}
+- apiVersion: v1
+  data:
+    nginx.conf: |-
+      worker_processes  1;
+      error_log  /dev/stderr warn;
+      pid        /run/nginx.pid;
+
+      events {
+        worker_connections  1024;
+      }
+      http {
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_proto" "$http_x_forwarded_for"';
+
+        access_log  /dev/stdout  main;
+
+        sendfile            on;
+        tcp_nopush          on;
+        tcp_nodelay         on;
+        keepalive_timeout   65;
+        server_tokens       off;
+
+        upstream koku-api {
+          server koku-api:8000;
+        }
+        upstream ros-ocp-api {
+          server ${ROS_OCP_API}:8000;
+        }
+
+        server {
+          error_log  stderr;
+          listen 8000;
+          listen 9000;
+
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+          proxy_set_header Host $http_host;
+          proxy_redirect off;
+
+          client_max_body_size 500M;
+          client_header_buffer_size 46k;
+          location /healthz {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location /metrics {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location ^~/ {
+            proxy_pass http://koku-api;
+          }
+          location /api/cost-management/v1/recommendations/ {
+            proxy_pass http://ros-ocp-api;
+          }
+        }
+      }
+  kind: ConfigMap
+  metadata:
+    name: nginx-conf
 parameters:
 - name: ENV_NAME
   required: true
@@ -2983,6 +3104,30 @@ parameters:
   name: KOKU_KOKU_LOG_LEVEL
   required: true
   value: INFO
+- displayName: Minimum replicas
+  name: NGINX_REPLICAS
+  required: true
+  value: "3"
+- displayName: Memory Request
+  name: NGINX_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- displayName: Memory Limit
+  name: NGINX_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- displayName: CPU Request
+  name: NGINX_CPU_REQUEST
+  required: true
+  value: 300m
+- displayName: CPU Limit
+  name: NGINX_CPU_LIMIT
+  required: true
+  value: 600m
+- displayName: ROS OCP API Name
+  name: ROS_OCP_API
+  required: true
+  value: koku-api
 - displayName: Minimum replicas
   name: LISTENER_REPLICAS
   required: true
