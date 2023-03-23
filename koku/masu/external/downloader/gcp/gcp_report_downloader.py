@@ -461,7 +461,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except GoogleCloudError as err:
                 err_msg = "Could not query table for billing information."
                 extra_context = {"customer": self.customer_name, "response": err.message}
-                LOG.warning(log_json(self.tracing_id, err_msg, self.context))
+                LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
                 raise GCPReportDownloaderError(err_msg)
             except UnboundLocalError:
                 err_msg = f"Error recovering start and end date from csv key ({key})."
