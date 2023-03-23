@@ -521,7 +521,21 @@ class ReportDBAccessorBase(KokuDBAccess):
             msg = "Invalid paritition provided. No TRUNCATE performed."
             LOG.warning(msg)
             return
-        sql = f"TRUNCATE {self.schema}.{partition_name}"
+
+        sql = f"""
+            DO $$
+            BEGIN
+            IF exists(
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = '{self.schema}'
+                    AND table_name='{partition_name}'
+            )
+            THEN
+                TRUNCATE {self.schema}.{partition_name};
+            END IF;
+            END $$;
+        """
         self._execute_raw_sql_query(partition_name, sql, operation="TRUNCATE")
 
     def table_exists_trino(self, table_name):
