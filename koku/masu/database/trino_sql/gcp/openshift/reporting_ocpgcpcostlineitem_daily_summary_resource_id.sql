@@ -258,7 +258,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
 WITH cte_enabled_tag_keys AS (
     SELECT
     CASE WHEN array_agg(key) IS NOT NULL
-        THEN ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'] || array_agg(key)
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
         ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
     END as enabled_keys
     FROM postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys
@@ -299,9 +299,6 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
     AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
-    AND gcp.ocp_source_uuid = {{ocp_source_uuid}}
-    AND gcp.usage_start_time >= {{start_date}}
-    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND (gcp.ocp_matched = FALSE OR gcp.ocp_matched IS NULL)
 GROUP BY gcp.usage_start_time,
     gcp.project_id,
@@ -535,7 +532,7 @@ SELECT gcp.uuid as gcp_uuid,
     {{ocp_source_uuid}} as ocp_source
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
-    ON date(gcp.usage_start) = ocp.usage_start
+    ON gcp.usage_start = ocp.usage_start
         AND (
                 (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
                 OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
