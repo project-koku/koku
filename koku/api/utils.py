@@ -445,24 +445,31 @@ def materialized_view_month_start(dh=DateHelper()):
 
 def get_months_in_date_range(report=None, start=None, end=None, invoice_month=None):
     """returns the month periods in a given date range from report"""
+
     dh = DateHelper()
     if report:
-        if report.get("start") and report.get("end"):
-            LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
-            start_date = report.get("start")
-            end_date = report.get("end")
-            if report.get("invoice_month"):
-                LOG.info(f"using invoice_month: {report.get('invoice_month')}")
-                invoice_month = report.get("invoice_month")
+        manifest_start = report.get("start")
+        manifest_end = report.get("end")
+        manifest_invoice_month = report.get("invoice_month")
+
+        if manifest_start and manifest_end:
+            LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
+            start_date = manifest_start
+            end_date = manifest_end
+            if manifest_invoice_month:
+                LOG.info(f"using invoice_month: {manifest_invoice_month}")
+                invoice_month = manifest_invoice_month
         else:
             LOG.info("generating start and end dates for manifest")
             start_date = DateAccessor().today() - datetime.timedelta(days=2)
             start_date = start_date.strftime("%Y-%m-%d")
             end_date = DateAccessor().today().strftime("%Y-%m-%d")
+
     elif invoice_month:
         if not end:
             end = dh.today.date().strftime("%Y-%m-%d")
         return [(start, end, invoice_month)]  # For report_data masu api
+
     else:
         start_date = start
         end_date = end

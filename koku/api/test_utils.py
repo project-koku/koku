@@ -19,10 +19,12 @@ from api.utils import DateHelper
 from api.utils import get_account_settings
 from api.utils import get_cost_type
 from api.utils import get_currency
+from api.utils import get_months_in_date_range
 from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
+from masu.config import Config
 from reporting.user_settings.models import UserSettings
 
 
@@ -257,3 +259,122 @@ class GeneralUtilsTest(IamTestCase):
             else:
                 settings = query_settings.settings
                 self.assertEqual(get_account_settings(self.request_context["request"]), settings)
+
+
+class GetMonthsInDateRangeTest(unittest.TestCase):
+    """Test the get_months_in_date_range util."""
+
+    def test_get_months_in_date_range__report_with_dates(self):
+        """Test that calling get_months_in_date_range with report only returns list of month tuples"""
+
+        dh = DateHelper()
+        start_date = dh.yesterday
+        end_date = dh.today
+        test_report = {
+            "schema": "org1234567",
+            "start": str(start_date),
+            "end": str(end_date),
+            "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
+        }
+
+        expected_months = [(start_date.date().strftime("%Y-%m-%d"), end_date.date().strftime("%Y-%m-%d"), None)]
+        returned_months = get_months_in_date_range(test_report)
+        self.assertEqual(returned_months, expected_months)
+
+    def test_get_months_in_date_range__report_with_no_dates(self):
+        """
+        Test that calling get_months_in_date_range
+        with a report missing start, end or both dates
+        returns list of month tuples.
+        """
+
+        dh = DateHelper()
+        test_report = {
+            "schema": "org1234567",
+            "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
+        }
+        start_date = dh.today - datetime.timedelta(days=2)
+        expected_months = [(start_date.strftime("%Y-%m-%d"), dh.today.date().strftime("%Y-%m-%d"), None)]
+        returned_months = get_months_in_date_range(test_report)
+        self.assertEqual(returned_months, expected_months)
+
+    def test_get_months_in_date_range__start_invoice_month_only(self):
+        """
+        Test that calling get_months_in_date_range
+        with invoice_month and start_date only
+        returns list of month tuples.
+        """
+
+        dh = DateHelper()
+        start_date = str(dh.yesterday)
+        invoice_month = "202303"
+        expected_months = [(start_date, dh.today.date().strftime("%Y-%m-%d"), invoice_month)]
+        returned_months = get_months_in_date_range(
+            report=None, start=start_date, end=None, invoice_month=invoice_month
+        )
+        self.assertEqual(returned_months, expected_months)
+
+    def test_get_months_in_date_range__start_end_invoice_month(self):
+        """
+        Test that calling get_months_in_date_range
+        with start and end dates, and invoice_month only
+        returns list of month tuples.
+        """
+
+        dh = DateHelper()
+        start_date = str(dh.yesterday)
+        invoice_month = "202303"
+        expected_months = [(start_date, dh.today.date().strftime("%Y-%m-%d"), invoice_month)]
+        returned_months = get_months_in_date_range(
+            report=None, start=start_date, end=None, invoice_month=invoice_month
+        )
+        self.assertEqual(returned_months, expected_months)
+
+    def test_get_months_in_date_range__start_end_only(self):
+        """
+        Test that calling get_months_in_date_range
+        with start and end dates only
+        returns list of month tuples.
+        """
+
+        dh = DateHelper()
+        start_date = dh.yesterday
+        end_date = dh.today
+        expected_months = [(start_date.date().strftime("%Y-%m-%d"), end_date.date().strftime("%Y-%m-%d"), None)]
+        returned_months = get_months_in_date_range(report=None, start=str(start_date), end=str(end_date))
+        self.assertEqual(returned_months, expected_months)
+
+    def test_get_months_in_date_range__early_start_date(self):
+        """
+        Test that get_months_in_date_range
+        with a start date earlier than configured INITIAL_INGEST_NUM_MONTHS
+        returns list of month tuples.
+        """
+
+        Config.INITIAL_INGEST_NUM_MONTHS = 1
+        dh = DateHelper()
+        previous_month = dh.previous_month(dh.last_month_start)
+        end_date = dh.today
+        expected_months = [
+            (dh.last_month_start.date().strftime("%Y-%m-%d"), dh.last_month_end.date().strftime("%Y-%m-%d"), None),
+            (dh.this_month_start.date().strftime("%Y-%m-%d"), end_date.date().strftime("%Y-%m-%d"), None),
+        ]
+        returned_months = get_months_in_date_range(report=None, start=str(previous_month), end=str(end_date))
+        self.assertEqual(returned_months, expected_months)
+
+    def test_get_months_in_date_range__early_start_early_end_dates(self):
+        """
+        Test that calling get_months_in_date_range
+        with both start and end dates earlier than configured INITIAL_INGEST_NUM_MONTHS
+        returns list of month tuples.
+        """
+
+        Config.INITIAL_INGEST_NUM_MONTHS = 0
+        dh = DateHelper()
+        previous_month_start = dh.last_month_start
+        previous_month_end = dh.last_month_end
+        expected_months = [(dh.today.date().strftime("%Y-%m-01"), dh.today.date().strftime("%Y-%m-%d"), None)]
+        returned_months = get_months_in_date_range(
+            report=None, start=str(previous_month_start), end=str(previous_month_end)
+        )
+        self.assertEqual(returned_months, expected_months)
