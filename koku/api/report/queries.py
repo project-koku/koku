@@ -16,7 +16,6 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
-from urllib.parse import quote_plus
 
 import ciso8601
 import numpy as np
@@ -660,7 +659,6 @@ class ReportQueryHandler(QueryHandler):
             tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
             group_data = self.parameters.get_group_by(tag)
             if group_data:
-                tag = quote_plus(tag)
                 group_pos = self.parameters.url_data.index(tag)
                 group_by.append((tag_db_name, group_pos))
         return group_by
@@ -674,7 +672,6 @@ class ReportQueryHandler(QueryHandler):
                 db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
                 group_data = self.parameters.get_group_by(aws_category)
                 if group_data:
-                    aws_category = quote_plus(aws_category)
                     group_pos = self.parameters.url_data.index(aws_category)
                     group_by.append((db_name, group_pos))
         return group_by
