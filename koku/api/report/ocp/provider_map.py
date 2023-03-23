@@ -233,7 +233,7 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
                             "cost_platform_distributed": self.platform_distributed_cost_by_project,
-                            "cost_worker_unallocated": self.worker_unallocated_distributed_cost_by_project,
+                            "cost_worker_unallocated_distributed": self.worker_unallocated_distributed_cost_by_project,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {

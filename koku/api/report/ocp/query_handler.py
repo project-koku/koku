@@ -69,7 +69,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_markup": {"key": "markup", "group": "cost"},
             "cost_usage": {"key": "usage", "group": "cost"},
             "cost_platform_distributed": {"key": "platform_distributed", "group": "cost"},
-            "cost_worker_unallocated": {"key": "worker_unallocated_distributed", "group": "cost"},
+            "cost_worker_unallocated_distributed": {"key": "worker_unallocated_distributed", "group": "cost"},
             "cost_distributed": {"key": "distributed", "group": "cost"},
             "cost_total": {"key": "total", "group": "cost"},
         }
