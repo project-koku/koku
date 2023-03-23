@@ -1,12 +1,3 @@
--- Clear out old entries first
-DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpgcp_storage_summary_p
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND invoice_month = {{invoice_month}}
-    AND cluster_id = {{cluster_id}}
-    AND source_uuid = {{source_uuid}}::uuid
-;
-
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
     id,
