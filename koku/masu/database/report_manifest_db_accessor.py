@@ -126,6 +126,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """
         record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
         if record:
+            LOG.warning(
+                f"\n are you sure about that?? "
+                f"This is supposed to be true: {record.filter(last_completed_datetime__isnull=True).exists()}"
+            )
+            import time
+
+            time.sleep(120)
             return record.filter(last_completed_datetime__isnull=True).exists()
         return True
 
