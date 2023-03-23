@@ -36,6 +36,8 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from masu.external.ros_report_shipper import is_ros_report
+from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
@@ -45,8 +47,6 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
-from ros.ros_report_processor import is_ros_report
-from ros.ros_report_processor import RosReportProcessor
 
 
 LOG = logging.getLogger(__name__)
@@ -352,7 +352,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))
-    ros_processor = RosReportProcessor(
+    ros_processor = ROSReportShipper(
         account_id,
         cluster_id,
         report_meta["manifest_id"],
