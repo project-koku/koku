@@ -63,7 +63,7 @@ AWS_COST_CATEGORIES = (
     {"ninja": "turtle"},
     {"ninja": "naruto"},
     {"ninja": "scorpion"},
-    {"ninja": "psylocke"},
+    {"env": "stage"},
     None,
     None,
     None,
