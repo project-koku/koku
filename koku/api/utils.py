@@ -182,7 +182,10 @@ class DateHelper:
 
     def month_start(self, in_date):
         """Datetime of midnight on the 1st of in_date month."""
-        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        if isinstance(in_date, datetime.datetime):
+            return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        elif isinstance(in_date, datetime.date):
+            return in_date.replace(day=1)
 
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""

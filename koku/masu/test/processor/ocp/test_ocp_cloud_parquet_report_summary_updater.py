@@ -18,7 +18,9 @@ from api.utils import DateHelper
 from koku.database import get_model
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.test import MasuTestCase
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -662,3 +664,47 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
 
             with connection.cursor() as cur:
                 cur.execute(f"drop table {self.schema}._eek_pt0 ;")
+
+    def test_can_truncate(self):
+        """Test that we successfully determine if truncate can occur."""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+
+        self.assertTrue(updater._can_truncate(start_date, end_date))
+
+        end_date = end_date - datetime.timedelta(days=1)
+        self.assertFalse(updater._can_truncate(start_date, end_date))
+
+    def test_determine_truncates_and_deletes(self):
+        """Test that we successfully determine if truncate can occur."""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+
+        results = updater.determine_truncates_and_deletes(start_date, end_date)
+        for value in results.values():
+            self.assertEqual(value, TRUNCATE_TABLE)
+
+        end_date = end_date - datetime.timedelta(days=1)
+        results = updater.determine_truncates_and_deletes(start_date, end_date)
+        for value in results.values():
+            self.assertEqual(value, DELETE_TABLE)
+
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    def test_delete_summary_table_data(self, mock_delete):
+        """Test that the method calls the underlying db accessor delete call."""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        updater.delete_summary_table_data(start_date, end_date, "table")
+        mock_delete.assert_called()
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.truncate_partition")  # noqa: E501
+    def test_truncate_summary_table_data(self, mock_truncate):
+        """Test that the method calls the underlying db accessor truncate call."""
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        updater.truncate_summary_table_data("table_2023_03")
+        mock_truncate.assert_called()
