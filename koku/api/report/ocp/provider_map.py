@@ -216,7 +216,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost,
-                            "cost_distributed": self.cloud_infrastructure_cost_by_project
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
@@ -239,7 +239,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost,
-                            "cost_distributed": self.cloud_infrastructure_cost_by_project
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
