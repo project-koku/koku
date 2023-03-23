@@ -2774,6 +2774,11 @@ objects:
               allow               all;
               return              200;
           }
+          location /metrics {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
           location ^~/ {
             proxy_pass http://koku-api;
           }
