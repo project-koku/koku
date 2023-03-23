@@ -14,7 +14,6 @@ from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config as masu_config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -42,12 +41,13 @@ def get_ros_s3_resource():  # pragma: no cover
 
 
 class RosReportProcessor:
-    def __init__(self, cluster_id, manifest_id, provider_uuid, request_id, schema_name):
+    def __init__(self, account_id, cluster_id, manifest_id, org_id, provider_uuid, request_id, schema_name):
+        self.account_id = account_id
         self.cluster_id = cluster_id
         self.dh = DateHelper()
         self.manifest_id = manifest_id
+        self.org_id = org_id
         self.provider_uuid = str(provider_uuid)
-        self.reports_to_upload = []
         self.request_id = request_id
         self.schema_name = schema_name
 
@@ -56,23 +56,19 @@ class RosReportProcessor:
         """The S3 path to be used for a ROS report upload."""
         return f"{self.schema_name}/source={self.provider_uuid}/{self.dh.today.date()}"
 
-    def process_manifest_reports(self):
+    def process_manifest_reports(self, reports_to_upload):
         """
         Uploads the ROS reports for a manifest to S3 and sends a kafka message containing
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
-        if not self.reports_to_upload:
+        self.mark_reports_as_started(reports_to_upload)
+        if not reports_to_upload:
             return
         uploaded_reports = [
-            self.copy_local_report_file_to_ros_s3_bucket(filename, report)
-            for filename, report in self.reports_to_upload
+            self.copy_local_report_file_to_ros_s3_bucket(filename, report) for filename, report in reports_to_upload
         ]
         self.send_kafka_confirmation(uploaded_reports)
-        self.mark_reports_as_completed()
-
-    def add_report_to_manifest(self, filename, report_path):
-        """Add a report to the list of reports to process for this manifest."""
-        self.reports_to_upload.append((filename, report_path))
+        self.mark_reports_as_completed(reports_to_upload)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
         """Copy a local report file to the ROS S3 bucket."""
@@ -83,9 +79,10 @@ class RosReportProcessor:
         """Copies report data to the ROS S3 bucket and returns the upload_key"""
         s3_path = self.ros_s3_path
         extra_args = {"Metadata": {"ManifestId": str(self.manifest_id)}}
+        upload_key = None
         try:
-            upload_key = f"{s3_path}/{filename}"
             s3_resource = get_ros_s3_resource()
+            upload_key = f"{s3_path}/{filename}"
             s3_obj = {"bucket_name": settings.S3_ROS_BUCKET_NAME, "key": upload_key}
             upload = s3_resource.Object(**s3_obj)
             upload.upload_fileobj(data, ExtraArgs=extra_args)
@@ -109,16 +106,13 @@ class RosReportProcessor:
     def build_ros_json(self, uploaded_reports):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         source = Sources.objects.get(koku_uuid=self.provider_uuid)
-        with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
-            account_id = provider_accessor.get_account_id()
-            org_id = provider_accessor.get_org_id()
 
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": source.auth_header,
             "metadata": {
-                "account": account_id,
-                "org_id": org_id,
+                "account": self.account_id,
+                "org_id": self.org_id,
                 "source_id": self.provider_uuid,
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": source.name,
@@ -128,8 +122,14 @@ class RosReportProcessor:
         msg = bytes(json.dumps(ros_json), "utf-8")
         return msg
 
-    def mark_reports_as_completed(self):
+    def mark_reports_as_completed(self, reports_to_upload):
         """Marks all ROS files for the manifest as processed."""
-        for file_name, _ in self.reports_to_upload:
+        for file_name, _ in reports_to_upload:
             with ReportStatsDBAccessor(file_name, self.manifest_id) as stats_recorder:
                 stats_recorder.log_last_completed_datetime()
+
+    def mark_reports_as_started(self, reports_to_upload):
+        """Marks all ROS files for the manifest as processing started."""
+        for file_name, _ in reports_to_upload:
+            with ReportStatsDBAccessor(file_name, self.manifest_id) as stats_recorder:
+                stats_recorder.log_last_started_datetime()

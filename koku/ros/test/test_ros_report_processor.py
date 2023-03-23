@@ -1,0 +1,95 @@
+import json
+from unittest.mock import patch
+
+from botocore.exceptions import ClientError
+from django.test import TestCase
+
+from api.utils import DateHelper
+from masu.util.ocp import common as utils
+from ros.ros_report_processor import is_ros_report
+from ros.ros_report_processor import RosReportProcessor
+
+
+class TestRosReportProcessor(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Set up the class."""
+        super().setUpClass()
+        cls.schema_name = "org1234567"
+        cls.provider_uuid = "1b09c37c-a0ca-4ad0-ac08-8db88e55e08f"
+        cls.request_id = "4"
+        cls.cluster_id = "ros-ocp-cluster-test"
+        cls.account_id = "1234"
+        cls.org_id = "5678"
+        cls.ros_processor = RosReportProcessor(
+            cls.account_id, cls.cluster_id, "300", cls.org_id, cls.provider_uuid, cls.request_id, cls.schema_name
+        )
+
+    def test_is_ros_report(self):
+        "Test that we detect the correct report type from csv"
+        test_table = [
+            (("", utils.OCPReportTypes.ROS_METRICS), True),
+            (("", utils.OCPReportTypes.CPU_MEM_USAGE), False),
+        ]
+        for r_value, expected in test_table:
+            with self.subTest(test=expected):
+                with patch("ros.ros_report_processor.utils.detect_type", return_value=r_value):
+                    result = is_ros_report("")
+                    self.assertEqual(result, expected)
+
+    def test_ros_s3_path(self):
+        expected = f"{self.schema_name}/source={self.provider_uuid}/{DateHelper().today.date()}"
+        actual = self.ros_processor.ros_s3_path
+        self.assertEqual(expected, actual)
+
+    @patch("ros.ros_report_processor.RosReportProcessor.mark_reports_as_started")
+    @patch("ros.ros_report_processor.RosReportProcessor.copy_local_report_file_to_ros_s3_bucket")
+    @patch("ros.ros_report_processor.RosReportProcessor.send_kafka_confirmation")
+    @patch("ros.ros_report_processor.RosReportProcessor.mark_reports_as_completed")
+    def test_process_manifest_reports(
+        self, mock_report_complete, mock_kafka_conf, mock_report_copy, mock_report_started
+    ):
+        self.ros_processor.process_manifest_reports([("report1", "path1")])
+        mock_report_started.assert_called_once()
+        mock_report_copy.assert_called_once()
+        mock_kafka_conf.assert_called_once()
+        mock_report_complete.assert_called_once()
+
+    def test_copy_data_to_ros_s3_bucket(self):
+        """Test copy_data_to_s3_bucket."""
+        with patch("ros.ros_report_processor.get_ros_s3_resource") as mock_s3:
+            upload = self.ros_processor.copy_data_to_ros_s3_bucket("filename", "data")
+            self.assertEqual(f"{self.ros_processor.ros_s3_path}/filename", upload)
+
+        with patch("ros.ros_report_processor.get_ros_s3_resource") as mock_s3:
+            mock_s3.side_effect = ClientError({}, "Error")
+            new_upload = self.ros_processor.copy_data_to_ros_s3_bucket("filename", "data")
+            self.assertEqual(None, new_upload)
+
+    @patch("ros.ros_report_processor.RosReportProcessor.build_ros_json")
+    @patch("ros.ros_report_processor.get_producer")
+    def test_send_kafka_confirmation(self, mock_producer, mock_json):
+        reports = ["report1"]
+        self.ros_processor.send_kafka_confirmation(reports)
+        mock_producer.assert_called()
+
+    @patch("ros.ros_report_processor.Sources.objects")
+    def test_build_ros_json(self, mock_sources):
+        mock_sources.get.return_value = mock_sources
+        mock_sources.auth_header = "hello"
+        mock_sources.name = "my-source-name"
+        expected_json = {
+            "request_id": self.request_id,
+            "b64_identity": "hello",
+            "metadata": {
+                "account": self.account_id,
+                "org_id": self.org_id,
+                "source_id": self.provider_uuid,
+                "cluster_uuid": self.cluster_id,
+                "cluster_alias": "my-source-name",
+            },
+            "files": ["report1"],
+        }
+        expected_msg = bytes(json.dumps(expected_json), "utf-8")
+        actual = self.ros_processor.build_ros_json(["report1"])
+        self.assertEqual(actual, expected_msg)

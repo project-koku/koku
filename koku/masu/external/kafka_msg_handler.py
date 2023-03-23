@@ -303,10 +303,10 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
-    if schema_name.startswith("acct"):
-        context["account"] = schema_name[4:]
-    else:
-        context["org_id"] = schema_name[3:]
+    account_id = account.get("account_id")
+    org_id = account.get("org_id")
+    context["account"] = account_id
+    context["org_id"] = org_id
     context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
@@ -331,9 +331,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Copy report payload
     report_metas = []
-    ros_processor = RosReportProcessor(
-        cluster_id, report_meta["manifest_id"], report_meta["provider_uuid"], request_id, schema_name
-    )
+    ros_reports = []
     for report_file in report_meta.get("files"):
         current_meta = report_meta.copy()
         subdirectory = os.path.dirname(full_manifest_path)
@@ -347,11 +345,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(manifest_uuid, msg, context))
                 if is_ros_report(payload_destination_path):
-                    LOG.warning(
-                        f"Report {report_file} with destination {payload_destination_path}"
-                        f" for manifest {report_meta['manifest_id']} is a ROS report."
-                    )
-                    ros_processor.add_report_to_manifest(report_file, payload_destination_path)
+                    ros_reports.append(report_file, payload_destination_path)
                 else:
                     construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                     report_metas.append(current_meta)
@@ -361,7 +355,16 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))
-    ros_processor.process_manifest_reports()
+    ros_processor = RosReportProcessor(
+        account_id,
+        cluster_id,
+        report_meta["manifest_id"],
+        org_id,
+        report_meta["provider_uuid"],
+        request_id,
+        schema_name,
+    )
+    ros_processor.process_manifest_reports(ros_reports)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_metas, manifest_uuid
