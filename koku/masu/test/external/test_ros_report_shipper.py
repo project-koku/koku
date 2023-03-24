@@ -44,7 +44,7 @@ class TestROSReportShipper(TestCase):
 
     @patch("masu.external.ros_report_shipper.ROSReportShipper.mark_reports_as_started")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
-    @patch("masu.external.ros_report_shipper.ROSReportShipper.get_ros_json")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_json")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_confirmation")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.mark_reports_as_completed")
     def test_process_manifest_reports(
