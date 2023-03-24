@@ -138,9 +138,19 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
     def delete_summary_table_data(self, start_date, end_date, table):
         """Clear out existing data in summary tables."""
+        filters = {"source_uuid": str(self._provider.uuid)}
+        dh = DateHelper()
+        month_start = dh.month_start(start_date)
         with self.db_accessor(self._schema) as accessor:
+            if table == self.daily_summary_table._meta.db_table:
+                with schema_context(self._schema):
+                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date=month_start)
+                    current_bill_id = bills.first().id if bills else None
+                filters = {
+                    "cost_entry_bill_id": current_bill_id
+                }  # Use cost_entry_bill_id to leverage DB index on DELETE
             accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                self._provider.uuid, start_date, end_date, table=table
+                self._provider.uuid, start_date, end_date, table=table, filters=filters
             )
 
     def truncate_summary_table_data(self, partition_name):
