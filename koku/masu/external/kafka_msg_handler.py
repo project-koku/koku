@@ -36,7 +36,6 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
-from masu.external.ros_report_shipper import is_ros_report
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
@@ -332,37 +331,41 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     # Copy report payload
     report_metas = []
     ros_reports = []
+    subdirectory = os.path.dirname(full_manifest_path)
+    for ros_file in report_meta.get("resource_optimization_files"):
+        ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
+    try:
+        ros_processor = ROSReportShipper(
+            account_id,
+            cluster_id,
+            report_meta["manifest_id"],
+            org_id,
+            report_meta["provider_uuid"],
+            request_id,
+            schema_name,
+            context,
+        )
+        ros_processor.process_manifest_reports(ros_reports)
+    except Exception as e:
+        # If a ROS report fails to process, this should not prevent Koku processing from continuing.
+        LOG.warning(f"ROS reports not processed for manifest_id {report_meta['manifest_id']}. Reason: {e}")
     for report_file in report_meta.get("files"):
         current_meta = report_meta.copy()
-        subdirectory = os.path.dirname(full_manifest_path)
         payload_source_path = f"{subdirectory}/{report_file}"
         payload_destination_path = f"{destination_dir}/{report_file}"
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
             record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
-            if not record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
-                msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
-                LOG.info(log_json(manifest_uuid, msg, context))
-                if is_ros_report(payload_destination_path):
-                    ros_reports.append((report_file, payload_destination_path))
-                else:
-                    construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
-                    report_metas.append(current_meta)
+            if record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
+                continue
+            msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
+            LOG.info(log_json(manifest_uuid, msg, context))
+            construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
+            report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))
-    ros_processor = ROSReportShipper(
-        account_id,
-        cluster_id,
-        report_meta["manifest_id"],
-        org_id,
-        report_meta["provider_uuid"],
-        request_id,
-        schema_name,
-        context,
-    )
-    ros_processor.process_manifest_reports(ros_reports)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_metas, manifest_uuid

@@ -14,18 +14,10 @@ from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config as masu_config
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
-from masu.util.ocp import common as utils
 
 
 LOG = logging.getLogger(__name__)
-
-
-def is_ros_report(file_path):
-    """Determine if a specified report is a ROS_METRICS report."""
-    _, enum = utils.detect_type(file_path)
-    return enum == utils.OCPReportTypes.ROS_METRICS
 
 
 def get_ros_s3_resource():  # pragma: no cover
@@ -65,7 +57,6 @@ class ROSReportShipper:
         """
         if not reports_to_upload:
             return
-        self.mark_reports_as_started(reports_to_upload)
         msg = "Preparing to upload ROS reports to S3 bucket."
         LOG.info(log_json(self.request_id, msg, self.context))
         uploaded_reports = [
@@ -75,7 +66,6 @@ class ROSReportShipper:
         msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka confirmation."
         log_json(self.request_id, msg, self.context)
         self.send_kafka_confirmation(kafka_msg)
-        self.mark_reports_as_completed(reports_to_upload)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
         """Copy a local report file to the ROS S3 bucket."""
@@ -125,15 +115,3 @@ class ROSReportShipper:
             "files": uploaded_reports,
         }
         return bytes(json.dumps(ros_json), "utf-8")
-
-    def mark_reports_as_completed(self, reports_to_upload):
-        """Marks all ROS files for the manifest as processed."""
-        for file_name, _ in reports_to_upload:
-            with ReportStatsDBAccessor(file_name, self.manifest_id) as stats_recorder:
-                stats_recorder.log_last_completed_datetime()
-
-    def mark_reports_as_started(self, reports_to_upload):
-        """Marks all ROS files for the manifest as processing started."""
-        for file_name, _ in reports_to_upload:
-            with ReportStatsDBAccessor(file_name, self.manifest_id) as stats_recorder:
-                stats_recorder.log_last_started_datetime()
