@@ -130,8 +130,7 @@ You can use the trino UI to see the queries run in trino:
 
 You can also manually run queries inside of the trino container::
 
-    docker exec -it trino bash
-    trino --server localhost:8080 --catalog hive --schema org1234567 --user admin --debug
+    docker exec -it trino trino --catalog hive --schema org1234567 --user admin --debug
     SHOW CREATE TABLE <table_name>;
 
 ::
