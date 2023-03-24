@@ -349,7 +349,8 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
         ros_processor.process_manifest_reports(ros_reports)
     except Exception as e:
         # If a ROS report fails to process, this should not prevent Koku processing from continuing.
-        LOG.warning(f"ROS reports not processed for manifest_id {report_meta['manifest_id']}. Reason: {e}")
+        msg = f"ROS reports not processed for manifest_id {report_meta['manifest_id']}. Reason: {e}"
+        LOG.warning(log_json(manifest_uuid, msg, context))
     for report_file in report_meta.get("files"):
         current_meta = report_meta.copy()
         payload_source_path = f"{subdirectory}/{report_file}"
