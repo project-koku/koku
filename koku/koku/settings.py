@@ -429,7 +429,6 @@ LOGGING = {
         "reporting": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
-        "ros": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
         # Setting to WARNING will prevent the INFO level spam.
