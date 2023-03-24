@@ -14,13 +14,21 @@ class TestROSReportShipper(TestCase):
         """Set up the class."""
         super().setUpClass()
         cls.schema_name = "org1234567"
+        cls.b64_identity = "identity"
         cls.provider_uuid = "1b09c37c-a0ca-4ad0-ac08-8db88e55e08f"
         cls.request_id = "4"
         cls.cluster_id = "ros-ocp-cluster-test"
         cls.account_id = "1234"
         cls.org_id = "5678"
         cls.ros_shipper = ROSReportShipper(
-            cls.account_id, cls.cluster_id, "300", cls.org_id, cls.provider_uuid, cls.request_id, cls.schema_name
+            cls.account_id,
+            cls.b64_identity,
+            cls.cluster_id,
+            "300",
+            cls.org_id,
+            cls.provider_uuid,
+            cls.request_id,
+            cls.schema_name,
         )
 
     def test_ros_s3_path(self):
@@ -54,14 +62,10 @@ class TestROSReportShipper(TestCase):
         self.ros_shipper.send_kafka_confirmation(kafka_msg)
         mock_producer.assert_called()
 
-    @patch("masu.external.ros_report_shipper.Sources.objects")
-    def test_build_ros_json(self, mock_sources):
-        mock_sources.get.return_value = mock_sources
-        mock_sources.auth_header = "hello"
-        mock_sources.name = "my-source-name"
+    def test_build_ros_json(self):
         expected_json = {
             "request_id": self.request_id,
-            "b64_identity": "hello",
+            "b64_identity": self.b64_identity,
             "metadata": {
                 "account": self.account_id,
                 "org_id": self.org_id,
@@ -72,5 +76,7 @@ class TestROSReportShipper(TestCase):
             "files": ["report1"],
         }
         expected_msg = bytes(json.dumps(expected_json), "utf-8")
-        actual = self.ros_shipper.build_ros_json(["report1"])
+        with patch("masu.external.ros_report_shipper.ProviderDBAccessor.get_provider_name") as mock_providerdba:
+            mock_providerdba.return_value = "my-source-name"
+            actual = self.ros_shipper.build_ros_json(["report1"])
         self.assertEqual(actual, expected_msg)

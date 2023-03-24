@@ -227,7 +227,7 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
 
 
 # pylint: disable=too-many-locals
-def extract_payload(url, request_id, context={}):  # noqa: C901
+def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -337,6 +337,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     try:
         ros_processor = ROSReportShipper(
             account_id,
+            b64_identity,
             cluster_id,
             report_meta["manifest_id"],
             org_id,
@@ -445,7 +446,7 @@ def handle_message(kmsg):
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg, context))
-        report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
+        report_metas, manifest_uuid = extract_payload(value["url"], request_id, value["b64_identity"], context)
         return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()

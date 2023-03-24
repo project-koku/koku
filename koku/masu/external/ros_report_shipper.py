@@ -9,11 +9,11 @@ from botocore.exceptions import EndpointConnectionError
 from django.conf import settings
 
 from api.common import log_json
-from api.provider.models import Sources
 from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config as masu_config
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 
@@ -33,9 +33,19 @@ def get_ros_s3_resource():  # pragma: no cover
 
 class ROSReportShipper:
     def __init__(
-        self, account_id, cluster_id, manifest_id, org_id, provider_uuid, request_id, schema_name, context={}
+        self,
+        account_id,
+        b64_identity,
+        cluster_id,
+        manifest_id,
+        org_id,
+        provider_uuid,
+        request_id,
+        schema_name,
+        context={},
     ):
         self.account_id = account_id
+        self.b64_identity = b64_identity
         self.context = context
         self.cluster_id = cluster_id
         self.manifest_id = manifest_id
@@ -64,7 +74,7 @@ class ROSReportShipper:
         ]
         kafka_msg = self.build_ros_json(uploaded_reports)
         msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka confirmation."
-        log_json(self.request_id, msg, self.context)
+        LOG.info(log_json(self.request_id, msg, self.context))
         self.send_kafka_confirmation(kafka_msg)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
@@ -100,17 +110,18 @@ class ROSReportShipper:
 
     def build_ros_json(self, uploaded_reports):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
-        source = Sources.objects.get(koku_uuid=self.provider_uuid)
+        with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
+            cluster_alias = provider_accessor.get_provider_name()
 
         ros_json = {
             "request_id": self.request_id,
-            "b64_identity": source.auth_header,
+            "b64_identity": self.b64_identity,
             "metadata": {
                 "account": self.account_id,
                 "org_id": self.org_id,
                 "source_id": self.provider_uuid,
                 "cluster_uuid": self.cluster_id,
-                "cluster_alias": source.name,
+                "cluster_alias": cluster_alias,
             },
             "files": uploaded_reports,
         }
