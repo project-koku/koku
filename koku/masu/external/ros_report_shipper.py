@@ -66,7 +66,8 @@ class ROSReportShipper:
         uploaded_reports = [
             self.copy_local_report_file_to_ros_s3_bucket(filename, report) for filename, report in reports_to_upload
         ]
-        self.send_kafka_confirmation(uploaded_reports)
+        kafka_msg = self.build_ros_json(uploaded_reports)
+        self.send_kafka_confirmation(kafka_msg)
         self.mark_reports_as_completed(reports_to_upload)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
@@ -91,11 +92,9 @@ class ROSReportShipper:
         return upload_key
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-    def send_kafka_confirmation(self, uploaded_reports):
+    def send_kafka_confirmation(self, msg):
         """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
-        msg = self.build_ros_json(uploaded_reports)
-        LOG.info(f"Sending Kafka Message for ROS reports. \n{msg}")
         producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)
         # Wait up to 1 second for events. Callbacks will be invoked during
         # this method call if the message is acknowledged.
@@ -118,8 +117,7 @@ class ROSReportShipper:
             },
             "files": uploaded_reports,
         }
-        msg = bytes(json.dumps(ros_json), "utf-8")
-        return msg
+        return bytes(json.dumps(ros_json), "utf-8")
 
     def mark_reports_as_completed(self, reports_to_upload):
         """Marks all ROS files for the manifest as processed."""

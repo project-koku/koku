@@ -3,10 +3,10 @@ from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 from django.test import TestCase
-from ros_report_shipper import is_ros_report
-from ros_report_shipper import ROSReportShipper
 
 from api.utils import DateHelper
+from masu.external.ros_report_shipper import is_ros_report
+from masu.external.ros_report_shipper import ROSReportShipper
 from masu.util.ocp import common as utils
 
 
@@ -33,7 +33,7 @@ class TestROSReportShipper(TestCase):
         ]
         for r_value, expected in test_table:
             with self.subTest(test=expected):
-                with patch("ros.ros_report_shipper.utils.detect_type", return_value=r_value):
+                with patch("masu.external.ros_report_shipper.utils.detect_type", return_value=r_value):
                     result = is_ros_report("")
                     self.assertEqual(result, expected)
 
@@ -42,38 +42,39 @@ class TestROSReportShipper(TestCase):
         actual = self.ros_shipper.ros_s3_path
         self.assertEqual(expected, actual)
 
-    @patch("ros.ros_report_shipper.ROSReportShipper.mark_reports_as_started")
-    @patch("ros.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
-    @patch("ros.ros_report_shipper.ROSReportShipper.send_kafka_confirmation")
-    @patch("ros.ros_report_shipper.ROSReportShipper.mark_reports_as_completed")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.mark_reports_as_started")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.get_ros_json")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_confirmation")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.mark_reports_as_completed")
     def test_process_manifest_reports(
-        self, mock_report_complete, mock_kafka_conf, mock_report_copy, mock_report_started
+        self, mock_report_complete, mock_kafka_conf, mock_ros_json, mock_report_copy, mock_report_started
     ):
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
         mock_report_started.assert_called_once()
         mock_report_copy.assert_called_once()
+        mock_ros_json.assert_called_once()
         mock_kafka_conf.assert_called_once()
         mock_report_complete.assert_called_once()
 
     def test_copy_data_to_ros_s3_bucket(self):
         """Test copy_data_to_s3_bucket."""
-        with patch("ros.ros_report_shipper.get_ros_s3_resource") as mock_s3:
+        with patch("masu.external.ros_report_shipper.get_ros_s3_resource") as mock_s3:
             upload = self.ros_shipper.copy_data_to_ros_s3_bucket("filename", "data")
             self.assertEqual(f"{self.ros_shipper.ros_s3_path}/filename", upload)
 
-        with patch("ros.ros_report_shipper.get_ros_s3_resource") as mock_s3:
+        with patch("masu.external.ros_report_shipper.get_ros_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
             new_upload = self.ros_shipper.copy_data_to_ros_s3_bucket("filename", "data")
             self.assertEqual(None, new_upload)
 
-    @patch("ros.ros_report_shipper.ROSReportShipper.build_ros_json")
-    @patch("ros.ros_report_shipper.get_producer")
-    def test_send_kafka_confirmation(self, mock_producer, mock_json):
-        reports = ["report1"]
-        self.ros_shipper.send_kafka_confirmation(reports)
+    @patch("masu.external.ros_report_shipper.get_producer")
+    def test_send_kafka_confirmation(self, mock_producer):
+        kafka_msg = {"test"}
+        self.ros_shipper.send_kafka_confirmation(kafka_msg)
         mock_producer.assert_called()
 
-    @patch("ros.ros_report_shipper.Sources.objects")
+    @patch("masu.external.ros_report_shipper.Sources.objects")
     def test_build_ros_json(self, mock_sources):
         mock_sources.get.return_value = mock_sources
         mock_sources.auth_header = "hello"
