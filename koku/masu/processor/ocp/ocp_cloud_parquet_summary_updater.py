@@ -96,7 +96,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         month_end = dh.month_end(start_date)
 
         if start_date == month_start and end_date == month_end:
-            return True
+            # We do not want to TRUNCATE this table when multiple cloud sources contribute to the data
+            infra_source_count = (
+                Provider.objects.filter(
+                    customer__schema_name=self._schema, infrastructure__infrastructure_type=self.provider_type
+                )
+                .values_list("infrastructure_id")
+                .distinct()
+                .count()
+            )
+            if infra_source_count < 2:
+                return True
 
         return False
 
