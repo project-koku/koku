@@ -5,9 +5,7 @@ from botocore.exceptions import ClientError
 from django.test import TestCase
 
 from api.utils import DateHelper
-from masu.external.ros_report_shipper import is_ros_report
 from masu.external.ros_report_shipper import ROSReportShipper
-from masu.util.ocp import common as utils
 
 
 class TestROSReportShipper(TestCase):
@@ -25,37 +23,19 @@ class TestROSReportShipper(TestCase):
             cls.account_id, cls.cluster_id, "300", cls.org_id, cls.provider_uuid, cls.request_id, cls.schema_name
         )
 
-    def test_is_ros_report(self):
-        "Test that we detect the correct report type from csv"
-        test_table = [
-            (("", utils.OCPReportTypes.ROS_METRICS), True),
-            (("", utils.OCPReportTypes.CPU_MEM_USAGE), False),
-        ]
-        for r_value, expected in test_table:
-            with self.subTest(test=expected):
-                with patch("masu.external.ros_report_shipper.utils.detect_type", return_value=r_value):
-                    result = is_ros_report("")
-                    self.assertEqual(result, expected)
-
     def test_ros_s3_path(self):
         expected = f"{self.schema_name}/source={self.provider_uuid}/{DateHelper().today.date()}"
         actual = self.ros_shipper.ros_s3_path
         self.assertEqual(expected, actual)
 
-    @patch("masu.external.ros_report_shipper.ROSReportShipper.mark_reports_as_started")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_json")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_confirmation")
-    @patch("masu.external.ros_report_shipper.ROSReportShipper.mark_reports_as_completed")
-    def test_process_manifest_reports(
-        self, mock_report_complete, mock_kafka_conf, mock_ros_json, mock_report_copy, mock_report_started
-    ):
+    def test_process_manifest_reports(self, mock_kafka_conf, mock_ros_json, mock_report_copy):
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
-        mock_report_started.assert_called_once()
         mock_report_copy.assert_called_once()
         mock_ros_json.assert_called_once()
         mock_kafka_conf.assert_called_once()
-        mock_report_complete.assert_called_once()
 
     def test_copy_data_to_ros_s3_bucket(self):
         """Test copy_data_to_s3_bucket."""
