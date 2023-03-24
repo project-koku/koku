@@ -360,6 +360,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         report_meta["provider_uuid"],
         request_id,
         schema_name,
+        context,
     )
     ros_processor.process_manifest_reports(ros_reports)
     # Remove temporary directory and files
