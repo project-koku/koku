@@ -532,7 +532,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
             msg = "No report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update."
-            context = {"provider_uuid": provider_uuid, "start_date": {start_date}}
+            context = {"provider_uuid": provider_uuid, "start_date": start_date}
             # TODO: Figure out a way to pass the tracing id down here
             # in a separate PR. For now I am just going to use the
             # provider_uuid
@@ -557,7 +557,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             log_msg = f"Distributing {log_msg} cost."
             context = {
                 "provider_uuid": provider_uuid,
-                "dates": f"{start_date} - {end_date}",
+                "start_date": start_date,
+                "end_date": end_date,
                 "report_period": report_period_id,
             }
             LOG.info(log_json(provider_uuid, log_msg, context))
