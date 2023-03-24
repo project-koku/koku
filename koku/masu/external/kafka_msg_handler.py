@@ -334,18 +334,18 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     subdirectory = os.path.dirname(full_manifest_path)
     for ros_file in report_meta.get("resource_optimization_files", []):
         ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
+    ros_processor = ROSReportShipper(
+        account_id,
+        b64_identity,
+        cluster_id,
+        report_meta["manifest_id"],
+        org_id,
+        report_meta["provider_uuid"],
+        request_id,
+        schema_name,
+        context,
+    )
     try:
-        ros_processor = ROSReportShipper(
-            account_id,
-            b64_identity,
-            cluster_id,
-            report_meta["manifest_id"],
-            org_id,
-            report_meta["provider_uuid"],
-            request_id,
-            schema_name,
-            context,
-        )
         ros_processor.process_manifest_reports(ros_reports)
     except Exception as e:
         # If a ROS report fails to process, this should not prevent Koku processing from continuing.
