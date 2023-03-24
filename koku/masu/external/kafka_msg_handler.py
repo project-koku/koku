@@ -332,7 +332,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_metas = []
     ros_reports = []
     subdirectory = os.path.dirname(full_manifest_path)
-    for ros_file in report_meta.get("resource_optimization_files"):
+    for ros_file in report_meta.get("resource_optimization_files", []):
         ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
     try:
         ros_processor = ROSReportShipper(
