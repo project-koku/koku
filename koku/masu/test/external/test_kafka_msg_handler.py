@@ -77,7 +77,7 @@ class MockMessage:
         self._topic = topic
         self._offset = offset
         self._partition = partition
-        value_dict.update({"url": url})
+        value_dict.update({"url": url, "b64_identity": "fake_identity"})
         value_str = json.dumps(value_dict)
         self._value = value_str.encode("utf-8")
         if service:
@@ -554,7 +554,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(payload_url, "test_request_id")
+                                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
                                 )
@@ -579,7 +579,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(payload_url, "test_request_id")
+                                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR,
                                     "5997a261-f23e-45d1-8e01-ee3c765f3aec",
@@ -600,7 +600,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch("masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=None):
-                        self.assertFalse(msg_handler.extract_payload(payload_url, "test_request_id")[0])
+                        self.assertFalse(
+                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")[0]
+                        )
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_pvc_dir)
 
@@ -620,7 +622,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
-                                msg_handler.extract_payload(payload_url, "test_request_id")
+                                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
                                 )
@@ -645,7 +647,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id")
+                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_pvc_dir)
 
@@ -667,7 +669,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id")
+                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_pvc_dir)
 
@@ -679,7 +681,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, exc=HTTPError)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id")
+                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
 
     def test_extract_payload_unable_to_open(self):
         """Test to verify extracting payload exceptions are handled."""
@@ -690,7 +692,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.open") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                    msg_handler.extract_payload(payload_url, "test_request_id")
+                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
 
     def test_extract_payload_wrong_file_type(self):
         """Test to verify extracting payload is successful."""
@@ -704,7 +706,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=csv_file)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id")
+                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
 
     def test_get_account_from_cluster_id(self):
         """Test to find account from cluster id."""
