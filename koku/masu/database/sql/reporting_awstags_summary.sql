@@ -76,8 +76,8 @@ GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET usage_account_ids=EXCLUDED.usage_account_ids
 ;
 
-DELETE FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts
-USING (
+DELETE FROM {{schema | sqlsafe}}.reporting_awstags_summary
+WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts
     WHERE EXISTS (
         SELECT 1
@@ -87,19 +87,15 @@ USING (
     )
     ORDER BY uuid
     FOR SHARE
-) AS del
-WHERE ts.uuid = del.uuid
+)
 ;
 
-WITH cte_expired_tag_keys AS (
-    SELECT tv.uuid
-    FROM {{schema | sqlsafe}}.reporting_awstags_values AS tv
+DELETE FROM {{schema | sqlsafe}}.reporting_awstags_values
+WHERE uuid IN (
+    SELECT tv.uuid FROM {{schema | sqlsafe}}.reporting_awstags_values AS tv
     LEFT JOIN {{schema | sqlsafe}}.reporting_awstags_summary AS ts
         ON tv.key = ts.key
     WHERE ts.key IS NULL
     ORDER BY tv.uuid
 )
-DELETE FROM {{schema | sqlsafe}}.reporting_awstags_values tv
-    USING cte_expired_tag_keys etk
-    WHERE tv.uuid = etk.uuid
 ;

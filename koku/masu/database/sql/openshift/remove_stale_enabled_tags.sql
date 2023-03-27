@@ -1,6 +1,6 @@
 -- Delete stale enabled keys
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
-USING (
+WHERE key IN (
     SELECT key FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
     WHERE NOT EXISTS (
         SELECT 1
@@ -15,6 +15,5 @@ USING (
     AND etk.enabled = true
     ORDER BY key
     FOR SHARE
-) AS del
-WHERE etk.key = del.key
+)
 ;

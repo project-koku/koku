@@ -28,15 +28,14 @@ CREATE TEMPORARY TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}} A
 
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpnodelabellineitem_daily
-USING (
+WHERE id IN (
     SELECT id FROM {{schema | sqlsafe}}.reporting_ocpnodelabellineitem_daily
     WHERE usage_start >= {{start_date}}
         AND usage_start <= {{end_date}}
         AND cluster_id = {{cluster_id}}
     ORDER BY id
     FOR SHARE
-) AS del
-WHERE id = del.id
+)
 ;
 
 -- Populate the daily aggregate line item data

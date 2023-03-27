@@ -94,7 +94,7 @@ create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
 ;
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
-USING (
+WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
     WHERE EXISTS (
         SELECT 1
@@ -104,8 +104,7 @@ USING (
     )
     ORDER BY ls.uuid
     FOR SHARE
-) AS del
-WHERE ls.uuid = del.uuid
+)
 ;
 
 UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary x
@@ -165,11 +164,11 @@ SELECT uuid_generate_v4() as uuid,
     tv.nodes
 FROM {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} AS tv
 WHERE not exists (
-          SELECT 1
-            FROM {{schema | sqlsafe}}.reporting_ocptags_values AS rp
-           WHERE rp.key = tv.key
-             AND rp.value = tv.value
-      )
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_ocptags_values AS rp
+    WHERE rp.key = tv.key
+        AND rp.value = tv.value
+)
 ON CONFLICT DO NOTHING
 ;
 

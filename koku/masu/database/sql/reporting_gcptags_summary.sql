@@ -82,7 +82,7 @@ ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids, project
 ;
 
 DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
-USING (
+WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
     WHERE EXISTS (
         SELECT 1
@@ -92,11 +92,11 @@ USING (
     )
     ORDER BY uuid
     FOR SHARE
-) AS del
-WHERE ts.uuid = del.uuid
+)
 ;
 
-WITH cte_expired_tag_keys AS (
+DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_values
+WHERE uuid IN (
     SELECT tv.uuid
     FROM {{schema | sqlsafe}}.reporting_gcptags_values AS tv
     LEFT JOIN {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
@@ -104,7 +104,4 @@ WITH cte_expired_tag_keys AS (
     WHERE ts.key IS NULL
     ORDER BY tv.uuid
 )
-DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_values tv
-    USING cte_expired_tag_keys etk
-    WHERE tv.uuid = etk.uuid
 ;

@@ -68,7 +68,7 @@ ON CONFLICT (key, value) DO UPDATE SET subscription_guids=EXCLUDED.subscription_
 ;
 
 DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
-USING (
+WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
     WHERE EXISTS (
         SELECT 1
@@ -78,11 +78,11 @@ USING (
     )
     ORDER BY uuid
     FOR SHARE
-) AS del
-WHERE ts.uuid = del.uuid
+)
 ;
 
-WITH cte_expired_tag_keys AS (
+DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_values
+WHERE uuid IN (
     SELECT tv.uuid
     FROM {{schema | sqlsafe}}.reporting_azuretags_values AS tv
     LEFT JOIN {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
@@ -90,7 +90,4 @@ WITH cte_expired_tag_keys AS (
     WHERE ts.key IS NULL
     ORDER BY tv.uuid
 )
-DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_values tv
-    USING cte_expired_tag_keys etk
-    WHERE tv.uuid = etk.uuid
 ;

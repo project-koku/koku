@@ -175,7 +175,7 @@ ON CONFLICT DO NOTHING
 -- )
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
-USING (
+WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
     WHERE EXISTS (
         SELECT 1
@@ -185,13 +185,12 @@ USING (
     )
     ORDER BY ls.uuid
     FOR SHARE
-) AS del
-WHERE ls.uuid = del.uuid
+)
 ;
 
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values AS tv
-USING (
+WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocptags_values AS tv
     WHERE EXISTS (
         SELECT 1
@@ -201,8 +200,7 @@ USING (
     )
     ORDER BY tv.uuid
     FOR SHARE
-) AS del
-WHERE tv.uuid = del.uuid
+)
 ;
 
 TRUNCATE TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
