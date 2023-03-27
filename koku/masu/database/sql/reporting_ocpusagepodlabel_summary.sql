@@ -94,12 +94,18 @@ create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
 ;
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
-WHERE EXISTS (
-    SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
-    WHERE etk.enabled = false
-        AND ls.key = etk.key
-)
+USING (
+    SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
+    WHERE EXISTS (
+        SELECT 1
+        FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+        WHERE etk.enabled = false
+            AND ls.key = etk.key
+    )
+    ORDER BY ls.uuid
+    FOR SHARE
+) AS del
+WHERE ls.uuid = del.uuid
 ;
 
 UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary x

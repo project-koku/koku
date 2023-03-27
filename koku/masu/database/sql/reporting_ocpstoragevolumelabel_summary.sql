@@ -172,26 +172,37 @@ ON CONFLICT DO NOTHING
 --         ON tv.key = vls.key
 --     WHERE pls.key IS NULL
 --         AND vls.key IS NULL
-
-
 -- )
+
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
-WHERE EXISTS (
-    SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
-    WHERE etk.enabled = false
-        AND ls.key = etk.key
-)
+USING (
+    SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
+    WHERE EXISTS (
+        SELECT 1
+        FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+        WHERE etk.enabled = false
+            AND ls.key = etk.key
+    )
+    ORDER BY ls.uuid
+    FOR SHARE
+) AS del
+WHERE ls.uuid = del.uuid
 ;
 
 
-DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values tv
-WHERE EXISTS (
-    SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
-    WHERE etk.enabled = false
-        AND tv.key = etk.key
-)
+DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values AS tv
+USING (
+    SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocptags_values AS tv
+    WHERE EXISTS (
+        SELECT 1
+        FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+        WHERE etk.enabled = false
+            AND tv.key = etk.key
+    )
+    ORDER BY tv.uuid
+    FOR SHARE
+) AS del
+WHERE tv.uuid = del.uuid
 ;
 
 TRUNCATE TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
