@@ -554,7 +554,12 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
                                 )
@@ -579,7 +584,12 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR,
                                     "5997a261-f23e-45d1-8e01-ee3c765f3aec",
@@ -622,7 +632,12 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
-                                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
                                 )
