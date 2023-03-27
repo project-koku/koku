@@ -27,7 +27,7 @@ cte_ocp_nodes AS (
 )
 SELECT DISTINCT ocp.source as ocp_uuid,
     azure.source as infra_uuid,
-    'Azure' as type
+    {{provider_type}} as type
 FROM cte_azure_instances AS azure
 JOIN cte_ocp_nodes AS ocp
     ON ocp.node = azure.instance
