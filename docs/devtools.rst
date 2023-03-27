@@ -77,9 +77,9 @@ Trino Tips
 
 Trino is an SQL query engine, but not an SQL database. What does that mean? Traditional databases
 typically consist of a query engine and a storage engine. Trino is just a query engine and does not
-store data. So, inside of koku our download workers will retrieve cost data from the cloud providers
-in the form of CSVs. Then during processing we convert these csv files to parquet
-files (Look for the following function in the codebase: `convert_csv_to_parquet`).
+store data. Inside of koku, our download workers will retrieve cost data from the cloud providers
+in the form of CSVs. During processing we convert these csv files to parquet
+files (Look for the following function in the codebase: ``convert_csv_to_parquet``).
 After the files are converted they are then sent up to an S3 bucket. During runtime the Trino
 coordinator utilizes the existing HIVE metastore metadata and files residing in storage to
 query the files for data.
@@ -119,7 +119,7 @@ The username & password is set inside of the .env file::
 Trino Coordinator
 """""""""""""""""
 
-This is the brain of the Trino installation, and the node the client connects to submit statements for execution.
+This is the brain of the Trino installation and the node the client connects to when submitting statements for execution.
 The coordinator keeps track of the activity on each worker and coordinates the execution of a query.
 The coordinator creates a logical model of a query involving a series of stages,
 which is then translated into a series of connected tasks running on a cluster of Trino workers.
@@ -151,12 +151,12 @@ PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
 Below is a list of Koku commonly used psql commands:
 
-1. Set search Schema: `set search_path=org1234567`
-2. find datatable: `\dt` or `\dt reporting_ocpgcp*`
-3. Tidy up display: `\x auto`
-4. List columns for a table: `\d+ reporting_ocpusagelineitem_daily_summary`
+1. Set search Schema: ``SET search_path TO org1234567``
+2. find datatable: ``\dt`` or ``\dt reporting_ocpgcp*``
+3. Tidy up display: ``\x auto``
+4. List columns for a table: ``\d+ reporting_ocpusagelineitem_daily_summary``
 
-Commonly used sql pieces:
+Commonly used SQL pieces:
 
 Search for Tag Key::
 WHERE pod_labels ? 'environment';
@@ -165,7 +165,7 @@ WHERE pod_labels ? 'environment';
 Jinja Templated SQL
 """""""""""""""""""
 
-We have a development python script that will replace the jinja variables inside of a template file.
+We have a development script that will replace the Jinja variables inside of a template file.
 
 Example::
 
