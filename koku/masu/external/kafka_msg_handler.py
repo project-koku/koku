@@ -302,10 +302,6 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
-    account_id = account.get("account_id")
-    org_id = account.get("org_id")
-    context["account"] = account_id
-    context["org_id"] = org_id
     context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
@@ -335,11 +331,11 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     for ros_file in report_meta.get("resource_optimization_files", []):
         ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
     ros_processor = ROSReportShipper(
-        account_id,
+        context["account"],
         b64_identity,
         cluster_id,
         report_meta["manifest_id"],
-        org_id,
+        context["org_id"],
         report_meta["provider_uuid"],
         request_id,
         schema_name,

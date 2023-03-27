@@ -24,8 +24,6 @@ class CURAccountsDB(CURAccountsInterface):
             "provider_type": provider.type,
             "schema_name": getattr(provider.customer, "schema_name", None),
             "provider_uuid": provider.uuid,
-            "account_id": getattr(provider.customer, "account_id", None),
-            "org_id": getattr(provider.customer, "org_id", None),
         }
 
     def get_accounts_from_source(self, provider_uuid=None):
