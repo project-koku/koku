@@ -2704,6 +2704,8 @@ objects:
     django-secret-key: ${SECRET_KEY}
   kind: Secret
   metadata:
+    annotations:
+      qontract.recycle: true
     name: koku-secret
 - apiVersion: v1
   kind: Secret

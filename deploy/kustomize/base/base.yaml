@@ -103,6 +103,8 @@ objects:
   kind: Secret # For ephemeral/local environment only
   metadata:
     name: koku-secret
+    annotations:
+      qontract.recycle: true
   data:
     django-secret-key: "${SECRET_KEY}"
 - apiVersion: v1
