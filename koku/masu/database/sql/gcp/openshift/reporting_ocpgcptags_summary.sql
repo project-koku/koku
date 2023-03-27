@@ -120,7 +120,6 @@ WITH cte_expired_tag_keys AS (
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpgcptags_summary AS ts
         ON tv.key = ts.key
     WHERE ts.key IS NULL
-
 )
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values tv
     USING cte_expired_tag_keys etk

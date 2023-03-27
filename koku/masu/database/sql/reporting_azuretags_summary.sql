@@ -89,7 +89,6 @@ WITH cte_expired_tag_keys AS (
         ON tv.key = ts.key
     WHERE ts.key IS NULL
     ORDER BY tv.uuid
-    FOR SHARE
 )
 DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_values tv
     USING cte_expired_tag_keys etk
