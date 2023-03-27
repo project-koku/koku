@@ -70,7 +70,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_usage": {"key": "usage", "group": "cost"},
             "cost_platform_distributed": {"key": "platform_distributed", "group": "cost"},
             "cost_worker_unallocated_distributed": {"key": "worker_unallocated_distributed", "group": "cost"},
-            "cost_distributed": {"key": "distributed", "group": "cost"},
+            "cost_total_distributed": {"key": "distributed", "group": "cost"},
             "cost_total": {"key": "total", "group": "cost"},
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
