@@ -68,7 +68,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_raw": {"key": "raw", "group": "cost"},
             "cost_markup": {"key": "markup", "group": "cost"},
             "cost_usage": {"key": "usage", "group": "cost"},
-            "cost_distributed": {"key": "distributed", "group": "cost"},
+            "cost_total_distributed": {"key": "distributed", "group": "cost"},
             "cost_total": {"key": "total", "group": "cost"},
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
