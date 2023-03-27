@@ -105,23 +105,25 @@ GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids,project_ids=EXCLUDED.project_ids, project_names=EXCLUDED.project_names, namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
 ;
 
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_summary AS ts
-WHERE EXISTS (
-    SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
-    WHERE etk.enabled = false
-        AND ts.key = etk.key
-)
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_summary
+WHERE uuid IN (
+    SELECT uuid FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts
+    WHERE EXISTS (
+        SELECT 1
+        FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
+        WHERE etk.enabled = false
+            AND ts.key = etk.key
+    )
+    ORDER BY uuid
+    FOR SHARE
 ;
 
-WITH cte_expired_tag_keys AS (
-    SELECT DISTINCT tv.key
-    FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values AS tv
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values
+WHERE uuid IN (
+    SELECT tv.uuid FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values AS tv
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpgcptags_summary AS ts
         ON tv.key = ts.key
     WHERE ts.key IS NULL
+    ORDER BY tv.uuid
 )
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpgcptags_values tv
-    USING cte_expired_tag_keys etk
-    WHERE tv.key = etk.key
 ;

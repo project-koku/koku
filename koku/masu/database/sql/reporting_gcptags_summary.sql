@@ -81,7 +81,7 @@ GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids, project_ids=EXCLUDED.project_ids, project_names=EXCLUDED.project_names
 ;
 
-DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
+DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_summary
 WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
     WHERE EXISTS (

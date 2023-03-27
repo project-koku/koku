@@ -99,7 +99,7 @@ GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET usage_account_ids=EXCLUDED.usage_account_ids, namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
 ;
 
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary
 WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
     WHERE EXISTS (
@@ -115,8 +115,7 @@ WHERE uuid IN (
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawstags_values
 WHERE uuid IN (
-    SELECT tv.uuid
-    FROM {{schema | sqlsafe}}.reporting_ocpawstags_values AS tv
+    SELECT tv.uuid FROM {{schema | sqlsafe}}.reporting_ocpawstags_values AS tv
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
         ON tv.key = ts.key
     WHERE ts.key IS NULL
