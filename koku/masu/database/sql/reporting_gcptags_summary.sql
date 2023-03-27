@@ -83,6 +83,7 @@ ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids, project
 
 DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
 USING (
+    SELECT uuid FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
     WHERE EXISTS (
         SELECT 1
         FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk

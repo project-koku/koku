@@ -101,6 +101,7 @@ ON CONFLICT (key, value) DO UPDATE SET usage_account_ids=EXCLUDED.usage_account_
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
 USING (
+    SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts
     WHERE EXISTS (
         SELECT 1
         FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
