@@ -508,7 +508,7 @@ class ClowderConfigurator(Configurator):
         """Obtain object store region."""
         if ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).region
-        return requestedName
+        return None
 
     @staticmethod
     def get_database_name():

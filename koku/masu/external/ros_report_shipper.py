@@ -1,3 +1,7 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import json
 import logging
 from functools import cached_property
@@ -46,25 +50,19 @@ def generate_s3_object_url(upload_key):  # pragma: no cover
 class ROSReportShipper:
     def __init__(
         self,
-        account_id,
+        report_meta,
         b64_identity,
-        cluster_id,
-        manifest_id,
-        org_id,
-        provider_uuid,
-        request_id,
-        schema_name,
         context={},
     ):
-        self.account_id = account_id
+        self.account_id = context["account"]
         self.b64_identity = b64_identity
         self.context = context
-        self.cluster_id = cluster_id
-        self.manifest_id = manifest_id
-        self.org_id = org_id
-        self.provider_uuid = str(provider_uuid)
-        self.request_id = request_id
-        self.schema_name = schema_name
+        self.cluster_id = report_meta["cluster_id"]
+        self.manifest_id = report_meta["manifest_id"]
+        self.org_id = context["org_id"]
+        self.provider_uuid = str(report_meta["provider_uuid"])
+        self.request_id = report_meta["request_id"]
+        self.schema_name = report_meta["schema_name"]
         self.dh = DateHelper()
 
     @cached_property
@@ -87,9 +85,9 @@ class ROSReportShipper:
             self.copy_local_report_file_to_ros_s3_bucket(filename, report) for filename, report in reports_to_upload
         ]
         kafka_msg = self.build_ros_json(uploaded_reports)
-        msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka confirmation."
+        msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka message."
         LOG.info(log_json(self.request_id, msg, self.context))
-        self.send_kafka_confirmation(kafka_msg)
+        self.send_kafka_message(kafka_msg)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
         """Copy a local report file to the ROS S3 bucket."""
@@ -114,7 +112,7 @@ class ROSReportShipper:
         return uploaded_obj_url
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-    def send_kafka_confirmation(self, msg):
+    def send_kafka_message(self, msg):
         """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
         producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)

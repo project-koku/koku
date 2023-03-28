@@ -331,14 +331,8 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     for ros_file in report_meta.get("resource_optimization_files", []):
         ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
     ros_processor = ROSReportShipper(
-        context["account"],
+        report_meta,
         b64_identity,
-        cluster_id,
-        report_meta["manifest_id"],
-        context["org_id"],
-        report_meta["provider_uuid"],
-        request_id,
-        schema_name,
         context,
     )
     try:
@@ -356,6 +350,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             current_meta["current_file"] = payload_destination_path
             record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
             if record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
+                # Report already processed
                 continue
             msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
             LOG.info(log_json(manifest_uuid, msg, context))
