@@ -43,7 +43,7 @@ def generate_s3_object_url(upload_key):  # pragma: no cover
     config = Config(connect_timeout=settings.S3_TIMEOUT)
     aws_session = get_ros_s3_session()
     return aws_session.client("s3", endpoint_url=settings.S3_ENDPOINT, config=config).generate_presigned_url(
-        ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=3600
+        ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=172800
     )
 
 
