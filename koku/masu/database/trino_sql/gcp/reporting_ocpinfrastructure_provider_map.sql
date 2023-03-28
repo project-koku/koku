@@ -20,7 +20,7 @@
     )
     SELECT ocp.provider_id as ocp_uuid,
         gcp.source as infra_uuid,
-        'GCP' as type
+        {{provider_type}} as type
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
         ON any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_id)
@@ -57,7 +57,7 @@
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
-        'GCP' as type
+        {{provider_type}} as type
     FROM cte_gcp_resource_name AS gcp
     JOIN cte_ocp_nodes AS ocp
         ON strpos(gcp.resource_name, ocp.node) != 0
