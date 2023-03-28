@@ -20,15 +20,27 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 LOG = logging.getLogger(__name__)
 
 
-def get_ros_s3_resource():  # pragma: no cover
-    """Obtain the ROS s3 session client"""
-    config = Config(connect_timeout=settings.S3_TIMEOUT)
-    aws_session = boto3.Session(
+def get_ros_s3_session():  # pragma: no cover
+    return boto3.Session(
         aws_access_key_id=settings.S3_ROS_ACCESS_KEY,
         aws_secret_access_key=settings.S3_ROS_SECRET,
         region_name=settings.S3_ROS_REGION,
     )
+
+
+def get_ros_s3_resource():  # pragma: no cover
+    """Obtain the ROS s3 session client"""
+    config = Config(connect_timeout=settings.S3_TIMEOUT)
+    aws_session = get_ros_s3_session()
     return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
+
+
+def generate_s3_object_url(upload_key):  # pragma: no cover
+    config = Config(connect_timeout=settings.S3_TIMEOUT)
+    aws_session = get_ros_s3_session()
+    return aws_session.client("s3", endpoint_url=settings.S3_ENDPOINT, config=config).generate_presigned_url(
+        ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=3600
+    )
 
 
 class ROSReportShipper:
@@ -95,9 +107,7 @@ class ROSReportShipper:
             s3_obj = {"bucket_name": settings.S3_ROS_BUCKET_NAME, "key": upload_key}
             upload = s3_resource.Object(**s3_obj)
             upload.upload_fileobj(data, ExtraArgs=extra_args)
-            uploaded_obj_url = (
-                f"https://{settings.S3_ROS_BUCKET_NAME}.s3.{settings.S3_ROS_REGION}.amazonaws.com/{upload_key}"
-            )
+            uploaded_obj_url = generate_s3_object_url(upload_key)
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.warning(log_json(self.request_id, msg))
