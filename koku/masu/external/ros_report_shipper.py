@@ -95,7 +95,9 @@ class ROSReportShipper:
             s3_obj = {"bucket_name": settings.S3_ROS_BUCKET_NAME, "key": upload_key}
             upload = s3_resource.Object(**s3_obj)
             upload.upload_fileobj(data, ExtraArgs=extra_args)
-            uploaded_obj_url = f"{settings.S3_ENDPOINT}/{settings.S3_ROS_BUCKET_NAME}/{upload_key}"
+            uploaded_obj_url = (
+                f"https://{settings.S3_ROS_BUCKET_NAME}.s3.{settings.S3_ROS_REGION}.amazonaws.com/{upload_key}"
+            )
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.warning(log_json(self.request_id, msg))
