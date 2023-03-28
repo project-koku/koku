@@ -84,7 +84,7 @@ class SimplePaginate(ListPaginator):
 def handle_providers_without_sources_response(request, dataset, limit_offset):
     if request.method == "DELETE":
         cleanup_provider_without_source(
-            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]  # noqa: E203
+            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]
         )
         return Response({"job_queued": "providers_without_sources"})
     else:
@@ -95,7 +95,7 @@ def handle_providers_without_sources_response(request, dataset, limit_offset):
 def handle_out_of_order_deletes_response(request, dataset, limit_offset):
     if request.method == "DELETE":
         cleanup_out_of_order_deletes(
-            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]  # noqa: E203
+            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]
         )
         return Response({"job_queued": "out_of_order_deletes"})
     else:
@@ -167,7 +167,7 @@ def _missing_sources(source_uuid=None, limit=10, offset=0):
     missing_sources = []
     # the request to sources-api is a "slow" process.
     # Use limits and offsets to prevent too many requests from causing a gateway timeout.
-    for source in sources[offset : offset + limit]:  # noqa: E203
+    for source in sources[offset : offset + limit]:
         try:
             sources_client = SourcesHTTPClient(source.auth_header, source.source_id, source.account_id)
             _ = sources_client.get_source_details()
