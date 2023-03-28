@@ -27,6 +27,7 @@ from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import OR_AWS_CATEGORY_PREFIX
 from api.report.constants import OR_TAG_PREFIX
 from api.report.constants import TAG_PREFIX
+from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
 from koku.feature_flags import fallback_development_true
@@ -552,7 +553,7 @@ class QueryParameters:
     @property
     def url_data(self):
         """Get the url_data."""
-        return self.request.GET.urlencode(safe="[]:")
+        return self.request.GET.urlencode(safe=URL_ENCODED_SAFE)
 
     @property
     def user(self):
