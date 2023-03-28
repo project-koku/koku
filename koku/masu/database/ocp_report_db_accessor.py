@@ -229,6 +229,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
         gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
+        provider_type = kwargs.get("provider_type")
 
         check_aws = False
         check_azure = False
@@ -282,6 +283,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "ocp_provider_uuid": ocp_provider_uuid,
                     "azure_provider_uuid": azure_provider_uuid,
                     "gcp_provider_uuid": gcp_provider_uuid,
+                    "provider_type": provider_type,
                     "resource_level": resource_level,
                 }
 
