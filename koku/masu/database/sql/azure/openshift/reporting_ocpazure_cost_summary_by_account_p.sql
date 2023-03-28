@@ -1,10 +1,3 @@
-DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpazure_cost_summary_by_account_p
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND cluster_id = {{cluster_id}}
-    AND source_uuid = {{source_uuid}}
-;
-
 INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_cost_summary_by_account_p (
     id,
     usage_start,

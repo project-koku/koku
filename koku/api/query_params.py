@@ -21,10 +21,13 @@ from tenant_schemas.utils import tenant_context
 from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
+from api.report.constants import AND_AWS_CATEGORY_PREFIX
 from api.report.constants import AND_TAG_PREFIX
 from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import OR_AWS_CATEGORY_PREFIX
 from api.report.constants import OR_TAG_PREFIX
 from api.report.constants import TAG_PREFIX
+from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
 from koku.feature_flags import fallback_development_true
@@ -118,8 +121,8 @@ class QueryParameters:
             error = {"details": "Invalid query parameter format."}
             raise ValidationError(error) from e
 
-        self._set_tag_keys()  # sets self.tag_keys
-        self._set_aws_category_keys()
+        self._set_tag_keys(query_params)  # sets self.tag_keys
+        self._set_aws_category_keys(query_params)  # aws_category_keys
         self._validate(query_params)  # sets self.parameters
 
         if settings.DEVELOPMENT:
@@ -157,60 +160,19 @@ class QueryParameters:
         """Readable representation."""
         return pformat(self.__repr__())
 
-    def _strip_tag_prefix(self, value):
-        """Strip the tag prefixes from the value."""
-        if "tag" not in value:
-            return value
-        if value.startswith(TAG_PREFIX):
-            return value[len(TAG_PREFIX) :]  # noqa: E203
-        if value.startswith(AND_TAG_PREFIX):
-            return value[len(AND_TAG_PREFIX) :]  # noqa: E203
-        if value.startswith(OR_TAG_PREFIX):
-            return value[len(OR_TAG_PREFIX) :]  # noqa: E203
+    def _strip_prefix(self, key, common_substring, prefix_list):
+        """Strip the prefixes from the key.
 
-    def _process_tag_query_params(self, query_params):
-        """Reduce the set of tag keys based on those being queried."""
-        param_tag_keys = set()
-        for key, value in query_params.items():
-            if not isinstance(value, (dict, list)):
-                value = [value]
-            for inner_key in value:
-                stripped_key = self._strip_tag_prefix(inner_key)
-                if stripped_key in self.tag_keys:
-                    param_tag_keys.add(inner_key)
-            stripped_key = self._strip_tag_prefix(key)
-            if stripped_key in self.tag_keys:
-                param_tag_keys.add(key)
-        return param_tag_keys
-
-    # TODO: This function will be needed for below
-    # def _strip_aws_category_prefix(self, value):
-    #     if AWS_CATEGORY_PREFIX.replace(":", "") not in value:
-    #         return value
-    #     if value.startswith(AWS_CATEGORY_PREFIX):
-    #         return value[len(AWS_CATEGORY_PREFIX) :]  # noqa: E203
-    #     if value.startswith(AND_AWS_CATEGORY_PREFIX):
-    #         return value[len(AND_AWS_CATEGORY_PREFIX) :]  # noqa: E203
-    #     if value.startswith(OR_AWS_CATEGORY_PREFIX):
-    #         return value[len(OR_AWS_CATEGORY_PREFIX) :]  # noqa: E203
-
-    def _process_aws_category_query_params(self, query_params):
-        """Reduce the set of aws categories based on those being queried."""
-        param_aws_category_keys = set()
-        for key, value in query_params.items():
-            if not isinstance(value, (dict, list)):
-                value = [value]
-            for inner_key in value:
-                if AWS_CATEGORY_PREFIX in inner_key:
-                    param_aws_category_keys.add(inner_key)
-                # TODO: Remove when we have better serializer logic
-                # for aws_category keys
-                # stripped_key = self._strip_aws_category_prefix(inner_key)
-                # if stripped_key in self.aws_category_keys:
-            # stripped_key = self._strip_aws_category_prefix(key)
-            # if stripped_key in self.aws_category_keys:
-            #     param_aws_category_keys.add(key)
-        return param_aws_category_keys
+        Args:
+            key: key passed in the query param
+            common_substring: found in all elements of prefix list of strings
+            prefix_list: possible prefixes to be found in query params
+        """
+        if common_substring not in key:
+            return key
+        for prefix in prefix_list:
+            if key.startswith(prefix):
+                return key[len(prefix) :]  # noqa: E203
 
     def _configure_access_params(self, caller):
         """Configure access for the appropriate providers."""
@@ -425,25 +387,52 @@ class QueryParameters:
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
 
-    def _set_tag_keys(self):
+    def _set_tag_keys(self, query_params):
         """Set the valid tag keys"""
+        prefix_list = [TAG_PREFIX, OR_TAG_PREFIX, AND_TAG_PREFIX]
         self.tag_keys = set()
-        # we do not need to fetch the tags for tags report type.
-        # we also do not need to fetch the tags if none of the query params contain `tags`
-        if self.report_type == "tags" or "tag" not in self.url_data:
+        if self.report_type == "tags" or not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
+            # we do not need to fetch the tags for tags report type.
+            # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
-
         for tag_model in self.tag_handler:
             with tenant_context(self.tenant):
                 self.tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
+        if not self.tag_keys:
+            # in case there are no tag keys in the models.
+            return
+        param_tag_keys = set()
+        # Reduce the set of tag keys based on those being queried.
+        for key, value in query_params.items():
+            if not isinstance(value, (dict, list)):
+                value = [value]
+            for inner_key in value:
+                stripped_key = self._strip_prefix(inner_key, "tag", prefix_list)
+                if stripped_key in self.tag_keys:
+                    param_tag_keys.add(inner_key)
+            stripped_key = self._strip_prefix(key, "tag", prefix_list)
+            if stripped_key in self.tag_keys:
+                param_tag_keys.add(key)
+        self.tag_keys = param_tag_keys
 
-    def _set_aws_category_keys(self):
+    def _set_aws_category_keys(self, query_params):
         """Set the valid aws_category keys"""
+        prefix_list = [AWS_CATEGORY_PREFIX, AND_AWS_CATEGORY_PREFIX, OR_AWS_CATEGORY_PREFIX]
         self.aws_category_keys = set()
-        # TODO: Right now we accept any key passed in.
-        # However, we should rewrite this to only
-        # allow acceptable categorites.
-        return
+        if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
+            return
+        param_aws_category_keys = set()
+        for key, value in query_params.items():
+            if not isinstance(value, (dict, list)):
+                value = [value]
+            for inner_key in value:
+                if AWS_CATEGORY_PREFIX in inner_key:
+                    param_aws_category_keys.add(inner_key)
+                    # TODO: Right now we accept any key passed in.
+                    # However, we should rewrite this to only
+                    # allow acceptable categorites keys based off
+                    # keys found in the DB. (like above)
+        self.aws_category_keys = param_aws_category_keys
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
@@ -479,16 +468,12 @@ class QueryParameters:
             (Dict): Dictionary parsed from query params string
 
         """
-        if self.report_type != "tags" and "tag" in self.url_data:
-            self.tag_keys = self._process_tag_query_params(query_params)
-            qps = self.serializer(data=query_params, tag_keys=self.tag_keys, context={"request": self.request})
-        elif AWS_CATEGORY_PREFIX.replace(":", "") in self.url_data:
-            self.aws_category_keys = self._process_aws_category_query_params(query_params)
-            qps = self.serializer(
-                data=query_params, aws_category_keys=self.aws_category_keys, context={"request": self.request}
-            )
-        else:
-            qps = self.serializer(data=query_params, context={"request": self.request})
+        serializer_kwargs = {"data": query_params, "context": {"request": self.request}}
+        if self.tag_keys:
+            serializer_kwargs["tag_keys"] = self.tag_keys
+        if self.aws_category_keys:
+            serializer_kwargs["aws_category_keys"] = self.aws_category_keys
+        qps = self.serializer(**serializer_kwargs)
 
         if not qps.is_valid():
             raise ValidationError(detail=qps.errors)
@@ -568,7 +553,7 @@ class QueryParameters:
     @property
     def url_data(self):
         """Get the url_data."""
-        return self.request.GET.urlencode()
+        return self.request.GET.urlencode(safe=URL_ENCODED_SAFE)
 
     @property
     def user(self):
