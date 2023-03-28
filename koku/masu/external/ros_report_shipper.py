@@ -76,9 +76,14 @@ class ROSReportShipper:
             return
         msg = f"Preparing to upload ROS reports to S3 bucket for manifest: {self.manifest_id}."
         LOG.info(log_json(self.request_id, msg, self.context))
-        uploaded_reports = [
-            self.copy_local_report_file_to_ros_s3_bucket(filename, report) for filename, report in reports_to_upload
-        ]
+        uploaded_reports = []
+        for filename, report in reports_to_upload:
+            if uploaded_report := self.copy_local_report_file_to_ros_s3_bucket(filename, report):
+                uploaded_reports.append(uploaded_report)
+        if not uploaded_reports:
+            msg = f"ROS reports did not upload cleanly to S3 for manifest: {self.manifest_id}, skipping kafka message."
+            LOG.info(log_json(self.request_id, msg, self.context))
+            return
         kafka_msg = self.build_ros_json(uploaded_reports)
         msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka message."
         LOG.info(log_json(self.request_id, msg, self.context))
@@ -117,7 +122,6 @@ class ROSReportShipper:
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
             cluster_alias = provider_accessor.get_provider_name()
-        clean_uploads = [report for report in uploaded_reports if report]
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
@@ -128,6 +132,6 @@ class ROSReportShipper:
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": cluster_alias,
             },
-            "files": clean_uploads,
+            "files": uploaded_reports,
         }
         return bytes(json.dumps(ros_json), "utf-8")
