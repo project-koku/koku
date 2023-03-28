@@ -93,7 +93,6 @@ class ROSReportShipper:
         """Copies report data to the ROS S3 bucket and returns the upload_key"""
         s3_path = self.ros_s3_path
         extra_args = {"Metadata": {"ManifestId": str(self.manifest_id)}}
-        upload_key = None
         try:
             upload_key = f"{s3_path}/{filename}"
             self.s3_client.upload_fileobj(data, settings.S3_ROS_BUCKET_NAME, upload_key, ExtraArgs=extra_args)
@@ -101,6 +100,7 @@ class ROSReportShipper:
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.warning(log_json(self.request_id, msg))
+            return
         return uploaded_obj_url
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -117,7 +117,7 @@ class ROSReportShipper:
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
             cluster_alias = provider_accessor.get_provider_name()
-
+        clean_uploads = [report for report in uploaded_reports if report]
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
@@ -128,6 +128,6 @@ class ROSReportShipper:
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": cluster_alias,
             },
-            "files": uploaded_reports,
+            "files": clean_uploads,
         }
         return bytes(json.dumps(ros_json), "utf-8")
