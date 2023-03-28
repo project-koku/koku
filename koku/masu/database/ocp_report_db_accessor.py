@@ -21,6 +21,8 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
@@ -508,7 +510,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             return [(pvc[0], pvc[1], pvc[2]) for pvc in unique_pvcs]
 
-    def populate_platform_distributed_cost_sql(self, start_date, end_date, distribution, provider_uuid):
+    def populate_platform_and_worker_distributed_cost_sql(
+        self, start_date, end_date, provider_uuid, distribution_info
+    ):
         """
         Populate the platform cost distribution of a customer.
 
@@ -518,20 +522,27 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
+        distribute_mapping = {}
+        distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+        if distribution_info.get("platform_cost"):
+            distribute_mapping["distribute_platform_cost.sql"] = "platform"
+        if distribution_info.get("worker_cost"):
+            distribute_mapping["distribute_worker_cost.sql"] = "worker unallocated"
+        if not distribute_mapping:
+            return
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
-                " skipping populate_platform_distributed_cost_sql update."
-            )
+            msg = "No report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update."
+            context = {"provider_uuid": provider_uuid, "start_date": start_date}
+            # TODO: Figure out a way to pass the tracing id down here
+            # in a separate PR. For now I am just going to use the
+            # provider_uuid
+            LOG.info(log_json(provider_uuid, msg, context))
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
-
-        platform_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/distribute_platform_cost.sql")
-        platform_sql = platform_sql.decode("utf-8")
-        platform_sql_params = {
+        default_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
@@ -539,20 +550,28 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "distribution": distribution,
             "source_uuid": provider_uuid,
         }
-        LOG.debug(platform_sql_params)
-        platform_sql, platform_sql_params = self.jinja_sql.prepare_query(platform_sql, platform_sql_params)
-        LOG.info(
-            "Distributing platform cost for provider: "
-            f"{provider_uuid}, dates: {start_date} - {end_date}, report_period: {report_period_id}"
-        )
-        self._execute_raw_sql_query(
-            table_name,
-            platform_sql,
-            start_date,
-            end_date,
-            bind_params=list(platform_sql_params),
-            operation="INSERT",
-        )
+
+        LOG.debug(default_sql_params)
+        for sql_file, log_msg in distribute_mapping.items():
+            templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{sql_file}")
+            templated_sql = templated_sql.decode("utf-8")
+            templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, default_sql_params)
+            log_msg = f"Distributing {log_msg} cost."
+            context = {
+                "provider_uuid": provider_uuid,
+                "start_date": start_date,
+                "end_date": end_date,
+                "report_period": report_period_id,
+            }
+            LOG.info(log_json(provider_uuid, log_msg, context))
+            self._execute_raw_sql_query(
+                table_name,
+                templated_sql,
+                start_date,
+                end_date,
+                bind_params=list(templated_sql_params),
+                operation="INSERT",
+            )
 
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
         """
