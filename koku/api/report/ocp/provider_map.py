@@ -115,13 +115,25 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __cost_model_distributed_cost(self):
+    def __cost_model_distributed_cost(self, cost_model_rate_type=None):
         """Return ORM term for cost model distributed cost."""
 
-        return Sum(
-            (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
-            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-        )
+        if cost_model_rate_type:
+            return Sum(
+                Case(
+                    When(
+                        cost_model_rate_type=cost_model_rate_type,
+                        then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+                    ),
+                    default=Value(0, output_field=DecimalField()),
+                )
+                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+            )
+        else:
+            return Sum(
+                (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
+                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+            )
 
     def __init__(self, provider, report_type):
         """Constructor."""
@@ -220,6 +232,8 @@ class OCPProviderMap(ProviderMap):
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
+                            "cost_platform_distributed": self.platform_distributed_cost_by_project,
+                            "cost_worker_unallocated_distributed": self.worker_unallocated_distributed_cost_by_project,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
@@ -243,6 +257,8 @@ class OCPProviderMap(ProviderMap):
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
+                            "cost_platform_distributed": self.platform_distributed_cost_by_project,
+                            "cost_worker_unallocated_distributed": self.worker_unallocated_distributed_cost_by_project,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -611,6 +627,16 @@ class OCPProviderMap(ProviderMap):
             Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
             * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
         )
+
+    @cached_property
+    def platform_distributed_cost_by_project(self):
+        """Return platform distributed cost model costs."""
+        return self.__cost_model_distributed_cost(cost_model_rate_type="platform_distributed")
+
+    @cached_property
+    def worker_unallocated_distributed_cost_by_project(self):
+        """Return worker unallocated distributed cost model costs."""
+        return self.__cost_model_distributed_cost(cost_model_rate_type="worker_distributed")
 
     @cached_property
     def cost_model_distributed_cost_by_project(self):
