@@ -57,7 +57,7 @@ class ROSReportShipper:
         self.provider_uuid = str(report_meta["provider_uuid"])
         self.request_id = report_meta["request_id"]
         self.schema_name = report_meta["schema_name"]
-        self.client = get_ros_s3_client()
+        self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()
 
     @cached_property
@@ -96,7 +96,7 @@ class ROSReportShipper:
         upload_key = None
         try:
             upload_key = f"{s3_path}/{filename}"
-            self.client.upload_fileobj(data, settings.S3_ROS_BUCKET_NAME, upload_key, ExtraArgs=extra_args)
+            self.s3_client.upload_fileobj(data, settings.S3_ROS_BUCKET_NAME, upload_key, ExtraArgs=extra_args)
             uploaded_obj_url = generate_s3_object_url(self.s3_client, upload_key)
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
