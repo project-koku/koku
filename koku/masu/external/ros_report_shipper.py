@@ -84,7 +84,7 @@ class ROSReportShipper:
             msg = f"ROS reports did not upload cleanly to S3 for manifest: {self.manifest_id}, skipping kafka message."
             LOG.info(log_json(self.request_id, msg, self.context))
             return
-        kafka_msg = self.build_ros_json(uploaded_reports)
+        kafka_msg = self.build_ros_msg(uploaded_reports)
         msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka message."
         LOG.info(log_json(self.request_id, msg, self.context))
         self.send_kafka_message(kafka_msg)
@@ -118,7 +118,7 @@ class ROSReportShipper:
         # `flush` makes this process synchronous compared to async with `poll`
         producer.flush(1)
 
-    def build_ros_json(self, uploaded_reports):
+    def build_ros_msg(self, uploaded_reports):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
             cluster_alias = provider_accessor.get_provider_name()
