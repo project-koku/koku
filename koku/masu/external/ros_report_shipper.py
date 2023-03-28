@@ -70,7 +70,7 @@ class ROSReportShipper:
     @cached_property
     def ros_s3_path(self):
         """The S3 path to be used for a ROS report upload."""
-        return f"{self.schema_name}/source={self.provider_uuid}/{self.dh.today.date()}"
+        return f"{self.schema_name}/source={self.provider_uuid}/date={self.dh.today.date()}"
 
     def process_manifest_reports(self, reports_to_upload):
         """
