@@ -83,9 +83,7 @@ class SimplePaginate(ListPaginator):
 
 def handle_providers_without_sources_response(request, dataset, limit_offset):
     if request.method == "DELETE":
-        cleanup_provider_without_source(
-            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]
-        )
+        cleanup_provider_without_source(dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit])
         return Response({"job_queued": "providers_without_sources"})
     else:
         providers_without_sources = [f"{provider.name} ({provider.uuid})" for provider in dataset]
@@ -94,9 +92,7 @@ def handle_providers_without_sources_response(request, dataset, limit_offset):
 
 def handle_out_of_order_deletes_response(request, dataset, limit_offset):
     if request.method == "DELETE":
-        cleanup_out_of_order_deletes(
-            dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit]
-        )
+        cleanup_out_of_order_deletes(dataset[limit_offset.offset : limit_offset.offset + limit_offset.limit])
         return Response({"job_queued": "out_of_order_deletes"})
     else:
         out_of_order_delete = [f"Source ID: {source.source_id}" for source in dataset]
