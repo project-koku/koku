@@ -29,7 +29,7 @@ cte_ocp_resource_ids AS (
 )
 SELECT DISTINCT ocp.source as ocp_uuid,
     aws.source as infra_uuid,
-    'AWS' as type
+    {{provider_type}} as type
 FROM cte_aws_resource_ids AS aws
 JOIN cte_ocp_resource_ids AS ocp
     ON strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
