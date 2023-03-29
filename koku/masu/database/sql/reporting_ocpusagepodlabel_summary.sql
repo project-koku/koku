@@ -93,6 +93,7 @@ create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
        (key, value)
 ;
 
+
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
 WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
@@ -107,15 +108,6 @@ WHERE uuid IN (
 )
 ;
 
--- UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary x
---    SET "values" = y."values"
---   FROM {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} y
---  WHERE y.key = x.key
---    AND y.report_period_id = x.report_period_id
---    AND y.namespace = x.namespace
---    AND y.node = x.node
---    AND y.values != x.values
--- ;
 
 UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x
 SET values = upd.values
@@ -152,22 +144,6 @@ WHERE NOT EXISTS (
       )
 ;
 
-
--- UPDATE {{schema | sqlsafe}}.reporting_ocptags_values ov
---    SET cluster_ids = ca.cluster_ids,
---        cluster_aliases = ca.cluster_aliases,
---        namespaces = ca.namespaces,
---        nodes = ca.nodes
---   FROM {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} ca
---  WHERE ca.key = ov.key
---    AND ca.value = ov.value
---    AND (
---          ca.cluster_ids != ov.cluster_ids OR
---          ca.cluster_aliases != ov.cluster_aliases OR
---          ca.namespaces != ov.namespaces OR
---          ca.nodes != ov.nodes
---        )
--- ;
 
 UPDATE {{schema | sqlsafe}}.reporting_ocptags_values AS ov
    SET cluster_ids = upd.cluster_ids,

@@ -94,16 +94,6 @@ create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
 ;
 
 
--- UPDATE {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary x
---    SET "values" = y."values"
---   FROM {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} y
---  WHERE y.key = x.key
---    AND y.report_period_id = x.report_period_id
---    AND y.namespace = x.namespace
---    AND y.node = x.node
---    AND y.values != x.values
--- ;
-
 UPDATE {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS x
 SET values = upd.values
 FROM (
@@ -139,22 +129,6 @@ WHERE NOT EXISTS (
       )
 ;
 
-
--- UPDATE {{schema | sqlsafe}}.reporting_ocptags_values ov
---    SET cluster_ids = ca.cluster_ids,
---        cluster_aliases = ca.cluster_aliases,
---        namespaces = ca.namespaces,
---        nodes = ca.nodes
---   FROM {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} ca
---  WHERE ca.key = ov.key
---    AND ca.value = ov.value
---    AND (
---          ca.cluster_ids != ov.cluster_ids OR
---          ca.cluster_aliases != ov.cluster_aliases OR
---          ca.namespaces != ov.namespaces OR
---          ca.nodes != ov.nodes
---        )
--- ;
 
 UPDATE {{schema | sqlsafe}}.reporting_ocptags_values as ov
    SET cluster_ids = upd.cluster_ids,
@@ -212,6 +186,7 @@ ON CONFLICT DO NOTHING
 --         AND vls.key IS NULL
 -- )
 
+
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
 WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
@@ -240,6 +215,7 @@ WHERE uuid IN (
     FOR SHARE
 )
 ;
+
 
 TRUNCATE TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
 DROP TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
