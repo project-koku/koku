@@ -134,7 +134,7 @@ class ROSReportShipper:
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": cluster_alias,
             },
-            "file_urls": presigned_urls,
-            "file_keys": upload_keys,
+            "files": presigned_urls,
+            "object_keys": upload_keys,
         }
         return bytes(json.dumps(ros_json), "utf-8")

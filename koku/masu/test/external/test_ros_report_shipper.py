@@ -100,8 +100,8 @@ class TestROSReportShipper(TestCase):
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": "my-source-name",
             },
-            "file_urls": ["report1_url"],
-            "file_keys": ["path1"],
+            "files": ["report1_url"],
+            "object_keys": ["path1"],
         }
         expected_msg = bytes(json.dumps(expected_json), "utf-8")
         with patch("masu.external.ros_report_shipper.ProviderDBAccessor.get_provider_name") as mock_providerdba:
