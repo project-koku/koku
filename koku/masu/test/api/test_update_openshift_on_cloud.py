@@ -19,7 +19,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
     """Test Cases for the update_openshift_on_cloud endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
+    @patch("masu.api.update_openshift_on_cloud.chain")
     def test_get_update_openshift_on_cloud(self, mock_update, _):
         """Test the GET report_data endpoint."""
         dh = DateHelper()
@@ -37,10 +37,10 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.s.return_value.apply_async.assert_called()
+        mock_update.return_value.apply_async.assert_called()
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
+    @patch("masu.api.update_openshift_on_cloud.chain")
     def test_get_update_openshift_on_cloud_schema_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {
@@ -59,7 +59,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
+    @patch("masu.api.update_openshift_on_cloud.chain")
     def test_get_update_openshift_on_cloud_invalid_queue(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for invalid queue."""
         params = {
@@ -79,7 +79,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
+    @patch("masu.api.update_openshift_on_cloud.chain")
     def test_get_update_openshift_on_cloud_provider_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {
@@ -98,7 +98,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
+    @patch("masu.api.update_openshift_on_cloud.chain")
     def test_get_update_openshift_on_cloud_with_non_existant_provider(self, mock_update, _):
         """Test the GET report_data endpoint."""
         bad_uuid = uuid4()
