@@ -159,8 +159,7 @@ Search for Tag Key
 WHERE pod_labels ? 'environment';
 ```
 
-Jinja Templated SQL
-"""""""""""""""""""
+## Jinja Templated SQL
 
 We have a development script that will replace the Jinja variables inside of a template file.
 
