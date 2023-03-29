@@ -43,7 +43,7 @@ def generate_s3_object_url(client, upload_key):  # pragma: no cover
 
 
 class ROSReportShipper:
-    """Class to process ROS reports from an operator payload to S3."""
+    """Class to handle ROS reports from an operator payload and ship them to S3."""
 
     def __init__(
         self,
