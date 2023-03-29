@@ -31,19 +31,15 @@ this version installed.
 
 #### For Mac OSX
 
-> [Install Docker for
-> Mac](https://docs.docker.com/v17.12/docker-for-mac/install/)
->
-> [Install brew](https://brew.sh/)
->
-> Install PostgreSQL: :
->
->     brew install postgresql
+-   [Install Docker for Mac](https://docs.docker.com/v17.12/docker-for-mac/install/)
+-   [Install brew](https://brew.sh/)
+-   Install PostgreSQL:
+        brew install postgresql
 
 ## Development
 
 To get started developing against Koku you first need to clone a local
-copy of the git repositories. :
+copy of the git repositories.:
 
     git clone https://github.com/project-koku/koku
     git clone https://github.com/project-koku/nise
@@ -52,7 +48,7 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy `.env.example` into a `.env`
+1.  Copy `.env.example`[.env.example] into a `.env`
 
 2.  Obtain AWS values and update the following in your `.env`:
 
@@ -60,11 +56,11 @@ do the following:
         AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-3.  (Mac Only) Install libraries for building wheels on ARM :
+3.  (Mac Only) Install libraries for building wheels on ARM:
 
         brew install openssl librdkafka
 
-4.  (Mac Only) Also add the following to your `.env` or shell profile :
+4.  (Mac Only) Also add the following to your `.env` or shell profile:
 
         LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
         CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
@@ -72,24 +68,24 @@ do the following:
 5.  Developing inside a virtual environment is recommended. A Pipfile is
     provided. Pipenv is recommended for combining virtual environment
     (virtualenv) and dependency management (pip). To install pipenv, use
-    pip :
+    pip:
 
         pip3 install pipenv==2022.4.8
 
 6.  Then project dependencies and a virtual environment can be created
-    using :
+    using:
 
         pipenv install --dev
 
-7.  If dependency installation still fails, try using :
+7.  If dependency installation still fails, try using:
 
         pipenv install --dev --sequential
 
-8.  To activate the virtual environment run :
+8.  To activate the virtual environment run:
 
         pipenv shell
 
-9.  Install the pre-commit hooks for the repository :
+9.  Install the pre-commit hooks for the repository:
 
         pre-commit install
 
@@ -102,6 +98,7 @@ all API or scenarios but should give you an end to end flow.
 #### Starting Koku using Docker Compose
 
 > **Note**
+>
 > In order for the `koku_base` image to build correctly, buildkit must be
 > enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file,
 > but if you are having issues building the `koku_base` image, make sure
@@ -112,7 +109,7 @@ all API or scenarios but should give you an end to end flow.
         make docker-up
 
 2.  Display log output from the docker containers. It is recommended
-    that logs be kept in a second terminal :
+    that logs be kept in a second terminal:
 
         docker compose logs -f koku-server koku-worker
 
@@ -182,7 +179,7 @@ To bring down all the docker containers, run the following command:
 PostgreSQL is used as the database backend for Koku. A docker compose
 file is provided for creating a local database container. Assuming the
 default .env file values are used, to access the database directly using
-psql run :
+psql run:
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
@@ -218,9 +215,7 @@ grafana container which will be built with the docker-up
 make target.
 
 To use the monitor, open a new web browser tab or window and enter the
-following URL:
-
-> <http://localhost:3001>
+following URL: [http://localhost:3001]
 
 You will be presented with the grafana login page. For this monitor, use
 the following credentials:
@@ -231,15 +226,11 @@ the following credentials:
 Once you have logged into the server, you will be taken straight to the
 main dashboard. It will have 5 panels.
 
->   ------------ ----------------
->   Query
->   statistics
->
->   Connect      Active Queries
->   States
->
->   Lock Types   Lock Detail
->   ------------ ----------------
+| Query statistics |
+| --- |
+| Connect States | Active Queries |
+| --- | --- |
+| Lock Types | Lock Detail |
 
 -   Query Statistics - The max execution time, the mean execution time,
     number of calls and the query text
@@ -255,10 +246,10 @@ The Query Statistics panel is cumulative. The remaining panels are
 ephemeral.
 
 Information about PostgreSQL statistics can be found here:
-<https://www.postgresql.org/docs/12/monitoring-stats.html>
+[https://www.postgresql.org/docs/12/monitoring-stats.html]
 
 Information about Grafana dashboards can be found here:
-<https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/>
+[https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/]
 
 #### Using Trino and MinIO
 
@@ -267,22 +258,22 @@ We have a special docker compose file specifically for running Trino
 environment variables set the app will run circumventing our
 conventional Postgres processing in favor of using Trino.
 
-Set the following environment variables :
+Set the following environment variables:
 
     S3_BUCKET_NAME=koku-bucket
     S3_ENDPOINT=http://kokuminio:9000
     S3_ACCESS_KEY=kokuminioaccess
     S3_SECRET=kokuminiosecret
 
-To spin up the minimum targets for Trino use :
+To spin up the minimum targets for Trino use:
 
     make docker-up-min-trino
 
-To skip building the koku image base :
+To skip building the koku image base:
 
     make docker-up-min-trino-no-build
 
-To tear down containers :
+To tear down containers:
 
     make docker-trino-down-all
 
@@ -292,7 +283,7 @@ data will be summarized via Trino. Summarized data will land in the
 appropriate daily_summary table for the source type for consumption by
 the API.
 
-To add test sources and data :
+To add test sources and data:
 
     make create-test-customer
     make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
@@ -306,11 +297,11 @@ particularly useful for troubleshooting failures.
 
 For command line interactions with Trino [install the
 CLI](https://trino.io/docs/current/client/cli.html) and use the
-following to login :
+following to login:
 
     trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
 
-Example usage :
+Example usage:
 
     SHOW tables;
     SELECT * from aws_line_items WHERE source='{source}' AND year='2021' AND month='02' LIMIT 100;
@@ -329,7 +320,7 @@ Openshift](https://github.com/project-koku/koku/blob/main/docs/openshift.rst).
 Koku uses tox to standardize the environment used when running tests.
 Essentially, tox manages its own virtual environment and a copy of
 required dependencies to run tests. To ensure a clean tox environment
-run :
+run:
 
     tox -r
 
@@ -376,12 +367,10 @@ If you want to interact with the Postgres database from a GUI:
 >     any variables to match your database.
 > 2.  docker compose up causes pgAdmin to run on
 >     <http://localhost:8432>
-> 3.  In the login screen, the default login email is
->     `postgres`
+> 3.  In the login screen, the default login emailpassword is
+>     `postgres@local.dev:postgres`
 
-Side note: The [pgadmin_servers.json] file uses \[pgadmin
-servers.json
-syntax\](<https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format>)
+Side note: The [pgadmin_servers.json] file uses [json](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
 
 ### Partitioned Tables
 
