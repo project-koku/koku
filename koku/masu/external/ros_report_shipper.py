@@ -53,16 +53,16 @@ class ROSReportShipper:
     ):
         self.b64_identity = b64_identity
         self.manifest_id = report_meta["manifest_id"]
+        self.context = context | {"manifest_id": self.manifest_id}
         self.provider_uuid = str(report_meta["provider_uuid"])
-        self.metadata = (
-            {
-                "account": context["account"],
-                "org_id": context["org_id"],
-                "source_id": self.provider_uuid,
-                "cluster_uuid": report_meta["cluster_id"],
-            },
-        )
-        self.context["manifest_id"] = self.manifest_id
+        self.request_id = report_meta["request_id"]
+        self.schema_name = report_meta["schema_name"]
+        self.metadata = {
+            "account": context["account"],
+            "org_id": context["org_id"],
+            "source_id": self.provider_uuid,
+            "cluster_uuid": report_meta["cluster_id"],
+        }
         self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()
 
