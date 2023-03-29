@@ -76,16 +76,18 @@ class ROSReportShipper:
             return
         msg = f"Preparing to upload ROS reports to S3 bucket for manifest: {self.manifest_id}."
         LOG.info(log_json(self.request_id, msg, self.context))
-        uploaded_reports = []
+        report_urls = []
+        upload_keys = []
         for filename, report in reports_to_upload:
-            if uploaded_report := self.copy_local_report_file_to_ros_s3_bucket(filename, report):
-                uploaded_reports.append(uploaded_report)
-        if not uploaded_reports:
+            if upload_tuple := self.copy_local_report_file_to_ros_s3_bucket(filename, report):
+                report_urls.append(upload_tuple[0])
+                upload_keys.append(upload_tuple[1])
+        if not report_urls:
             msg = f"ROS reports did not upload cleanly to S3 for manifest: {self.manifest_id}, skipping kafka message."
             LOG.info(log_json(self.request_id, msg, self.context))
             return
-        kafka_msg = self.build_ros_msg(uploaded_reports)
-        msg = f"{len(uploaded_reports)} reports uploaded to S3 for ROS, sending kafka message."
+        kafka_msg = self.build_ros_msg(report_urls, upload_keys)
+        msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
         LOG.info(log_json(self.request_id, msg, self.context))
         self.send_kafka_message(kafka_msg)
 
@@ -106,7 +108,7 @@ class ROSReportShipper:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.warning(log_json(self.request_id, msg))
             return
-        return uploaded_obj_url
+        return uploaded_obj_url, upload_key
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
     def send_kafka_message(self, msg):
@@ -118,7 +120,7 @@ class ROSReportShipper:
         # `flush` makes this process synchronous compared to async with `poll`
         producer.flush(1)
 
-    def build_ros_msg(self, uploaded_reports):
+    def build_ros_msg(self, presigned_urls, upload_keys):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
             cluster_alias = provider_accessor.get_provider_name()
@@ -132,6 +134,7 @@ class ROSReportShipper:
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": cluster_alias,
             },
-            "files": uploaded_reports,
+            "file_urls": presigned_urls,
+            "file_keys": upload_keys,
         }
         return bytes(json.dumps(ros_json), "utf-8")

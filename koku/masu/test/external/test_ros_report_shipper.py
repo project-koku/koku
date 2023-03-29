@@ -100,10 +100,11 @@ class TestROSReportShipper(TestCase):
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": "my-source-name",
             },
-            "files": ["report1"],
+            "file_urls": ["report1_url"],
+            "file_keys": ["path1"],
         }
         expected_msg = bytes(json.dumps(expected_json), "utf-8")
         with patch("masu.external.ros_report_shipper.ProviderDBAccessor.get_provider_name") as mock_providerdba:
             mock_providerdba.return_value = "my-source-name"
-            actual = self.ros_shipper.build_ros_msg(["report1"])
+            actual = self.ros_shipper.build_ros_msg(["report1_url"], ["path1"])
         self.assertEqual(actual, expected_msg)
