@@ -6,23 +6,15 @@
 
 ## About
 
-Koku\'s goal is to provide an open source solution for cost management
-of cloud and hybrid cloud environments. This solution is offered via a
-web interface that exposes resource consumption and cost data in easily
-digestible and filterable views. The project also aims to provide
-insight into this data and ultimately provide suggested optimizations
-for reducing cost and eliminating unnecessary resource usage.
+Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
-Full documentation is available in [docs
-folder](https://github.com/project-koku/koku/tree/main/docs).
+Full documentation is available in [docs folder](./docs).
 
-To submit an issue please visit
-<https://issues.redhat.com/projects/COST/>
+To submit an issue please visit [https://issues.redhat.com/projects/COST/].
 
 ## Getting Started
 
-This project is developed using Python 3.8. Make sure you have at least
-this version installed.
+This project is developed using Python 3.9. Make sure you have at least this version installed.
 
 ### Prerequisites
 
@@ -34,6 +26,7 @@ this version installed.
 -   [Install Docker for Mac](https://docs.docker.com/v17.12/docker-for-mac/install/)
 -   [Install brew](https://brew.sh/)
 -   Install PostgreSQL:
+
         brew install postgresql
 
 ## Development
@@ -91,18 +84,13 @@ do the following:
 
 ### Developing with Docker Compose
 
-This will explain how to start the server and its dependencies using
-Docker, create AWS/OCP sources, and view reports. This will not cover
-all API or scenarios but should give you an end to end flow.
+This will explain how to start the server and its dependencies usin Docker, create AWS/OCP sources, and view reports. This will not cove all API or scenarios but should give you an end to end flow.
 
 #### Starting Koku using Docker Compose
 
 > **Note**
 >
-> In order for the `koku_base` image to build correctly, buildkit must be
-> enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file,
-> but if you are having issues building the `koku_base` image, make sure
-> buildkit is enabled.
+> In order for the `koku_base` image to build correctly, buildkit must be enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file, but if you are having issues building the `koku_base` image, make sure buildkit is enabled.
 
 1.  Start the docker containers:
 
@@ -120,10 +108,12 @@ all API or scenarios but should give you an end to end flow.
         make aws-source aws_name=AWS-SOURCE-001 bucket=cost-usage-bucket
 
 2.  Verify source exists by visiting
-    <http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001>
+
+    >   [http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001]
 
 3.  Trigger MASU processing by visiting
-    <http://127.0.0.1:5042/api/cost-management/v1/download/>
+
+    >    [http://127.0.0.1:5042/api/cost-management/v1/download/]
 
 4.  Wait for processing to complete
 
@@ -140,18 +130,20 @@ all API or scenarios but should give you an end to end flow.
         make ocp-source-from-yaml cluster_id=my_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=my_ocp_name
 
 2.  Verify provider exists by visiting
-    <http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name>
+
+    >    [http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name]
 
 3.  Trigger MASU processing by visiting
-    <http://127.0.0.1:5042/api/cost-management/v1/download/>
+
+    >    [http://127.0.0.1:5042/api/cost-management/v1/download/]
 
 4.  Wait for processing to complete
 
 5.  Verify data exists using API endpoints
 
-    > -   <http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/>
-    > -   <http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/>
-    > -   <http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/>
+    > -   [http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/]
+    > -   [http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/]
+    > -   [http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/]
 
 #### Run GCP Scenario
 
@@ -165,8 +157,7 @@ all API or scenarios but should give you an end to end flow.
 
         make gcp-source gcp_name=my_gcp_source
 
-3.  Verify provider exists by visiting
-    <http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source>
+3.  Verify provider exists by visiting [http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source]
 
 #### Stopping Koku using Docker Compose
 
@@ -176,85 +167,63 @@ To bring down all the docker containers, run the following command:
 
 #### Database
 
-PostgreSQL is used as the database backend for Koku. A docker compose
-file is provided for creating a local database container. Assuming the
-default .env file values are used, to access the database directly using
-psql run:
+PostgreSQL is used as the database backend for Koku. A docker compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run:
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
-**Note:** There is a known limitation with docker compose and Linux
-environments with SELinux enabled. You may see the following error
-during the postgres container deployment:
+> **Note:**
+>
+> There is a known limitation with docker compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment:
+>
+>    "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 
-    "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
-
-If you see this error, run the following command (assuming you are at
-the project top level directory):
+If you see this error, run the following command (assuming you are at the project top level directory):
 
     setfacl -m u:26:-wx ./pg_data
 
 If you need to run PostgreSQL using SSL for local development:
 
 1.  Ensure that you have `openssl` installed.
-2.  Ensure that you have the `KOKU_PATH` environment set to the koku
-    source root directory.
-3.  Execute `${KOKU_PATH}/dev/scripts/genssc` and follow the prompts to
-    create local a self-signed certificate for PostgreSQL.
-4.  In the `docker-compose.yml` file, there are two commented sections
-    labeled \"PostgreSQL SSL\". Follow the directions in these comments
-    to enable the volume mounts and command options to use SSL.
+2.  Ensure that you have the `KOKU_PATH` environment set to the koku source root directory.
+3.  Execute `${KOKU_PATH}/dev/scripts/genssc` and follow the prompts to create local a self-signed certificate for PostgreSQL.
+4.  In the `docker-compose.yml` file, there are two commented sections labeled "PostgreSQL SSL". Follow the directions in these comments to enable the volume mounts and command options to use SSL.
 
 See
 <https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12>
 
 #### Database Query Monitoring
 
-A basic level of query monitoring has been included leveraging a local
-grafana container which will be built with the docker-up
-make target.
+A basic level of query monitoring has been included leveraging a local grafana container which will be built with the docker-up make target.
 
-To use the monitor, open a new web browser tab or window and enter the
-following URL: [http://localhost:3001]
+To use the monitor, open a new web browser tab or window and enter the following URL: [http://localhost:3001]
 
-You will be presented with the grafana login page. For this monitor, use
-the following credentials:
+You will be presented with the grafana login page. For this monitor, use the following credentials:
 
     User: admin
     Password: admin12
 
-Once you have logged into the server, you will be taken straight to the
-main dashboard. It will have 5 panels.
+Once you have logged into the server, you will be taken straight to the main dashboard. It will have 5 panels.
 
 <table>
-<tbody>
-  <tr>
-    <td colspan="2">Query statistics</td>
-  </tr>
-  <tr>
-    <td>Connect States</td>
-    <td>Active Queries</td>
-  </tr>
-  <tr>
-    <td>Lock Types</td>
-    <td>Lock Detail</td>
-  </tr>
-</tbody>
+    <tr>
+        <td colspan="2">Query statistics</td>
+    </tr>
+    <tr>
+        <td>Connect States</td><td>Active Queries</td>
+    </tr>
+    <tr>
+        <td>Lock Types</td><td>Lock Detail</td>
+    </tr>
 </table>
 
 
--   Query Statistics - The max execution time, the mean execution time,
-    number of calls and the query text
--   Connect States - Shows the connection states (active, idle, idle in
-    transaction, etc)
--   Active Queries - Shows the approximate run time (based on the probe
-    time) and the query text of queries detected
+-   Query Statistics - The max execution time, the mean execution time, number of calls and the query text
+-   Connect States - Shows the connection states (active, idle, idle in transaction, etc)
+-   Active Queries - Shows the approximate run time (based on the probe time) and the query text of queries detected
 -   Lock Types - Shows the discrete lock types detected during the probe
--   Lock Detail - Shows any detail informaiton for the lock and the
-    affected query.
+-   Lock Detail - Shows any detail informaiton for the lock and the affected query.
 
-The Query Statistics panel is cumulative. The remaining panels are
-ephemeral.
+The Query Statistics panel is cumulative. The remaining panels are ephemeral.
 
 Information about PostgreSQL statistics can be found here:
 [https://www.postgresql.org/docs/12/monitoring-stats.html]
@@ -264,10 +233,7 @@ Information about Grafana dashboards can be found here:
 
 #### Using Trino and MinIO
 
-We have a special docker compose file specifically for running Trino
-(formerly Presto) with MinIO for object storage. With the proper
-environment variables set the app will run circumventing our
-conventional Postgres processing in favor of using Trino.
+We have a special docker compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
 
 Set the following environment variables:
 
@@ -288,27 +254,19 @@ To tear down containers:
 
     make docker-trino-down-all
 
-With all containers running any source added will be processed by saving
-CSV files in MinIO and storing Parquet files in MinIO. The source\'s
-data will be summarized via Trino. Summarized data will land in the
-appropriate daily_summary table for the source type for consumption by
-the API.
+With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
 
 To add test sources and data:
 
     make create-test-customer
     make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
 
-The MinIO UI will be available at <http://127.0.0.1:9090/minio/>. Use
+The MinIO UI will be available at [http://127.0.0.1:9090/minio/]. Use
 the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
 
-The Trinio UI will be available at <http://127.0.0.1:8080/ui/>. Login as
-admin. Details can be found there on queries. This is
-particularly useful for troubleshooting failures.
+The Trinio UI will be available at [http://127.0.0.1:8080/ui/]. Login as admin. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
-For command line interactions with Trino [install the
-CLI](https://trino.io/docs/current/client/cli.html) and use the
-following to login:
+For command line interactions with Trino [install the CLI](https://trino.io/docs/current/client/cli.html) and use the following to login:
 
     trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
 
@@ -319,19 +277,11 @@ Example usage:
 
 ### Developing with OpenShift
 
-Our production deployment runs on OpenShift. At times you may need to
-run on OpenShift if you are working on deployment templates or would
-like to test in a production like environment. This is a more advanced
-scenario that many new developers will not need. To learn how to run
-OpenShift refer to [Working with
-Openshift](https://github.com/project-koku/koku/blob/main/docs/openshift.rst).
+Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to [Working with Openshift](docs/openshift.md).
 
 ### Testing
 
-Koku uses tox to standardize the environment used when running tests.
-Essentially, tox manages its own virtual environment and a copy of
-required dependencies to run tests. To ensure a clean tox environment
-run:
+Koku uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environment run:
 
     tox -r
 
@@ -341,14 +291,11 @@ To run unit tests specifically:
 
     tox -e py39
 
-To run a specific subset of unit tests, you can pass a particular module
-path to tox. To do this, use positional args using the \-- separator.
-For example:
+To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example:
 
     tox -e py39 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-To run IQE Smoke, Vortex or API tests, while on the Red Hat network and
-koku deployed via docker compose run:
+To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker compose run:
 
     make docker-iqe-smokes-tests
     make docker-iqe-vortex-tests
@@ -360,10 +307,7 @@ Individual IQE tests can be ran with run_test.sh:
 
 ### Linting
 
-This repository uses [pre-commit](https://pre-commit.com) to check and
-enforce code style. It uses [Black](https://github.com/psf/black) to
-reformat the Python code and [Flake8](http://flake8.pycqa.org) to check
-it afterwards. Other formats and text files are linted as well.
+This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses [Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it afterwards. Other formats and text files are linted as well.
 
 To run pre-commit checks:
 
@@ -385,22 +329,10 @@ Side note: The [pgadmin_servers.json] file uses [json](https://www.pgadmin.org/d
 
 ### Partitioned Tables
 
-The koku project is now making use of partitioned tables with PostgreSQL
-12. Currently, there are only a limited number of modules supporting
-table partitoning with Django. For this reason, the partitioned tables
-are being unmanaged by Django models.
+The koku project is now making use of partitioned tables with PostgreSQL 12. Currently, there are only a limited number of modules supporting table partitoning with Django. For this reason, the partitioned tables are being unmanaged by Django models.
 
-There is a stored procedure that helps create table partitions
-on-the-fly during masu data processing. This procedure is called
-`create_date_partitons` and is in the `public` schema. It is designed to
-scan a table for partition range start values and compare them against a
-tracking table of table partitions. For any range start not present in
-the table, a table partition will be created. This allows for partition
-creation for any uncovered range, past, present, or future. See
-`db_functions/create_date_partitions.sql` for the code and parameter
-documentation.
+There is a stored procedure that helps create table partitions on-the-fly during masu data processing. This procedure is called `create_date_partitons` and is in the `public` schema. It is designed to scan a table for partition range start values and compare them against a tracking table of table partitions. For any range start not present in the table, a table partition will be created. This allows for partition creation for any uncovered range, past, present, or future. See `db_functions/create_date_partitions.sql` for the code and parameter documentation.
 
 ## Contributing
 
-Please refer to
-[Contributing](https://github.com/project-koku/koku/blob/main/CONTRIBUTING.rst).
+Please refer to [Contributing](https://github.com/project-koku/koku/blob/main/CONTRIBUTING.rst).
