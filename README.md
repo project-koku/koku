@@ -8,9 +8,9 @@
 
 Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
-Full documentation is available in [docs folder](./docs).
+Full documentation is available in [docs folder](docs).
 
-To submit an issue please visit [https://issues.redhat.com/projects/COST/].
+To submit an issue please visit https://issues.redhat.com/projects/COST/.
 
 ## Getting Started
 
@@ -41,7 +41,7 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy `.env.example`[.env.example] into a `.env`
+1.  Copy (`.env.example`)[.env.example] into a `.env`
 
 2.  Obtain AWS values and update the following in your `.env`:
 
@@ -58,10 +58,7 @@ do the following:
         LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
         CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
 
-5.  Developing inside a virtual environment is recommended. A Pipfile is
-    provided. Pipenv is recommended for combining virtual environment
-    (virtualenv) and dependency management (pip). To install pipenv, use
-    pip:
+5.  Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip:
 
         pip3 install pipenv==2022.4.8
 
@@ -109,19 +106,19 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
 2.  Verify source exists by visiting
 
-    >   [http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001]
+       http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001
 
 3.  Trigger MASU processing by visiting
 
-    >    [http://127.0.0.1:5042/api/cost-management/v1/download/]
+        http://127.0.0.1:5042/api/cost-management/v1/download/
 
 4.  Wait for processing to complete
 
 5.  Verify data existing using AWS API endpoints
 
-    > -   <http://127.0.0.1:8000/api/cost-management/v1/reports/aws/instance-types/>
-    > -   <http://127.0.0.1:8000/api/cost-management/v1/reports/aws/costs/>
-    > -   <http://127.0.0.1:8000/api/cost-management/v1/reports/aws/storage/>
+        -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/instance-types/
+        -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/costs/
+        -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/storage/
 
 #### Run OCP Scenario
 
@@ -131,19 +128,19 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
 2.  Verify provider exists by visiting
 
-    >    [http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name]
+        http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name
 
 3.  Trigger MASU processing by visiting
 
-    >    [http://127.0.0.1:5042/api/cost-management/v1/download/]
+        http://127.0.0.1:5042/api/cost-management/v1/download/
 
 4.  Wait for processing to complete
 
 5.  Verify data exists using API endpoints
 
-    > -   [http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/]
-    > -   [http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/]
-    > -   [http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/]
+        -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/
+        -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
+        -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
 
 #### Run GCP Scenario
 
@@ -157,7 +154,9 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
         make gcp-source gcp_name=my_gcp_source
 
-3.  Verify provider exists by visiting [http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source]
+3.  Verify provider exists by visiting
+
+        http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source
 
 #### Stopping Koku using Docker Compose
 
@@ -171,7 +170,7 @@ PostgreSQL is used as the database backend for Koku. A docker compose file is pr
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
-> **Note:**
+> **Note**
 >
 > There is a known limitation with docker compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment:
 >
@@ -188,14 +187,13 @@ If you need to run PostgreSQL using SSL for local development:
 3.  Execute `${KOKU_PATH}/dev/scripts/genssc` and follow the prompts to create local a self-signed certificate for PostgreSQL.
 4.  In the `docker-compose.yml` file, there are two commented sections labeled "PostgreSQL SSL". Follow the directions in these comments to enable the volume mounts and command options to use SSL.
 
-See
-<https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12>
+See https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12
 
 #### Database Query Monitoring
 
 A basic level of query monitoring has been included leveraging a local grafana container which will be built with the docker-up make target.
 
-To use the monitor, open a new web browser tab or window and enter the following URL: [http://localhost:3001]
+To use the monitor, open a new web browser tab or window and enter the following URL: http://localhost:3001
 
 You will be presented with the grafana login page. For this monitor, use the following credentials:
 
@@ -225,11 +223,9 @@ Once you have logged into the server, you will be taken straight to the main das
 
 The Query Statistics panel is cumulative. The remaining panels are ephemeral.
 
-Information about PostgreSQL statistics can be found here:
-[https://www.postgresql.org/docs/12/monitoring-stats.html]
+Information about PostgreSQL statistics can be found here: https://www.postgresql.org/docs/12/monitoring-stats.html
 
-Information about Grafana dashboards can be found here:
-[https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/]
+Information about Grafana dashboards can be found here: https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/
 
 #### Using Trino and MinIO
 
@@ -317,15 +313,13 @@ To run pre-commit checks:
 
 If you want to interact with the Postgres database from a GUI:
 
-> 1.  Copy the [pgadmin_servers.json.example] into a
->     `pgadmin_servers.json` file and if necessary, change
->     any variables to match your database.
-> 2.  docker compose up causes pgAdmin to run on
->     <http://localhost:8432>
-> 3.  In the login screen, the default login emailpassword is
->     `postgres@local.dev:postgres`
+1.  Copy the (pgadmin_servers.json.example)[pgadmin_servers.json.example] into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
+2.  docker compose up causes pgAdmin to run on http://localhost:8432
+3.  In the login screen, the default login email:password is `postgres@local.dev:postgres`
 
-Side note: The [pgadmin_servers.json] file uses [json](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
+> **Note**
+>
+> The (pgadmin_servers.json)[pgadmin_servers.json] file uses [json format](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
 
 ### Partitioned Tables
 
