@@ -41,6 +41,7 @@ TRINO_REQUIRED_COLUMNS = (
     "lineItem/UsageAccountId",
     "lineItem/LegalEntity",
     "lineItem/LineItemDescription",
+    "lineItem/LineItemType",
     "lineItem/AvailabilityZone",
     "product/region",
     "product/instanceType",
