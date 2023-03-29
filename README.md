@@ -167,7 +167,7 @@ To bring down all the docker containers, run the following command:
 
 PostgreSQL is used as the database backend for Koku. A docker compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run:
 
-    PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
+    PGPASSWORD=postgres psql postgres -U postgres -h 127.0.0.1 -p 15432
 
 > **Note**
 >
@@ -184,7 +184,7 @@ PostgreSQL is used as the database backend for Koku. A docker compose file is pr
 
 A basic level of query monitoring has been included leveraging a local grafana container which will be built with the docker-up make target.
 
-To use the monitor, open a new web browser tab or window and enter the following URL: http://localhost:3001
+To use the monitor, open a new web browser tab or window and enter the following URL: http://127.0.0.1:3001
 
 You will be presented with the grafana login page. For this monitor, use the following credentials:
 
@@ -255,7 +255,7 @@ The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as admin. De
 
 For command line interactions with Trino [install the CLI](https://trino.io/docs/current/client/cli.html) and use the following to login:
 
-    trino --server localhost:8080 --catalog hive --schema org1234567 --user admin --debug
+    trino --server 127.0.0.1:8080 --catalog hive --schema org1234567 --user admin --debug
 
 Example usage:
 
@@ -305,7 +305,7 @@ To run pre-commit checks:
 If you want to interact with the Postgres database from a GUI:
 
 1.  Copy the [pgadmin_servers.json.example](pgadmin_servers.json.example) into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
-2.  docker compose up causes pgAdmin to run on http://localhost:8432
+2.  `docker compose up -d pgadmin` causes pgAdmin to run on http://127.0.0.1:8432
 3.  In the login screen, the default login email:password is `postgres@local.dev:postgres`
 
 > **Note**
