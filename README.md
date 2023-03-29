@@ -227,15 +227,19 @@ Once you have logged into the server, you will be taken straight to the
 main dashboard. It will have 5 panels.
 
 <table>
-    <tr>
-        <td colspan="2">Query statistics</td>
-    </tr>
-    <tr>
-        <td>Connect States</td><td>Active Queries</td>
-    </tr>
-    <tr>
-        <td>Lock Types</td><td>Lock Detail</td>
-    </tr>
+<tbody>
+  <tr>
+    <td colspan="2">Query statistics</td>
+  </tr>
+  <tr>
+    <td>Connect States</td>
+    <td>Active Queries</td>
+  </tr>
+  <tr>
+    <td>Lock Types</td>
+    <td>Lock Detail</td>
+  </tr>
+</tbody>
 </table>
 
 
