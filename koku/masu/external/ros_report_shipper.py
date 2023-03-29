@@ -36,27 +36,33 @@ def get_ros_s3_client():  # pragma: no cover
 
 
 def generate_s3_object_url(client, upload_key):  # pragma: no cover
+    """Generate an accessible URL for an S3 object with an expiration time of 48 hours"""
     return client.generate_presigned_url(
         ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=172800
     )
 
 
 class ROSReportShipper:
+    """Class to process ROS reports from an operator payload to S3."""
+
     def __init__(
         self,
         report_meta,
         b64_identity,
         context,
     ):
-        self.account_id = context["account"]
         self.b64_identity = b64_identity
-        self.context = context
-        self.cluster_id = report_meta["cluster_id"]
         self.manifest_id = report_meta["manifest_id"]
-        self.org_id = context["org_id"]
         self.provider_uuid = str(report_meta["provider_uuid"])
-        self.request_id = report_meta["request_id"]
-        self.schema_name = report_meta["schema_name"]
+        self.metadata = (
+            {
+                "account": context["account"],
+                "org_id": context["org_id"],
+                "source_id": self.provider_uuid,
+                "cluster_uuid": report_meta["cluster_id"],
+            },
+        )
+        self.context["manifest_id"] = self.manifest_id
         self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()
 
@@ -71,11 +77,9 @@ class ROSReportShipper:
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
         if not reports_to_upload:
-            msg = f"No ROS reports to handle for manifest: {self.manifest_id}."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, "No ROS reports to handle for manifest.", self.context))
             return
-        msg = f"Preparing to upload ROS reports to S3 bucket for manifest: {self.manifest_id}."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, "Preparing to upload ROS reports to S3 bucket.", self.context))
         report_urls = []
         upload_keys = []
         for filename, report in reports_to_upload:
@@ -83,8 +87,11 @@ class ROSReportShipper:
                 report_urls.append(upload_tuple[0])
                 upload_keys.append(upload_tuple[1])
         if not report_urls:
-            msg = f"ROS reports did not upload cleanly to S3 for manifest: {self.manifest_id}, skipping kafka message."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(
+                log_json(
+                    self.request_id, "ROS reports did not upload cleanly to S3, skipping kafka message.", self.context
+                )
+            )
             return
         kafka_msg = self.build_ros_msg(report_urls, upload_keys)
         msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
@@ -127,13 +134,7 @@ class ROSReportShipper:
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
-            "metadata": {
-                "account": self.account_id,
-                "org_id": self.org_id,
-                "source_id": self.provider_uuid,
-                "cluster_uuid": self.cluster_id,
-                "cluster_alias": cluster_alias,
-            },
+            "metadata": self.metadata | {"cluster_alias": cluster_alias},
             "files": presigned_urls,
             "object_keys": upload_keys,
         }
