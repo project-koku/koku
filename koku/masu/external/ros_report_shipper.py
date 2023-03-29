@@ -77,9 +77,11 @@ class ROSReportShipper:
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
         if not reports_to_upload:
-            LOG.info(log_json(self.request_id, "No ROS reports to handle for manifest.", self.context))
+            msg = "No ROS reports to handle for manifest."
+            LOG.info(log_json(self.request_id, msg, self.context))
             return
-        LOG.info(log_json(self.request_id, "Preparing to upload ROS reports to S3 bucket.", self.context))
+        msg = "Preparing to upload ROS reports to S3 bucket."
+        LOG.info(log_json(self.request_id, msg, self.context))
         report_urls = []
         upload_keys = []
         for filename, report in reports_to_upload:
@@ -87,11 +89,8 @@ class ROSReportShipper:
                 report_urls.append(upload_tuple[0])
                 upload_keys.append(upload_tuple[1])
         if not report_urls:
-            LOG.info(
-                log_json(
-                    self.request_id, "ROS reports did not upload cleanly to S3, skipping kafka message.", self.context
-                )
-            )
+            msg = "ROS reports did not upload cleanly to S3, skipping kafka message."
+            LOG.info(log_json(self.request_id, msg, self.context))
             return
         kafka_msg = self.build_ros_msg(report_urls, upload_keys)
         msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
