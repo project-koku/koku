@@ -303,6 +303,8 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -2686,8 +2688,10 @@ objects:
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
+    - topicName: hccm.ros.events
     objectStore:
     - ${S3_BUCKET_NAME}
+    - ${S3_ROS_BUCKET_NAME}
     optionalDependencies: []
     testing:
       iqePlugin: cost-management
@@ -2814,6 +2818,8 @@ parameters:
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
+- name: S3_ROS_BUCKET_NAME
+  value: ros-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json

@@ -87,6 +87,7 @@ class Config:
     UPLOAD_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.announce")
     VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
     NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")
+    ROS_TOPIC = CONFIGURATOR.get_kafka_topic("hccm.ros.events")
 
     # Flag to signal whether or not to connect to upload service
     KAFKA_CONNECT = ENVIRONMENT.bool("KAFKA_CONNECT", default=DEFAULT_KAFKA_CONNECT)
