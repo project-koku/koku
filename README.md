@@ -101,16 +101,11 @@ all API or scenarios but should give you an end to end flow.
 
 #### Starting Koku using Docker Compose
 
-::: note
-::: title
-Note
-:::
-
-In order for the `koku_base` image to build correctly, buildkit must be
-enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file,
-but if you are having issues building the `koku_base` image, make sure
-buildkit is enabled.
-:::
+> **Note**
+> In order for the `koku_base` image to build correctly, buildkit must be
+> enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file,
+> but if you are having issues building the `koku_base` image, make sure
+> buildkit is enabled.
 
 1.  Start the docker containers:
 
@@ -219,7 +214,7 @@ See
 #### Database Query Monitoring
 
 A basic level of query monitoring has been included leveraging a local
-grafana container which will be built with the [docker-up]{.title-ref}
+grafana container which will be built with the docker-up
 make target.
 
 To use the monitor, open a new web browser tab or window and enter the
@@ -306,7 +301,7 @@ The MinIO UI will be available at <http://127.0.0.1:9090/minio/>. Use
 the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
 
 The Trinio UI will be available at <http://127.0.0.1:8080/ui/>. Login as
-[admin]{.title-ref}. Details can be found there on queries. This is
+admin. Details can be found there on queries. This is
 particularly useful for troubleshooting failures.
 
 For command line interactions with Trino [install the
@@ -376,15 +371,15 @@ To run pre-commit checks:
 
 If you want to interact with the Postgres database from a GUI:
 
-> 1.  Copy the [pgadmin_servers.json.example]{.title-ref} into a
->     [pgadmin_servers.json]{.title-ref} file and if necessary, change
+> 1.  Copy the [pgadmin_servers.json.example] into a
+>     `pgadmin_servers.json` file and if necessary, change
 >     any variables to match your database.
-> 2.  [docker compose up]{.title-ref} causes pgAdmin to run on
+> 2.  docker compose up causes pgAdmin to run on
 >     <http://localhost:8432>
 > 3.  In the login screen, the default login email is
->     [postgres]{.title-ref}
+>     `postgres`
 
-Side note: The [pgadmin_servers.json]{.title-ref} file uses \[pgadmin
+Side note: The [pgadmin_servers.json] file uses \[pgadmin
 servers.json
 syntax\](<https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format>)
 
