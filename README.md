@@ -226,8 +226,8 @@ the following credentials:
 Once you have logged into the server, you will be taken straight to the
 main dashboard. It will have 5 panels.
 
-| Query statistics |
-| --- |
+| Query statistics ||
+| --- | --- |
 | Connect States | Active Queries |
 | --- | --- |
 | Lock Types | Lock Detail |
