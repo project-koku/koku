@@ -228,7 +228,7 @@ main dashboard. It will have 5 panels.
 
 <table>
     <tr>
-        <td>Query statistics</td>
+        <td colspan="2">Query statistics</td>
     </tr>
     <tr>
         <td>Connect States</td><td>Active Queries</td>
