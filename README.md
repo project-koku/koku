@@ -226,9 +226,18 @@ the following credentials:
 Once you have logged into the server, you will be taken straight to the
 main dashboard. It will have 5 panels.
 
-| Query statistics ||
-| Connect States | Active Queries |
-| Lock Types | Lock Detail |
+<table>
+    <tr>
+        <td>Query statistics</td>
+    </tr>
+    <tr>
+        <td>Connect States</td><td>Active Queries</td>
+    </tr>
+    <tr>
+        <td>Lock Types</td><td>Lock Detail</td>
+    </tr>
+</table>
+
 
 -   Query Statistics - The max execution time, the mean execution time,
     number of calls and the query text
