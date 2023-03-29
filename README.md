@@ -41,7 +41,7 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy (`.env.example`)[.env.example] into a `.env`
+1.  Copy [`.env.example`](.env.example) into a `.env`
 
 2.  Obtain AWS values and update the following in your `.env`:
 
@@ -93,8 +93,7 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
         make docker-up
 
-2.  Display log output from the docker containers. It is recommended
-    that logs be kept in a second terminal:
+2.  Display log output from the docker containers. It is recommended that logs be kept in a second terminal:
 
         docker compose logs -f koku-server koku-worker
 
@@ -106,19 +105,19 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
 2.  Verify source exists by visiting
 
-       http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001
+    http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001
 
 3.  Trigger MASU processing by visiting
 
-        http://127.0.0.1:5042/api/cost-management/v1/download/
+    http://127.0.0.1:5042/api/cost-management/v1/download/
 
 4.  Wait for processing to complete
 
 5.  Verify data existing using AWS API endpoints
 
-        -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/instance-types/
-        -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/costs/
-        -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/storage/
+    -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/instance-types/
+    -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/costs/
+    -   http://127.0.0.1:8000/api/cost-management/v1/reports/aws/storage/
 
 #### Run OCP Scenario
 
@@ -128,19 +127,19 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
 2.  Verify provider exists by visiting
 
-        http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name
+    http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name
 
 3.  Trigger MASU processing by visiting
 
-        http://127.0.0.1:5042/api/cost-management/v1/download/
+    http://127.0.0.1:5042/api/cost-management/v1/download/
 
 4.  Wait for processing to complete
 
 5.  Verify data exists using API endpoints
 
-        -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/
-        -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
-        -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
+    -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/
+    -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
+    -   http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
 
 #### Run GCP Scenario
 
@@ -156,7 +155,7 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
 3.  Verify provider exists by visiting
 
-        http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source
+    http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source
 
 #### Stopping Koku using Docker Compose
 
@@ -174,20 +173,12 @@ PostgreSQL is used as the database backend for Koku. A docker compose file is pr
 >
 > There is a known limitation with docker compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment:
 >
->    "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
+>       "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
+>
+> If you see this error, run the following command (assuming you are at the project top level directory):
+>
+>       setfacl -m u:26:-wx ./pg_data
 
-If you see this error, run the following command (assuming you are at the project top level directory):
-
-    setfacl -m u:26:-wx ./pg_data
-
-If you need to run PostgreSQL using SSL for local development:
-
-1.  Ensure that you have `openssl` installed.
-2.  Ensure that you have the `KOKU_PATH` environment set to the koku source root directory.
-3.  Execute `${KOKU_PATH}/dev/scripts/genssc` and follow the prompts to create local a self-signed certificate for PostgreSQL.
-4.  In the `docker-compose.yml` file, there are two commented sections labeled "PostgreSQL SSL". Follow the directions in these comments to enable the volume mounts and command options to use SSL.
-
-See https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12
 
 #### Database Query Monitoring
 
@@ -257,14 +248,14 @@ To add test sources and data:
     make create-test-customer
     make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
 
-The MinIO UI will be available at [http://127.0.0.1:9090/minio/]. Use
+The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use
 the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
 
-The Trinio UI will be available at [http://127.0.0.1:8080/ui/]. Login as admin. Details can be found there on queries. This is particularly useful for troubleshooting failures.
+The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as admin. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
 For command line interactions with Trino [install the CLI](https://trino.io/docs/current/client/cli.html) and use the following to login:
 
-    trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
+    trino --server localhost:8080 --catalog hive --schema org1234567 --user admin --debug
 
 Example usage:
 
@@ -313,13 +304,13 @@ To run pre-commit checks:
 
 If you want to interact with the Postgres database from a GUI:
 
-1.  Copy the (pgadmin_servers.json.example)[pgadmin_servers.json.example] into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
+1.  Copy the [pgadmin_servers.json.example](pgadmin_servers.json.example) into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
 2.  docker compose up causes pgAdmin to run on http://localhost:8432
 3.  In the login screen, the default login email:password is `postgres@local.dev:postgres`
 
 > **Note**
 >
-> The (pgadmin_servers.json)[pgadmin_servers.json] file uses [json format](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
+> The pgadmin_servers.json file is written in [json format](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format).
 
 ### Partitioned Tables
 
