@@ -1,4 +1,4 @@
-WITH cte_tag_value AS (
+WITH cte_category_value AS (
     SELECT key,
         value,
         li.cost_entry_bill_id,
@@ -22,7 +22,7 @@ cte_values_agg AS (
         cost_entry_bill_id,
         usage_account_id,
         aa.id as account_alias_id
-    FROM cte_tag_value AS tv
+    FROM cte_category_value AS tv
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON tv.usage_account_id = aa.account_id
     GROUP BY tv.key, cost_entry_bill_id, usage_account_id, aa.id
