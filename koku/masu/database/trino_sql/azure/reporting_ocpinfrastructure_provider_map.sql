@@ -33,10 +33,10 @@ WITH
     )
 
 SELECT DISTINCT
-    cte_ocp_nodes.source AS ocp_uuid,
-    cte_azure_instances.source AS infra_uuid,
-    'Azure' AS provider_type
-FROM cte_azure_instances
-INNER JOIN cte_ocp_nodes
-ON cte_ocp_nodes.node = cte_azure_instances.instance
+    ocp.source AS ocp_uuid,
+    azure.source AS infra_uuid,
+    {{provider_type}} as type
+FROM cte_azure_instances AS azure
+INNER JOIN cte_ocp_nodes AS ocp
+ON ocp.node = azure.instance
 ;

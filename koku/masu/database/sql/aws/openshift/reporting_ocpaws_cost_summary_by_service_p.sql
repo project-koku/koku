@@ -1,10 +1,3 @@
-DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_service_p
-WHERE usage_start >= {{start_date}}::date
-    AND usage_end <= {{end_date}}::date
-    AND cluster_id = {{cluster_id}}
-    AND source_uuid = {{source_uuid}}::uuid
-;
-
 INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_service_p (
     id,
     usage_start,

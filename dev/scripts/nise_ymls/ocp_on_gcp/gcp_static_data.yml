@@ -56,6 +56,41 @@ generators:
       service.description: Storage
       currency: USD
       location.region: australia-southeast1-a
+      resource.name: projects/nise-populator/volumes/pvc-volume_1
+      resource.global_name: //compute.googleapis.com/projects/nise-populator/zones/australia-southeast1-a/volumes/pvc-volume_1
+      labels: [{"environment": "murphy", "app":"spring", "version":"blue", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - CloudStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 1
+      usage.amount_in_pricing_units: 1
+      service.description: Storage
+      currency: USD
+      location.region: australia-southeast1-a
+      resource.name: projects/nise-populator/volumes/pvc-volume_2
+      resource.global_name: //compute.googleapis.com/projects/nise-populator/zones/australia-southeast1-a/volumes/pvc-volume_2
+      labels: [{"environment": "murphy", "app":"spring", "version":"blue", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - CloudStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 1
+      usage.amount_in_pricing_units: 1
+      service.description: Storage
+      currency: USD
+      location.region: australia-southeast1-a
+      resource.name: projects/nise-populator/volumes/pvc-volume_3
+      resource.global_name: //compute.googleapis.com/projects/nise-populator/zones/australia-southeast1-a/volumes/pvc-volume_3
+      labels: [{"environment": "murphy", "app":"spring", "version":"blue", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - CloudStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 1
+      usage.amount_in_pricing_units: 1
+      service.description: Storage
+      currency: USD
+      location.region: australia-southeast1-a
+      resource.name: projects/nise-populator/volumes/pvc-volume_4
+      resource.global_name: //compute.googleapis.com/projects/nise-populator/zones/australia-southeast1-a/volumes/pvc-volume_4
       labels: [{"environment": "murphy", "app":"spring", "version":"blue", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
   - GCPNetworkGenerator:
       start_date: {{start_date}}

@@ -1,4 +1,52 @@
 -- First we'll store the data in a "temp" table to do our grouping against
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp
+(
+    uuid varchar,
+    usage_start timestamp,
+    resource_id varchar,
+    product_code varchar,
+    product_family varchar,
+    instance_type varchar,
+    usage_account_id varchar,
+    availability_zone varchar,
+    region varchar,
+    unit varchar,
+    usage_amount double,
+    currency_code varchar,
+    unblended_cost double,
+    blended_cost double,
+    savingsplan_effective_cost double,
+    tags varchar,
+    aws_cost_category varchar,
+    resource_id_matched boolean,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+;
+
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp
+(
+    uuid varchar,
+    usage_start timestamp,
+    resource_id varchar,
+    product_code varchar,
+    product_family varchar,
+    instance_type varchar,
+    usage_account_id varchar,
+    availability_zone varchar,
+    region varchar,
+    unit varchar,
+    usage_amount double,
+    currency_code varchar,
+    unblended_cost double,
+    blended_cost double,
+    savingsplan_effective_cost double,
+    tags varchar,
+    aws_cost_category varchar,
+    matched_tag varchar,
+    ocp_source varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+;
+
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
 (
     aws_uuid varchar,
@@ -100,6 +148,157 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp
+WHERE ocp_source = {{ocp_source_uuid}}
+;
+
+INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp (
+    uuid,
+    usage_start,
+    resource_id,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    currency_code,
+    unblended_cost,
+    blended_cost,
+    savingsplan_effective_cost,
+    tags,
+    aws_cost_category,
+    resource_id_matched,
+    ocp_source
+)
+SELECT cast(uuid() as varchar) as uuid,
+    aws.lineitem_usagestartdate as usage_start,
+    nullif(aws.lineitem_resourceid, '') as resource_id,
+    CASE
+        WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+        ELSE nullif(aws.lineitem_productcode, '')
+    END as product_code,
+    nullif(aws.product_productfamily, '') as product_family,
+    nullif(aws.product_instancetype, '') as instance_type,
+    max(aws.lineitem_usageaccountid) as usage_account_id,
+    nullif(aws.lineitem_availabilityzone, '') as availability_zone,
+    nullif(aws.product_region, '') as region,
+    max(nullif(aws.pricing_unit, '')) as unit,
+    sum(aws.lineitem_usageamount) as usage_amount,
+    max(nullif(aws.lineitem_currencycode, '')) as currency_code,
+    sum(aws.lineitem_unblendedcost) as unblended_cost,
+    sum(aws.lineitem_blendedcost) as blended_cost,
+    sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+    aws.resourcetags as tags,
+    aws.costcategory as aws_cost_category,
+    max(aws.resource_id_matched) as resource_id_matched,
+    {{ocp_source_uuid}} as ocp_source
+FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+WHERE aws.source = {{aws_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    AND aws.lineitem_usagestartdate >= {{start_date}}
+    AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
+    AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
+    AND aws.resource_id_matched = TRUE
+GROUP BY aws.lineitem_usagestartdate,
+    aws.lineitem_resourceid,
+    4, -- CASE satement
+    aws.product_productfamily,
+    aws.product_instancetype,
+    aws.lineitem_availabilityzone,
+    aws.product_region,
+    aws.resourcetags,
+    aws.costcategory
+;
+
+DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp
+WHERE ocp_source = {{ocp_source_uuid}}
+;
+
+INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
+    uuid,
+    usage_start,
+    resource_id,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    currency_code,
+    unblended_cost,
+    blended_cost,
+    savingsplan_effective_cost,
+    tags,
+    aws_cost_category,
+    matched_tag,
+    ocp_source
+)
+WITH cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys
+    WHERE enabled = TRUE
+)
+SELECT cast(uuid() as varchar) as uuid,
+    aws.lineitem_usagestartdate as usage_start,
+    nullif(aws.lineitem_resourceid, '') as resource_id,
+    CASE
+        WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+        ELSE nullif(aws.lineitem_productcode, '')
+    END as product_code,
+    nullif(aws.product_productfamily, '') as product_family,
+    nullif(aws.product_instancetype, '') as instance_type,
+    max(aws.lineitem_usageaccountid) as usage_account_id,
+    nullif(aws.lineitem_availabilityzone, '') as availability_zone,
+    nullif(aws.product_region, '') as region,
+    max(nullif(aws.pricing_unit, '')) as unit,
+    sum(aws.lineitem_usageamount) as usage_amount,
+    max(nullif(aws.lineitem_currencycode, '')) as currency_code,
+    sum(aws.lineitem_unblendedcost) as unblended_cost,
+    sum(aws.lineitem_blendedcost) as blended_cost,
+    sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+    json_format(
+        cast(
+            map_filter(
+                cast(json_parse(aws.resourcetags) as map(varchar, varchar)),
+                (k, v) -> contains(etk.enabled_keys, k)
+            ) as json
+        )
+    ) as tags,
+    aws.costcategory as aws_cost_category,
+    aws.matched_tag,
+    {{ocp_source_uuid}} as ocp_source
+FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+CROSS JOIN cte_enabled_tag_keys as etk
+WHERE aws.source = {{aws_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    AND aws.lineitem_usagestartdate >= {{start_date}}
+    AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
+    AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
+    AND (aws.resource_id_matched = FALSE OR aws.resource_id_matched IS NULL)
+GROUP BY aws.lineitem_usagestartdate,
+    aws.lineitem_resourceid,
+    4, -- CASE satement
+    aws.product_productfamily,
+    aws.product_instancetype,
+    aws.lineitem_availabilityzone,
+    aws.product_region,
+    aws.costcategory,
+    16, -- tags
+    aws.matched_tag
+;
+
+
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
 WHERE ocp_source = {{ocp_source_uuid}}
 ;
@@ -163,29 +362,24 @@ SELECT aws.uuid as aws_uuid,
         cast(NULL as varchar) as persistentvolumeclaim,
         cast(NULL as varchar) as persistentvolume,
         cast(NULL as varchar) as storageclass,
-        max(nullif(aws.lineitem_resourceid, '')) as resource_id,
-        max(aws.lineitem_usagestartdate) as usage_start,
-        max(aws.lineitem_usagestartdate) as usage_end,
-        max(
-            CASE
-                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
-                ELSE nullif(aws.lineitem_productcode, '')
-            END
-        ) as product_code,
-        max(nullif(aws.product_productfamily, '')) as product_family,
-        max(nullif(aws.product_instancetype, '')) as instance_type,
-        max(aws.lineitem_usageaccountid) as usage_account_id,
-        max(nullif(aws.lineitem_availabilityzone, '')) as availability_zone,
-        max(nullif(aws.product_region, '')) as region,
-        max(nullif(aws.pricing_unit, '')) as unit,
-        max(aws.lineitem_usageamount) as usage_amount,
-        max(nullif(aws.lineitem_currencycode, '')) as currency_code,
-        max(aws.lineitem_unblendedcost) as unblended_cost,
-        max(aws.lineitem_unblendedcost) * cast({{markup}} as decimal(24,9)) as markup_cost,
-        max(aws.lineitem_blendedcost) as blended_cost,
-        max(aws.lineitem_blendedcost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
-        max(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
-        max(aws.savingsplan_savingsplaneffectivecost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
+        max(aws.resource_id) as resource_id,
+        max(aws.usage_start) as usage_start,
+        max(aws.usage_start) as usage_end,
+        max(aws.product_code) as product_code,
+        max(aws.product_family) as product_family,
+        max(aws.instance_type) as instance_type,
+        max(aws.usage_account_id) as usage_account_id,
+        max(aws.availability_zone) as availability_zone,
+        max(aws.region) as region,
+        max(aws.unit) as unit,
+        max(aws.usage_amount) as usage_amount,
+        max(aws.currency_code) as currency_code,
+        max(aws.unblended_cost) as unblended_cost,
+        max(aws.unblended_cost) * cast({{markup}} as decimal(24,9)) as markup_cost,
+        max(aws.blended_cost) as blended_cost,
+        max(aws.blended_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
+        max(aws.savingsplan_effective_cost) as savingsplan_effective_cost,
+        max(aws.savingsplan_effective_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
         cast(NULL as double) as pod_cost,
         cast(NULL as double) as project_markup_cost,
         sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
@@ -201,26 +395,21 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(ocp.pod_labels) as pod_labels,
         NULL as volume_labels,
-        max(aws.resourcetags) as tags,
-        max(aws.costcategory) as aws_cost_category,
+        max(aws.tags) as tags,
+        max(aws.aws_cost_category) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
         max(aws.resource_id_matched) as resource_id_matched,
         {{ocp_source_uuid}} as ocp_source
-    FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
-    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        ON aws.lineitem_usagestartdate = ocp.usage_start
-            AND strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
-    WHERE aws.source = {{aws_source_uuid}}
-        AND aws.year = {{year}}
-        AND aws.month = {{month}}
-        AND aws.lineitem_usagestartdate >= {{start_date}}
-        AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
-        AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
-        AND ocp.source = {{ocp_source_uuid}}
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
+        ON aws.usage_start = ocp.usage_start
+            AND strpos(aws.resource_id, ocp.resource_id) != 0
+    WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN {{days | inclause}}
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+        AND aws.ocp_source = {{ocp_source_uuid}}
     GROUP BY aws.uuid, ocp.namespace
 ;
 
@@ -283,29 +472,24 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
         max(nullif(ocp.persistentvolume, '')) as persistentvolume,
         max(nullif(ocp.storageclass, '')) as storageclass,
-        max(nullif(aws.lineitem_resourceid, '')) as resource_id,
-        max(aws.lineitem_usagestartdate) as usage_start,
-        max(aws.lineitem_usagestartdate) as usage_end,
-        max(
-            CASE
-                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
-                ELSE nullif(aws.lineitem_productcode, '')
-            END
-        ) as product_code,
-        max(nullif(aws.product_productfamily, '')) as product_family,
-        max(nullif(aws.product_instancetype, '')) as instance_type,
-        max(aws.lineitem_usageaccountid) as usage_account_id,
-        max(nullif(aws.lineitem_availabilityzone, '')) as availability_zone,
-        max(nullif(aws.product_region, '')) as region,
-        max(nullif(aws.pricing_unit, '')) as unit,
-        max(aws.lineitem_usageamount) as usage_amount,
-        max(nullif(aws.lineitem_currencycode, '')) as currency_code,
-        max(aws.lineitem_unblendedcost) as unblended_cost,
-        max(aws.lineitem_unblendedcost) * cast({{markup}} as decimal(24,9)) as markup_cost,
-        max(aws.lineitem_blendedcost) as blended_cost,
-        max(aws.lineitem_blendedcost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
-        max(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
-        max(aws.savingsplan_savingsplaneffectivecost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
+        max(aws.resource_id) as resource_id,
+        max(aws.usage_start) as usage_start,
+        max(aws.usage_start) as usage_end,
+        max(aws.product_code) as product_code,
+        max(aws.product_family) as product_family,
+        max(aws.instance_type) as instance_type,
+        max(aws.usage_account_id) as usage_account_id,
+        max(aws.availability_zone) as availability_zone,
+        max(aws.region) as region,
+        max(aws.unit) as unit,
+        max(aws.usage_amount) as usage_amount,
+        max(aws.currency_code) as currency_code,
+        max(aws.unblended_cost) as unblended_cost,
+        max(aws.unblended_cost) * cast({{markup}} as decimal(24,9)) as markup_cost,
+        max(aws.blended_cost) as blended_cost,
+        max(aws.blended_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
+        max(aws.savingsplan_effective_cost) as savingsplan_effective_cost,
+        max(aws.savingsplan_effective_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
         cast(NULL as double) as pod_cost,
         cast(NULL as double) as project_markup_cost,
         cast(NULL as double) as pod_usage_cpu_core_hours,
@@ -321,37 +505,30 @@ SELECT aws.uuid as aws_uuid,
         cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
-        max(aws.resourcetags) as tags,
-        max(aws.costcategory) as aws_cost_category,
+        max(aws.tags) as tags,
+        max(aws.aws_cost_category) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
-        max(aws.resource_id_matched) as resource_id_matched,
+        FALSE as resource_id_matched,
         {{ocp_source_uuid}} as ocp_source
-    FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
-    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        ON aws.lineitem_usagestartdate = ocp.usage_start
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp as aws
+        ON aws.usage_start = ocp.usage_start
             AND (
-                (strpos(aws.resourcetags, 'openshift_project') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
-                    OR (strpos(aws.resourcetags, 'namespace') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
-                    OR (strpos(aws.resourcetags, 'openshift_node') != 0 AND strpos(aws.resourcetags, lower(ocp.node)) != 0)
-                    OR (strpos(aws.resourcetags, 'openshift_cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
-                    OR (strpos(aws.resourcetags, 'cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
+                (strpos(aws.tags, 'openshift_project') != 0 AND strpos(aws.tags, lower(ocp.namespace)) != 0)
+                    OR (strpos(aws.tags, 'namespace') != 0 AND strpos(aws.tags, lower(ocp.namespace)) != 0)
+                    OR (strpos(aws.tags, 'openshift_node') != 0 AND strpos(aws.tags, lower(ocp.node)) != 0)
+                    OR (strpos(aws.tags, 'openshift_cluster') != 0 AND (strpos(aws.tags, lower(ocp.cluster_id)) != 0 OR strpos(aws.tags, lower(ocp.cluster_alias)) != 0))
+                    OR (strpos(aws.tags, 'cluster') != 0 AND (strpos(aws.tags, lower(ocp.cluster_id)) != 0 OR strpos(aws.tags, lower(ocp.cluster_alias)) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
-    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
-        ON aws.uuid = pds.aws_uuid
-    WHERE aws.source = {{aws_source_uuid}}
-        AND aws.year = {{year}}
-        AND aws.month = {{month}}
-        AND aws.lineitem_usagestartdate >= {{start_date}}
-        AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
-        AND ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN {{days | inclause}}
-        AND pds.aws_uuid IS NULL
+        AND aws.ocp_source = {{ocp_source_uuid}}
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
 ;
 
@@ -567,6 +744,14 @@ WHERE aws_source = {{aws_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN {{days | inclause}}
+;
+
+DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp
+WHERE ocp_source = {{ocp_source_uuid}}
+;
+
+DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp
+WHERE ocp_source = {{ocp_source_uuid}}
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp

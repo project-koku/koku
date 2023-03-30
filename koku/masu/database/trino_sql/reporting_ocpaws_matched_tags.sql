@@ -1,17 +1,29 @@
 WITH
+    cte_enabled_tag_keys AS (
+        SELECT array_agg(aws.key) AS key_array
+        FROM postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS aws
+    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS ocp
+        ON lower(aws.key) = lower(ocp.key)
+        WHERE
+            aws.enabled = TRUE
+            AND ocp.enabled = TRUE
+    ),
+WITH
     cte_unnested_aws_tags AS (
         SELECT DISTINCT
             key,
             value
         FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
     CROSS JOIN UNNEST(cast(json_parse(resourcetags) as map(varchar, varchar))) AS tags(key, value)
+    JOIN cte_enabled_tag_keys AS etk
+        ON any_match(etk.key_array, x->strpos(aws.resourcetags, x) != 0)
         WHERE source = {{aws_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND lineitem_usagestartdate >= {{start_date}}
         AND lineitem_usagestartdate < date_add('day', 1, {{end_date}})
     ),
-
+WITH
     cte_unnested_ocp_tags AS (
         SELECT DISTINCT
             pod_key,
@@ -23,6 +35,9 @@ WITH
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))
     ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
+    JOIN cte_enabled_tag_keys AS etk
+        ON any_match(etk.key_array, x->strpos(ocp.pod_labels, x) != 0)
+            OR any_match(etk.key_array, x->strpos(ocp.volume_labels, x) != 0)
         WHERE source IN {{ocp_source_uuids | inclause}}
         AND year = {{year}}
         AND lpad(month, 2, '0') = {{month}}
@@ -32,21 +47,17 @@ WITH
 SELECT '{"' || key || '": "' || value || '"}' AS tag
 FROM (
     SELECT DISTINCT
-        cte_unnested_aws_tags.key,
-        cte_unnested_aws_tags.value
-    FROM cte_unnested_aws_tags
-    INNER JOIN cte_unnested_ocp_tags
+        aws.key,
+        aws.value
+    FROM cte_unnested_aws_tags AS aws
+    INNER JOIN cte_unnested_ocp_tags AS ocp
     ON (
-        lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
-        AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.pod_value)
+        lower(aws.key) = lower(ocp.pod_key)
+        AND lower(aws.value) = lower(ocp.pod_value)
     )
     OR (
-        lower(cte_unnested_aws_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
-        AND lower(cte_unnested_aws_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
+        lower(aws.key) = lower(ocp.volume_key)
+        AND lower(aws.value) = lower(ocp.volume_value)
     )
-    INNER JOIN postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS atk
-        ON aws.key = atk.key
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
-        ON cte_unnested_ocp_tags.pod_key = otk.key or cte_unnested_ocp_tags.volume_key = otk.key
 ) AS matches
 ;

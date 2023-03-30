@@ -32,10 +32,10 @@ WITH
     )
 
 SELECT DISTINCT
-    cte_ocp_resource_ids.source AS cte_ocp_resource_ids,
-    cte_aws_resource_ids.source AS infra_uuid,
-    'AWS' AS provider_type
-FROM cte_aws_resource_ids
-INNER JOIN cte_ocp_resource_ids
-ON strpos(cte_aws_resource_ids.lineitem_resourceid, cte_ocp_resource_ids.resource_id) != 0
+    ocp.source AS ocp_uuid,
+    aws.source AS infra_uuid,
+    {{provider_type}} as type
+FROM cte_aws_resource_ids AS aws
+INNER JOIN cte_ocp_resource_ids AS ocp
+ON strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
 ;

@@ -1,7 +1,9 @@
 [sqlfluff]
 dialect = postgres
-# fix_even_unparsable = True
-ignore = templating
+
+# files that contain {{schema | sqlsafe}} are unparsable
+fix_even_unparsable = True
+
 runaway_limit = 10
 processes = -1
 large_file_skip_byte_limit = 40000

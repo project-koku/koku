@@ -10,6 +10,7 @@ from datetime import timedelta
 
 import ciso8601
 import pytz
+from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
@@ -182,15 +183,21 @@ class DateHelper:
 
     def month_start(self, in_date):
         """Datetime of midnight on the 1st of in_date month."""
-        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        if isinstance(in_date, datetime.datetime):
+            return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        elif isinstance(in_date, datetime.date):
+            return in_date.replace(day=1)
+        elif isinstance(in_date, str):
+            return parser.parse(in_date).date().replace(day=1)
 
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""
+        if isinstance(in_date, str):
+            in_date = parser.parse(in_date).date()
         month_end = self.days_in_month(in_date)
         if isinstance(in_date, datetime.datetime):
             return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
-        elif isinstance(in_date, datetime.date):
-            return in_date.replace(day=month_end)
+        return in_date.replace(day=month_end)
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.

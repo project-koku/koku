@@ -377,15 +377,17 @@ class ReportDBAccessorBase(KokuDBAccess):
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0
+        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         sql = sql.replace(";", "")  # trino doesn't like `;`, so remove it
         if sql_params is None:
             sql_params = {}
+        if conn_params is None:
+            conn_params = {}
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
-        trino_conn = trino_db.connect(schema=self.schema)
+        trino_conn = trino_db.connect(schema=self.schema, **conn_params)
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
@@ -481,16 +483,18 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
-        self, source_uuid, start_date, end_date, filters, null_filters=None, table=None
+        self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
     ):
 
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table._meta.db_table} for source {source_uuid} from {start_date} to {end_date}"
+        if not isinstance(table, str):
+            table = table._meta.db_table
+        msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
-            DELETE FROM {self.schema}.{table._meta.db_table}
+            DELETE FROM {self.schema}.{table}
             WHERE usage_start >= %(start_date)s::date
                 AND usage_start <= %(end_date)s::date
         """
@@ -506,6 +510,34 @@ class ReportDBAccessorBase(KokuDBAccess):
         filters["end_date"] = end_date
 
         self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
+
+    def truncate_partition(self, partition_name):
+        """Issue a TRUNCATE command on a specific partition of a table"""
+        # Currently all partitions are date based and if the partition does not have YYYY_MM on the end, do not truncate
+        year, month = partition_name.split("_")[-2:]
+        try:
+            int(year)
+            int(month)
+        except ValueError:
+            msg = "Invalid paritition provided. No TRUNCATE performed."
+            LOG.warning(msg)
+            return
+
+        sql = f"""
+            DO $$
+            BEGIN
+            IF exists(
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = '{self.schema}'
+                    AND table_name='{partition_name}'
+            )
+            THEN
+                TRUNCATE {self.schema}.{partition_name};
+            END IF;
+            END $$;
+        """
+        self._execute_raw_sql_query(partition_name, sql, operation="TRUNCATE")
 
     def table_exists_trino(self, table_name):
         """Check if table exists."""

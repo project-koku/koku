@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the QueryFilter."""
-from collections import Iterable
+from collections.abc import Iterable
 
 from django.db.models import Q
 from django.test import TestCase

@@ -10,7 +10,7 @@ WHERE
     AND publishertype = 'Marketplace'
     AND (
         publishername LIKE '%Red Hat%'
-        OR (publishername = 'Microsoft' AND (
+        OR ((publishername = 'Microsoft' OR publishername = 'Azure') AND (
             metersubcategory LIKE '%Red Hat%'
             OR serviceinfo2 LIKE '%Red Hat%'
         ))
