@@ -479,7 +479,7 @@ class ParquetReportProcessor:
                 if not set(col_names).issuperset(REQUIRED_COLS):
                     missing_cols = True
                     if missing_cols and self._provider_type in {Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL}:
-                        REQUIRED_CUSTOM_COLS = set(CSV_REQUIRED_COLUMNS.get("AWS-custom"))
+                        REQUIRED_CUSTOM_COLS = set(CSV_REQUIRED_COLUMNS["AWS-custom"])
                         missing_cols = False
                         if not set(col_names).issuperset(REQUIRED_CUSTOM_COLS):
                             missing_cols = True
