@@ -21,8 +21,7 @@ WITH
         FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         WHERE
             ocp.interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-            AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}'
-            )
+            AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
             AND ocp.node IS NOT NULL
             AND ocp.node != ''
         {% if ocp_provider_uuid %}
