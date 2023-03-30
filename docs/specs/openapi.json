@@ -5362,11 +5362,9 @@
             "description": "Target Environment",
             "variables": {
                 "environment": {
-                    "default": "cloud",
+                    "default": "console",
                     "enum": [
-                        "cloud",
-                        "qa.cloud",
-                        "ci.cloud"
+                        "console"
                     ]
                 }
             }
@@ -5387,7 +5385,7 @@
     "components": {
         "parameters": {
             "CostType": {
-                "name": "cost-type",
+                "name": "cost_type",
                 "required": false,
                 "in": "query",
                 "description": "String to indicate cost type in report",

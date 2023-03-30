@@ -676,6 +676,15 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
         end_date = end_date - datetime.timedelta(days=1)
         self.assertFalse(updater._can_truncate(start_date, end_date))
 
+        end_date = self.dh.last_month_end
+        # Fake a second aws source with an OCP cluster
+        self.ocp_on_azure_ocp_provider.infrastructure.infrastructure_type = Provider.PROVIDER_AWS_LOCAL
+        self.ocp_on_azure_ocp_provider.infrastructure.save()
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        # If we have more than one source providing OCP on AWS data, we can't truncate
+        # as this would wipe the data for other sources that we may not be re-summarizing
+        self.assertFalse(updater._can_truncate(start_date, end_date))
+
     def test_determine_truncates_and_deletes(self):
         """Test that we successfully determine if truncate can occur."""
         start_date = self.dh.last_month_start

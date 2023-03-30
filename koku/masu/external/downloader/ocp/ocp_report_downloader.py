@@ -330,7 +330,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_str = date_range.split("-")[0]
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
         manifest_timestamp = manifest.get("date")
-        num_of_files = len(manifest.get("files", []))
+        num_of_files = len(manifest.get("files") or [])
         manifest_info = process_cr(manifest)
         return self._process_manifest_db_record(
             assembly_id, billing_start, num_of_files, manifest_timestamp, **manifest_info
