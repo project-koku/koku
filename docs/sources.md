@@ -1,10 +1,19 @@
 # Source Management
 
-This section covers managing sources. Currently the supported source
-types are Amazon Web Services **(AWS)** account and OpenShift Container
-Platform **(OCP)**. Each provider requires special configuration in order
-to be created. The specifics for adding each provider type are described
-below along with information to remove a provider.
+This section covers managing sources. See the relevant document below for information on adding a specific source.
+
+[AWS](sources/aws.md)
+
+[Azure](sources/azure.md)
+
+[GCP](sources/gcp.md)
+
+[Local](sources/local.md)
+
+[OCP](sources/ocp.md)
+
+[OpenShift on AWS](sources/openshift_on_aws.md)
+
 
 ## Removing a Source
 
