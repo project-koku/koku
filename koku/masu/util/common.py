@@ -80,7 +80,7 @@ CSV_REQUIRED_COLUMNS = {
         "reservation/StartTime",
         "reservation/EndTime",
     ),
-    "AWS-SNAKE": (
+    "AWS-custom": (
         "bill_billing_entity",
         "bill_bill_type",
         "bill_payer_account_id",
