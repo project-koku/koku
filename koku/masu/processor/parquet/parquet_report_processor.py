@@ -329,7 +329,7 @@ class ParquetReportProcessor:
     def csv_columns(self):
         """Return the required CSV columns if we need to filter them"""
         if self.provider_type == Provider.PROVIDER_AWS:
-            return CSV_REQUIRED_COLUMNS.get(Provider.PROVIDER_AWS)
+            return CSV_REQUIRED_COLUMNS.get(Provider.PROVIDER_AWS) + CSV_REQUIRED_COLUMNS.get("AWS-SNAKE")
         return None
 
     @property
@@ -475,7 +475,16 @@ class ParquetReportProcessor:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
                 REQUIRED_COLS = set(CSV_REQUIRED_COLUMNS.get(self._provider_type))
+                missing_cols = False
                 if not set(col_names).issuperset(REQUIRED_COLS):
+                    missing_cols = True
+                    if missing_cols and self._provider_type in {Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL}:
+                        REQUIRED_SNAKE_COLS = set(CSV_REQUIRED_COLUMNS.get("AWS-SNAKE"))
+                        missing_cols = False
+                        if not set(col_names).issuperset(REQUIRED_SNAKE_COLS):
+                            missing_cols = True
+                            REQUIRED_COLS = REQUIRED_SNAKE_COLS
+                if missing_cols:
                     missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
                     message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
                     if self.ingress_reports_uuid:
