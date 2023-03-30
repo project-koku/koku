@@ -568,7 +568,7 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
 
 
 def check_aws_custom_columns(col_names):
-    REQUIRED_COLS = set(utils.CSV_REQUIRED_COLUMNS["AWS-custom"])
+    REQUIRED_COLS = set(utils.CSV_ALT_COLUMNS["AWS"])
     missing_cols = False
     if not set(col_names).issuperset(REQUIRED_COLS):
         missing_cols = True
@@ -586,9 +586,7 @@ def aws_post_processor(data_frame):
             if COL_TRANSLATION.get(col):
                 data_frame = data_frame.rename(columns={col: COL_TRANSLATION[col]})
                 columns.append(COL_TRANSLATION[col])
-    columns = set(list(data_frame))
-    columns = set(columns)
-    columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
+    columns = set(TRINO_REQUIRED_COLUMNS).union(data_frame)
     columns = sorted(list(columns))
 
     tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, RESOURCE_TAG_USER_PREFIX)

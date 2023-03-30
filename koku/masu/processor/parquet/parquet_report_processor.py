@@ -36,6 +36,7 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
+from masu.util.common import CSV_ALT_COLUMNS
 from masu.util.common import CSV_REQUIRED_COLUMNS
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -338,7 +339,7 @@ class ParquetReportProcessor:
     def csv_columns(self):
         """Return the required CSV columns if we need to filter them"""
         if self.provider_type == Provider.PROVIDER_AWS:
-            return CSV_REQUIRED_COLUMNS[Provider.PROVIDER_AWS] + CSV_REQUIRED_COLUMNS["AWS-custom"]
+            return CSV_REQUIRED_COLUMNS[Provider.PROVIDER_AWS] + CSV_ALT_COLUMNS[Provider.PROVIDER_AWS]
         return None
 
     @property
@@ -487,7 +488,7 @@ class ParquetReportProcessor:
                 missing_cols = False
                 if not set(col_names).issuperset(REQUIRED_COLS):
                     missing_cols = True
-                    if missing_cols and self._provider_type in {Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL}:
+                    if missing_cols and self.col_checker:
                         missing_cols, REQUIRED_COLS = self.col_checker(col_names)
                 if missing_cols:
                     missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
