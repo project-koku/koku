@@ -32,7 +32,7 @@ from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
-col_translation = {
+COL_TRANSLATION = {
     "bill_billing_entity": "bill/BillingEntity",
     "bill_bill_type": "bill/BillType",
     "bill_payer_account_id": "bill/PayerAccountId",
@@ -575,9 +575,9 @@ def aws_post_processor(data_frame):
     columns = []
     for col in org_columns:
         if "/" not in col:
-            if col_translation.get(col):
-                data_frame = data_frame.rename(columns={col: col_translation[col]})
-                columns.append(col_translation[col])
+            if COL_TRANSLATION.get(col):
+                data_frame = data_frame.rename(columns={col: COL_TRANSLATION[col]})
+                columns.append(COL_TRANSLATION[col])
     columns = set(list(data_frame))
     columns = set(columns)
     columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
