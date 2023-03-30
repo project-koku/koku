@@ -597,3 +597,9 @@ class AWSReportViewTest(IamTestCase):
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_aws_category_key(self):
+        """Test invalid aws category key."""
+        url = reverse("reports-aws-costs") + "?group_by[aws_categroy:invalid]=value"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
