@@ -82,7 +82,7 @@ Trino is an SQL query engine, but not an SQL database. What does that mean? Trad
 typically consist of a query engine and a storage engine. Trino is just a query engine and does not
 store data. Inside of koku, our download workers will retrieve cost data from the cloud providers
 in the form of CSVs. During processing we convert these csv files to parquet
-files (Look for the following function in the codebase: ``convert_csv_to_parquet``).
+files (Look for the following function in the codebase: `convert_csv_to_parquet`).
 After the files are converted they are then sent up to an S3 bucket. During runtime the Trino
 coordinator utilizes the existing HIVE metastore metadata and files residing in storage to
 query the files for data.
@@ -112,9 +112,8 @@ Minio UI:
 
 The username & password is set inside of the .env file
 ```
-
-    S3_ACCESS_KEY=kokuminioaccess
-    S3_SECRET=kokuminiosecret
+S3_ACCESS_KEY=kokuminioaccess
+S3_SECRET=kokuminiosecret
 ```
 
 ## Trino Coordinator
@@ -129,8 +128,8 @@ You can use the trino UI to see the queries run in trino:
 
 You can also manually run queries inside of the trino container
 ```
-    docker exec -it trino trino --catalog hive --schema org1234567 --user admin --debug
-    SHOW CREATE TABLE <table_name>;
+docker exec -it trino trino --catalog hive --schema org1234567 --user admin --debug
+SHOW CREATE TABLE <table_name>;
 ```
 
 Additional Reads:
@@ -147,10 +146,10 @@ PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
 Below is a list of Koku commonly used psql commands:
 
-1. Set search Schema: ``SET search_path TO org1234567``
-2. find datatable: ``\dt`` or ``\dt reporting_ocpgcp*``
-3. Tidy up display: ``\x auto``
-4. List columns for a table: ``\d+ reporting_ocpusagelineitem_daily_summary``
+1. Set search Schema: `SET search_path TO org1234567`
+2. find datatable: `\dt` or `\dt reporting_ocpgcp*`
+3. Tidy up display: `\x auto`
+4. List columns for a table: `\d+ reporting_ocpusagelineitem_daily_summary`
 
 Commonly used SQL pieces:
 
