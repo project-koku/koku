@@ -21,12 +21,12 @@ WITH
 SELECT jsonb_build_object(key, value) AS tag
 FROM (
     SELECT
-        cte_unnested_azure_tags.key,
-        cte_unnested_azure_tags.value
-    FROM cte_unnested_azure_tags
-    INNER JOIN cte_unnested_ocp_tags
+        azure.key,
+        azure.value
+    FROM cte_unnested_azure_tags AS azure
+    INNER JOIN cte_unnested_ocp_tags AS ocp
     ON
-        lower(cte_unnested_azure_tags.key) = lower(cte_unnested_ocp_tags.key)
-        AND lower(cte_unnested_azure_tags.value) = lower(cte_unnested_ocp_tags.value)
+        lower(azure.key) = lower(ocp.key)
+        AND lower(azure.value) = lower(ocp.value)
 ) AS matches
 ;
