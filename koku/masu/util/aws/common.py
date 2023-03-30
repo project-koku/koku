@@ -567,6 +567,14 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
     return column_dict.apply(json.dumps), unique_keys
 
 
+def check_aws_custom_columns(col_names):
+    REQUIRED_COLS = set(utils.CSV_REQUIRED_COLUMNS["AWS-custom"])
+    missing_cols = False
+    if not set(col_names).issuperset(REQUIRED_COLS):
+        missing_cols = True
+    return missing_cols, REQUIRED_COLS
+
+
 def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags

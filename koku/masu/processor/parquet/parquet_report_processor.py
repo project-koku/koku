@@ -27,6 +27,7 @@ from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
+from masu.util.aws.common import check_aws_custom_columns
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import CSV_COLUMN_PREFIX as AWS_COLUMN_PREFIX
 from masu.util.aws.common import get_column_converters as aws_column_converters
@@ -238,6 +239,14 @@ class ParquetReportProcessor:
         elif self.provider_type == Provider.PROVIDER_OCP:
             post_processor = ocp_post_processor
         return post_processor
+
+    @property
+    def col_checker(self):
+        """Customer column checker based on provider type."""
+        col_checker = None
+        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+            col_checker = check_aws_custom_columns
+        return col_checker
 
     @property
     def daily_data_processor(self):
@@ -479,11 +488,7 @@ class ParquetReportProcessor:
                 if not set(col_names).issuperset(REQUIRED_COLS):
                     missing_cols = True
                     if missing_cols and self._provider_type in {Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL}:
-                        REQUIRED_CUSTOM_COLS = set(CSV_REQUIRED_COLUMNS["AWS-custom"])
-                        missing_cols = False
-                        if not set(col_names).issuperset(REQUIRED_CUSTOM_COLS):
-                            missing_cols = True
-                            REQUIRED_COLS = REQUIRED_CUSTOM_COLS
+                        missing_cols, REQUIRED_COLS = self.col_checker(col_names)
                 if missing_cols:
                     missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
                     message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
