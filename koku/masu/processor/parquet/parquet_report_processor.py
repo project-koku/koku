@@ -329,7 +329,7 @@ class ParquetReportProcessor:
     def csv_columns(self):
         """Return the required CSV columns if we need to filter them"""
         if self.provider_type == Provider.PROVIDER_AWS:
-            return CSV_REQUIRED_COLUMNS.get(Provider.PROVIDER_AWS) + CSV_REQUIRED_COLUMNS.get("AWS-custom")
+            return CSV_REQUIRED_COLUMNS[Provider.PROVIDER_AWS] + CSV_REQUIRED_COLUMNS["AWS-custom"]
         return None
 
     @property
