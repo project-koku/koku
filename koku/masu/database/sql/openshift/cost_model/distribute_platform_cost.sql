@@ -150,7 +150,8 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
     AND lids.namespace != 'Worker unallocated'
-GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id;
+GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id
+;
 
 -- Notes:
 -- The sql below calculates the platform cost at the cluster level
