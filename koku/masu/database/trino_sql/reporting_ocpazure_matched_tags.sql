@@ -34,20 +34,20 @@ FROM (
     SELECT DISTINCT
         azure.key,
         azure.value
-    FROM cte_unnested_azure_tags
-    INNER JOIN cte_unnested_ocp_tags
+    FROM cte_unnested_azure_tags AS azure
+    INNER JOIN cte_unnested_ocp_tags AS ocp
     ON (
-        lower(cte_unnested_azure_tags.key) = lower(cte_unnested_ocp_tags.pod_key)
-        AND lower(cte_unnested_azure_tags.value) = lower(cte_unnested_ocp_tags.pod_value)
+        lower(azure.key) = lower(ocp.pod_key)
+        AND lower(azure.value) = lower(ocp.pod_value)
     )
     OR (
-        lower(cte_unnested_azure_tags.key) = lower(cte_unnested_ocp_tags.volume_key)
-        AND lower(cte_unnested_azure_tags.value) = lower(cte_unnested_ocp_tags.volume_value)
+        lower(azure.key) = lower(ocp.volume_key)
+        AND lower(azure.value) = lower(ocp.volume_value)
     )
     INNER JOIN postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys AS atk
-        ON cte_unnested_azure_tags.key = atk.key
+        ON azure.key = atk.key
        AND atk.enabled = true
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
-        ON cte_unnested_ocp_tags.pod_key = otk.key or cte_unnested_ocp_tags.volume_key = otk.key
+        ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
 ) AS matches
 ;
