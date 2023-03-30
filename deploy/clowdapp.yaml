@@ -2786,9 +2786,11 @@ objects:
           }
           location ^~/ {
             proxy_pass http://koku-api;
+            proxy_read_timeout 600s;
           }
           location /api/cost-management/v1/recommendations/ {
             proxy_pass http://ros-ocp-api;
+            proxy_read_timeout 600s;
           }
         }
       }
