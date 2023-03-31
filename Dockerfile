@@ -75,11 +75,6 @@ RUN python3.9 -m venv /pipenv-venv \
     && /pipenv-venv/bin/python -m pip install pipenv
 
 ENV PATH="/pipenv-venv/bin:$PATH"
-# Install pipenv into the virtual env
-RUN \
-    pip install --upgrade pip && \
-    pip install pipenv
-
 WORKDIR ${APP_ROOT}
 
 # install dependencies
