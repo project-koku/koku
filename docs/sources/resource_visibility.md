@@ -19,7 +19,7 @@ company, but only wished a user to be able to see the data associated
 with their organization/account; role based access control can be
 utilized to filter the data set to only that specific account. This can
 be accomplished by creating a group that encompasses the users for that
-organization. A role can be defined that allows \"read\" permission on
+organization. A role can be defined that allows "read" permission on
 the specified Amazon account. Lastly a policy can be created that
 associates the group and role. Now any user in that group will have
 visibility limited to just that Amazon account.
@@ -31,7 +31,7 @@ projects. For example an administrator might have two clusters
 configured (one for pre-production and one for production) and they wish
 to expose the cost of projects deployed on these clusters to the
 associated development teams. Groups would be created for each
-development team. Roles would be created to give \"read\" access to each
+development team. Roles would be created to give "read" access to each
 of the clusters but only the specific project. Lastly a policy would be
 created to associate a specific group with the role that provides them
 visibility to only their project.
