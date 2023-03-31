@@ -238,7 +238,7 @@ jobs:
           path: coverage.xml
 
   coverage:
-    name: coverage
+    name: Coverage
     needs: [changed-files,units]
     runs-on: ubuntu-20.04
     steps:
