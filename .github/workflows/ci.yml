@@ -140,6 +140,7 @@ jobs:
   units:
     name: Units - ${{ matrix.python-version }}
     needs: changed-files
+    if: needs.changed-files.outputs.run_tests == 'true'
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -149,30 +150,28 @@ jobs:
           - '3.9'
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
+    outputs:
+      upload_coverage: ${{ steps.show_test_status.outputs.upload_coverage }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Display build environment
         run: printenv
 
       - name: Start the postgres DB
         run: docker-compose up -d db
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4.3.0
         with:
           python-version: ${{ matrix.python-version }}
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Install pipenv
         run: sudo python3 -m pip install pipenv
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Cache dependencies
         id: cache-dependencies
@@ -187,9 +186,7 @@ jobs:
       - name: Install dependencies
         run: |
           pipenv install --dev --ignore-pipfile --python ${{ matrix.python-version }}
-        if: >-
-          needs.changed-files.outputs.run_tests == 'true'
-          && steps.cache-dependencies.outputs.cache-hit != 'true'
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
 
       - name: Check migrations
         run: bash .github/scripts/check_migrations.sh
@@ -202,7 +199,6 @@ jobs:
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           PROMETHEUS_MULTIPROC_DIR: /tmp
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Run unit tests
         id: unit_tests_run
@@ -222,10 +218,14 @@ jobs:
           MIDDLEWARE_TIME_TO_LIVE: 0
           ENHANCED_ORG_ADMIN: True
           ENABLE_S3_ARCHIVING: True
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Show test status
-        run: echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
+        id: show_test_status
+        run: |
+          echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
+          if [ "${{ steps.unit_tests_run.outcome }}" == "success" ]; then
+            echo "upload_coverage=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml
@@ -239,13 +239,15 @@ jobs:
 
   coverage:
     name: coverage
-    needs: units
+    needs: [changed-files,units]
     runs-on: ubuntu-20.04
     steps:
       - name: Download coverage result from units
         uses: actions/download-artifact@v3
         with:
           name: coverage
+        if: needs.units.outputs.upload_coverage == 'true'
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
         with:
@@ -254,7 +256,7 @@ jobs:
           name: Python-${{ matrix.python-version}}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
-        if: steps.unit_tests_run.outcome == 'success'
+        if: needs.units.outputs.upload_coverage == 'true'
 
       - name: Set Codecov job status on skipped tests
         env:
