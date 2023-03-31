@@ -24,6 +24,8 @@ def _get_database_name():
 
 TEST_CONFIGURATOR.get_database_name = staticmethod(_get_database_name)
 
+# test the action
+
 
 class TestDBPerformanceClass(IamTestCase):
     @classmethod
