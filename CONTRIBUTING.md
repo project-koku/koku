@@ -12,21 +12,21 @@ We use Github Issues to track bug reports and feature requests.
 
 When submitting a bug report, please be as detailed as possible. Include as much of these items as you have:
 
-> 1.  steps to reproduce the bug
-> 2.  error messages with stacktraces
-> 3.  logs
-> 4.  any relevant configuration settings
-> 5.  environment details
+1.  steps to reproduce the bug
+2.  error messages with stacktraces
+3.  logs
+4.  any relevant configuration settings
+5.  environment details
 
 When submitting a feature request, please submit them in the form of a user story with acceptance criteria:
 
-> As a \[user\], I want \[a thing\], So that \[some goal\].
->
-> When complete, I will be able to:
->
-> 1.  \[do this\]
-> 2.  \[do that\]
-> 3.  \[do another\]
+As a \[user\], I want \[a thing\], So that \[some goal\].
+
+When complete, I will be able to:
+
+1.  \[do this\]
+2.  \[do that\]
+3.  \[do another\]
 
 ## Contributing Code (Pull Requests)
 

@@ -8,21 +8,15 @@ Project Koku uses terminology in certain ways to describe key concepts.
 These are definitions of the term based on how they work within the
 context of the Koku application.
 
-::: {#customer}
-Customer: An organization or entity that uses Project Koku for cost
+**Customer** - An organization or entity that uses Project Koku for cost
 management analysis.
-:::
 
-::: {#provider}
-Source: A cloud resource provider or cloud data provider. An entity that
+**Source** - A cloud resource provider or cloud data provider. An entity that
 produces cost and resource usage data. This could be a public or private
 cloud.
-:::
 
-::: {#user}
-User - A user of the Project Koku application. Users map to an
+**User** - A user of the Project Koku application. Users map to an
 individual person or login with access to [customer](#customer) data.
-:::
 
 ## Development
 
