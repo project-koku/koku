@@ -69,8 +69,8 @@ jobs:
           fi
 
       - name: Setting smokes-required label
-        uses: actions/github-script@v6.3.3
         if: env.RUN_TESTS == 'true'
+        uses: actions/github-script@v6.3.3
         continue-on-error: true
         with:
           script: |
@@ -88,8 +88,8 @@ jobs:
             })
 
       - name: Remove smokes-required label
-        uses: actions/github-script@v6.3.3
         if: env.RUN_TESTS != 'true'
+        uses: actions/github-script@v6.3.3
         continue-on-error: true
         with:
           script: |
@@ -186,9 +186,9 @@ jobs:
           key: ${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}-${{ secrets.ACTIONS_CACHE_KEY_UUID }}
 
       - name: Install dependencies
+        if: needs.changed-files.outputs.run_tests == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
           pipenv install --dev --ignore-pipfile --python ${{ matrix.python-version }}
-        if: needs.changed-files.outputs.run_tests == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true'
 
       - name: Check migrations
         if: needs.changed-files.outputs.run_tests == 'true'
@@ -254,12 +254,13 @@ jobs:
           fetch-depth: 0
 
       - name: Download coverage result from units
+        if: needs.changed-files.outputs.run_tests == 'true'
         uses: actions/download-artifact@v3
         with:
           name: coverage
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Upload coverage to Codecov
+        if: needs.changed-files.outputs.run_tests == 'true'
         uses: codecov/codecov-action@v3.1.1
         with:
           file: ./coverage.xml
@@ -267,12 +268,11 @@ jobs:
           name: Python-${{ matrix.python-version}}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
-        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Set Codecov job status on skipped tests
+        if: needs.changed-files.outputs.run_tests != 'true'
         env:
           GITHUB_TOKEN: "${{ github.token }}"
         run: |
           gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/patch" -f state="success"
           gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/project" -f state="success"
-        if: needs.changed-files.outputs.run_tests != 'true'
