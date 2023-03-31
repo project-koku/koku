@@ -246,6 +246,8 @@ jobs:
     steps:
 
       - name: Checkout
+        # this checkout is required for the coverage report. If we don't do this, then
+        # the uploaded report is invalid and codecov doesn't know how to process it.
         if: needs.changed-files.outputs.run_tests == 'true'
         uses: actions/checkout@v3.1.0
         with:
