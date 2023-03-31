@@ -435,6 +435,19 @@ class AWSCategorySummary(models.Model):
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
 
 
+class AWSEnabledCategoryKeys(models.Model):
+    """A collection of the current enabled category keys."""
+
+    class Meta:
+        """Meta for AWSCategoryTagKeys."""
+
+        indexes = [models.Index(fields=["key", "enabled"], name="aws_enabled_category_key_index")]
+        db_table = "reporting_awsenabledcategorykeys"
+
+    key = models.CharField(max_length=253, primary_key=True)
+    enabled = models.BooleanField(default=True)
+
+
 # ======================================================
 #  Partitioned Models to replace matviews
 # ======================================================
