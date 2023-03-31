@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+# Direct dependencies
 adal = "*"
 app-common-python = ">=0.2.3"
 azure-identity = "*"
@@ -36,10 +37,8 @@ gunicorn = ">=20.0"
 ibm-cloud-sdk-core = ">=3.5.2"
 ibm-platform-services = ">=0.17.8"
 importlib-metadata = "*"
-jinja2 = "<3"
 jinjasql = ">=0.1"
 kafka-python = ">=2.0.1"
-markupsafe = "<2.1"
 msrestazure = "*"
 numpy = {version = "*", markers = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'"}
 oci = "*"
@@ -56,9 +55,14 @@ sentry-sdk = ">=0.13"
 statsmodels = ">=0.12"
 trino = "*"
 ujson = ">=1.35"
-unleashclient = "<5"
-watchtower = "==1.0.6"
+unleashclient = "<5"  # new version breaks for unknown reason
+watchtower = "1.0.6"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
+
+# Constraints on indirect dependencies
+jinja2 = "<3"   # jinjasql is not compatible with Jinja >=3 https://github.com/sripathikrishnan/jinjasql/pull/53
+markupsafe = "<2.1"  # jinja2 <3 tries to import markupsafe.soft_unicode which was removed in markupsafe 2.1
+
 
 [dev-packages]
 argh = ">=0.26.2"
