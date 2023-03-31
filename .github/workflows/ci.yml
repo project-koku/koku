@@ -231,6 +231,21 @@ jobs:
         run: pipenv run coverage xml
         if: steps.unit_tests_run.outcome == 'success'
 
+      - name: Upload test coverage file
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: coverage.xml
+
+  coverage:
+    name: coverage
+    needs: units
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download coverage result from units
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
         with:
