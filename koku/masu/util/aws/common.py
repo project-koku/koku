@@ -747,7 +747,7 @@ def get_column_converters():
         "line_item_unblended_cost": safe_float,
         "line_item_blended_rate": safe_float,
         "line_item_blended_cost": safe_float,
-        "pricing_public_ondemand_cost": safe_float,
-        "pricing_public_ondemand_rate": safe_float,
+        "pricing_public_on_demand_cost": safe_float,
+        "pricing_public_on_demand_rate": safe_float,
         "savings_plan_savings_plan_effective_cost": safe_float,
     }
