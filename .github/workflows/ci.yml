@@ -150,8 +150,6 @@ jobs:
           - '3.9'
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
-    outputs:
-      upload_coverage: ${{ steps.show_test_status.outputs.upload_coverage }}
 
     steps:
       - name: Checkout
@@ -221,11 +219,7 @@ jobs:
 
       - name: Show test status
         id: show_test_status
-        run: |
-          echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
-          if [ "${{ steps.unit_tests_run.outcome }}" == "success" ]; then
-            echo "upload_coverage=true" >> $GITHUB_OUTPUT
-          fi
+        run: echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml
@@ -240,13 +234,14 @@ jobs:
   coverage:
     name: Coverage
     needs: [changed-files,units]
+    if: always()  # forces this job to run even if `units` is skipped
     runs-on: ubuntu-20.04
     steps:
       - name: Download coverage result from units
         uses: actions/download-artifact@v3
         with:
           name: coverage
-        if: needs.units.outputs.upload_coverage == 'true'
+        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
@@ -256,7 +251,7 @@ jobs:
           name: Python-${{ matrix.python-version}}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
-        if: needs.units.outputs.upload_coverage == 'true'
+        if: needs.changed-files.outputs.run_tests == 'true'
 
       - name: Set Codecov job status on skipped tests
         env:
