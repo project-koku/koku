@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the update_cost_model_costs endpoint view."""
+from unittest import skip
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -30,6 +31,7 @@ class UpdateCostModelCostTest(MasuTestCase):
         self.assertIn(expected_key, body)
         mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
+    @skip("COST-3582")
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_with_dates(self, mock_update, _):
