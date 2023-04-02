@@ -66,8 +66,8 @@ costs**
 
 ## Create an Azure Account Source
 
-Using the information from the steps above which included the *Client
+Using the information from the steps above which included the Client
 ID, Directory, Tenant ID, Client Secret, Resource Group name, and
-storage account name* you can create an Azure account provider. Once
+storage account name you can create an Azure account provider. Once
 created the cost export data will be processed and made viewable within
 the system.
