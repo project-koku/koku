@@ -305,7 +305,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        start_date = dh.today - datetime.timedelta(days=2)
+        start_date = dh.this_month_start
         expected_months = [(start_date.strftime("%Y-%m-%d"), dh.today.date().strftime("%Y-%m-%d"), None)]
         returned_months = get_months_in_date_range(test_report)
         self.assertEqual(returned_months, expected_months)
@@ -319,7 +319,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         dh = DateHelper()
         start_date = str(dh.yesterday)
-        invoice_month = "202303"
+        invoice_month = dh.this_month_start.strftime("%Y%m")
         expected_months = [(start_date, dh.today.date().strftime("%Y-%m-%d"), invoice_month)]
         returned_months = get_months_in_date_range(
             report=None, start=start_date, end=None, invoice_month=invoice_month
@@ -335,7 +335,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         dh = DateHelper()
         start_date = str(dh.yesterday)
-        invoice_month = "202303"
+        invoice_month = dh.this_month_start.strftime("%Y%m")
         expected_months = [(start_date, dh.today.date().strftime("%Y-%m-%d"), invoice_month)]
         returned_months = get_months_in_date_range(
             report=None, start=start_date, end=None, invoice_month=invoice_month
