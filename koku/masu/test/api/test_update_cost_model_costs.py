@@ -9,6 +9,7 @@ from uuid import uuid4
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.utils import DateHelper
 from masu.processor.tasks import QUEUE_LIST
 from masu.test import MasuTestCase
 
@@ -37,7 +38,8 @@ class UpdateCostModelCostTest(MasuTestCase):
         params = {
             "schema": self.schema,
             "provider_uuid": self.ocp_provider_uuid,
-            "start_date": "2022-11-01",
+            "start_date": DateHelper().last_month_start,
+            "end_date": DateHelper().today,
         }
         expected_key = "Update Cost Model Cost Task ID"
 
