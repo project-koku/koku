@@ -582,10 +582,9 @@ def aws_post_processor(data_frame):
     org_columns = set(list(data_frame))
     columns = []
     for col in org_columns:
-        if "/" not in col:
-            if COL_TRANSLATION.get(col):
-                data_frame = data_frame.rename(columns={col: COL_TRANSLATION[col]})
-                columns.append(COL_TRANSLATION[col])
+        if "/" not in col and COL_TRANSLATION.get(col):
+            data_frame = data_frame.rename(columns={col: COL_TRANSLATION[col]})
+            columns.append(COL_TRANSLATION[col])
     columns = set(TRINO_REQUIRED_COLUMNS).union(data_frame)
     columns = sorted(list(columns))
 
