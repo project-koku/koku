@@ -488,7 +488,7 @@ class ParquetReportProcessor:
                 missing_cols = False
                 if not set(col_names).issuperset(REQUIRED_COLS):
                     missing_cols = True
-                    if missing_cols and self.col_checker:
+                    if self.col_checker:
                         missing_cols, REQUIRED_COLS = self.col_checker(col_names)
                 if missing_cols:
                     missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
