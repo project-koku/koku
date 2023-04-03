@@ -426,12 +426,10 @@ class TestAWSUtils(MasuTestCase):
             processed_data_frame, df_tag_keys = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
 
-        columns = list(processed_data_frame)
-
-        self.assertIn(expected_col_one, columns)
-        self.assertIn(expected_col_two, columns)
+        self.assertIn(expected_col_one, processed_data_frame)
+        self.assertIn(expected_col_two, processed_data_frame)
         for column in TRINO_REQUIRED_COLUMNS:
-            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
+            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), processed_data_frame)
 
     def test_aws_generate_daily_data(self):
         """Test that we aggregate data at a daily level."""
