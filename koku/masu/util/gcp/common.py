@@ -119,7 +119,7 @@ def gcp_post_processor(data_frame):
     for label in unique_labels:
         label_set.update(json.loads(label).keys())
 
-    return (data_frame, label_set)
+    return (data_frame, label_set, None)
 
 
 def get_column_converters():
