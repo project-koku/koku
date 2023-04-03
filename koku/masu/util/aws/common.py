@@ -579,7 +579,7 @@ def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
-    org_columns = set(list(data_frame))
+    org_columns = data_frame.columns.unique()
     columns = []
     for col in org_columns:
         if "/" not in col and COL_TRANSLATION.get(col):
