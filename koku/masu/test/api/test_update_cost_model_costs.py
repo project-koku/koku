@@ -38,7 +38,6 @@ class UpdateCostModelCostTest(MasuTestCase):
             "schema": self.schema,
             "provider_uuid": self.ocp_provider_uuid,
             "start_date": "2022-11-01",
-            "end_date": "2022-12-31",
         }
         expected_key = "Update Cost Model Cost Task ID"
 
