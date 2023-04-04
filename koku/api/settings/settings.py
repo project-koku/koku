@@ -326,7 +326,7 @@ class Settings:
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
         results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
 
-        category_settings = settings.api("api", {}).get("settings", {}).get("aws-category-management", {})
+        category_settings = settings.get("api", {}).get("settings", {}).get("aws-category-management", {})
         results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))
 
         if any(results):
