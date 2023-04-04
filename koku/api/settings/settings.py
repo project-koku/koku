@@ -39,6 +39,16 @@ from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
+obtainCategoryKeysParams = {
+    "aws": {
+        "provider": Provider.PROVIDER_AWS,
+        "title": "Amazon Web Services Catgories",
+        "leftLabel": "Available category keys",
+        "rightLabel": "Category keys for reporting",
+        "enabled_model": AWSEnabledCategoryKeys,
+    }
+}
+
 obtainTagKeysProvidersParams = {
     "openshift": {
         "provider": Provider.PROVIDER_OCP,
@@ -151,7 +161,7 @@ class Settings:
             "initialValue": enabled_objs,
             "clearedValue": [],
         }
-        dual_list_name = f"api.settings.{key_type}-management.enabled"
+        dual_list_name = f"api.settings.{format_key_type.replace('_','-')}-management.enabled"
         keys_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
 
         sub_form_fields.extend([enabled_key_title, key_text, keys_and_labels])
@@ -199,46 +209,37 @@ class Settings:
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
             sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
-            obtainCategoryKeysParams = {
-                "aws": {
-                    "provider": Provider.PROVIDER_AWS,
-                    "title": "Amazon Web Services tags",
-                    "leftLabel": "Available tags",
-                    "rightLabel": "Tags for reporting",
-                    "enabled_model": AWSEnabledCategoryKeys,
-                }
-            }
             sub_form_fields = self._build_enable_key_form(sub_form_fields, obtainCategoryKeysParams, "AWS category")
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
         return create_subform(sub_form_name, sub_form_title, sub_form_fields)
 
-    def _tag_key_handler(self, settings):
-        tag_delimiter = "-"
-        updated = [False] * len(obtainTagKeysProvidersParams)
+    def _enable_key_handler(self, settings, params, key_type):
+        enabled_delimiter = "-"
+        updated = [False] * len(params)
 
         with schema_context(self.schema):
-            for ix, provider_name in enumerate(obtainTagKeysProvidersParams):
-                enabled_tags_no_abbr = set()
-                enabled_tag_keys_class = obtainTagKeysProvidersParams[provider_name]["enabled_model"]
-                provider = obtainTagKeysProvidersParams[provider_name]["provider"]
-                available, enabled = self._obtain_enabled_keys(enabled_tag_keys_class)
+            for ix, provider_name in enumerate(params):
+                enabled_keys_no_abbr = set()
+                enabled_keys_class = params[provider_name]["enabled_model"]
+                provider = params[provider_name]["provider"]
+                available, enabled = self._obtain_enabled_keys(enabled_keys_class)
 
                 # build a list of enabled tags for a given provider, removing the provider name prefix
                 for enabled_tag in settings.get("enabled", []):
-                    if enabled_tag.startswith(provider_name + tag_delimiter):
-                        enabled_tags_no_abbr.add(enabled_tag.split(tag_delimiter, 1)[1])
+                    if enabled_tag.startswith(provider_name + enabled_delimiter):
+                        enabled_keys_no_abbr.add(enabled_tag.split(enabled_delimiter, 1)[1])
 
-                invalid_keys = {tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available}
+                invalid_keys = {enabled_key for enabled_key in enabled_keys_no_abbr if enabled_key not in available}
 
                 if invalid_keys:
                     key = "settings"
-                    message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
+                    message = f"Invalid {key_type} keys provided: {', '.join(invalid_keys)}."
                     raise ValidationError(error_obj(key, message))
 
-                if enabled_tags_no_abbr != enabled:
-                    updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys_class, enabled_tags_no_abbr)
+                if enabled_keys_no_abbr != enabled:
+                    updated[ix] = update_enabled_keys(self.schema, enabled_keys_class, enabled_keys_no_abbr)
 
                 if updated[ix]:
                     invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
@@ -315,16 +316,20 @@ class Settings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
+        results = []
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
-        currency_change = self._currency_handler(currency_settings)
+        results.append(self._currency_handler(currency_settings))
 
         cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
-        cost_type_change = self._cost_type_handler(cost_type_settings)
+        results.append(self._cost_type_handler(cost_type_settings))
 
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        tags_change = self._tag_key_handler(tg_mgmt_settings)
+        results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
 
-        if tags_change or currency_change or cost_type_change:
+        category_settings = settings.api("api", {}).get("settings", {}).get("aws-category-management", {})
+        results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))
+
+        if any(results):
             return True
 
         return False
