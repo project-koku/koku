@@ -33,6 +33,7 @@ from reporting.provider.aws.models import AWSCostSummaryByRegionP
 from reporting.provider.aws.models import AWSCostSummaryByServiceP
 from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.aws.models import AWSDatabaseSummaryP
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
