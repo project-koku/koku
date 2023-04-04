@@ -101,7 +101,8 @@ class ModelBakeryDataLoader(DataLoader):
             if isinstance(item, dict):
                 keys = item.keys()
                 for key in keys:
-                    baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                    with schema_context(self.schema):
+                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
 
     def _populate_exchange_rates(self):
         rates = [
