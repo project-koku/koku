@@ -84,6 +84,32 @@ obtainTagKeysProvidersParams = {
     },
 }
 
+enabledKeyFormUI = {
+    "tag": {
+        "params": obtainTagKeysProvidersParams,
+        "title": "Enable tag keys and labels",
+        "key_text_context": (
+            f"Enable your data source labels to be used as tag keys for report grouping and filtering."
+            + " Changes will be reflected within 24 hours. <link>Learn more</link>"
+        ),
+        "leftTitle": "Disabled tags/labels",
+        "rightTitle": "Enabled tags/labels",
+        "doc_link": "html/managing_cost_data_using_tagging/assembly-configuring-tags-and-labels-in-cost-management",
+        "api_settings_name": "tag",
+    },
+    "aws_category": {
+        "params": obtainCategoryKeysParams,
+        "title": "Enable AWS category keys",
+        "key_text_context": (
+            f"Enable your data source labels to be used as AWS category keys for report grouping and filtering."
+            + " Changes will be reflected within 24 hours. <link>Learn more</link>"
+        ),
+        "leftTitle": "Disabled AWS category keys",
+        "rightTitle": "Enabled AWS category keys",
+        "api_settings_name": "aws-category",
+    },
+}
+
 
 class Settings:
     """Class for generating Cost Management settings."""
@@ -114,21 +140,17 @@ class Settings:
                     enabled.add(key.key)
         return all_keys_set, enabled
 
-    def _build_enable_key_form(self, sub_form_fields, provider_params, key_type, doc_link=None):
+    def _build_enable_key_form(self, sub_form_fields, key_type):
         """Builds an enabled key form."""
-        format_key_type = key_type.lower().replace(" ", "_")
-        key_text_name = f"{SETTINGS_PREFIX}.{format_key_type}_management.form-text"
-        enabled_key_title = create_plain_text(key_text_name, f"Enable {key_type} keys and labels", "h2")
-        key_text_context = (
-            f"Enable your data source labels to be used as {key_type} keys for report grouping and filtering."
-            + " Changes will be reflected within 24 hours. <link>Learn more</link>"
-        )
-        if doc_link:
+        provider_params = enabledKeyFormUI[key_type]["params"]
+        key_text_name = f"{SETTINGS_PREFIX}.{key_type}_management.form-text"
+        enabled_key_title = create_plain_text(key_text_name, enabledKeyFormUI[key_type]["title"], "h2")
+        if doc_link := enabledKeyFormUI[key_type].get("doc_link"):
             key_text = create_plain_text_with_doc(
-                key_text_name, key_text_context, dict(href=generate_doc_link(doc_link))
+                key_text_name, enabledKeyFormUI[key_type]["key_text_context"], dict(href=generate_doc_link(doc_link))
             )
         else:
-            key_text = create_plain_text(key_text_name, key_text_context, "h3")
+            key_text = create_plain_text(key_text_name, enabledKeyFormUI[key_type]["key_text_context"], "h3")
 
         avail_objs = []
         enabled_objs = []
@@ -151,12 +173,12 @@ class Settings:
         dual_list_options = {
             "isTree": "true",
             "options": avail_objs,
-            "leftTitle": "Disabled tags/labels",
-            "rightTitle": "Enabled tags/labels",
+            "leftTitle": enabledKeyFormUI[key_type]["leftTitle"],
+            "rightTitle": enabledKeyFormUI[key_type]["rightTitle"],
             "initialValue": enabled_objs,
             "clearedValue": [],
         }
-        dual_list_name = f"api.settings.{format_key_type.replace('_','-')}-management.enabled"
+        dual_list_name = f"api.settings.{enabledKeyFormUI[key_type]['api_settings_name']}-management.enabled"
         keys_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
 
         sub_form_fields.extend([enabled_key_title, key_text, keys_and_labels])
@@ -179,10 +201,7 @@ class Settings:
         }
         currency = create_select(currency_select_name, **currency_options)
         sub_form_fields = [currency_title, currency_select_text, currency]
-        tag_doc_link = "html/managing_cost_data_using_tagging/assembly-configuring-tags-and-labels-in-cost-management"
-        sub_form_fields = self._build_enable_key_form(
-            sub_form_fields, obtainTagKeysProvidersParams, "tag", tag_doc_link
-        )
+        sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
         has_aws_providers = customer_specific_providers.filter(type__icontains=Provider.PROVIDER_AWS).exists()
@@ -203,7 +222,7 @@ class Settings:
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
             sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
-            sub_form_fields = self._build_enable_key_form(sub_form_fields, obtainCategoryKeysParams, "AWS category")
+            sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
@@ -323,7 +342,4 @@ class Settings:
         category_settings = settings.get("api", {}).get("settings", {}).get("aws-category-management", {})
         results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))
 
-        if any(results):
-            return True
-
-        return False
+        return any(results)

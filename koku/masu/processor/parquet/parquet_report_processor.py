@@ -337,6 +337,13 @@ class ParquetReportProcessor:
         return None
 
     @property
+    def enabled_category_model(self):
+        """Return the enabled tags model class."""
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return AWSEnabledCategoryKeys
+        return None
+
+    @property
     def csv_columns(self):
         """Return the required CSV columns if we need to filter them"""
         if self.provider_type == Provider.PROVIDER_AWS:
@@ -473,7 +480,7 @@ class ParquetReportProcessor:
         converters = self._get_column_converters()
         csv_path, csv_name = os.path.split(csv_filename)
         unique_keys = set()
-        aws_category_keys = set()
+        category_keys = set()
         parquet_file = None
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
@@ -517,13 +524,14 @@ class ParquetReportProcessor:
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     if self.post_processor:
                         data_frame = self.post_processor(data_frame)
-                        if isinstance(data_frame, tuple):
-                            data_frame, data_frame_tag_keys, category_keys = data_frame
-                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
-                            unique_keys.update(data_frame_tag_keys)
-                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                            if category_keys:
-                                aws_category_keys.update(category_keys)
+                        data_frame, data_frame_tag_keys, df_category_keys = data_frame
+                        LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
+                        unique_keys.update(data_frame_tag_keys)
+                        LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                        if category_keys:
+                            LOG.info(f"updating category keys: {df_category_keys}")
+                            category_keys.update(df_category_keys)
+                            LOG.info(f"Total unique category keys: {category_keys}")
                     if self.daily_data_processor is not None:
                         daily_data_frames.append(self.daily_data_processor(data_frame))
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
@@ -532,8 +540,8 @@ class ParquetReportProcessor:
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
-            if aws_category_keys:
-                create_enabled_keys(self._schema_name, AWSEnabledCategoryKeys, aws_category_keys)
+            if df_category_keys and self.enabled_category_model:
+                create_enabled_keys(self._schema_name, self.enabled_category_model, df_category_keys)
 
         except Exception as err:
             msg = (
