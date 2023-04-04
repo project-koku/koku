@@ -151,7 +151,7 @@ NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
 # to the data frames.
-REPORT_TYPES = {
+OCP_REPORT_TYPES = {
     "storage_usage": {
         "columns": STORAGE_COLUMNS,
         "enum": OCPReportTypes.STORAGE,
@@ -377,7 +377,7 @@ def detect_type(report_path):
     Detects the OCP report type.
     """
     columns = pd.read_csv(report_path, nrows=0).columns
-    for report_type, report_def in REPORT_TYPES.items():
+    for report_type, report_def in OCP_REPORT_TYPES.items():
         report_columns = report_def.get("columns")
         if report_columns.issubset(columns):
             return report_type, report_def.get("enum")
@@ -478,7 +478,7 @@ def ocp_generate_daily_data(data_frame, report_type):
     if data_frame.empty:
         return data_frame
 
-    report = REPORT_TYPES.get(report_type, {})
+    report = OCP_REPORT_TYPES.get(report_type, {})
     group_bys = copy.deepcopy(report.get("group_by", []))
     group_bys.append(pd.Grouper(key="interval_start", freq="D"))
     aggs = report.get("agg", {})

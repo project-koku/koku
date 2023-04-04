@@ -4,7 +4,6 @@
 #
 """Data Driven Component Generation for Tag Management Settings."""
 import logging
-import re
 
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
@@ -27,8 +26,6 @@ from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from koku.feature_flags import fallback_development_true
-from koku.feature_flags import UNLEASH_CLIENT
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import AWSEnabledTagKeys
@@ -96,8 +93,6 @@ class Settings:
         self.request = request
         self.factory = RequestFactory()
         self.schema = request.user.customer.schema_name
-
-        self.unleash_context = {"userId": re.sub(r"\D+", "", self.schema)}
 
     def _get_tag_management_prefix(self, providerName):
         return f"{SETTINGS_PREFIX}.tag-management.{providerName}"
@@ -173,18 +168,17 @@ class Settings:
         """
 
         sub_form_fields = []
-        if UNLEASH_CLIENT.is_enabled("cost-management.ui.currency", self.unleash_context, fallback_development_true):
-            currency_select_name = "api.settings.currency"
-            currency_text_context = "Select the preferred currency view for your organization."
-            currency_title = create_plain_text(currency_select_name, "Currency", "h2")
-            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
-            currency_options = {
-                "options": get_currency_options(),
-                "initialValue": get_selected_currency_or_setup(self.schema),
-                "FormGroupProps": {"style": {"width": "400px"}},
-            }
-            currency = create_select(currency_select_name, **currency_options)
-            sub_form_fields = [currency_title, currency_select_text, currency]
+        currency_select_name = "api.settings.currency"
+        currency_text_context = "Select the preferred currency view for your organization."
+        currency_title = create_plain_text(currency_select_name, "Currency", "h2")
+        currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
+        currency_options = {
+            "options": get_currency_options(),
+            "initialValue": get_selected_currency_or_setup(self.schema),
+            "FormGroupProps": {"style": {"width": "400px"}},
+        }
+        currency = create_select(currency_select_name, **currency_options)
+        sub_form_fields = [currency_title, currency_select_text, currency]
         tag_doc_link = "html/managing_cost_data_using_tagging/assembly-configuring-tags-and-labels-in-cost-management"
         sub_form_fields = self._build_enable_key_form(
             sub_form_fields, obtainTagKeysProvidersParams, "tag", tag_doc_link

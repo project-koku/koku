@@ -6,7 +6,6 @@
 import logging
 import random
 from unittest import skip
-from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -68,8 +67,7 @@ class SettingsViewTest(IamTestCase):
             {"name": "gcp", "label": "Google Cloud Platform tags"},
         ]
 
-        with patch("api.settings.settings.UNLEASH_CLIENT.is_enabled", return_value=True):
-            response = self.get_settings()
+        response = self.get_settings()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         duallist = self.get_duallist_from_response(response)
         all_enabled_tags = duallist.get("initialValue")
