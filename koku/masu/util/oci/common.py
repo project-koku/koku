@@ -21,6 +21,8 @@ from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
+OCI_REPORT_TYPES = {"cost", "usage"}
+
 
 def get_column_converters():
     """Return source specific parquet column converters."""
