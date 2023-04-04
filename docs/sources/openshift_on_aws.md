@@ -1,4 +1,4 @@
-# Running Openshift on AWS
+# Running OpenShift on AWS
 
 If sources have been successfully configured for AWS and OpenShift and
 the OpenShift cluster is running on AWS, then the AWS cost and usage
@@ -29,48 +29,48 @@ Information about creating OpenShift labels can be found here:
 In order for an AWS tag to match an OpenShift label it must meet one of
 the following criteria.
 
-> 1.  The lowercase version of the AWS tag key must match the lowercase
->     version of the OpenShift label key. The lowercase version of the
->     AWS tag value must match the lowercase version of the OpenShift
->     label value.
->
->     > The following examples would meet this requirment.
->     >
->     > :   (AWS key:value) == (OpenShift key:value)
->     >     environment:production == environment:production
->     >     Environment:production == environment:production
->     >     Environment:Production == environment:PRODUCTION
->
-> 2.  The lowercase version of the AWS tag key is
->     [openshift_cluster]{.title-ref} and the lowercase value of the tag
->     matches the lowercase OpenShift cluster name.
->
->     > The following example would meet this requirment.
->     >
->     > :   (AWS key:value) (OpenShift cluster name)
->     >     Openshift_cluster:Openshift_1 == Openshift_1
->
-> 3.  The lowercase version of the AWS tag key is
->     [openshift_project]{.title-ref} and the lowercase value of the tag
->     matches a lowercase OpenShift project name in the cluster.
->
->     > The following example would meet this requirment.
->     >
->     > :   (AWS key:value) (OpenShift project name)
->     >     Openshift_Project:Cost_Management == Cost_Management
->
-> 4.  The lowercase version of the AWS tag key is
->     [openshift_node]{.title-ref} and the lowercase value of the tag
->     matches a lowercase OpenShift node name in the cluster.
->
->     > The following example would meet this requirment.
->     >
->     > :   (AWS key:value) (OpenShift node name)
->     >     Openshift_node:compute_1 == COMPUTE_1
+ 1. The lowercase version of the AWS tag key must match the lowercase
+    version of the OpenShift label key. The lowercase version of the
+    AWS tag value must match the lowercase version of the OpenShift
+    label value.
+
+     The following examples would meet this requirment.
+
+        (AWS key:value) == (OpenShift key:value)
+        environment:production == environment:production
+        Environment:production == environment:production
+        Environment:Production == environment:PRODUCTION
+
+ 1. The lowercase version of the AWS tag key is
+    `openshift_cluster` and the lowercase value of the tag
+    matches the lowercase OpenShift cluster name.
+
+    The following example would meet this requirment.
+
+        (AWS key:value) (OpenShift cluster name)
+        Openshift_cluster:Openshift_1 == Openshift_1
+
+ 1. The lowercase version of the AWS tag key is
+    `openshift_project` and the lowercase value of the tag
+    matches a lowercase OpenShift project name in the cluster.
+
+    The following example would meet this requirment.
+
+        (AWS key:value) (OpenShift project name)
+        Openshift_Project:Cost_Management == Cost_Management
+
+ 1. The lowercase version of the AWS tag key is
+    `openshift_node` and the lowercase value of the tag
+    matches a lowercase OpenShift node name in the cluster.
+
+    The following example would meet this requirment.
+
+        (AWS key:value) (OpenShift node name)
+        Openshift_node:compute_1 == COMPUTE_1
 
 If an AWS resource tag matches with multiple OpenShift projects, the
 cost and usage of that resource are split evenly between the matched
 projects. Note that this is not the case with AWS compute resources that
 are matched via the instance id - node relationship. In that case cost
-and usage are broken down using information about a project\'s resource
+and usage are broken down using information about a project's resource
 consumption within the OpenShift environment.
