@@ -5,7 +5,10 @@
 """Test the API utils module."""
 import datetime
 import unittest
+from unittest.mock import patch
+from unittest.mock import PropertyMock
 
+import pytz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.test import TestCase
@@ -276,105 +279,176 @@ class GeneralUtilsTest(IamTestCase):
 class GetMonthsInDateRangeTest(unittest.TestCase):
     """Test the get_months_in_date_range util."""
 
-    def test_get_months_in_date_range__report_with_dates(self):
+    @patch("api.utils.DateAccessor.today")
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__report_with_dates(self, mock_dh_today, mock_date_accessor_today):
         """Test that calling get_months_in_date_range with report only returns list of month tuples"""
 
-        dh = DateHelper()
-        start_date = dh.yesterday
-        end_date = dh.today
+        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
+        mock_date_accessor_today.return_value = start_date
+        mock_dh_today.return_value = start_date
         test_report = {
             "schema": "org1234567",
-            "start": str(start_date),
-            "end": str(end_date),
+            "start": start_date.strftime("%Y-%m-%d"),
+            "end": end_date.strftime("%Y-%m-%d"),
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
+        expected_months = [("2023-04-03", "2023-04-12", None)]
 
-        expected_months = [(start_date.date().strftime("%Y-%m-%d"), end_date.date().strftime("%Y-%m-%d"), None)]
         returned_months = get_months_in_date_range(test_report)
+
         self.assertEqual(returned_months, expected_months)
 
-    def test_get_months_in_date_range__report_with_no_dates(self):
+    @patch("api.utils.DateAccessor.today")
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__report_with_no_dates(self, mock_dh_today, mock_date_accessor_today):
         """
         Test that calling get_months_in_date_range
         with a report missing start, end or both dates
-        returns list of month tuples.
+        returns list of month tuples for middle of the month
         """
 
-        dh = DateHelper()
+        start_date = datetime.datetime(2023, 1, 15, tzinfo=pytz.UTC)
+        mock_date_accessor_today.return_value = start_date
+        mock_dh_today.return_value = start_date
         test_report = {
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        start_date = dh.this_month_start
-        expected_months = [(start_date.strftime("%Y-%m-%d"), dh.today.date().strftime("%Y-%m-%d"), None)]
+        expected_months = [("2023-01-01", "2023-01-15", None)]
+
         returned_months = get_months_in_date_range(test_report)
+
         self.assertEqual(returned_months, expected_months)
 
-    def test_get_months_in_date_range__start_invoice_month_only(self):
+    @patch("api.utils.DateAccessor.today")
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__report_with_no_dates_year_start(self, mock_dh_today, mock_date_accessor_today):
+        """
+        Test that calling get_months_in_date_range
+        with a report missing start, end or both dates
+        returns list of month tuples at the beginning of the year
+        """
+
+        start_date = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
+        mock_date_accessor_today.return_value = start_date
+        mock_dh_today.return_value = start_date
+        test_report = {
+            "schema": "org1234567",
+            "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
+        }
+        expected_months = [("2023-01-01", "2023-01-01", None)]
+
+        returned_months = get_months_in_date_range(test_report)
+
+        self.assertEqual(returned_months, expected_months)
+
+    @patch("api.utils.DateAccessor.today")
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__report_with_no_dates_month_start(self, mock_dh_today, mock_date_accessor_today):
+        """
+        Test that calling get_months_in_date_range
+        with a report missing start, end or both dates
+        returns list of month tuples during first of a month
+        """
+
+        start_date = datetime.datetime(2023, 6, 1, tzinfo=pytz.UTC)
+        mock_date_accessor_today.return_value = start_date
+        mock_dh_today.return_value = start_date
+        test_report = {
+            "schema": "org1234567",
+            "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
+        }
+        expected_months = [("2023-06-01", "2023-06-01", None)]
+
+        returned_months = get_months_in_date_range(test_report)
+
+        self.assertEqual(returned_months, expected_months)
+
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__start_invoice_month_only(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with invoice_month and start_date only
         returns list of month tuples.
         """
 
-        dh = DateHelper()
-        start_date = str(dh.yesterday)
-        invoice_month = dh.this_month_start.strftime("%Y%m")
-        expected_months = [(start_date, dh.today.date().strftime("%Y-%m-%d"), invoice_month)]
+        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
+        mock_dh_today.return_value.date.return_value = start_date
+        invoice_month = start_date.strftime("%Y%m")
+        expected_months = [("2023-04-03", "2023-04-03", invoice_month)]
+
         returned_months = get_months_in_date_range(
-            report=None, start=start_date, end=None, invoice_month=invoice_month
+            report=None, start=start_date.strftime("%Y-%m-%d"), end=None, invoice_month=invoice_month
         )
+
         self.assertEqual(returned_months, expected_months)
 
-    def test_get_months_in_date_range__start_end_invoice_month(self):
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__start_end_invoice_month(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with start and end dates, and invoice_month only
         returns list of month tuples.
         """
 
-        dh = DateHelper()
-        start_date = str(dh.yesterday)
-        invoice_month = dh.this_month_start.strftime("%Y%m")
-        expected_months = [(start_date, dh.today.date().strftime("%Y-%m-%d"), invoice_month)]
+        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
+        mock_dh_today.return_value = start_date
+        invoice_month = start_date.strftime("%Y%m")
+        expected_months = [("2023-04-03", "2023-04-12", invoice_month)]
+
         returned_months = get_months_in_date_range(
-            report=None, start=start_date, end=None, invoice_month=invoice_month
+            report=None,
+            start=start_date.strftime("%Y-%m-%d"),
+            end=end_date.strftime("%Y-%m-%d"),
+            invoice_month=invoice_month,
         )
+
         self.assertEqual(returned_months, expected_months)
 
-    def test_get_months_in_date_range__start_end_only(self):
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__start_end_only(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with start and end dates only
         returns list of month tuples.
         """
 
-        dh = DateHelper()
-        start_date = dh.yesterday
-        end_date = dh.today
-        expected_months = [(start_date.date().strftime("%Y-%m-%d"), end_date.date().strftime("%Y-%m-%d"), None)]
-        returned_months = get_months_in_date_range(report=None, start=str(start_date), end=str(end_date))
+        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
+        mock_dh_today.return_value = start_date
+        expected_months = [("2023-04-03", "2023-04-12", None)]
+
+        returned_months = get_months_in_date_range(
+            report=None, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d")
+        )
+
         self.assertEqual(returned_months, expected_months)
 
-    def test_get_months_in_date_range__early_start_date(self):
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__early_start_date(self, mock_dh_today):
         """
         Test that get_months_in_date_range
         with a start date earlier than configured INITIAL_INGEST_NUM_MONTHS
         returns list of month tuples.
         """
 
-        Config.INITIAL_INGEST_NUM_MONTHS = 1
-        dh = DateHelper()
-        previous_month = dh.previous_month(dh.last_month_start)
-        end_date = dh.today
-        expected_months = [
-            (dh.last_month_start.date().strftime("%Y-%m-%d"), dh.last_month_end.date().strftime("%Y-%m-%d"), None),
-            (dh.this_month_start.date().strftime("%Y-%m-%d"), end_date.date().strftime("%Y-%m-%d"), None),
-        ]
-        returned_months = get_months_in_date_range(report=None, start=str(previous_month), end=str(end_date))
+        Config.INITIAL_INGEST_NUM_MONTHS = 0
+        start_date = datetime.datetime(2022, 4, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2023, 4, 4, tzinfo=pytz.UTC)
+        mock_dh_today.return_value = end_date
+        expected_months = [("2023-04-01", "2023-04-04", None)]
+
+        returned_months = get_months_in_date_range(
+            report=None, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d")
+        )
+
         self.assertEqual(returned_months, expected_months)
 
-    def test_get_months_in_date_range__early_start_early_end_dates(self):
+    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
+    def test_get_months_in_date_range__early_start_early_end_dates(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with both start and end dates earlier than configured INITIAL_INGEST_NUM_MONTHS
@@ -382,11 +456,13 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """
 
         Config.INITIAL_INGEST_NUM_MONTHS = 0
-        dh = DateHelper()
-        previous_month_start = dh.last_month_start
-        previous_month_end = dh.last_month_end
-        expected_months = [(dh.today.date().strftime("%Y-%m-01"), dh.today.date().strftime("%Y-%m-%d"), None)]
+        start_date = datetime.datetime(2022, 1, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2022, 3, 4, tzinfo=pytz.UTC)
+        mock_dh_today.return_value = datetime.datetime(2023, 4, 4, tzinfo=pytz.UTC)
+        expected_months = [("2023-04-01", "2023-04-04", None)]
+
         returned_months = get_months_in_date_range(
-            report=None, start=str(previous_month_start), end=str(previous_month_end)
+            report=None, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d")
         )
+
         self.assertEqual(returned_months, expected_months)

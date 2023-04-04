@@ -483,10 +483,10 @@ def get_months_in_date_range(report=None, start=None, end=None, invoice_month=No
 
     # Grabbing ingest delta for initial ingest/summary
     summary_month = dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)
-    if start_date < summary_month.strftime("%Y-%m-01"):
+    if datetime.datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.UTC) < summary_month:
         start_date = summary_month.strftime("%Y-%m-01")
 
-    if end_date and end_date < summary_month.strftime("%Y-%m-%d"):
+    if end_date and datetime.datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.UTC) < summary_month:
         end_date = dh.today.strftime("%Y-%m-%d")
 
     if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
