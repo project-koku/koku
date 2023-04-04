@@ -464,7 +464,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             row_count = table_query.count()
 
             # Change the cluster on some rows
-            update_uuids = table_query.values_list("uuid")[0 : round(row_count / 2, 2)]  # noqa: E203
+            update_uuids = table_query.values_list("uuid")[0 : round(row_count / 2, 2)]
             table_query.filter(uuid__in=update_uuids).update(cluster_id=new_cluster_id)
 
             self.assertNotEqual(row_count, 0)
@@ -630,3 +630,18 @@ class AWSReportDBAccessorTest(MasuTestCase):
         invoice_ids = self.accessor.check_for_invoice_id_trino(str(self.aws_provider.uuid), check_date)
 
         self.assertEqual(invoice_ids, expected)
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
+    def test_truncate_partition(self, mock_query):
+        """Test that the truncate partition method works."""
+
+        with self.assertLogs("masu.database.report_db_accessor_base", level="WARNING") as log:
+            bad_partition_name = "table_without_date_partition"
+            expected = "Invalid paritition provided. No TRUNCATE performed."
+            self.accessor.truncate_partition(bad_partition_name)
+            self.assertIn(expected, log.output[0])
+            mock_query.assert_not_called()
+
+        partition_name = "table_name_2023_03"
+        self.accessor.truncate_partition(partition_name)
+        mock_query.assert_called()

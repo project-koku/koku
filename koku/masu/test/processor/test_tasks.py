@@ -803,7 +803,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             tracing_id=tracing_id,
             synchronous=True,
         )
-        mock_chain.assert_called_once_with(
+        mock_chain.assert_called_with(
             mark_manifest_complete.s(
                 self.schema,
                 provider,
@@ -837,7 +837,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             synchronous=True,
             invoice_month=invoice_month,
         )
-        mock_chain.assert_called_once_with(
+        mock_chain.assert_called_with(
             update_cost_model_costs.s(self.schema, self.gcp_provider_uuid, ANY, ANY, tracing_id=tracing_id).set(
                 queue=UPDATE_COST_MODEL_COSTS_QUEUE
             )
@@ -849,6 +849,33 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
+        mock_chain.return_value.apply_async.assert_called()
+
+    @patch("masu.util.common.trino_db.connect")
+    @patch("masu.processor.tasks.update_openshift_on_cloud")
+    @patch("masu.processor.tasks.delete_openshift_on_cloud_data")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    def test_update_summary_tables_ocp_on_cloud(self, mock_accessor, mock_chain, mock_delete, mock_update, _):
+        """Test that we call delete tasks and ocp on cloud summary"""
+        dh = DateHelper()
+        start_date = dh.last_month_start
+        end_date = dh.last_month_end
+        manifest_id = 1
+        tracing_id = "1234"
+
+        update_summary_tables(
+            self.schema,
+            self.aws_provider.type,
+            str(self.aws_provider.uuid),
+            start_date,
+            end_date,
+            manifest_id,
+            tracing_id=tracing_id,
+            synchronous=True,
+        )
+        mock_delete.si.assert_called()
+        mock_update.si.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")

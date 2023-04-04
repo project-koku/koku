@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
+import datetime
 import logging
 from decimal import Decimal
 
@@ -12,6 +13,7 @@ from tenant_schemas.utils import schema_context
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -29,27 +31,132 @@ from masu.util.gcp.common import get_bills_from_provider as gcp_get_bills_from_p
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
+from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
-from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
 LOG = logging.getLogger(__name__)
+
+TRUNCATE_TABLE = "truncate"
+DELETE_TABLE = "delete"
 
 
 class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
     """Class to update OCP report summary data."""
+
+    @property
+    def provider_type(self):
+        """Return the type of the provider used."""
+        return self._provider.type
+
+    @property
+    def daily_summary_table(self):
+        """Return the model class for the provider's OCP on Cloud daily summary table."""
+        if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            return OCPAWSCostLineItemProjectDailySummaryP
+        elif self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            return OCPAzureCostLineItemProjectDailySummaryP
+        elif self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            return OCPGCPCostLineItemProjectDailySummaryP
+        return None
+
+    @property
+    def ui_summary_tables(self):
+        """Return the list of table names for UI summary."""
+        if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            return OCPAWS_UI_SUMMARY_TABLES
+        elif self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            return OCPAZURE_UI_SUMMARY_TABLES
+        elif self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            return OCPGCP_UI_SUMMARY_TABLES
+        return []
+
+    @property
+    def db_accessor(self):
+        """Return the model class for the provider's OCP on Cloud daily summary table."""
+        if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            return AWSReportDBAccessor
+        elif self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            return AzureReportDBAccessor
+        elif self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            return GCPReportDBAccessor
+        return None
+
+    def _can_truncate(self, start_date, end_date):
+        """If summarizing a full month, we can TRUNCATE instead of DELETE"""
+        dh = DateHelper()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+        if isinstance(end_date, datetime.datetime):
+            end_date = end_date.date()
+
+        month_start = dh.month_start(start_date)
+        month_end = dh.month_end(start_date)
+
+        if start_date == month_start and end_date == month_end:
+            # We do not want to TRUNCATE this table when multiple cloud sources contribute to the data
+            infra_source_count = (
+                Provider.objects.filter(
+                    customer__schema_name=self._schema, infrastructure__infrastructure_type=self.provider_type
+                )
+                .values_list("infrastructure_id")
+                .distinct()
+                .count()
+            )
+            if infra_source_count < 2:
+                return True
+
+        return False
 
     def get_infra_map(self, start_date, end_date):
         """Get the map of cloud source and associated OpenShift clusters."""
         infra_map = self.get_infra_map_from_providers()
         openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
 
-        if (self._provider.type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
-            self._provider.type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
+        if (self.provider_type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
+            self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
         ):
             infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
         return infra_map
+
+    def determine_truncates_and_deletes(self, start_date, end_date):
+        """Clear out existing data in summary tables."""
+        trunc_delete_map = {}
+        if self._can_truncate(start_date, end_date):
+            partition_str = f"_{start_date.strftime('%Y')}_{start_date.strftime('%m')}"
+            trunc_delete_map[self.daily_summary_table.objects.model._meta.db_table + partition_str] = TRUNCATE_TABLE
+            for table in self.ui_summary_tables:
+                trunc_delete_map[table + partition_str] = TRUNCATE_TABLE
+        else:
+            trunc_delete_map[self.daily_summary_table.objects.model._meta.db_table] = DELETE_TABLE
+            for table in self.ui_summary_tables:
+                trunc_delete_map[table] = DELETE_TABLE
+
+        return trunc_delete_map
+
+    def delete_summary_table_data(self, start_date, end_date, table):
+        """Clear out existing data in summary tables."""
+        filters = {"source_uuid": str(self._provider.uuid)}
+        dh = DateHelper()
+        month_start = dh.month_start(start_date)
+        with self.db_accessor(self._schema) as accessor:
+            if table == self.daily_summary_table._meta.db_table:
+                with schema_context(self._schema):
+                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date=month_start)
+                    current_bill_id = bills.first().id if bills else None
+                filters = {
+                    "cost_entry_bill_id": current_bill_id
+                }  # Use cost_entry_bill_id to leverage DB index on DELETE
+            accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                self._provider.uuid, start_date, end_date, table=table, filters=filters
+            )
+
+    def truncate_summary_table_data(self, partition_name):
+        """Clear out existing data in summary tables by TRUNCATE."""
+        with self.db_accessor(self._schema) as accessor:
+            accessor.truncate_partition(partition_name)
 
     def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
         """Populate the summary tables for reporting.
@@ -148,7 +255,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with AWSReportDBAccessor(self._schema) as accessor:
+        with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on AWS summary table for "
@@ -161,12 +268,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     cluster_id,
                     current_aws_bill_id,
                 )
-                filters = {
-                    "report_period_id": current_ocp_report_period_id
-                }  # Use report_period_id to leverage DB index on DELETE
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters, table=OCPAWSCostLineItemProjectDailySummaryP
-                )
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
                     end,
@@ -177,20 +278,21 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     markup_value,
                     distribution,
                 )
-            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
-            accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
+                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start, end)
+                accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
                 LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start_date} e={end_date})")
-                ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
-                ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
-                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
-
-                ocp_accessor.populate_ui_summary_tables(
-                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    sql_params["start_date"] = start
+                    sql_params["end_date"] = end
+                    ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
+                    ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
+                    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
         with schema_context(self._schema):
@@ -265,7 +367,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on Azure summary table for "
@@ -278,12 +380,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     cluster_id,
                     current_azure_bill_id,
                 )
-                filters = {
-                    "report_period_id": current_ocp_report_period_id
-                }  # Use report_period_id to leverage DB index on DELETE
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters, table=OCPAzureCostLineItemProjectDailySummaryP
-                )
                 accessor.populate_ocp_on_azure_cost_daily_summary_trino(
                     start,
                     end,
@@ -294,20 +390,21 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     markup_value,
                     distribution,
                 )
-            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
-            accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
+                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start, end)
+                accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "Azure"
                 LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    sql_params["start_date"] = start
+                    sql_params["end_date"] = end
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
-
-                ocp_accessor.populate_ui_summary_tables(
-                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
         with schema_context(self._schema):
@@ -381,7 +478,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with GCPReportDBAccessor(self._schema) as accessor:
+        with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on GCP summary table for "
@@ -393,12 +490,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     end,
                     cluster_id,
                     current_gcp_bill_id,
-                )
-                filters = {
-                    "report_period_id": current_ocp_report_period_id
-                }  # Use report_period_id to leverage DB index on DELETE
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters, table=OCPGCPCostLineItemProjectDailySummaryP
                 )
                 if summarize_ocp_on_gcp_by_node(self._schema):
                     for node in nodes:
@@ -429,20 +520,22 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         distribution,
                     )
 
-            accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
-            accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
+                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
+                accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start, end)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
                 LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
-                ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
-                ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
-                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    sql_params["start_date"] = start
+                    sql_params["end_date"] = end
+                    ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
+                    ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
+                    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
-                ocp_accessor.populate_ui_summary_tables(
-                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
         LOG.info("Updating ocp_on_cloud_updated_datetime on OpenShift report periods")
         with schema_context(self._schema):
             report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")

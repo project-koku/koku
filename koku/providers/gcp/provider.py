@@ -2,6 +2,7 @@
 import logging
 
 import google.auth
+from google.auth.exceptions import RefreshError
 from google.cloud import bigquery
 from google.cloud import storage
 from google.cloud.exceptions import BadRequest
@@ -148,6 +149,10 @@ class GCPProvider(ProviderInterface):
         except GoogleCloudError as e:
             key = "authentication.project_id"
             raise serializers.ValidationError(error_obj(key, e.message))
+        except RefreshError as err:
+            key = "authentication.project_id"
+            message = f"{project} encountered a refresh error. Retryable: {err.retryable}"
+            raise serializers.ValidationError(error_obj(key, message))
         except HttpError as err:
             reason = err._get_reason()
             if reason == "Not Found":

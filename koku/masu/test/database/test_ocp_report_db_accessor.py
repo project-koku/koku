@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+import pkgutil
 import random
 import uuid
 from collections import defaultdict
@@ -960,3 +961,46 @@ select * from eek where val1 in {{report_period_id}} ;
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
             self.assertIn(expected, logger.output)
+
+    def test_populate_platform_and_worker_distributed_cost_sql_no_report_period(self):
+        """Test that updating monthly costs without a matching report period no longer throws an error"""
+        start_date = "2000-01-01"
+        end_date = "2000-02-01"
+        result = self.accessor.populate_platform_and_worker_distributed_cost_sql(
+            start_date, end_date, self.provider_uuid, {"platform_cost": True}
+        )
+        self.assertIsNone(result)
+
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    def test_populate_platform_and_worker_distributed_cost_sql_called(self, mock_sql_execute, mock_data_get):
+        """Test that the platform distribution is called."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        accessor = OCPReportDBAccessor(schema=self.schema)
+        for distribute in ["platform", "worker"]:
+            with self.subTest(distribute=distribute):
+                sql_file = f"distribute_{distribute}_cost.sql"
+                sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{sql_file}")
+                sql = sql.decode("utf-8")
+                default_sql_params = {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "schema": self.schema,
+                    "report_period_id": 1,
+                    "distribution": "cpu",
+                    "source_uuid": self.ocp_test_provider_uuid,
+                }
+                mock_jinja = Mock()
+                mock_jinja.prepare_query.return_value = sql, default_sql_params
+                accessor.jinja_sql = mock_jinja
+                accessor.populate_platform_and_worker_distributed_cost_sql(
+                    start_date, end_date, self.ocp_test_provider_uuid, {f"{distribute}_cost": True}
+                )
+                mock_data_get.assert_called_with("masu.database", f"sql/openshift/cost_model/{sql_file}")
+                mock_sql_execute.assert_called()
+        # test empty distribution info
+        result = accessor.populate_platform_and_worker_distributed_cost_sql(
+            start_date, end_date, self.ocp_test_provider_uuid, {}
+        )
+        self.assertIsNone(result)
