@@ -8,7 +8,7 @@ Unit testing for Koku is handled through
 Running the test suite requires a minimum of an accessible database and
 Koku API server.
 
-### Unit testing using docker-compose
+### Unit testing using Docker Compose
 
 Example:
 
@@ -67,29 +67,31 @@ You can use the `oc expose` command to accomplish this.
 
 ### Examples
 
-settings.local.yaml:
+`settings.local.yaml`:
 
-    local:
-      hccm:
-        ocp_dir: /var/tmp/masu/insights_local
-        aws_dir: /tmp/local_bucket
-        azure_dir: /tmp/local_container
-        masu:
-          path: api/cost-management/v1
-          port: 5042
-          hostname: masu-hccm.apps-crc.testing
-          scheme: http
-      main:
-        hostname: koku-hccm.apps-crc.testing
-        scheme: http
-        default_user: default
-        api_path: api/cost-management/v1
-      http:
-        default_auth_type: basic
-      users:
-        default:
-          username: user_dev@foo.com
-          password: password
+```yaml
+local:
+  hccm:
+    ocp_dir: /var/tmp/masu/insights_local
+    aws_dir: /tmp/local_bucket
+    azure_dir: /tmp/local_container
+    masu:
+      path: api/cost-management/v1
+      port: 5042
+      hostname: masu-hccm.apps-crc.testing
+      scheme: http
+  main:
+    hostname: koku-hccm.apps-crc.testing
+    scheme: http
+    default_user: default
+    api_path: api/cost-management/v1
+  http:
+    default_auth_type: basic
+  users:
+    default:
+      username: user_dev@foo.com
+      password: password
+```
 
 Smoke test:
 
@@ -107,8 +109,8 @@ For example:
 The previous command will selectively run only the AzureServiceTest
 module The following are examples of valid module paths:
 
-> -   masu.test.external
-> -   masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
+    masu.test.external
+    masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
 
 ## Functional Testing
 
@@ -122,9 +124,9 @@ test customer with a default set of sources. This will create one AWS,
 one Azure, and three OpenShift sources to simulate the following
 scenarios.
 
-> -   OpenShift running on AWS
-> -   OpenShift running on Azure
-> -   OpenShift on premises
+- OpenShift running on AWS
+- OpenShift running on Azure
+- OpenShift on premises
 
 There is a complementary script to subsequently load test data for each
 source. The [nise](https://github.com/project-koku/nise) project is used
@@ -134,15 +136,15 @@ running [pipenv install \--dev]{.title-ref}. See
 [.env.example](https://github.com/project-koku/koku/blob/main/.env.example)
 for example values.
 
-> -   API_PATH_PREFIX
-> -   KOKU_API_HOSTNAME
-> -   MASU_API_HOSTNAME
-> -   KOKU_PORT (if using docker-compose)
-> -   MASU_PORT (if using docker-compose)
+- `API_PATH_PREFIX`
+- `KOKU_API_HOSTNAME`
+- `MASU_API_HOSTNAME`
+- `KOKU_PORT`
+- `MASU_PORT`
 
 #### Examples
 
-Example 1. Using docker-compose to wipe and rebuild the local database
+Example 1. Using docker compose to wipe and rebuild the local database
 with test data:
 
     make docker-reinitdb-with-sources
@@ -187,7 +189,7 @@ Next, you should add/modify the following variables in the existing
     MINIO_CONFIG_DIR=/tmp/hccm/mnt/config
     INGRESS_VALID_TOPICS=testareno,advisor,hccm
 
-Since both Ingress and Koku are ran locally via docker-compose files, we
+Since both Ingress and Koku are ran locally via Docker compose files, we
 must ensure that all of the services are on the same network. We can do
 that by creating a network in the Ingress `docker-compose.yml` file and
 adding it to each of the services in both Ingress and Koku. To create a
@@ -230,15 +232,15 @@ and bring up the ingress service:
 
     pipenv install --dev
     pipenv shell
-    docker-compose up --build
+    docker compose up --build
 
 If necessary, you can bring up a consumer to see the contents of
 messages that are uploaded to the `hccm` topic using the following
 command within the ingress environment:
 
-    docker-compose exec kafka kafka-console-consumer --topic=platform.upload.hccm --bootstrap-server=localhost:29092
+    docker compose exec kafka kafka-console-consumer --topic=platform.upload.hccm --bootstrap-server=localhost:29092
 
-Finally, you can bring up Koku project via docker-compose and check the
+Finally, you can bring up Koku project via `docker compose` and check the
 koku-listener logs to ensure the listener has successfully connected and
 is listening for messages.
 
@@ -248,20 +250,20 @@ is listening for messages.
 
 While koku-server is running in a docker container:
 
-1.  Ensure all migrations are run.
-2.  Stop the server [docker-compose stop koku-server]{.title-ref}
-3.  Run the server with service-ports:
-    `docker-compose run —service-ports koku-server`
-4.  set a breakpoint using `import pdb; pdb.set_trace()`
+1. Ensure all migrations are run.
+1. Stop the server [docker compose stop koku-server]{.title-ref}
+1. Run the server with service-ports:
+   `docker compose run —service-ports koku-server`
+1. set a breakpoint using `import pdb; pdb.set_trace()`
 
 ### PDB in IQE container
 
 Set the environment variable ENV_FOR_DYNACONF=local While IQE (the
 integration test suite) is running a docker container:
 
-> Start a shell session in the docker container that runs IQE:
->
->     koku/testing/run_test.sh bash
+Start a shell session in the docker container that runs IQE:
+
+    koku/testing/run_test.sh bash
 
 The following command runs all QE api tests. The optional `--pdb` flag
 will cause any failed test to automatically start a pdb session:
@@ -293,8 +295,8 @@ test names, search that repo for test function names.
 
 Prerequisites:
 
-> -   koku is running and accessible via the network
-> -   you are connected to the Red Hat internal network
+- Koku is running and accessible via the network
+- Connected to the Red Hat internal network
 
 For a quick start on smoke testing, continue to the section Running IQE
 in Docker below. Otherwise, for more in-depth information on IQE, see
@@ -317,7 +319,7 @@ and
 can be used to identify potential performance problems within the code
 base.
 
-**Creating the Profiler Code**
+### Creating the Profiler Code
 
 The cProfile code written in this step will heavily depend on what part
 of the project\'s code you are trying to profile. For example, the code
@@ -333,7 +335,7 @@ below is profiling the `DateHelper` function inside of `koku.api.utils`:
     """
     cProfile.run(profile_text, filename="ouput_filename.file")
 
-**Runnin the Profiler Code**
+### Running the Profiler Code
 
 The profiler code must be executed inside of a django environment in
 order to import koku\'s python modules. The profiler code can be
