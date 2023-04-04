@@ -1,3 +1,12 @@
+-- Delete disabled keys
+WITH cte_disabled_category_keys AS (
+    SELECT DISTINCT key FROM {{schema | sqlsafe}}.reporting_awsenabledcategorykeys WHERE enabled=False
+)
+DELETE FROM {{schema | sqlsafe}}.reporting_awscategory_summary acs
+    USING cte_disabled_category_keys dis
+    WHERE acs.key = dis.key
+;
+
 WITH cte_category_value AS (
     SELECT key,
         value,
@@ -7,6 +16,7 @@ WITH cte_category_value AS (
         jsonb_each_text(li.cost_category) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
+        AND li.cost_category ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_awsenabledcategorykeys WHERE enabled=true)
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -17,15 +27,18 @@ WITH cte_category_value AS (
     GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id
 ),
 cte_values_agg AS (
-    SELECT tv.key,
+    SELECT cat_vals.key,
         array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
         usage_account_id,
         aa.id as account_alias_id
-    FROM cte_category_value AS tv
+    FROM cte_category_value AS cat_vals
+    JOIN {{schema | sqlsafe}}.reporting_awsenabledcategorykeys AS eck
+        ON cat_vals.key = eck.key
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
-        ON tv.usage_account_id = aa.account_id
-    GROUP BY tv.key, cost_entry_bill_id, usage_account_id, aa.id
+        ON cat_vals.usage_account_id = aa.account_id
+    WHERE eck.enabled = true
+    GROUP BY cat_vals.key, cost_entry_bill_id, usage_account_id, aa.id
 ),
 cte_distinct_values_agg AS (
     SELECT v.key,
@@ -56,4 +69,4 @@ SELECT uuid_generate_v4() as uuid,
     account_alias_id,
     "values"
 FROM cte_distinct_values_agg
-ON CONFLICT (key, cost_entry_bill_id, usage_account_id) DO UPDATE SET values=EXCLUDED."values"
+ON CONFLICT (key, cost_entry_bill_id, usage_account_id) DO UPDATE SET values=EXCLUDED."values";
