@@ -105,7 +105,7 @@ FROM (
         AND y.node = x.node
         AND y.values != x.values
     ORDER BY x.uuid
-    FOR NO KEY UPDATE OF x
+    FOR UPDATE OF x
 ) upd
 WHERE x.uuid = upd.uuid
 ;
@@ -147,7 +147,7 @@ FROM (
         ca.nodes != ov.nodes
     )
     ORDER BY ov.uuid
-    FOR NO KEY UPDATE OF ov
+    FOR UPDATE OF ov
 ) upd
 WHERE ov.uuid = upd.uuid
 ;
@@ -197,7 +197,7 @@ WHERE uuid IN (
             AND ls.key = etk.key
     )
     ORDER BY ls.uuid
-    FOR SHARE
+    FOR UPDATE
 )
 ;
 
@@ -212,7 +212,7 @@ WHERE uuid IN (
             AND tv.key = etk.key
     )
     ORDER BY tv.uuid
-    FOR SHARE
+    FOR UPDATE
 )
 ;
 
