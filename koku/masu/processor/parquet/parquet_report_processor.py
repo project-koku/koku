@@ -517,7 +517,6 @@ class ParquetReportProcessor:
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
-                df_category_keys = set()
                 for i, data_frame in enumerate(reader):
                     if data_frame.empty:
                         continue
@@ -541,8 +540,8 @@ class ParquetReportProcessor:
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
-            if df_category_keys and self.enabled_category_model:
-                create_enabled_keys(self._schema_name, self.enabled_category_model, df_category_keys)
+            if category_keys and self.enabled_category_model:
+                create_enabled_keys(self._schema_name, self.enabled_category_model, category_keys)
 
         except Exception as err:
             msg = (
