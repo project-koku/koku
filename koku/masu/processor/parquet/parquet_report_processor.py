@@ -27,6 +27,7 @@ from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
+from masu.util.aws.common import check_aws_custom_columns
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import CSV_COLUMN_PREFIX as AWS_COLUMN_PREFIX
 from masu.util.aws.common import get_column_converters as aws_column_converters
@@ -35,6 +36,7 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
+from masu.util.common import CSV_ALT_COLUMNS
 from masu.util.common import CSV_REQUIRED_COLUMNS
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -240,6 +242,14 @@ class ParquetReportProcessor:
         return post_processor
 
     @property
+    def col_checker(self):
+        """Customer column checker based on provider type."""
+        col_checker = None
+        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+            col_checker = check_aws_custom_columns
+        return col_checker
+
+    @property
     def daily_data_processor(self):
         """Post processor based on provider type."""
         daily_data_processor = None
@@ -329,7 +339,7 @@ class ParquetReportProcessor:
     def csv_columns(self):
         """Return the required CSV columns if we need to filter them"""
         if self.provider_type == Provider.PROVIDER_AWS:
-            return CSV_REQUIRED_COLUMNS.get(Provider.PROVIDER_AWS)
+            return CSV_REQUIRED_COLUMNS[Provider.PROVIDER_AWS] + CSV_ALT_COLUMNS[Provider.PROVIDER_AWS]
         return None
 
     @property
@@ -475,7 +485,12 @@ class ParquetReportProcessor:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
                 REQUIRED_COLS = set(CSV_REQUIRED_COLUMNS.get(self._provider_type))
+                missing_cols = False
                 if not set(col_names).issuperset(REQUIRED_COLS):
+                    missing_cols = True
+                    if self.col_checker:
+                        missing_cols, REQUIRED_COLS = self.col_checker(col_names)
+                if missing_cols:
                     missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
                     message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
                     if self.ingress_reports_uuid:

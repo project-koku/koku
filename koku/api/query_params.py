@@ -173,7 +173,7 @@ class QueryParameters:
             return key
         for prefix in prefix_list:
             if key.startswith(prefix):
-                return key[len(prefix) :]  # noqa: E203
+                return key[len(prefix) :]
 
     def _configure_access_params(self, caller):
         """Configure access for the appropriate providers."""
