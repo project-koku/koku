@@ -529,7 +529,7 @@ class ParquetReportProcessor:
                         LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
                         unique_keys.update(data_frame_tag_keys)
                         LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                        if category_keys:
+                        if df_category_keys:
                             LOG.info(f"updating category keys: {df_category_keys}")
                             category_keys.update(df_category_keys)
                             LOG.info(f"Total unique category keys: {category_keys}")
