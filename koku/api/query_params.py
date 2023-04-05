@@ -33,7 +33,7 @@ from api.tags.serializers import month_list
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
-from reporting.provider.aws.models import AWSCategorySummary
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -428,21 +428,23 @@ class QueryParameters:
         if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             return
         with tenant_context(self.tenant):
-            all_aws_category_keys = AWSCategorySummary.objects.values_list("key", flat=True).distinct()
-        if not all_aws_category_keys:
+            enabled_category_keys = (
+                AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct()
+            )
+        if not enabled_category_keys:
             return
         # Make sure keys passed in exist in the DB.
         for key, value in query_params.items():
             # Check key
             stripped_key = self._strip_prefix(key, AWS_CATEGORY_PREFIX, prefix_list)
-            if stripped_key in all_aws_category_keys:
+            if stripped_key in enabled_category_keys:
                 self.aws_category_keys.add(stripped_key)
             # Check Values
             if not isinstance(value, (dict, list)):
                 value = [value]
             for inner_key in value:
                 stripped_key = self._strip_prefix(inner_key, AWS_CATEGORY_PREFIX, prefix_list)
-                if stripped_key in all_aws_category_keys:
+                if stripped_key in enabled_category_keys:
                     self.aws_category_keys.add(inner_key)
 
     def _set_time_scope_defaults(self):
