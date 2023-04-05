@@ -517,6 +517,7 @@ class ParquetReportProcessor:
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
+                df_category_keys = set()
                 for i, data_frame in enumerate(reader):
                     if data_frame.empty:
                         continue
