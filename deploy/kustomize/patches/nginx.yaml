@@ -9,8 +9,6 @@
         apiPath: cost-management
       private:
         enabled: false
-      metrics:
-        enabled: true
     podSpec:
       image: quay.io/app-sre/ubi8-nginx-118
       command:
