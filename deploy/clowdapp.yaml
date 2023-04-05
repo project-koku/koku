@@ -197,8 +197,6 @@ objects:
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -255,8 +253,6 @@ objects:
           name: koku-api-nginx-conf
       replicas: ${{NGINX_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -422,8 +418,6 @@ objects:
             secretName: koku-oci
       replicas: ${{LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -615,8 +609,6 @@ objects:
             secretName: koku-oci
       replicas: ${{MASU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -796,8 +788,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: false
         private:
           enabled: false
         public:
@@ -962,8 +952,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -1135,8 +1123,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1322,8 +1308,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1511,8 +1495,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1698,8 +1680,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1887,8 +1867,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2074,8 +2052,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2263,8 +2239,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2452,8 +2426,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2643,8 +2615,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
