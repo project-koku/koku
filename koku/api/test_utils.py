@@ -280,7 +280,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
     """Test the get_months_in_date_range util."""
 
     def setUp(self):
-        """Set up cache tests."""
+        """Set up get_months_in_date_range tests."""
         super().setUp()
 
         self.start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
