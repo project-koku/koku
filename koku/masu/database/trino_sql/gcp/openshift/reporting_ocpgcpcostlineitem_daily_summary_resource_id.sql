@@ -21,8 +21,10 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_resource_mat
     unblended_cost double,
     labels varchar,
     ocp_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp
@@ -47,8 +49,10 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_
     unblended_cost double,
     labels varchar,
     matched_tag varchar,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
@@ -102,8 +106,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     project_rank integer,
     data_source_rank integer,
     ocp_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 -- Now create our proper table if it does not exist

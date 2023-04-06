@@ -47,8 +47,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     project_rank integer,
     data_source_rank integer,
     ocp_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET')
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['year', 'month'])
 ;
 
 -- Now create our proper table if it does not exist
