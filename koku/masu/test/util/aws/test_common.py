@@ -394,13 +394,21 @@ class TestAWSUtils(MasuTestCase):
         column_two = "column_two"
         column_three = "column-three"
         column_four = "resourceTags/User:key"
-        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
+        column_five = "costCategory/Env"
+        data = {
+            column_one: [1, 2],
+            column_two: [3, 4],
+            column_three: [5, 6],
+            column_four: ["value_1", "value_2"],
+            column_five: ["prod", "stage"],
+        }
         data_frame = pd.DataFrame.from_dict(data)
 
         processed_data_frame = utils.aws_post_processor(data_frame)
         if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
+            processed_data_frame, df_tag_keys, category_keys = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
+            self.assertIsInstance(category_keys, set)
 
         columns = list(processed_data_frame)
 
@@ -423,8 +431,9 @@ class TestAWSUtils(MasuTestCase):
 
         processed_data_frame = utils.aws_post_processor(data_frame)
         if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
+            processed_data_frame, df_tag_keys, category = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
+            self.assertIsInstance(category, set)
 
         self.assertIn(expected_col_one, processed_data_frame)
         self.assertIn(expected_col_two, processed_data_frame)
@@ -643,7 +652,7 @@ class TestAWSUtils(MasuTestCase):
 
         processed_data_frame = utils.aws_post_processor(data_frame)
         if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
+            processed_data_frame, df_tag_keys, _ = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
 
         self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())

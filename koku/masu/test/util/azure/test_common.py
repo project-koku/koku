@@ -54,7 +54,7 @@ class TestAzureUtils(MasuTestCase):
         df = pd.DataFrame(data)
         result = azure_post_processor(df)
         if isinstance(result, tuple):
-            result, df_tag_keys = result
+            result, df_tag_keys, _ = result
             self.assertIsInstance(df_tag_keys, set)
 
         columns = list(result)
