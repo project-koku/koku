@@ -515,7 +515,11 @@ class ParquetReportProcessor:
                     col for col in col_names if col in self.csv_columns or col.startswith(self.csv_column_prefixes)
                 ]
             with pd.read_csv(
-                csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+                csv_filename,
+                converters=csv_converters,
+                chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+                keep_default_na=False,
+                **kwargs,
             ) as reader:
                 for i, data_frame in enumerate(reader):
                     if data_frame.empty:
@@ -613,7 +617,9 @@ class ParquetReportProcessor:
             s3_path = self._determin_s3_path_for_gcp(file_type, file_name)
         else:
             s3_path = self._determin_s3_path(file_type)
-        data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
+        data_frame.to_parquet(
+            file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False, engine="pyarrow"
+        )
         try:
             with open(file_path, "rb") as fin:
                 copy_data_to_s3_bucket(
