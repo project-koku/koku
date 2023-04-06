@@ -225,6 +225,25 @@
             ],
             "variants": [],
             "createdAt": "2022-09-08T09:48:54.492Z"
+        },
+        {
+            "name": "cost-management.backend.enable_aws_category_settings",
+            "description": "any account listed in this strategy will be allowed to enable AWS Category settings.",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-04-06T09:40:54.492Z"
         }
     ],
     "strategies": [
