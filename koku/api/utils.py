@@ -482,7 +482,7 @@ def get_months_in_date_range(report=None, start=None, end=None, invoice_month=No
         end_date = end
 
     # Grabbing ingest delta for initial ingest/summary
-    summary_month = dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)
+    summary_month = (dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
     if datetime.datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.UTC) < summary_month:
         start_date = summary_month.strftime("%Y-%m-01")
 

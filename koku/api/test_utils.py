@@ -279,22 +279,33 @@ class GeneralUtilsTest(IamTestCase):
 class GetMonthsInDateRangeTest(unittest.TestCase):
     """Test the get_months_in_date_range util."""
 
+    def setUp(self):
+        """Set up cache tests."""
+        super().setUp()
+
+        self.start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
+        self.end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
+        self.first_of_year = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
+        self.first_of_month = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
+        self.early_start_date = datetime.datetime(2022, 4, 3, tzinfo=pytz.UTC)
+        self.early_end_date = datetime.datetime(2022, 4, 12, tzinfo=pytz.UTC)
+
     @patch("api.utils.DateAccessor.today")
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
     def test_get_months_in_date_range__report_with_dates(self, mock_dh_today, mock_date_accessor_today):
         """Test that calling get_months_in_date_range with report only returns list of month tuples"""
 
-        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
-        end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
-        mock_date_accessor_today.return_value = start_date
-        mock_dh_today.return_value = start_date
+        mock_date_accessor_today.return_value = self.start_date
+        mock_dh_today.return_value = self.start_date
+        expected_start = self.start_date.strftime("%Y-%m-%d")
+        expected_end = self.end_date.strftime("%Y-%m-%d")
         test_report = {
             "schema": "org1234567",
-            "start": start_date.strftime("%Y-%m-%d"),
-            "end": end_date.strftime("%Y-%m-%d"),
+            "start": expected_start,
+            "end": expected_end,
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_months = [("2023-04-03", "2023-04-12", None)]
+        expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -306,17 +317,18 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """
         Test that calling get_months_in_date_range
         with a report missing start, end or both dates
-        returns list of month tuples for middle of the month
+        returns list of month tuples.
         """
 
-        start_date = datetime.datetime(2023, 1, 15, tzinfo=pytz.UTC)
-        mock_date_accessor_today.return_value = start_date
-        mock_dh_today.return_value = start_date
+        mock_date_accessor_today.return_value = self.start_date
+        mock_dh_today.return_value = self.start_date
         test_report = {
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_months = [("2023-01-01", "2023-01-15", None)]
+        expected_start = (self.start_date - datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+        expected_end = self.start_date.strftime("%Y-%m-%d")
+        expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -331,14 +343,18 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples at the beginning of the year
         """
 
-        start_date = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
-        mock_date_accessor_today.return_value = start_date
-        mock_dh_today.return_value = start_date
+        mock_date_accessor_today.return_value = self.first_of_year
+        mock_dh_today.return_value = self.first_of_year
         test_report = {
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_months = [("2023-01-01", "2023-01-01", None)]
+        _start_date_1 = self.first_of_year - datetime.timedelta(days=2)
+        expected_start_1 = _start_date_1.strftime("%Y-%m-%d")
+        _end_date_1 = _start_date_1 + relativedelta(day=31)
+        expected_end_1 = _end_date_1.date().strftime("%Y-%m-%d")
+        expected_date_2 = self.first_of_year.strftime("%Y-%m-%d")
+        expected_months = [(expected_start_1, expected_end_1, None), (expected_date_2, expected_date_2, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -353,14 +369,18 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples during first of a month
         """
 
-        start_date = datetime.datetime(2023, 6, 1, tzinfo=pytz.UTC)
-        mock_date_accessor_today.return_value = start_date
-        mock_dh_today.return_value = start_date
+        mock_date_accessor_today.return_value = self.first_of_month
+        mock_dh_today.return_value = self.first_of_month
         test_report = {
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_months = [("2023-06-01", "2023-06-01", None)]
+        _start_date_1 = self.first_of_month - datetime.timedelta(days=2)
+        expected_start_1 = _start_date_1.strftime("%Y-%m-%d")
+        _end_date_1 = _start_date_1 + relativedelta(day=31)
+        expected_end_1 = _end_date_1.date().strftime("%Y-%m-%d")
+        expected_date_2 = self.first_of_month.strftime("%Y-%m-%d")
+        expected_months = [(expected_start_1, expected_end_1, None), (expected_date_2, expected_date_2, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -374,13 +394,13 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
-        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
-        mock_dh_today.return_value.date.return_value = start_date
-        invoice_month = start_date.strftime("%Y%m")
-        expected_months = [("2023-04-03", "2023-04-03", invoice_month)]
+        mock_dh_today.return_value.date.return_value = self.start_date
+        invoice_month = self.start_date.strftime("%Y%m")
+        expected_date = self.start_date.strftime("%Y-%m-%d")
+        expected_months = [(expected_date, expected_date, invoice_month)]
 
         returned_months = get_months_in_date_range(
-            report=None, start=start_date.strftime("%Y-%m-%d"), end=None, invoice_month=invoice_month
+            report=None, start=expected_date, end=None, invoice_month=invoice_month
         )
 
         self.assertEqual(returned_months, expected_months)
@@ -393,16 +413,16 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
-        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
-        end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
-        mock_dh_today.return_value = start_date
-        invoice_month = start_date.strftime("%Y%m")
-        expected_months = [("2023-04-03", "2023-04-12", invoice_month)]
+        mock_dh_today.return_value = self.start_date
+        invoice_month = self.start_date.strftime("%Y%m")
+        expected_start = self.start_date.strftime("%Y-%m-%d")
+        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_months = [(expected_start, expected_end, invoice_month)]
 
         returned_months = get_months_in_date_range(
             report=None,
-            start=start_date.strftime("%Y-%m-%d"),
-            end=end_date.strftime("%Y-%m-%d"),
+            start=expected_start,
+            end=expected_end,
             invoice_month=invoice_month,
         )
 
@@ -416,14 +436,12 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
-        start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
-        end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
-        mock_dh_today.return_value = start_date
-        expected_months = [("2023-04-03", "2023-04-12", None)]
+        mock_dh_today.return_value = self.start_date
+        expected_start = self.start_date.strftime("%Y-%m-%d")
+        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_months = [(expected_start, expected_end, None)]
 
-        returned_months = get_months_in_date_range(
-            report=None, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d")
-        )
+        returned_months = get_months_in_date_range(report=None, start=expected_start, end=expected_end)
 
         self.assertEqual(returned_months, expected_months)
 
@@ -435,15 +453,18 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
+        initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         Config.INITIAL_INGEST_NUM_MONTHS = 0
-        start_date = datetime.datetime(2022, 4, 3, tzinfo=pytz.UTC)
-        end_date = datetime.datetime(2023, 4, 4, tzinfo=pytz.UTC)
-        mock_dh_today.return_value = end_date
-        expected_months = [("2023-04-01", "2023-04-04", None)]
+        mock_dh_today.return_value = self.start_date
+        expected_start = self.start_date.strftime("%Y-%m-01")
+        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(
-            report=None, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d")
+            report=None, start=self.early_start_date.strftime("%Y-%m-%d"), end=self.end_date.strftime("%Y-%m-%d")
         )
+
+        Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
         self.assertEqual(returned_months, expected_months)
 
@@ -455,14 +476,17 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
+        initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         Config.INITIAL_INGEST_NUM_MONTHS = 0
-        start_date = datetime.datetime(2022, 1, 3, tzinfo=pytz.UTC)
-        end_date = datetime.datetime(2022, 3, 4, tzinfo=pytz.UTC)
-        mock_dh_today.return_value = datetime.datetime(2023, 4, 4, tzinfo=pytz.UTC)
-        expected_months = [("2023-04-01", "2023-04-04", None)]
+        mock_dh_today.return_value = self.start_date
+        expected_start = self.start_date.strftime("%Y-%m-01")
+        expected_end = self.start_date.strftime("%Y-%m-%d")
+        expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(
-            report=None, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d")
+            report=None, start=self.early_start_date.strftime("%Y-%m-%d"), end=self.early_end_date.strftime("%Y-%m-%d")
         )
+
+        Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
         self.assertEqual(returned_months, expected_months)
