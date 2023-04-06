@@ -156,7 +156,7 @@ class TestGCPUtils(MasuTestCase):
         expected_tags = {"label_one", "label_two"}
         result_df = utils.gcp_post_processor(df)
         self.assertIsInstance(result_df, tuple)
-        result_df, df_tag_keys = result_df
+        result_df, df_tag_keys, _ = result_df
         self.assertIsInstance(df_tag_keys, set)
         self.assertEqual(df_tag_keys, expected_tags)
 

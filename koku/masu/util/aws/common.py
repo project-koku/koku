@@ -591,7 +591,7 @@ def aws_post_processor(data_frame):
     tags, unique_keys = handle_user_defined_json_columns(data_frame, columns, RESOURCE_TAG_USER_PREFIX)
     data_frame["resourceTags"] = tags
 
-    cost_categories, _ = handle_user_defined_json_columns(data_frame, columns, COST_CATEGORY_PREFIX)
+    cost_categories, aws_category_keys = handle_user_defined_json_columns(data_frame, columns, COST_CATEGORY_PREFIX)
     data_frame["costCategory"] = cost_categories
 
     # Make sure we have entries for our required columns
@@ -607,7 +607,7 @@ def aws_post_processor(data_frame):
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    return (data_frame, unique_keys)
+    return (data_frame, unique_keys, aws_category_keys)
 
 
 def aws_generate_daily_data(data_frame):
