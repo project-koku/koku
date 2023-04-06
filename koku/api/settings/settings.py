@@ -26,6 +26,7 @@ from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from masu.processor import enable_aws_category_settings
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import AWSEnabledTagKeys
@@ -222,7 +223,8 @@ class Settings:
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
             sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
-            sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
+            if enable_aws_category_settings(self.schema):
+                sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
