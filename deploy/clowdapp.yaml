@@ -197,8 +197,6 @@ objects:
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -255,8 +253,6 @@ objects:
           name: koku-api-nginx-conf
       replicas: ${{NGINX_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -303,6 +299,8 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -420,8 +418,6 @@ objects:
             secretName: koku-oci
       replicas: ${{LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -613,8 +609,6 @@ objects:
             secretName: koku-oci
       replicas: ${{MASU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -794,8 +788,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: false
         private:
           enabled: false
         public:
@@ -960,8 +952,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -1133,8 +1123,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1320,8 +1308,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1509,8 +1495,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1696,8 +1680,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1885,8 +1867,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2072,8 +2052,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2261,8 +2239,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2450,8 +2426,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2641,8 +2615,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2686,8 +2658,10 @@ objects:
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
+    - topicName: hccm.ros.events
     objectStore:
     - ${S3_BUCKET_NAME}
+    - ${S3_ROS_BUCKET_NAME}
     optionalDependencies: []
     testing:
       iqePlugin: cost-management
@@ -2782,9 +2756,11 @@ objects:
           }
           location ^~/ {
             proxy_pass http://koku-api;
+            proxy_read_timeout 600s;
           }
           location /api/cost-management/v1/recommendations/ {
             proxy_pass http://ros-ocp-api;
+            proxy_read_timeout 600s;
           }
         }
       }
@@ -2814,6 +2790,8 @@ parameters:
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
+- name: S3_ROS_BUCKET_NAME
+  value: ros-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json

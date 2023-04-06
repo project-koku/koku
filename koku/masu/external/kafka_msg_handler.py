@@ -36,6 +36,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
@@ -226,7 +227,7 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
 
 
 # pylint: disable=too-many-locals
-def extract_payload(url, request_id, context={}):  # noqa: C901
+def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -301,10 +302,6 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
-    if schema_name.startswith("acct"):
-        context["account"] = schema_name[4:]
-    else:
-        context["org_id"] = schema_name[3:]
     context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
@@ -329,27 +326,41 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Copy report payload
     report_metas = []
-    for report_file in report_meta.get("files"):
+    ros_reports = []
+    subdirectory = os.path.dirname(full_manifest_path)
+    manifest_ros_files = report_meta.get("resource_optimization_files") or []
+    manifest_files = report_meta.get("files") or []
+    for ros_file in manifest_ros_files:
+        ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
+    ros_processor = ROSReportShipper(
+        report_meta,
+        b64_identity,
+        context,
+    )
+    try:
+        ros_processor.process_manifest_reports(ros_reports)
+    except Exception as e:
+        # If a ROS report fails to process, this should not prevent Koku processing from continuing.
+        msg = f"ROS reports not processed for manifest_id {report_meta['manifest_id']}. Reason: {e}"
+        LOG.warning(log_json(manifest_uuid, msg, context))
+    for report_file in manifest_files:
         current_meta = report_meta.copy()
-        subdirectory = os.path.dirname(full_manifest_path)
         payload_source_path = f"{subdirectory}/{report_file}"
         payload_destination_path = f"{destination_dir}/{report_file}"
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
             record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
-            if not record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
-                msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
-                LOG.info(log_json(manifest_uuid, msg, context))
-                construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
-                report_metas.append(current_meta)
-            else:
+            if record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
                 # Report already processed
-                pass
+                continue
+            msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
+            LOG.info(log_json(manifest_uuid, msg, context))
+            construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
+            report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg, context))
-
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_metas, manifest_uuid
@@ -429,7 +440,7 @@ def handle_message(kmsg):
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg, context))
-        report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
+        report_metas, manifest_uuid = extract_payload(value["url"], request_id, value["b64_identity"], context)
         return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()

@@ -661,7 +661,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             row_count = table_query.count()
 
             # Change the cluster on some rows
-            update_uuids = table_query.values_list("uuid")[0 : round(row_count / 2, 2)]  # noqa: E203
+            update_uuids = table_query.values_list("uuid")[0 : round(row_count / 2, 2)]
             table_query.filter(uuid__in=update_uuids).update(cluster_id=new_cluster_id)
 
             self.assertNotEqual(row_count, 0)

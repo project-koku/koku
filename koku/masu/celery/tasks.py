@@ -43,12 +43,19 @@ from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
-from masu.util.ocp.common import REPORT_TYPES
+from masu.util.oci.common import OCI_REPORT_TYPES
+from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
+
+PROVIDER_REPORT_TYPE_MAP = {
+    Provider.PROVIDER_OCP: OCP_REPORT_TYPES,
+    Provider.PROVIDER_OCI: OCI_REPORT_TYPES,
+    Provider.PROVIDER_OCI_LOCAL: OCI_REPORT_TYPES,
+}
 
 
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
@@ -228,9 +235,9 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
     deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
-    if provider_type == Provider.PROVIDER_OCP:
+    if provider_type in PROVIDER_REPORT_TYPE_MAP:
         prefixes = []
-        for report_type in REPORT_TYPES:
+        for report_type in PROVIDER_REPORT_TYPE_MAP.get(provider_type):
             prefixes.append(f"{path_prefix}/{account}/{source_type}/{report_type}/source={provider_uuid}/")
             prefixes.append(f"{path_prefix}/daily/{account}/{source_type}/{report_type}/source={provider_uuid}/")
     else:
