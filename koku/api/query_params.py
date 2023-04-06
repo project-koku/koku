@@ -427,8 +427,9 @@ class QueryParameters:
         self.aws_category_keys = set()
         if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             return
+        enabled_category_keys = set()
         with tenant_context(self.tenant):
-            enabled_category_keys = (
+            enabled_category_keys.update(
                 AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct()
             )
         if not enabled_category_keys:
