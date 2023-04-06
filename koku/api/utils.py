@@ -450,6 +450,18 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
+def get_split_date_string(
+    date_str: str,
+) -> str:
+    """Return split date string"""
+
+    split_at_char = ["T", " "]
+    for char in split_at_char:
+        if char.lower() in date_str.lower():
+            return date_str.split(char)[0]
+    return date_str
+
+
 def get_months_in_date_range(report=None, start=None, end=None, invoice_month=None):
     """returns the month periods in a given date range from report"""
 
@@ -483,6 +495,8 @@ def get_months_in_date_range(report=None, start=None, end=None, invoice_month=No
 
     # Grabbing ingest delta for initial ingest/summary
     summary_month = (dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
+    start_date = get_split_date_string(start_date)
+    end_date = get_split_date_string(end_date)
     if datetime.datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.UTC) < summary_month:
         start_date = summary_month.strftime("%Y-%m-01")
 
