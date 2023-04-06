@@ -1,12 +1,3 @@
--- Delete disabled keys
-WITH cte_disabled_category_keys AS (
-    SELECT DISTINCT key FROM {{schema | sqlsafe}}.reporting_awsenabledcategorykeys WHERE enabled=False
-)
-DELETE FROM {{schema | sqlsafe}}.reporting_awscategory_summary acs
-    USING cte_disabled_category_keys dis
-    WHERE acs.key = dis.key
-;
-
 WITH cte_category_value AS (
     SELECT key,
         value,
