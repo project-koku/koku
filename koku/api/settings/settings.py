@@ -102,7 +102,7 @@ enabledKeyFormUI = {
         "title": "Enable AWS category keys",
         "key_text_context": (
             f"Enable your data source labels to be used as AWS category keys for report grouping and filtering."
-            + " Changes will be reflected within 24 hours. <link>Learn more</link>"
+            + " Changes will be reflected within 24 hours."
         ),
         "leftTitle": "Disabled AWS category keys",
         "rightTitle": "Enabled AWS category keys",
@@ -150,7 +150,7 @@ class Settings:
                 key_text_name, enabledKeyFormUI[key_type]["key_text_context"], dict(href=generate_doc_link(doc_link))
             )
         else:
-            key_text = create_plain_text(key_text_name, enabledKeyFormUI[key_type]["key_text_context"], "h3")
+            key_text = create_plain_text(key_text_name, enabledKeyFormUI[key_type]["key_text_context"], "p")
 
         avail_objs = []
         enabled_objs = []
