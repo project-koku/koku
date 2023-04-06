@@ -535,4 +535,4 @@ def ocp_post_processor(data_frame):
         unique_labels = data_frame[column].unique()
         for label in unique_labels:
             label_key_set.update(json.loads(label).keys())
-    return (data_frame, label_key_set)
+    return (data_frame, label_key_set, None)
