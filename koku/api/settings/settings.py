@@ -26,6 +26,7 @@ from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from masu.processor import enable_aws_category_settings
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import AWSEnabledTagKeys
@@ -102,7 +103,7 @@ enabledKeyFormUI = {
         "title": "Enable AWS category keys",
         "key_text_context": (
             f"Enable your data source labels to be used as AWS category keys for report grouping and filtering."
-            + " Changes will be reflected within 24 hours. <link>Learn more</link>"
+            + " Changes will be reflected within 24 hours."
         ),
         "leftTitle": "Disabled AWS category keys",
         "rightTitle": "Enabled AWS category keys",
@@ -150,7 +151,7 @@ class Settings:
                 key_text_name, enabledKeyFormUI[key_type]["key_text_context"], dict(href=generate_doc_link(doc_link))
             )
         else:
-            key_text = create_plain_text(key_text_name, enabledKeyFormUI[key_type]["key_text_context"], "h3")
+            key_text = create_plain_text(key_text_name, enabledKeyFormUI[key_type]["key_text_context"], "p")
 
         avail_objs = []
         enabled_objs = []
@@ -222,7 +223,8 @@ class Settings:
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
             sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
-            sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
+            if enable_aws_category_settings(self.schema):
+                sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
