@@ -114,6 +114,7 @@ class QueryParameters:
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
         self.tag_handler = caller.tag_handler
+        self.aws_category_keys = set()
 
         try:
             query_params = parser.parse(self.url_data)
@@ -123,7 +124,7 @@ class QueryParameters:
             raise ValidationError(error) from e
 
         self._set_tag_keys(query_params)  # sets self.tag_keys
-        self._set_aws_category_keys(query_params)  # aws_category_keys
+        self._set_aws_category_keys(query_params)
         self._validate(query_params)  # sets self.parameters
 
         if settings.DEVELOPMENT:
@@ -424,7 +425,6 @@ class QueryParameters:
         will not a trigger the unsupport parameter or invalid value error.
         """
         prefix_list = [AWS_CATEGORY_PREFIX, AND_AWS_CATEGORY_PREFIX, OR_AWS_CATEGORY_PREFIX]
-        self.aws_category_keys = set()
         if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             return
         enabled_category_keys = set()
