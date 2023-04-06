@@ -328,7 +328,7 @@ class OCPUtilTests(MasuTestCase):
                 ]
                 expected_keys = ["application", "environment", "fun_times"]
                 df = pd.DataFrame(data)
-                result, unique_keys = utils.ocp_post_processor(df)
+                result, unique_keys, _ = utils.ocp_post_processor(df)
                 pd.testing.assert_frame_equal(df, result)
                 self.assertEqual(sorted(unique_keys), sorted(expected_keys))
 
@@ -349,6 +349,6 @@ class OCPUtilTests(MasuTestCase):
         ]
         expected_keys = ["application", "environment", "fun_times"]
         df = pd.DataFrame(data)
-        result, unique_keys = utils.ocp_post_processor(df)
+        result, unique_keys, _ = utils.ocp_post_processor(df)
         pd.testing.assert_frame_equal(df, result)
         self.assertEqual(unique_keys, set())
