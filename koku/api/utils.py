@@ -450,10 +450,11 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_split_date_string(
-    date_str: str,
-) -> str:
+def get_split_date_string(date_str):
     """Return split date string"""
+
+    if not isinstance(date_str, str):
+        return date_str
 
     split_at_char = ["T", " "]
     for char in split_at_char:
