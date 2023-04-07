@@ -1,3 +1,12 @@
+DELETE FROM {{schema | sqlsafe}}.reporting_awscategory_summary AS ts
+WHERE EXISTS (
+    SELECT 1
+    FROM {{schema | sqlsafe}}.reporting_awsenabledcategorykeys AS eck
+    WHERE etk.enabled = false
+        AND ts.key = etk.key
+)
+;
+
 WITH cte_category_value AS (
     SELECT key,
         value,
