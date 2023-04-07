@@ -26,6 +26,8 @@ generators:
     tags:
       resourceTags/user:environment: devz
       resourceTags/user:version: alphaz
+    cost_category:
+        costCategory/env: prod
 - EC2Generator:
     end_date: 10
     instance_type:
@@ -44,6 +46,8 @@ generators:
     tags:
       resourceTags/user:environment: devz
       resourceTags/user:version: alphaz
+    cost_category:
+        costCategory/env: stage
 - RDSGenerator:
     instance_type:
       cost: 1.0
@@ -60,3 +64,5 @@ generators:
     start_date: last_month
     tags:
       resourceTags/user:openshift_node: ocp-nod
+    cost_category:
+        costCategory/env: ephemeral
