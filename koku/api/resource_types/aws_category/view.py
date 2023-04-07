@@ -1,13 +1,12 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for AWS organizational units."""
+"""View for AWS category resource types."""
 # import copy
 import logging
 
 from django.conf import settings
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Exists
 from django.db.models import F
 from django.db.models import Func
@@ -25,14 +24,6 @@ from api.resource_types.aws_category.serializers import AWSCategorySerializer
 from reporting.provider.aws.models import AWSCategorySummary
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 
-# from django.db import connection
-# from django.views.decorators.cache import never_cache
-# from rest_framework import filters
-# from rest_framework.views import APIView
-# from tenant_schemas.utils import tenant_context
-# from api.common.permissions.aws_access import AWSOUAccessPermission
-# from api.query_params import get_tenant
-# from api.resource_types.serializers import ResourceTypeSerializer
 
 LOG = logging.getLogger(__name__)
 
@@ -46,66 +37,20 @@ class AWSCategoryView(generics.ListAPIView):
         AwsAccessPermission,
     ]
     # Note: Unnesting to remove duplicate values
-    # Example:
-    custom_annotations = {
-        "values": Func(F("values"), function="unnest"),
+    annotations = {
+        "unnested_value": Func(F("values"), function="unnest"),
         "enabled": Exists(AWSEnabledCategoryKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)),
-        "keys": F("key"),
     }
-    aggregate = {
-        "values": ArrayAgg("values"),
-    }
-
-    queryset = AWSCategorySummary.objects.values("key").annotate(**custom_annotations).distinct()
+    queryset = AWSCategorySummary.objects.values("key").annotate(**annotations).distinct()
     SUPPORTED_FILTERS = ["key", "value", "account", "enabled", "search", "limit"]
     pagination_class = ResourceTypeViewPaginator
     serializer_class = AWSCategorySerializer
 
-    # def _format_query_response(self, request):
-    #     """Format the query response with data.
-
-    #     Returns:
-    #         (Dict): Dictionary response of query params, data, and total
-
-    #     """
-    #     LOG.info("here")
-    #     deduplicated_values = {}
-    #     for row in self.get_queryset():
-    #         key = row.get("key")
-    #         if metadata := deduplicated_values.get(key):
-    #             metadata["values"].update(set(row.get("values")))
-    #         else:
-    #             deduplicated_values[key] = {
-    #                 "values": set(row.get("values")),
-    #                 "enabled": row.get("enabled")
-    #             }
-    #     result = []
-    #     for key, values in deduplicated_values.items():
-    #         values['key'] = key
-    #         result.append(values)
-    #     self.queryset = result
-    #     return super().list(request)
-
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
-        # Reads the users values for org unit id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
         user_access = []
         error_message = {}
-
-        # result = AWSCategorySummary.objects.values("key").annotate(**self.custom_annotations).distinct()
-        # print(result)
-        # self.get_queryset()
-
-        from django.db import connection
-
-        readable_queries = []
-        for dikt in connection.queries:
-            for key, item in dikt.items():
-                item = item.replace('"', "")
-                item = item.replace("\\", "")
-                readable_queries.append({key: item})
-        LOG.info(readable_queries)
 
         # # Test for only supported query_params
         if self.request.query_params:
@@ -123,12 +68,21 @@ class AWSCategoryView(generics.ListAPIView):
 
         return super().list(request)
 
-    # Overwrite generics.ListAPIView paginate_queryset to aggregate before response return.
+    # Overwrite generics.ListAPIView paginate_queryset to
+    # combine values before return
     def paginate_queryset(self, queryset):
         """
         Return a single page of results, or `None` if pagination is disabled.
         """
-        if self.paginator is None:
-            return None
-        # queryset = queryset.aggregate(**self.aggregate)
-        return self.paginator.paginate_queryset(queryset, self.request, view=self)
+        key_to_values = {}
+        for row in queryset:
+            key = row.get("key")
+            if metadata := key_to_values.get(key):
+                metadata["values"].update({row.get("unnested_value")})
+            else:
+                key_to_values[key] = {"values": {row.get("unnested_value")}, "enabled": row.get("enabled")}
+        result = []
+        for key, values in key_to_values.items():
+            values["key"] = key
+            result.append(values)
+        return self.paginator.paginate_queryset(result, self.request, view=self)

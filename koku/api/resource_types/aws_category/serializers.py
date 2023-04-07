@@ -13,8 +13,6 @@ LOG = logging.getLogger(__name__)
 class AWSCategorySerializer(serializers.Serializer):
     """Serializer for resource-specific resource-type APIs."""
 
-    cluster_alias = serializers.CharField(source="ocp_cluster_alias", required=False)
-    account_alias = serializers.CharField(source="alias", required=False)
     key = serializers.CharField()
     values = serializers.ListField()
     enabled = serializers.CharField(required=False)
