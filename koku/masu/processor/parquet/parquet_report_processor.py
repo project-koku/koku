@@ -6,7 +6,6 @@
 import datetime
 import logging
 import os
-from functools import partial
 from pathlib import Path
 
 import pandas as pd
@@ -25,38 +24,17 @@ from masu.processor.azure.azure_report_parquet_processor import AzureReportParqu
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
-from masu.util.aws.common import aws_generate_daily_data
-from masu.util.aws.common import aws_post_processor
-from masu.util.aws.common import check_aws_custom_columns
+from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import copy_data_to_s3_bucket
-from masu.util.aws.common import CSV_COLUMN_PREFIX as AWS_COLUMN_PREFIX
-from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
-from masu.util.azure.common import azure_generate_daily_data
-from masu.util.azure.common import azure_post_processor
-from masu.util.azure.common import get_column_converters as azure_column_converters
-from masu.util.common import create_enabled_keys
-from masu.util.common import CSV_ALT_COLUMNS
-from masu.util.common import CSV_REQUIRED_COLUMNS
+from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
-from masu.util.gcp.common import gcp_generate_daily_data
-from masu.util.gcp.common import gcp_post_processor
-from masu.util.gcp.common import get_column_converters as gcp_column_converters
+from masu.util.gcp.gcp_post_processor import GCPPostProcessor
 from masu.util.oci.common import detect_type as oci_detect_type
-from masu.util.oci.common import get_column_converters as oci_column_converters
-from masu.util.oci.common import oci_generate_daily_data
-from masu.util.oci.common import oci_post_processor
+from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
-from masu.util.ocp.common import get_column_converters as ocp_column_converters
-from masu.util.ocp.common import ocp_generate_daily_data
-from masu.util.ocp.common import ocp_post_processor
-from reporting.provider.aws.models import AWSEnabledCategoryKeys
-from reporting.provider.aws.models import AWSEnabledTagKeys
-from reporting.provider.azure.models import AzureEnabledTagKeys
-from reporting.provider.gcp.models import GCPEnabledTagKeys
-from reporting.provider.oci.models import OCIEnabledTagKeys
-from reporting.provider.ocp.models import OCPEnabledTagKeys
+from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 
 
 LOG = logging.getLogger(__name__)
@@ -66,14 +44,6 @@ PARQUET_EXT = ".parquet"
 
 DAILY_FILE_TYPE = "daily"
 OPENSHIFT_REPORT_TYPE = "openshift"
-
-COLUMN_CONVERTERS = {
-    Provider.PROVIDER_AWS: aws_column_converters,
-    Provider.PROVIDER_AZURE: azure_column_converters,
-    Provider.PROVIDER_GCP: gcp_column_converters,
-    Provider.PROVIDER_OCP: ocp_column_converters,
-    Provider.PROVIDER_OCI: oci_column_converters,
-}
 
 
 class ParquetReportProcessorError(Exception):
@@ -227,47 +197,6 @@ class ParquetReportProcessor:
         return None
 
     @property
-    def post_processor(self):
-        """Post processor based on provider type."""
-        post_processor = None
-        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-            post_processor = aws_post_processor
-        elif self.provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
-            post_processor = azure_post_processor
-        elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            post_processor = gcp_post_processor
-        elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
-            post_processor = oci_post_processor
-        elif self.provider_type == Provider.PROVIDER_OCP:
-            post_processor = ocp_post_processor
-        return post_processor
-
-    @property
-    def col_checker(self):
-        """Customer column checker based on provider type."""
-        col_checker = None
-        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-            col_checker = check_aws_custom_columns
-        return col_checker
-
-    @property
-    def daily_data_processor(self):
-        """Post processor based on provider type."""
-        daily_data_processor = None
-        if self.provider_type == Provider.PROVIDER_AWS:
-            daily_data_processor = aws_generate_daily_data
-        if self.provider_type == Provider.PROVIDER_AZURE:
-            daily_data_processor = azure_generate_daily_data
-        if self.provider_type == Provider.PROVIDER_GCP:
-            daily_data_processor = gcp_generate_daily_data
-        if self.provider_type == Provider.PROVIDER_OCP:
-            daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
-        if self.provider_type == Provider.PROVIDER_OCI:
-            daily_data_processor = oci_generate_daily_data
-
-        return daily_data_processor
-
-    @property
     def csv_path_s3(self):
         """The path in the S3 bucket where CSV files are loaded."""
         return get_path_prefix(
@@ -321,45 +250,20 @@ class ParquetReportProcessor:
         Path(local_path).mkdir(parents=True, exist_ok=True)
         return local_path
 
-    @property
-    def enabled_tags_model(self):
-        """Return the enabled tags model class."""
-        if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSEnabledTagKeys
+    def set_post_processor(self):
+        """Post processor based on provider type."""
+        post_processor = None
+        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+            post_processor = AWSPostProcessor(schema=self._schema_name)
+        elif self.provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+            post_processor = AzurePostProcessor(schema=self.schema_name)
+        elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            post_processor = GCPPostProcessor(schema=self._schema_name)
+        elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
+            post_processor = OCIPostProcessor(schema=self._schema_name)
         elif self.provider_type == Provider.PROVIDER_OCP:
-            return OCPEnabledTagKeys
-        elif self.provider_type == Provider.PROVIDER_AZURE:
-            return AzureEnabledTagKeys
-        elif self.provider_type == Provider.PROVIDER_GCP:
-            return GCPEnabledTagKeys
-        elif self.provider_type == Provider.PROVIDER_OCI:
-            return OCIEnabledTagKeys
-        return None
-
-    @property
-    def enabled_category_model(self):
-        """Return the enabled tags model class."""
-        if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSEnabledCategoryKeys
-        return None
-
-    @property
-    def csv_columns(self):
-        """Return the required CSV columns if we need to filter them"""
-        if self.provider_type == Provider.PROVIDER_AWS:
-            return CSV_REQUIRED_COLUMNS[Provider.PROVIDER_AWS] + CSV_ALT_COLUMNS[Provider.PROVIDER_AWS]
-        return None
-
-    @property
-    def csv_column_prefixes(self):
-        """Return csv column prefixes to be included when we load the csv"""
-        if self.provider_type == Provider.PROVIDER_AWS:
-            return AWS_COLUMN_PREFIX
-        return None
-
-    def _get_column_converters(self):
-        """Return column converters based on provider type."""
-        return COLUMN_CONVERTERS.get(self.provider_type)()
+            post_processor = OCPPostProcessor(schema=self._schema_name, report_type=self.report_type)
+        return post_processor
 
     def _set_report_processor(self, parquet_file, daily=False):
         """Return the correct ReportParquetProcessor."""
@@ -476,11 +380,19 @@ class ParquetReportProcessor:
 
     def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
+        post_processor = self.set_post_processor()
+        if not post_processor:
+            msg = "Unrecongized provider type can't convert csv."
+            context = {
+                "schema": self._schema_name,
+                "provider_type": self.provider_type,
+                "provider_uuid": self.provider_uuid,
+            }
+            LOG.warn(log_json(self.tracing_id, msg, context))
+            return
+
         daily_data_frames = []
-        converters = self._get_column_converters()
-        csv_path, csv_name = os.path.split(csv_filename)
-        unique_keys = set()
-        category_keys = set()
+        _, csv_name = os.path.split(csv_filename)
         parquet_file = None
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
@@ -493,27 +405,14 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
-                REQUIRED_COLS = set(CSV_REQUIRED_COLUMNS.get(self._provider_type))
-                missing_cols = False
-                if not set(col_names).issuperset(REQUIRED_COLS):
-                    missing_cols = True
-                    if self.col_checker:
-                        missing_cols, REQUIRED_COLS = self.col_checker(col_names)
+                missing_cols = post_processor.check_ingress_required_columns(col_names)
                 if missing_cols:
-                    missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
                     message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
                     if self.ingress_reports_uuid:
                         with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
                             ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
                     raise ValidationError(message, code="Missing_columns")
-            csv_converters = {
-                col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-            }
-            csv_converters.update({col: str for col in col_names if col not in csv_converters})
-            if self.csv_columns and self.csv_column_prefixes:
-                kwargs["usecols"] = [
-                    col for col in col_names if col in self.csv_columns or col.startswith(self.csv_column_prefixes)
-                ]
+            csv_converters, kwargs = post_processor.get_column_converters(col_names, kwargs)
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
@@ -522,26 +421,13 @@ class ParquetReportProcessor:
                         continue
                     parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
                     parquet_file = f"{self.local_path}/{parquet_filename}"
-                    if self.post_processor:
-                        data_frame = self.post_processor(data_frame)
-                        data_frame, data_frame_tag_keys, df_category_keys = data_frame
-                        LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
-                        unique_keys.update(data_frame_tag_keys)
-                        LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                        if df_category_keys:
-                            LOG.info(f"updating category keys: {df_category_keys}")
-                            category_keys.update(df_category_keys)
-                            LOG.info(f"Total unique category keys: {category_keys}")
-                    if self.daily_data_processor is not None:
-                        daily_data_frames.append(self.daily_data_processor(data_frame))
+                    data_frame, daily_frames = post_processor.process_dataframe(data_frame)
+                    daily_data_frames.append(daily_frames)
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
-            create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
-            if category_keys and self.enabled_category_model:
-                create_enabled_keys(self._schema_name, self.enabled_category_model, category_keys)
 
         except Exception as err:
             msg = (
