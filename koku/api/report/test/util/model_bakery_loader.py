@@ -243,6 +243,7 @@ class ModelBakeryDataLoader(DataLoader):
                     )
         bill_ids = [bill.id for bill in bills]
         with AWSReportDBAccessor(self.schema) as accessor:
+            accessor.populate_category_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return bills
