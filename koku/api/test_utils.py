@@ -290,12 +290,10 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         self.early_start_date = datetime.datetime(2022, 4, 3, tzinfo=pytz.UTC)
         self.early_end_date = datetime.datetime(2022, 4, 12, tzinfo=pytz.UTC)
 
-    @patch("api.utils.DateAccessor.today")
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
-    def test_get_months_in_date_range__report_with_dates(self, mock_dh_today, mock_date_accessor_today):
+    def test_get_months_in_date_range__report_with_dates(self, mock_dh_today):
         """Test that calling get_months_in_date_range with report only returns list of month tuples"""
 
-        mock_date_accessor_today.return_value = self.start_date
         mock_dh_today.return_value = self.start_date
         expected_start = self.start_date.strftime("%Y-%m-%d")
         expected_end = self.end_date.strftime("%Y-%m-%d")
@@ -309,18 +307,17 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         returned_months = get_months_in_date_range(test_report)
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
-    @patch("api.utils.DateAccessor.today")
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
-    def test_get_months_in_date_range__report_with_no_dates(self, mock_dh_today, mock_date_accessor_today):
+    def test_get_months_in_date_range__report_with_no_dates(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with a report missing start, end or both dates
         returns list of month tuples.
         """
 
-        mock_date_accessor_today.return_value = self.start_date
         mock_dh_today.return_value = self.start_date
         test_report = {
             "schema": "org1234567",
@@ -332,18 +329,17 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         returned_months = get_months_in_date_range(test_report)
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
-    @patch("api.utils.DateAccessor.today")
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
-    def test_get_months_in_date_range__report_with_no_dates_year_start(self, mock_dh_today, mock_date_accessor_today):
+    def test_get_months_in_date_range__report_with_no_dates_year_start(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with a report missing start, end or both dates
         returns list of month tuples at the beginning of the year
         """
 
-        mock_date_accessor_today.return_value = self.first_of_year
         mock_dh_today.return_value = self.first_of_year
         test_report = {
             "schema": "org1234567",
@@ -358,18 +354,17 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         returned_months = get_months_in_date_range(test_report)
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
-    @patch("api.utils.DateAccessor.today")
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
-    def test_get_months_in_date_range__report_with_no_dates_month_start(self, mock_dh_today, mock_date_accessor_today):
+    def test_get_months_in_date_range__report_with_no_dates_month_start(self, mock_dh_today):
         """
         Test that calling get_months_in_date_range
         with a report missing start, end or both dates
         returns list of month tuples during first of a month
         """
 
-        mock_date_accessor_today.return_value = self.first_of_month
         mock_dh_today.return_value = self.first_of_month
         test_report = {
             "schema": "org1234567",
@@ -384,6 +379,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         returned_months = get_months_in_date_range(test_report)
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
@@ -394,7 +390,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
-        mock_dh_today.return_value.date.return_value = self.start_date
+        mock_dh_today.return_value = self.start_date
         invoice_month = self.start_date.strftime("%Y%m")
         expected_date = self.start_date.strftime("%Y-%m-%d")
         expected_months = [(expected_date, expected_date, invoice_month)]
@@ -403,17 +399,16 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             report=None, start=expected_date, end=None, invoice_month=invoice_month
         )
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
-    @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
-    def test_get_months_in_date_range__start_end_invoice_month(self, mock_dh_today):
+    def test_get_months_in_date_range__start_end_invoice_month(self):
         """
         Test that calling get_months_in_date_range
         with start and end dates, and invoice_month only
         returns list of month tuples.
         """
 
-        mock_dh_today.return_value = self.start_date
         invoice_month = self.start_date.strftime("%Y%m")
         expected_start = self.start_date.strftime("%Y-%m-%d")
         expected_end = self.end_date.strftime("%Y-%m-%d")
@@ -443,6 +438,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         returned_months = get_months_in_date_range(report=None, start=expected_start, end=expected_end)
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
@@ -466,6 +462,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
 
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
@@ -489,4 +486,5 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
+        mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
