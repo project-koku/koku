@@ -567,7 +567,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/cloudservices/ubi-trino:latest
+    image: quay.io/cloudservices/ubi-trino:411-002
     user: root
     ports:
       - 8080:8080
