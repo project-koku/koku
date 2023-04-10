@@ -141,7 +141,7 @@ class OCPPostProcessor(PostProcessor):
             if col not in daily_data_frame:
                 daily_data_frame[col] = None
 
-        return daily_data_frame, self._generate_daily_data(data_frame)
+        return daily_data_frame
 
     def process_dataframe(self, data_frame):
         label_columns = {"pod_labels", "volume_labels", "namespace_labels", "node_labels"}
@@ -153,7 +153,7 @@ class OCPPostProcessor(PostProcessor):
             for label in unique_labels:
                 label_key_set.update(json.loads(label).keys())
         self.enabled_tag_keys.update(label_key_set)
-        return data_frame
+        return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):
         """

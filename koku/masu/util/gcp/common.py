@@ -20,7 +20,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 LOG = logging.getLogger(__name__)
 pd.options.mode.chained_assignment = None
 
-INGRESS_REQUIRED_COLUMNS = set(
+INGRESS_REQUIRED_COLUMNS = {
     "billing_account_id",
     "service.id",
     "service.description",
@@ -50,7 +50,7 @@ INGRESS_REQUIRED_COLUMNS = set(
     "invoice.month",
     "cost_type",
     "partition_date",
-)
+}
 
 
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):

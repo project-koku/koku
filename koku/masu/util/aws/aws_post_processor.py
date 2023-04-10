@@ -72,7 +72,7 @@ class AWSPostProcessor(PostProcessor):
             col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
         }
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        csv_columns = INGRESS_REQUIRED_COLUMNS + INGRESS_ALT_COLUMNS
+        csv_columns = INGRESS_REQUIRED_COLUMNS | INGRESS_ALT_COLUMNS
         panda_kwargs["usecols"] = [
             col for col in col_names if col in csv_columns or col.startswith(CSV_COLUMN_PREFIX)  # AWS specific
         ]

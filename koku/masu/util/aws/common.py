@@ -89,7 +89,7 @@ CSV_COLUMN_PREFIX = (
     "product/sku",
 )
 
-INGRESS_REQUIRED_COLUMNS = set(
+INGRESS_REQUIRED_COLUMNS = {
     "bill/BillingEntity",
     "bill/BillType",
     "bill/PayerAccountId",
@@ -137,9 +137,9 @@ INGRESS_REQUIRED_COLUMNS = set(
     "reservation/UnitsPerReservation",
     "reservation/StartTime",
     "reservation/EndTime",
-)
+}
 
-INGRESS_ALT_COLUMNS = set(
+INGRESS_ALT_COLUMNS = {
     "bill_billing_entity",
     "bill_bill_type",
     "bill_payer_account_id",
@@ -186,7 +186,7 @@ INGRESS_ALT_COLUMNS = set(
     "reservation_units_per_reservation",
     "reservation_start_time",
     "reservation_end_time",
-)
+}
 
 
 # pylint: disable=too-few-public-methods

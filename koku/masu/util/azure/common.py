@@ -20,7 +20,7 @@ from masu.util.ocp.common import match_openshift_labels
 
 LOG = logging.getLogger(__name__)
 
-INGRESS_REQUIRED_COLUMNS = set(
+INGRESS_REQUIRED_COLUMNS = {
     "SubscriptionGuid",
     "ResourceGroup",
     "ResourceLocation",
@@ -45,7 +45,7 @@ INGRESS_REQUIRED_COLUMNS = set(
     "ServiceTier",
     "Currency",
     "UnitOfMeasure",
-)
+}
 
 
 class AzureBlobExtension(Enum):
