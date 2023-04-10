@@ -5847,7 +5847,7 @@
                         "items": {
                             "type": "object",
                             "example": {
-                                "detail": "{'sources': ['RabbitMQ unavailable. Unable to update Source ID 1.']}",
+                                "detail": "{'sources': ['Redis unavailable. Unable to update Source ID 1.']}",
                                 "source": "detail",
                                 "status": 424
                             }

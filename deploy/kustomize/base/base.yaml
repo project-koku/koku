@@ -406,19 +406,6 @@ parameters:
   name: KAFKA_CONNECT
   value: "True"
 
-- description: Use rabbitmq as message broker
-  displayName: Use rabbitmq as message broker
-  name: USE_RABBIT
-  value: "False"
-- description: RabbitMQ host
-  displayName: RabbitMQ host
-  name: RABBITMQ_HOST
-  value: "rabbitmq"
-- description: RabbitMQ port
-  displayName: RabbitMQ port
-  name: RABBITMQ_PORT
-  value: "5672"
-
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
