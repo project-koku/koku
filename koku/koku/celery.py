@@ -274,7 +274,7 @@ def is_task_currently_running(task_name, task_id, check_args=None):
     try:
         active_dict = CELERY_INSPECT.active()
     except OperationalError:
-        LOG.warning("Cannot connect to RabbitMQ.")
+        LOG.warning("Cannot connect to Redis.")
         return False
     active_tasks = []
     for task_list in active_dict.values():

@@ -40,9 +40,6 @@ services:
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
-      - USE_RABBIT=${USE_RABBIT-False}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}

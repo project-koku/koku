@@ -75,12 +75,6 @@
           value: ${TRINO_PORT}
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
