@@ -72,7 +72,7 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     for stmt_num, p_stmt in enumerate(sqlparse.split(sqlscript)):
         stmt_count = stmt_count + 1
         if p_stmt := str(p_stmt).strip():
-            # A semicolon statement terminator is invalid in the Presto dbapi interface
+            # A semicolon statement terminator is invalid in the Trino dbapi interface
             p_stmt = p_stmt.removesuffix(";")
             # This is typically for jinjasql templated sql
             if preprocessor and params:

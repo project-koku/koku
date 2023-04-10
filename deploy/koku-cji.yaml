@@ -70,10 +70,10 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/koku
-- displayName: Presto/Trino host
+- displayName: Trino host
   name: TRINO_HOST
   value: trino-coordinator
-- displayName: Presto/Trino port
+- displayName: Trino port
   name: TRINO_PORT
   value: "10000"
 - displayName: Prometheus multiproc dir
