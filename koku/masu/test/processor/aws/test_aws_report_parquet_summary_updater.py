@@ -130,7 +130,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _, mock_category_update):
-        """Test that we run Presto summary."""
+        """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)

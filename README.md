@@ -220,7 +220,7 @@ Information about Grafana dashboards can be found here: https://grafana.com/docs
 
 #### Using Trino and MinIO
 
-We have a special docker compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
+We have a special docker compose file specifically for running Trino with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
 
 Set the following environment variables:
 
