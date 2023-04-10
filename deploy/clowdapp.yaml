@@ -319,10 +319,6 @@ objects:
               optional: true
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -543,10 +539,6 @@ objects:
           value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -701,10 +693,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1203,10 +1191,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1388,10 +1372,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1575,10 +1555,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1760,10 +1736,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1947,10 +1919,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2132,10 +2100,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2319,10 +2283,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2508,10 +2468,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2982,12 +2938,6 @@ parameters:
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
-- displayName: Presto/Trino host
-  name: PRESTO_HOST
-  value: trino-coordinator
-- displayName: Presto/Trino port
-  name: PRESTO_PORT
-  value: "10000"
 - displayName: Trino host
   name: TRINO_HOST
   value: trino-coordinator

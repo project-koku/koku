@@ -4,21 +4,8 @@ import sys
 import pyarrow.parquet as pq
 import trino
 
-PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
-PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
-PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
-PRESTO_SCHEMA = os.environ.get("PRESTO_SCHEMA", "default")
-TRINO_HOST = os.environ.get("TRINO_HOST", "localhost")
-TRINO_USER = os.environ.get("TRINO_USER", "admin")
-TRINO_CATALOG = os.environ.get("TRINO_CATALOG", "hive")
-TRINO_SCHEMA = os.environ.get("TRINO_SCHEMA", "default")
 
 parquet_dir = sys.argv[1]
-
-try:
-    PRESTO_PORT = int(os.environ.get("PRESTO_PORT", "8080"))
-except ValueError:
-    PRESTO_PORT = 8080
 
 account = parquet_dir.split("/")[-4]
 provider_uuid = parquet_dir.split("/")[-3]

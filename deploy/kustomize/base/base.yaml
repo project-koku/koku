@@ -426,12 +426,6 @@ parameters:
   name: RBAC_CACHE_TTL
   value: "30"
 
-- displayName: Presto/Trino host
-  name: PRESTO_HOST
-  value: "trino-coordinator"
-- displayName: Presto/Trino port
-  name: PRESTO_PORT
-  value: "10000"
 - displayName: Trino host
   name: TRINO_HOST
   value: "trino-coordinator"
