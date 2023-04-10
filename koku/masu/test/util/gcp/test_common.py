@@ -16,6 +16,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.util.gcp import common as utils
+from masu.util.gcp.gcp_post_processor import GCPPostProcessor
 from reporting.provider.gcp.models import GCPCostEntryBill
 
 
@@ -115,53 +116,6 @@ class TestGCPUtils(MasuTestCase):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
-
-    def test_process_gcp_labels(self):
-        """Test that labels are formatted properly."""
-        label_string = '[{"key": "key_one", "value": "value_one"}, {"key": "key_two", "value": "value_two"}]'
-
-        expected = '{"key_one": "value_one", "key_two": "value_two"}'
-        label_result = utils.process_gcp_labels(label_string)
-
-        self.assertEqual(label_result, expected)
-
-    def test_process_gcp_labels_empty_set(self):
-        """Test that labels are formatted properly."""
-        label_string = []
-        expected = {}
-        label_result = utils.process_gcp_labels(label_string)
-        self.assertEqual(label_result, str(expected))
-
-    def test_process_gcp_credits(self):
-        """Test that credits are formatted properly."""
-        credit_string = "[{'first': 'yes', 'second': None, 'third': 'no'}]"
-
-        expected = '{"first": "yes", "second": "None", "third": "no"}'
-        credit_result = utils.process_gcp_credits(credit_string)
-
-        self.assertEqual(credit_result, expected)
-
-    def test_post_processor(self):
-        """Test that data frame post processing succeeds."""
-        data = {
-            "column.one": [1, 2, 3],
-            "column.two": [4, 5, 6],
-            "three": [7, 8, 9],
-            "labels": ['{"label_one": "value_one"}', '{"label_one": "value_two"}', '{"label_two": "value_three"}'],
-        }
-        expected_columns = ["column_one", "column_two", "labels", "three"]
-
-        df = pd.DataFrame(data)
-
-        expected_tags = {"label_one", "label_two"}
-        result_df = utils.gcp_post_processor(df)
-        self.assertIsInstance(result_df, tuple)
-        result_df, df_tag_keys, _ = result_df
-        self.assertIsInstance(df_tag_keys, set)
-        self.assertEqual(df_tag_keys, expected_tags)
-
-        result_columns = list(result_df)
-        self.assertEqual(sorted(result_columns), sorted(expected_columns))
 
     def test_match_openshift_resources_and_labels(self):
         """Test that OCP on GCP matching occurs."""
@@ -272,6 +226,92 @@ class TestGCPUtils(MasuTestCase):
             utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
             self.assertIn(expected_log, logger.output[0])
 
+    def test_deduplicate_reports_for_gcp(self):
+        """Test the deduplication of reports for gcp."""
+        expected_results_dict = {
+            "202207": {"start": "2022-07-01", "end": "2022-07-21"},
+            "202208": {"start": "2022-07-31", "end": "2022-08-30"},
+        }
+        mocked_reports = [
+            {
+                "schema_name": "org1234567",
+                "provider_type": "GCP",
+                "provider_uuid": "1we",
+                "manifest_id": 1,
+                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
+                "start": "2022-07-01",
+                "end": "2022-07-04",
+                "invoice_month": "202207",
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "GCP",
+                "provider_uuid": "1we",
+                "manifest_id": 1,
+                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
+                "start": "2022-07-19",
+                "end": "2022-07-20",
+                "invoice_month": "202207",
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "GCP",
+                "provider_uuid": "1we",
+                "manifest_id": 1,
+                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
+                "start": "2022-07-19",
+                "end": "2022-07-21",
+                "invoice_month": "202207",
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "GCP",
+                "provider_uuid": "1we",
+                "manifest_id": 2,
+                "tracing_id": "2022-08-01|2022-08-02 01:11:12.066000+00:00",
+                "start": "2022-07-31",
+                "end": "2022-08-01",
+                "invoice_month": "202208",
+            },
+            {
+                "schema_name": "org1234567",
+                "provider_type": "GCP",
+                "provider_uuid": "1we",
+                "manifest_id": 3,
+                "tracing_id": "2022-08-03|2022-08-04 01:43:05.921000+00:00",
+                "start": "2022-08-23",
+                "end": "2022-08-30",
+                "invoice_month": "202208",
+            },
+        ]
+        results = utils.deduplicate_reports_for_gcp(mocked_reports)
+        self.assertEqual(len(results), 2)
+        for result in results:
+            result_invoice = result.get("invoice_month")
+            expected_dates = expected_results_dict.get(result_invoice)
+            self.assertIsNotNone(expected_dates)
+            self.assertEqual(expected_dates.get("start"), result.get("start"))
+            self.assertEqual(expected_dates.get("end"), result.get("end"))
+
+    @patch("masu.util.gcp.common.AccountsAccessor.get_accounts")
+    def test_check_resource_level_invalid_uuid(self, mock_accounts):
+        """Test gcp resource level paused source."""
+        mock_accounts.return_value = []
+        expected_log = "Account not returned, source likely has processing suspended."
+        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+            result = utils.check_resource_level(self.provider_uuid)
+            self.assertFalse(result)
+            self.assertIn(expected_log, logger.output[1])
+
+
+class TestGCPPostProcessor(MasuTestCase):
+    """Test GCP Post Processor."""
+
+    def setUp(self):
+        """Set up the test."""
+        super().setUp()
+        self.post_processor = GCPPostProcessor(self.schema)
+
     def test_gcp_generate_daily_data(self):
         """Test that we aggregate data at a daily level."""
         usage = random.randint(1, 10)
@@ -349,13 +389,103 @@ class TestGCPUtils(MasuTestCase):
         ]
         df = pd.DataFrame(data)
 
-        daily_df = utils.gcp_generate_daily_data(df)
+        daily_df = self.post_processor._generate_daily_data(df)
 
         first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
         second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
 
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
+
+        self.assertTrue((first_day["cost"] == cost * 2).bool())
+        self.assertTrue((second_day["cost"] == cost).bool())
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+
+        # if we have an empty data frame, we should get one back
+        empty_df = pd.DataFrame()
+        self.assertTrue(self.post_processor._generate_daily_data(empty_df))
+
+    def test_gcp_generate_daily_w_resource_data(self):
+        """Test that we aggregate data at a daily level w/o resource names."""
+        usage = random.randint(1, 10)
+        cost = random.randint(1, 10)
+        data = [
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 13, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 14, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": None,
+                "resource_global_name": None,
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 14, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 15, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": None,
+                "resource_global_name": None,
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 2, 4, 0, 0),
+                "usage_end_time": datetime(2022, 1, 2, 5, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": None,
+                "resource_global_name": None,
+            },
+        ]
+        df = pd.DataFrame(data)
+        daily_df = self.post_processor._generate_daily_data(df)
+
+        first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
+        second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
 
         self.assertTrue((first_day["cost"] == cost * 2).bool())
         self.assertTrue((second_day["cost"] == cost).bool())
@@ -436,8 +566,7 @@ class TestGCPUtils(MasuTestCase):
             },
         ]
         df = pd.DataFrame(data)
-
-        daily_df = utils.gcp_generate_daily_data(df)
+        daily_df = self.post_processor._generate_daily_data(df)
 
         first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
         second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
@@ -452,172 +581,52 @@ class TestGCPUtils(MasuTestCase):
 
         # if we have an empty data frame, we should get one back
         empty_df = pd.DataFrame()
-        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
+        self.assertTrue(self.post_processor._generate_daily_data(empty_df))
 
-    def test_gcp_generate_daily_w_resource_data(self):
-        """Test that we aggregate data at a daily level w/o resource names."""
-        usage = random.randint(1, 10)
-        cost = random.randint(1, 10)
-        data = [
-            {
-                "billing_account_id": "fact",
-                "service_id": "95FF-2EF5-5EA1",
-                "service_description": "Cloud Storage",
-                "sku_id": "E5F0-6A5D-7BAD",
-                "sku_description": "Standard Storage US Regional",
-                "usage_start_time": datetime(2022, 1, 1, 13, 0, 0),
-                "usage_end_time": datetime(2022, 1, 1, 14, 0, 0),
-                "project_id": "trouble-although-mind",
-                "project_name": "trouble-although-mind",
-                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
-                "system_labels": "{}",
-                "cost_type": "regular",
-                "credits": "{}",
-                "location_region": "us-central1",
-                "usage_pricing_unit": "byte-seconds",
-                "usage_amount_in_pricing_units": usage,
-                "currency": "USD",
-                "cost": cost,
-                "invoice_month": "202201",
-                "resource_name": None,
-                "resource_global_name": None,
-            },
-            {
-                "billing_account_id": "fact",
-                "service_id": "95FF-2EF5-5EA1",
-                "service_description": "Cloud Storage",
-                "sku_id": "E5F0-6A5D-7BAD",
-                "sku_description": "Standard Storage US Regional",
-                "usage_start_time": datetime(2022, 1, 1, 14, 0, 0),
-                "usage_end_time": datetime(2022, 1, 1, 15, 0, 0),
-                "project_id": "trouble-although-mind",
-                "project_name": "trouble-although-mind",
-                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
-                "system_labels": "{}",
-                "cost_type": "regular",
-                "credits": "{}",
-                "location_region": "us-central1",
-                "usage_pricing_unit": "byte-seconds",
-                "usage_amount_in_pricing_units": usage,
-                "currency": "USD",
-                "cost": cost,
-                "invoice_month": "202201",
-                "resource_name": None,
-                "resource_global_name": None,
-            },
-            {
-                "billing_account_id": "fact",
-                "service_id": "95FF-2EF5-5EA1",
-                "service_description": "Cloud Storage",
-                "sku_id": "E5F0-6A5D-7BAD",
-                "sku_description": "Standard Storage US Regional",
-                "usage_start_time": datetime(2022, 1, 2, 4, 0, 0),
-                "usage_end_time": datetime(2022, 1, 2, 5, 0, 0),
-                "project_id": "trouble-although-mind",
-                "project_name": "trouble-although-mind",
-                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
-                "system_labels": "{}",
-                "cost_type": "regular",
-                "credits": "{}",
-                "location_region": "us-central1",
-                "usage_pricing_unit": "byte-seconds",
-                "usage_amount_in_pricing_units": usage,
-                "currency": "USD",
-                "cost": cost,
-                "invoice_month": "202201",
-                "resource_name": None,
-                "resource_global_name": None,
-            },
-        ]
+    def test_post_processor(self):
+        """Test that data frame post processing succeeds."""
+        data = {
+            "column.one": [1, 2, 3],
+            "column.two": [4, 5, 6],
+            "three": [7, 8, 9],
+            "labels": ['{"label_one": "value_one"}', '{"label_one": "value_two"}', '{"label_two": "value_three"}'],
+        }
+        expected_columns = ["column_one", "column_two", "labels", "three"]
+
         df = pd.DataFrame(data)
 
-        daily_df = utils.gcp_generate_daily_data(df)
+        expected_tags = {"label_one", "label_two"}
+        result_df, _ = self.post_processor(df)
+        self.assertIsInstance(result_df, tuple)
+        result_df, df_tag_keys, _ = result_df
+        self.assertIsInstance(df_tag_keys, set)
+        self.assertEqual(df_tag_keys, expected_tags)
 
-        first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
-        second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
+        result_columns = list(result_df)
+        self.assertEqual(sorted(result_columns), sorted(expected_columns))
 
-        self.assertTrue((first_day["cost"] == cost * 2).bool())
-        self.assertTrue((second_day["cost"] == cost).bool())
-        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
-        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+    def test_process_gcp_credits(self):
+        """Test that credits are formatted properly."""
+        csv_converters, panda_kwargs = self.post_processor.get_column_converters(["credits"], {})
+        self.assertEqual({}, panda_kwargs)
+        credit_converter = csv_converters.get("credits")
+        credit_string = "[{'first': 'yes', 'second': None, 'third': 'no'}]"
 
-        # if we have an empty data frame, we should get one back
-        empty_df = pd.DataFrame()
-        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
+        expected = '{"first": "yes", "second": "None", "third": "no"}'
+        credit_result = credit_converter(credit_string)
+        self.assertEqual(credit_result, expected)
 
-    def test_deduplicate_reports_for_gcp(self):
-        """Test the deduplication of reports for gcp."""
-        expected_results_dict = {
-            "202207": {"start": "2022-07-01", "end": "2022-07-21"},
-            "202208": {"start": "2022-07-31", "end": "2022-08-30"},
-        }
-        mocked_reports = [
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 1,
-                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
-                "start": "2022-07-01",
-                "end": "2022-07-04",
-                "invoice_month": "202207",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 1,
-                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
-                "start": "2022-07-19",
-                "end": "2022-07-20",
-                "invoice_month": "202207",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 1,
-                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
-                "start": "2022-07-19",
-                "end": "2022-07-21",
-                "invoice_month": "202207",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 2,
-                "tracing_id": "2022-08-01|2022-08-02 01:11:12.066000+00:00",
-                "start": "2022-07-31",
-                "end": "2022-08-01",
-                "invoice_month": "202208",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 3,
-                "tracing_id": "2022-08-03|2022-08-04 01:43:05.921000+00:00",
-                "start": "2022-08-23",
-                "end": "2022-08-30",
-                "invoice_month": "202208",
-            },
-        ]
-        results = utils.deduplicate_reports_for_gcp(mocked_reports)
-        self.assertEqual(len(results), 2)
-        for result in results:
-            result_invoice = result.get("invoice_month")
-            expected_dates = expected_results_dict.get(result_invoice)
-            self.assertIsNotNone(expected_dates)
-            self.assertEqual(expected_dates.get("start"), result.get("start"))
-            self.assertEqual(expected_dates.get("end"), result.get("end"))
+    def test_process_gcp_labels(self):
+        """Test that labels are formatted properly."""
+        csv_converters, panda_kwargs = self.post_processor.get_column_converters(["labels"], {})
+        self.assertEqual({}, panda_kwargs)
+        label_converter = csv_converters.get("labels")
+        label_string = '[{"key": "key_one", "value": "value_one"}, {"key": "key_two", "value": "value_two"}]'
 
-    @patch("masu.util.gcp.common.AccountsAccessor.get_accounts")
-    def test_check_resource_level_invalid_uuid(self, mock_accounts):
-        """Test gcp resource level paused source."""
-        mock_accounts.return_value = []
-        expected_log = "Account not returned, source likely has processing suspended."
-        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-            result = utils.check_resource_level(self.provider_uuid)
-            self.assertFalse(result)
-            self.assertIn(expected_log, logger.output[1])
+        expected = '{"key_one": "value_one", "key_two": "value_two"}'
+        label_result = label_converter(label_string)
+
+        self.assertEqual(label_result, expected)
+        # Test label empty set
+        label_string = label_converter([])
+        self.assertEqual(label_converter(label_string), str({}))

@@ -8,8 +8,8 @@ import pandas as pd
 
 from api.utils import DateHelper
 from masu.test import MasuTestCase
+from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.azure.common import azure_date_converter
-from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_json_converter
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import match_openshift_resources_and_labels
@@ -64,12 +64,6 @@ class TestAzureUtils(MasuTestCase):
         )
 
         self.assertEqual(columns, expected_columns)
-
-    def test_azure_generate_daily_data(self):
-        """Test that we return the original data frame."""
-        df = pd.DataFrame([{"key": "value"}])
-        result = azure_generate_daily_data(df)
-        self.assertEqual(id(df), id(result))
 
     def test_match_openshift_resources_and_labels(self):
         """Test that OCP on Azure matching occurs."""
@@ -154,3 +148,18 @@ class TestAzureUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+
+class TestAzurePostProcessor(MasuTestCase):
+    """Test Azure Post Processor."""
+
+    def setUp(self):
+        """Set up the test."""
+        super().setUp()
+        self.post_processor = AzurePostProcessor(self.schema)
+
+    def test_azure_generate_daily_data(self):
+        """Test that we return the original data frame."""
+        df = pd.DataFrame([{"key": "value"}])
+        result = self.post_processor._generate_daily_data(df)
+        self.assertEqual(id(df), id(result))
