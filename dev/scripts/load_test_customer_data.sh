@@ -266,10 +266,10 @@ build_azure_data() {
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
-  add_cost_models 'Test Azure Source' azure_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
+  # add_cost_models 'Test Azure Source' azure_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 
   log-info "Trigger downloads..."
-  trigger_download "${_download_types[@]}"
+  # trigger_download "${_download_types[@]}"
 }
 
 # GCP customer data

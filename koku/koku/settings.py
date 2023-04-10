@@ -492,8 +492,6 @@ OCI_CONFIG = {
 }
 
 # Trino Settings
-PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
-PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)

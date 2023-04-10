@@ -69,10 +69,6 @@
               optional: true
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT

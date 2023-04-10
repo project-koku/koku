@@ -4,7 +4,7 @@ import sys
 import pyarrow.parquet as pq
 import trino
 
-PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
+
 PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
 PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
 PRESTO_SCHEMA = os.environ.get("PRESTO_SCHEMA", "default")

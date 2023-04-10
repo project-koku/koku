@@ -51,7 +51,7 @@ class ReportParquetProcessorBase:
         rows = []
         try:
             with trino.dbapi.connect(
-                host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
+                host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
             ) as conn:
                 cur = conn.cursor()
                 cur.execute(sql)
