@@ -112,7 +112,7 @@ def gcp_post_processor(data_frame):
     for column in columns:
         new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
-    data_frame.rename(columns=column_name_map, inplace=True)
+    data_frame = data_frame.rename(columns=column_name_map)
 
     label_set = set()
     unique_labels = data_frame.labels.unique()

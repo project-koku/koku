@@ -104,7 +104,7 @@ def oci_post_processor(data_frame):
 
     data_frame["tags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
-    data_frame.reindex(columns=columns, inplace=True)
+    data_frame = data_frame.reindex(columns=columns)
 
     columns = list(data_frame)
     column_name_map = {}
@@ -114,8 +114,8 @@ def oci_post_processor(data_frame):
         column_name_map[column] = new_col_name
         if "tags/" in column:
             drop_columns.append(column)
-    data_frame.drop(columns=drop_columns, inplace=True)
-    data_frame.rename(columns=column_name_map, inplace=True)
+    data_frame = data_frame.drop(columns=drop_columns)
+    data_frame = data_frame.rename(columns=column_name_map)
     return (data_frame, unique_keys, None)
 
 
