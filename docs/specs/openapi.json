@@ -3159,6 +3159,40 @@
                 }
             }
         },
+        "/resource-types/aws-categories/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "Obtain mapping of key and values for AWS Categories.",
+                "operationId": "listResourcesAwsCategories",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypeAwsCategories"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/aws-regions/": {
             "get": {
                 "tags": [
@@ -6338,6 +6372,35 @@
                                 "items": {
                                     "$ref": "#/components/schemas/ResourceTypeOut"
                                 }
+                            }
+                        }
+                    }
+                ]
+            },
+            "ResourceTypeAwsCategories": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "example": [
+                                    {
+                                        "key": "env",
+                                        "values": [
+                                            "prod",
+                                            "ephemeral",
+                                            "stage"
+                                        ],
+                                        "enabled": "True"
+                                    }
+                                ],
+                                "items": {}
                             }
                         }
                     }

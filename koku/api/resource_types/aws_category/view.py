@@ -42,7 +42,7 @@ class AWSCategoryView(generics.ListAPIView):
         "enabled": Exists(AWSEnabledCategoryKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)),
     }
     queryset = AWSCategorySummary.objects.values("key").annotate(**annotations).distinct()
-    SUPPORTED_FILTERS = ["key", "value", "account", "enabled", "search", "limit"]
+    SUPPORTED_FILTERS = ["search", "limit"]
     pagination_class = ResourceTypeViewPaginator
     serializer_class = AWSCategorySerializer
 
@@ -65,7 +65,6 @@ class AWSCategoryView(generics.ListAPIView):
         if user_access and user_access[0] == "*":
             return super().list(request)
         self.queryset = self.queryset.filter(usage_account_id__in=user_access)
-
         return super().list(request)
 
     # Overwrite generics.ListAPIView paginate_queryset to
