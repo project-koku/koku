@@ -223,6 +223,21 @@ class TestParquetReportProcessor(MasuTestCase):
                     _, __, result = self.report_processor_ingress.convert_csv_to_parquet("csv_filename.csv.gz")
                     self.assertFalse(result)
 
+    def test_unknown_provider_post_processor(self):
+        """Test that nothing is returned"""
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid="123456",
+            provider_type="unknown_provider",
+            manifest_id=self.manifest_id,
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        dataframe, daily, success = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+        self.assertIsNone(dataframe)
+        self.assertIsNone(daily)
+        self.assertFalse(success)
+
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
     def test_convert_to_parquet(self, mock_remove, mock_exists):

@@ -389,7 +389,7 @@ class ParquetReportProcessor:
                 "provider_uuid": self.provider_uuid,
             }
             LOG.warn(log_json(self.tracing_id, msg, context))
-            return
+            return None, None, False
 
         daily_data_frames = []
         _, csv_name = os.path.split(csv_filename)
