@@ -204,13 +204,13 @@ class ExtendedDeadlockDetected(ExtendedDBException):
     )
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self.blocker1 = None
         self.blocker2 = None
         self.process1 = None
         self.process2 = None
         self.txaction1 = None
         self.txaction2 = None
+        super().__init__(*args, **kwargs)
 
     def parse_exception(self):
         super().parse_exception()
