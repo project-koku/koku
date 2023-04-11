@@ -217,7 +217,7 @@ class ExtendedDeadlockDetected(ExtendedDBException):
 
             self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = identifiers
         else:
-            self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = None
+            self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = [None] * 6
 
     def get_extended_info(self):
         super().get_extended_info()
