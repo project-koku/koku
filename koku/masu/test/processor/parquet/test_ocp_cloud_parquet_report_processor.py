@@ -81,7 +81,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             OCPCloudUpdaterBase, "_generate_ocp_infra_map_from_sql_trino"
         ) as mock_trino_get:
             mock_get_infra.return_value = ([], [])
-            report_processor = OCPCloudParquetReportProcessor(
+            OCPCloudParquetReportProcessor(
                 schema_name=self.schema,
                 report_path=self.report_path,
                 provider_uuid=self.aws_provider_uuid,
@@ -89,7 +89,6 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
                 manifest_id=self.manifest_id,
                 context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
             )
-            report_processor.ocp_infrastructure_map
             mock_trino_get.assert_called()
 
     def test_db_accessor(self):
