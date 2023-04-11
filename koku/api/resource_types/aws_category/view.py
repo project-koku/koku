@@ -3,9 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for AWS category resource types."""
-# import copy
-import logging
-
 from django.conf import settings
 from django.db.models import Exists
 from django.db.models import F
@@ -23,9 +20,6 @@ from api.common.permissions import AwsAccessPermission
 from api.resource_types.aws_category.serializers import AWSCategorySerializer
 from reporting.provider.aws.models import AWSCategorySummary
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-
-
-LOG = logging.getLogger(__name__)
 
 
 class AWSCategoryView(generics.ListAPIView):

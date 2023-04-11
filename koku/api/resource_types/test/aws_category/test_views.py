@@ -1,10 +1,8 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
-import logging
-
 from django.urls import reverse
 from rest_framework import status
 from tenant_schemas.utils import schema_context
@@ -13,8 +11,6 @@ from api.iam.test.iam_test_case import RbacPermissions
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-
-LOG = logging.getLogger(__name__)
 
 
 class ResourceTypesViewTestAWSCategory(MasuTestCase):
@@ -41,7 +37,6 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             json_result = response.json()
-            LOG.info(json_result)
             self.assertIsNotNone(json_result.get("data"))
             self.assertIsInstance(json_result.get("data"), list)
             self.assertEqual(len(json_result.get("data")), len(expected))
@@ -61,7 +56,6 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        LOG.info(json_result)
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(len(json_result.get("data")), 0)

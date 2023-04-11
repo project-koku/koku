@@ -3,11 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializer for aws category resource types."""
-import logging
-
 from rest_framework import serializers
-
-LOG = logging.getLogger(__name__)
 
 
 class AWSCategorySerializer(serializers.Serializer):

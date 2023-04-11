@@ -3,14 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Query Handling for Reports."""
-import logging
-
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.aws.openshift.query_handler import OCPInfrastructureReportQueryHandlerBase
 from api.report.queries import is_grouped_by_project
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):

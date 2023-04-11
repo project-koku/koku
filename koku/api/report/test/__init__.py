@@ -3,15 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Unit testing utilities."""
-import logging
 import random
 import re
 
 from faker import Faker
 
 from api.utils import DateHelper
-
-LOG = logging.getLogger(__name__)
 
 
 class FakeAWSCostData:
