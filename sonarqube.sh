@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
 gitBranch=${GIT_BRANCH:-main}
 
