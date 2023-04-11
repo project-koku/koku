@@ -3,7 +3,7 @@
 set -ex
 
 COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
-gitBranch=${GIT_BRANCH:-main}
+gitBranch=${GIT_BRANCH:-origin/main}
 
 # When doing a PR check, send sonarqube results to a separate branch.
 # Otherwise, send it to the default 'master' branch.
