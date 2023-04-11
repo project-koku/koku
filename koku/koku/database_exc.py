@@ -203,21 +203,26 @@ class ExtendedDeadlockDetected(ExtendedDBException):
         flags=re.DOTALL,
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.blocker1 = None
+        self.blocker2 = None
+        self.process1 = None
+        self.process2 = None
+        self.txaction1 = None
+        self.txaction2 = None
+
     def parse_exception(self):
         super().parse_exception()
 
-        res = self.REGEXP.findall(str(self))
-        if res:
+        if res := self.REGEXP.findall(str(self)):
             identifiers = []
             for i in res[0]:
                 try:
                     identifiers.append(int(i))
                 except ValueError:
                     identifiers.append(i)
-
             self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = identifiers
-        else:
-            self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = [None] * 6
 
     def get_extended_info(self):
         super().get_extended_info()
