@@ -363,7 +363,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             user.beta = False
             if request.META.get("HTTP_REFERER"):
                 referer = request.META["HTTP_REFERER"]
-                if "/beta/" in referer:
+                if "/beta/" in referer or "/preview/" in referer:
                     user.beta = True
             request.user = user
 
