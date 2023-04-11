@@ -3,15 +3,14 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from masu.util.azure.azure_post_processor import AzurePostProcessor
-from masu.util.azure.common import azure_date_converter
-from masu.util.azure.common import azure_json_converter
-from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import match_openshift_resources_and_labels
 from reporting.provider.azure.models import TRINO_COLUMNS
 
@@ -19,51 +18,10 @@ from reporting.provider.azure.models import TRINO_COLUMNS
 class TestAzureUtils(MasuTestCase):
     """Tests for Azure utilities."""
 
-    def test_azure_date_converter(self):
-        """Test that we convert the new Azure date format."""
-        today = DateHelper().today
-        old_azure_format = today.strftime("%Y-%m-%d")
-        new_azure_format = today.strftime("%m/%d/%Y")
-
-        self.assertEqual(azure_date_converter(old_azure_format).date(), today.date())
-        self.assertEqual(azure_date_converter(new_azure_format).date(), today.date())
-        self.assertTrue(np.isnan(azure_date_converter("")))
-
-    def test_azure_json_converter(self):
-        """Test that we successfully process both Azure JSON formats."""
-
-        first_format = '{  "ResourceType": "Bandwidth",  "DataCenter": "BN3",  "NetworkBucket": "BY1"}'
-        first_expected = '{"ResourceType": "Bandwidth", "DataCenter": "BN3", "NetworkBucket": "BY1"}'
-
-        self.assertEqual(azure_json_converter(first_format), first_expected)
-
-        second_format = '{"project":"p1","cost":"management"}'
-        second_expected = '{"project": "p1", "cost": "management"}'
-
-        self.assertEqual(azure_json_converter(second_format), second_expected)
-
-        third_format = '"created-by": "kubernetes-azure","kubernetes.io-created-for-pv-name": "pvc-123"'
-        third_expected = '{"created-by": "kubernetes-azure", "kubernetes.io-created-for-pv-name": "pvc-123"}'
-
-        self.assertEqual(azure_json_converter(third_format), third_expected)
-
-    def test_azure_post_processor(self):
-        """Test that we end up with a dataframe with the correct columns."""
-
-        data = {"MeterSubCategory": [1], "tags": ['{"key1": "val1", "key2": "val2"}']}
-        df = pd.DataFrame(data)
-        result = azure_post_processor(df)
-        if isinstance(result, tuple):
-            result, df_tag_keys, _ = result
-            self.assertIsInstance(df_tag_keys, set)
-
-        columns = list(result)
-
-        expected_columns = sorted(
-            col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_COLUMNS
-        )
-
-        self.assertEqual(columns, expected_columns)
+    def setUp(self):
+        """Set up the test."""
+        super().setUp()
+        self.post_processor = AzurePostProcessor(self.schema)
 
     def test_match_openshift_resources_and_labels(self):
         """Test that OCP on Azure matching occurs."""
@@ -151,6 +109,7 @@ class TestAzureUtils(MasuTestCase):
 
 
 class TestAzurePostProcessor(MasuTestCase):
+
     """Test Azure Post Processor."""
 
     def setUp(self):
@@ -163,3 +122,56 @@ class TestAzurePostProcessor(MasuTestCase):
         df = pd.DataFrame([{"key": "value"}])
         result = self.post_processor._generate_daily_data(df)
         self.assertEqual(id(df), id(result))
+
+    def test_azure_post_processor(self):
+        """Test that we end up with a dataframe with the correct columns."""
+
+        data = {"MeterSubCategory": [1], "tags": ['{"key1": "val1", "key2": "val2"}']}
+        df = pd.DataFrame(data)
+
+        with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
+            result, _ = self.post_processor.process_dataframe(df)
+            if isinstance(result, tuple):
+                result, df_tag_keys, _ = result
+                self.assertIsInstance(df_tag_keys, set)
+
+            columns = list(result)
+
+            expected_columns = sorted(
+                col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_COLUMNS
+            )
+
+            self.assertEqual(columns, expected_columns)
+
+    def test_azure_date_converter(self):
+        """Test that we convert the new Azure date format."""
+        today = DateHelper().today
+        csv_converters, panda_kwargs = self.post_processor.get_column_converters(["date"], {})
+        self.assertEqual(panda_kwargs, {})
+        date_converter = csv_converters.get("date")
+        for acceptable_format in ["%Y-%m-%d", "%m/%d/%Y"]:
+            with self.subTest(acceptable_format=acceptable_format):
+                date = today.strftime(acceptable_format)
+                self.assertEqual(date_converter(date).date(), today.date())
+        self.assertTrue(np.isnan(date_converter("")))
+
+    def test_azure_json_converter(self):
+        """Test that we successfully process both Azure JSON formats."""
+        test_matrix = {
+            "resource_type": [
+                '{  "ResourceType": "Bandwidth",  "DataCenter": "BN3",  "NetworkBucket": "BY1"}',
+                '{"ResourceType": "Bandwidth", "DataCenter": "BN3", "NetworkBucket": "BY1"}',
+            ],
+            "project": ['{"project":"p1","cost":"management"}', '{"project": "p1", "cost": "management"}'],
+            "created-by": [
+                '"created-by": "kubernetes-azure","kubernetes.io-created-for-pv-name": "pvc-123"',
+                '{"created-by": "kubernetes-azure", "kubernetes.io-created-for-pv-name": "pvc-123"}',
+            ],
+        }
+        csv_converters, panda_kwargs = self.post_processor.get_column_converters(["tags"], {})
+        self.assertEqual(panda_kwargs, {})
+        json_converter = csv_converters.get("tags")
+        for key in test_matrix.keys():
+            with self.subTest(key=key):
+                unconverted, expected = test_matrix[key]
+                self.assertEqual(json_converter(unconverted), expected)

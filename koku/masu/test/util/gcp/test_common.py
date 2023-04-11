@@ -404,7 +404,8 @@ class TestGCPPostProcessor(MasuTestCase):
 
         # if we have an empty data frame, we should get one back
         empty_df = pd.DataFrame()
-        self.assertTrue(self.post_processor._generate_daily_data(empty_df))
+        result = self.post_processor._generate_daily_data(empty_df)
+        self.assertTrue(result.empty)
 
     def test_gcp_generate_daily_w_resource_data(self):
         """Test that we aggregate data at a daily level w/o resource names."""
@@ -494,7 +495,7 @@ class TestGCPPostProcessor(MasuTestCase):
 
         # if we have an empty data frame, we should get one back
         empty_df = pd.DataFrame()
-        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
+        self.assertTrue(self.post_processor._generate_daily_data(empty_df).empty)
 
     def test_gcp_generate_daily_wo_resource_data(self):
         """Test that we aggregate data at a daily level w/o resource names."""
@@ -581,7 +582,8 @@ class TestGCPPostProcessor(MasuTestCase):
 
         # if we have an empty data frame, we should get one back
         empty_df = pd.DataFrame()
-        self.assertTrue(self.post_processor._generate_daily_data(empty_df))
+        result = self.post_processor._generate_daily_data(empty_df)
+        self.assertTrue(result.empty)
 
     def test_post_processor(self):
         """Test that data frame post processing succeeds."""
@@ -596,14 +598,13 @@ class TestGCPPostProcessor(MasuTestCase):
         df = pd.DataFrame(data)
 
         expected_tags = {"label_one", "label_two"}
-        result_df, _ = self.post_processor(df)
-        self.assertIsInstance(result_df, tuple)
-        result_df, df_tag_keys, _ = result_df
-        self.assertIsInstance(df_tag_keys, set)
-        self.assertEqual(df_tag_keys, expected_tags)
+        with patch("masu.util.gcp.gcp_post_processor.GCPPostProcessor._generate_daily_data"):
+            result_df, _ = self.post_processor.process_dataframe(df)
+            self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
+            self.assertEqual(self.post_processor.enabled_tag_keys, expected_tags)
 
-        result_columns = list(result_df)
-        self.assertEqual(sorted(result_columns), sorted(expected_columns))
+            result_columns = list(result_df)
+            self.assertEqual(sorted(result_columns), sorted(expected_columns))
 
     def test_process_gcp_credits(self):
         """Test that credits are formatted properly."""

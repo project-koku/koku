@@ -713,18 +713,19 @@ class TestAWSPostProcessor(MasuTestCase):
         }
         data_frame = pd.DataFrame.from_dict(data)
 
-        processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
-        self.assertIsInstance(self.post_processor.enabled_categories, set)
-        self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
-        columns = list(processed_data_frame)
+        with patch("masu.util.aws.aws_post_processor.AWSPostProcessor._generate_daily_data"):
+            processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
+            self.assertIsInstance(self.post_processor.enabled_categories, set)
+            self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
+            columns = list(processed_data_frame)
 
-        self.assertIn(column_one, columns)
-        self.assertIn(column_two, columns)
-        self.assertIn(column_three.replace("-", "_"), columns)
-        self.assertNotIn(column_four, columns)
-        self.assertIn("resourcetags", columns)
-        for column in TRINO_REQUIRED_COLUMNS:
-            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
+            self.assertIn(column_one, columns)
+            self.assertIn(column_two, columns)
+            self.assertIn(column_three.replace("-", "_"), columns)
+            self.assertNotIn(column_four, columns)
+            self.assertIn("resourcetags", columns)
+            for column in TRINO_REQUIRED_COLUMNS:
+                self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
     def test_aws_post_processor_customer_filtered_columns(self):
         """Test that customer filtered columns get converted correctly in the data frame."""
@@ -735,13 +736,16 @@ class TestAWSPostProcessor(MasuTestCase):
         data = {column_one: [1, 2], column_two: [3, 4]}
         data_frame = pd.DataFrame.from_dict(data)
 
-        processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
-        self.assertIsInstance(self.post_processor.enabled_categories, set)
-        self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
-        self.assertIn(expected_col_one, processed_data_frame)
-        self.assertIn(expected_col_two, processed_data_frame)
-        for column in TRINO_REQUIRED_COLUMNS:
-            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), processed_data_frame)
+        with patch("masu.util.aws.aws_post_processor.AWSPostProcessor._generate_daily_data"):
+            processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
+            self.assertIsInstance(self.post_processor.enabled_categories, set)
+            self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
+            self.assertIn(expected_col_one, processed_data_frame)
+            self.assertIn(expected_col_two, processed_data_frame)
+            for column in TRINO_REQUIRED_COLUMNS:
+                self.assertIn(
+                    column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), processed_data_frame
+                )
 
     def test_aws_post_processor_empty_tags(self):
         """Test that missing columns in a report end up in the data frame."""
@@ -752,6 +756,7 @@ class TestAWSPostProcessor(MasuTestCase):
         data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
         data_frame = pd.DataFrame.from_dict(data)
 
-        processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
-        self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
-        self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())
+        with patch("masu.util.aws.aws_post_processor.AWSPostProcessor._generate_daily_data"):
+            processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
+            self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
+            self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())

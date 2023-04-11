@@ -96,13 +96,6 @@ class OCPUtilTests(MasuTestCase):
             self.assertTrue(utils.poll_ingest_override_for_provider(self.ocp_test_provider_uuid))
         shutil.rmtree(fake_dir)
 
-    def test_process_openshift_datetime(self):
-        """Test process_openshift_datetime method with good and bad values."""
-        expected_dt_str = "2020-07-01 00:00:00"
-        expected = pd.to_datetime(expected_dt_str)
-        dt = utils.process_openshift_datetime("2020-07-01 00:00:00 +0000 UTC")
-        self.assertEqual(expected, dt)
-
     def test_match_openshift_labels(self):
         """Test that a label match returns."""
         matched_tags = [{"key": "value"}, {"other_key": "other_value"}]
@@ -190,52 +183,6 @@ class OCPUtilTests(MasuTestCase):
                     mock_csv.return_value.columns = test
                     result, _ = utils.detect_type("")
                     self.assertEqual(result, expected)
-
-    def test_ocp_post_processor(self):
-        """Test the unique tag key processing for OpenShift."""
-
-        for label_type in ("pod_labels", "volume_labels", "namespace_labels", "node_labels"):
-            with self.subTest(label_type=label_type):
-                data = [
-                    {
-                        "key_one": "value_one",
-                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "always"}',
-                    },
-                    {
-                        "key_one": "value_two",
-                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "sometimes"}',
-                    },
-                    {
-                        "key_one": "value_one",
-                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "maybe?"}',
-                    },
-                ]
-                expected_keys = ["application", "environment", "fun_times"]
-                df = pd.DataFrame(data)
-                result, unique_keys, _ = utils.ocp_post_processor(df)
-                pd.testing.assert_frame_equal(df, result)
-                self.assertEqual(sorted(unique_keys), sorted(expected_keys))
-
-        label_type = "incorrect_labels_column"
-        data = [
-            {
-                "key_one": "value_one",
-                label_type: '{"application": "cost", "environment": "dev", "fun_times": "always"}',
-            },
-            {
-                "key_one": "value_two",
-                label_type: '{"application": "cost", "environment": "dev", "fun_times": "sometimes"}',
-            },
-            {
-                "key_one": "value_one",
-                label_type: '{"application": "cost", "environment": "dev", "fun_times": "maybe?"}',
-            },
-        ]
-        expected_keys = ["application", "environment", "fun_times"]
-        df = pd.DataFrame(data)
-        result, unique_keys, _ = utils.ocp_post_processor(df)
-        pd.testing.assert_frame_equal(df, result)
-        self.assertEqual(unique_keys, set())
 
 
 class TestOCPPostProcessor(MasuTestCase):
@@ -358,3 +305,64 @@ class TestOCPPostProcessor(MasuTestCase):
 
                 self.assertTrue((second_day["namespace"] == namespace).bool())
                 self.assertTrue((second_day["namespace_labels"] == label).bool())
+
+    def test_ocp_post_processor(self):
+        """Test the unique tag key processing for OpenShift."""
+
+        for label_type in ("pod_labels", "volume_labels", "namespace_labels", "node_labels"):
+            with self.subTest(label_type=label_type):
+                data = [
+                    {
+                        "key_one": "value_one",
+                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "always"}',
+                    },
+                    {
+                        "key_one": "value_two",
+                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "sometimes"}',
+                    },
+                    {
+                        "key_one": "value_one",
+                        label_type: '{"application": "cost", "environment": "dev", "fun_times": "maybe?"}',
+                    },
+                ]
+                expected_keys = ["application", "environment", "fun_times"]
+                df = pd.DataFrame(data)
+                with patch("masu.util.ocp.ocp_post_processor.OCPPostProcessor._generate_daily_data"):
+                    post_processor = OCPPostProcessor(self.schema, "pod_usage")
+                    processed_df, _ = post_processor.process_dataframe(df)
+                pd.testing.assert_frame_equal(df, processed_df)
+                self.assertEqual(sorted(post_processor.enabled_tag_keys), sorted(expected_keys))
+
+        label_type = "incorrect_labels_column"
+        data = [
+            {
+                "key_one": "value_one",
+                label_type: '{"application": "cost", "environment": "dev", "fun_times": "always"}',
+            },
+            {
+                "key_one": "value_two",
+                label_type: '{"application": "cost", "environment": "dev", "fun_times": "sometimes"}',
+            },
+            {
+                "key_one": "value_one",
+                label_type: '{"application": "cost", "environment": "dev", "fun_times": "maybe?"}',
+            },
+        ]
+        expected_keys = ["application", "environment", "fun_times"]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        with patch("masu.util.ocp.ocp_post_processor.OCPPostProcessor._generate_daily_data"):
+            processed_df, _ = post_processor.process_dataframe(df)
+            pd.testing.assert_frame_equal(df, processed_df)
+            self.assertEqual(post_processor.enabled_tag_keys, set())
+
+    def test_process_openshift_datetime(self):
+        """Test process_openshift_datetime method with good and bad values."""
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        csv_converters, panda_kwargs = post_processor.get_column_converters(["report_period_start"], {})
+        self.assertEqual({}, panda_kwargs)
+        datetime_converter = csv_converters.get("report_period_start")
+        expected_dt_str = "2020-07-01 00:00:00"
+        expected = pd.to_datetime(expected_dt_str)
+        dt = datetime_converter("2020-07-01 00:00:00 +0000 UTC")
+        self.assertEqual(expected, dt)
