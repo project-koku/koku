@@ -14,6 +14,7 @@ from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
 from django.db.models.signals import post_delete
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
@@ -366,16 +367,22 @@ select ftn.nspname as "table_schema",
         if target_values is None:
             target_values = [self.uuid]
 
-        qual_table_name = f'''"{target_info['table_schema']}"."{target_info["table_name"]}"'''
-        _sql = f"""
-delete
-  from {qual_table_name}
- where "{target_info["column_name"]}" = any(%s)
-;
-"""
+        jinja_sql = JinjaSql()
+        _sql = """
+            delete
+                from {{ schema | sqlsafe }}.{{ table | sqlsafe }}
+            where {{ column | sqlsafe }} = any(%s)
+            ;
+        """
+        _sql_params = {
+            "schema": target_info["table_schema"],
+            "table": target_info["table_name"],
+            "column": target_info["column_name"],
+        }
+        sql, sql_params = jinja_sql.prepare_query(_sql, _sql_params)
         with transaction.get_connection().cursor() as cur:
-            cur.execute(_sql, (target_values,))
-            LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
+            cur.execute(sql, sql_params)
+            LOG.info(f"Deleted {cur.rowcount} records from {target_info['table_schema']}.{target_info['table_name']}")
 
 
 class Sources(RunTextFieldValidators, models.Model):
