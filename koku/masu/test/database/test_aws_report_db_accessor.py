@@ -39,7 +39,6 @@ from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import map_django_field_type_to_python_type
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSEnabledTagKeys
@@ -232,38 +231,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             elif type(value) is float:
                 columns[name] = "FLOAT"
         return columns
-
-    def test_clean_data(self):
-        """Test that data cleaning produces proper data types."""
-        table_name = random.choice(self.all_tables)
-        table = get_model(table_name)
-        column_types = self.report_schema.column_types[table_name]
-
-        data = self.creator.create_columns_for_table_with_bakery(table)
-        cleaned_data = self.accessor.clean_data(data, table_name)
-
-        for key, value in cleaned_data.items():
-            if key not in column_types:
-                continue
-            column_type = column_types[key]
-            type = map_django_field_type_to_python_type(column_type)
-            self.assertIsInstance(value, type)
-
-    def test_convert_value_decimal_invalid_operation(self):
-        """Test that an InvalidOperation is raised and None is returned."""
-        dec = Decimal("123342348239472398472309847230984723098427309")
-
-        result = self.accessor._convert_value(dec, Decimal)
-        self.assertIsNone(result)
-
-        result = self.accessor._convert_value("", Decimal)
-        self.assertIsNone(result)
-
-    def test_convert_value_value_error(self):
-        """Test that a value error results in a None value."""
-        value = "Not a Number"
-        result = self.accessor._convert_value(value, float)
-        self.assertIsNone(result)
 
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
