@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources HTTP Client."""
-import logging
 from base64 import b64encode
 from itertools import product
 from unittest.mock import patch
@@ -30,8 +29,6 @@ from sources.sources_http_client import ENDPOINT_SOURCES
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-
-LOG = logging.getLogger(__name__)
 
 faker = Faker()
 COST_MGMT_APP_TYPE_ID = 2

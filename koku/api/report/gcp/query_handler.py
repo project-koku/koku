@@ -4,7 +4,6 @@
 #
 """GCP Query Handling for Reports."""
 import copy
-import logging
 
 from django.db.models import CharField
 from django.db.models import F
@@ -16,8 +15,6 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.queries import ReportQueryHandler
-
-LOG = logging.getLogger(__name__)
 
 
 class GCPReportQueryHandler(ReportQueryHandler):

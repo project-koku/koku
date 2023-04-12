@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCI Parquet files."""
-import logging
-
 import ciso8601
 import pytz
 from tenant_schemas.utils import schema_context
@@ -15,8 +13,6 @@ from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import TRINO_LINE_ITEM_DAILY_TABLE_MAP
 from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
-
-LOG = logging.getLogger(__name__)
 
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):

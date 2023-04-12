@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Azure Client Class."""
-import logging
 import random
 from unittest.mock import patch
 
@@ -18,7 +17,6 @@ from faker import Faker
 from providers.azure.client import AzureClientFactory
 
 FAKE = Faker()
-LOG = logging.getLogger(__name__)
 
 
 class AzureClientFactoryTestCase(TestCase):
