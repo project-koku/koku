@@ -25,6 +25,7 @@ podman run \
  -Dsonar.sources=/usr/src/. \
  -Dsonar.tests=/usr/src/. \
  -Dsonar.test.inclusions=**/test_*.py \
+ -Dsonar.python.version=3.9 \
  -Dsonar.python.tests.reportPaths=/usr/src/coverage.json \
  -Dsonar.python.coverage.reportPaths=/usr/src/coverage.txt \
  -Dsonar.exclusions=**/test_*.py,**/*.html,**/*.yml,**/*.yaml,**/*.json,**/*suite*,**/scripts*,**/*.sql" \
