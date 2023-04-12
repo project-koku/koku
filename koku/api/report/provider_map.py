@@ -42,6 +42,8 @@ class ProviderMap:
         "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
     }
 
+    ORDER_BY_REPLACEMENTS = {"delta": "delta_percent"}
+
     def provider_data(self, provider):
         """Return provider portion of map structure."""
         for item in self._mapping:

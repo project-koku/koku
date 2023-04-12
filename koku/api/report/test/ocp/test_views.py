@@ -1245,6 +1245,49 @@ class OCPReportViewTest(IamTestCase):
                     self.assertTrue(current_value <= previous_value)
                     previous_value = current_value
 
+    def test_execute_query_with_group_by_project_order_by_distributed_cost(self):
+        """Test that data is grouped by and limited on order by."""
+
+        def get_distributed_cost(dikt):
+            return dikt.get("values")[0].get("cost", {}).get("distributed", {}).get("value")
+
+        for order_option in ["asc", "desc"]:
+            client = APIClient()
+            params = {
+                "filter[resolution]": "monthly",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+                "group_by[project]": "*",
+                "order_by[distributed_cost]": order_option,
+                "filter[limit]": 5,
+            }
+
+            url = f'{reverse("reports-openshift-costs")}?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            data = response.json()
+            data = data.get("data", [])
+            self.assertTrue(data)
+            projects = data[0].get("projects")
+            self.assertIsNotNone(projects)
+            for project in projects:
+                if project.get("project") in ("Others", "No-project"):
+                    continue
+                previous_value = get_distributed_cost(project)
+                self.assertIsNotNone(previous_value)
+                break
+            # Grab first element
+            for entry in projects:
+                if entry.get("project", "") in ("Others", "No-project"):
+                    continue
+                current_value = get_distributed_cost(entry)
+                if order_option == "desc":
+                    self.assertTrue(current_value <= previous_value)
+                else:
+                    self.assertTrue(current_value >= previous_value)
+                previous_value = current_value
+
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
         order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
