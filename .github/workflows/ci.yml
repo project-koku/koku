@@ -127,7 +127,7 @@ jobs:
             koku/
             .github/postgres
             .github/scripts/check_migrations.sh
-            .github/workflows/unittests.yml
+            .github/workflows/ci.yml
             Pipfile.lock
 
       - name: Check files or fork
