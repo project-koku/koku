@@ -17,7 +17,6 @@ from unittest.mock import patch
 import django.apps
 from dateutil import relativedelta
 from django.conf import settings
-from django.db import connection
 from django.db import OperationalError
 from django.db.models import F
 from django.db.models import Max
@@ -193,33 +192,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
 
-    def test_create_temp_table(self):
-        """Test that a temporary table is created."""
-        table_name = "test_table"
-        with connection.cursor() as cursor:
-            drop_table = f"DROP TABLE IF EXISTS {table_name}"
-            cursor.execute(drop_table)
-
-            create_table = f"CREATE TABLE {table_name} (id serial primary key, test_column varchar(8) unique)"
-            cursor.execute(create_table)
-
-            temp_table_name = self.accessor.create_temp_table(table_name)
-
-            exists = """
-                SELECT exists(
-                    SELECT 1
-                    FROM pg_tables
-                    WHERE tablename='{table_name}'
-                )
-            """.format(
-                table_name=temp_table_name
-            )
-
-            cursor.execute(exists)
-            result = cursor.fetchone()
-
-            self.assertTrue(result[0])
-
     def test_get_db_obj_query_default(self):
         """Test that a query is returned."""
         table_name = random.choice(self.all_tables)
@@ -299,59 +271,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             previous_row_id = None
             for entry in data:
                 row_id = self.accessor.insert_on_conflict_do_nothing(table, entry)
-                count = query.count()
-
-                self.assertEqual(count, previous_count + 1)
-                self.assertNotEqual(row_id, previous_row_id)
-
-                previous_count = count
-                previous_row_id = row_id
-
-    def test_insert_on_conflict_do_update_with_conflict(self):
-        """Test that an INSERT succeeds ignoring the conflicting row."""
-        table_name = AWS_CUR_TABLE_MAP["reservation"]
-        table = get_model(table_name)
-        data = self.creator.create_columns_for_table_with_bakery(table)
-        query = self.accessor._get_db_obj_query(table)
-        with schema_context(self.schema):
-            initial_res_count = 1
-            initial_count = query.count()
-            data["number_of_reservations"] = initial_res_count
-            row_id = self.accessor.insert_on_conflict_do_update(
-                table, data, conflict_columns=["reservation_arn"], set_columns=list(data.keys())
-            )
-            insert_count = query.count()
-            row = query.order_by("-id").all()[0]
-            self.assertEqual(insert_count, initial_count + 1)
-            self.assertEqual(row.number_of_reservations, initial_res_count)
-
-            data["number_of_reservations"] = initial_res_count + 1
-            row_id_2 = self.accessor.insert_on_conflict_do_update(
-                table, data, conflict_columns=["reservation_arn"], set_columns=list(data.keys())
-            )
-            row = query.filter(id=row_id_2).first()
-
-            self.assertEqual(insert_count, query.count())
-            self.assertEqual(row_id, row_id_2)
-            self.assertEqual(row.number_of_reservations, initial_res_count + 1)
-
-    def test_insert_on_conflict_do_update_without_conflict(self):
-        """Test that an INSERT succeeds inserting all non-conflicting rows."""
-        table_name = AWS_CUR_TABLE_MAP["reservation"]
-        table = get_model(table_name)
-
-        data = [
-            self.creator.create_columns_for_table_with_bakery(table),
-            self.creator.create_columns_for_table_with_bakery(table),
-        ]
-        query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            previous_count = query.count()
-            previous_row_id = None
-            for entry in data:
-                row_id = self.accessor.insert_on_conflict_do_update(
-                    table, entry, conflict_columns=["reservation_arn"], set_columns=list(entry.keys())
-                )
                 count = query.count()
 
                 self.assertEqual(count, previous_count + 1)

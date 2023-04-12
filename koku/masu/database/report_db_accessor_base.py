@@ -91,16 +91,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Require this property in subclases."""
         raise ReportDBAccessorException("This must be a property on the sub class.")
 
-    def create_temp_table(self, table_name, drop_column=None):
-        """Create a temporary table and return the table name."""
-        temp_table_name = table_name + "_" + str(uuid.uuid4()).replace("-", "_")
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})")
-            if drop_column:
-                cursor.execute(f"ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}")
-        return temp_table_name
-
     def create_new_temp_table(self, table_name, columns):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + "_" + str(uuid.uuid4()).replace("-", "_")
@@ -117,41 +107,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(table_sql)
 
         return temp_table_name
-
-    def merge_temp_table(self, table_name, temp_table_name, columns, conflict_columns=None):
-        """INSERT temp table rows into the primary table specified.
-
-        Args:
-            table_name (str): The main table to insert into
-            temp_table_name (str): The temp table to pull from
-            columns (list): A list of columns to use in the insert logic
-
-        Returns:
-            (None)
-
-        """
-        column_str = ",".join(columns)
-        upsert_sql = f"""
-            INSERT INTO {table_name} ({column_str})
-                SELECT {column_str}
-                FROM {temp_table_name}
-            """
-
-        if conflict_columns:
-            conflict_col_str = ",".join(conflict_columns)
-            set_clause = ",".join([f"{column} = excluded.{column}" for column in columns])
-            conflict_sql = f"""
-                    ON CONFLICT ({conflict_col_str}) DO UPDATE
-                    SET {set_clause}
-                """
-            upsert_sql += conflict_sql
-
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(upsert_sql)
-
-            delete_sql = f"DELETE FROM {temp_table_name}"
-            cursor.execute(delete_sql)
 
     def bulk_insert_rows(self, file_obj, table, columns, sep=","):
         """Insert many rows using Postgres copy functionality.
@@ -245,45 +200,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             data = {key: value for key, value in data.items() if key in conflict_columns}
 
         return self._get_primary_key(table, data)
-
-    def insert_on_conflict_do_update(self, table, data, conflict_columns, set_columns):
-        """Write an INSERT statement with an ON CONFLICT clause.
-
-        This is useful to update rows on insert. Intended for
-        singl row inserts.
-
-        Args:
-            table_name (str): The name of the table to insert into
-            data (dict): A dictionary of data to insert into the object
-            conflict_columns (list): Columns to check conflict on
-            set_columns (list): Columns to update
-
-        Returns:
-            (str): The id of the inserted row
-
-        """
-        table_name = table()._meta.db_table
-        data = self.clean_data(data, table_name)
-
-        set_clause = ",".join([f"{column} = excluded.{column}" for column in set_columns])
-
-        columns_formatted = ", ".join(str(value) for value in data.keys())
-        values = list(data.values())
-        val_str = ",".join(["%s" for _ in data])
-        conflict_columns_formatted = ", ".join(conflict_columns)
-
-        insert_sql = f"""
-        INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES ({val_str})
-         ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
-         {set_clause}
-        """
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(insert_sql, values)
-
-        data = {key: value for key, value in data.items() if key in conflict_columns}
-
-        return self._get_primary_key(table_name, data)
 
     def _get_primary_key(self, table_name, data):
         """Return the row id for a specific object."""
