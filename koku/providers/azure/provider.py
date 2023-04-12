@@ -46,33 +46,29 @@ class AzureProvider(ProviderInterface):
 
     def _verify_patch_entries(self, subscription_id, resource_group, storage_account, scope, export_name):
         """Raise Validation Error for missing."""
+        key = ProviderErrors.AZURE_MISSING_PATCH
         if scope and not export_name:
-            key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_EXPORT_NAME_MESSAGE
             raise ValidationError(error_obj(key, message))
 
-        if (subscription_id or scope) and not (resource_group and storage_account):
-            key = ProviderErrors.AZURE_MISSING_PATCH
-            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE
-            raise ValidationError(error_obj(key, message))
+        if subscription_id or scope:
+            if not resource_group and not storage_account:
+                message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE
+                raise ValidationError(error_obj(key, message))
 
-        if (subscription_id or scope) and resource_group and not storage_account:
-            key = ProviderErrors.AZURE_MISSING_PATCH
-            message = ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE
-            raise ValidationError(error_obj(key, message))
+            elif resource_group and not storage_account:
+                message = ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE
+                raise ValidationError(error_obj(key, message))
 
-        if (subscription_id or scope) and storage_account and not resource_group:
-            key = ProviderErrors.AZURE_MISSING_PATCH
-            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE
-            raise ValidationError(error_obj(key, message))
+            elif not resource_group:
+                message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE
+                raise ValidationError(error_obj(key, message))
 
-        if storage_account and resource_group and not (subscription_id or scope):
-            key = ProviderErrors.AZURE_MISSING_PATCH
+        if storage_account and resource_group and not subscription_id and not scope:
             message = ProviderErrors.AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE
             raise ValidationError(error_obj(key, message))
 
         if not resource_group and not storage_account and not subscription_id and not scope:
-            key = ProviderErrors.AZURE_MISSING_PATCH
             message = ProviderErrors.AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE
             raise ValidationError(error_obj(key, message))
 
