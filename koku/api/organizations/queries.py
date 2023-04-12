@@ -129,7 +129,7 @@ class OrgQueryHandler(QueryHandler):
         for filter_option in filter_list:
             if filter_option:
                 if final_filters is not None:
-                    final_filters & filter_option
+                    final_filters = final_filters & filter_option
                 else:
                     final_filters = filter_option
 
