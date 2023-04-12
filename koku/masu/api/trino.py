@@ -72,7 +72,7 @@ def trino_query(request):
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def trino_ui(request):
     """Get trino ui api responses."""
-    params = request.query_params
+    params = request.GET
     api_service = params.get("api_service", "")
     if api_service in ["query", "stats", "cluster"]:
         api_str = f"http://{settings.TRINO_HOST}:{settings.TRINO_PORT}/ui/api/{api_service}"
