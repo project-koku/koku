@@ -371,7 +371,7 @@ select ftn.nspname as "table_schema",
         _sql = """
             DELETE
                 FROM {{ schema | sqlsafe }}.{{ table | sqlsafe }}
-            WHERE {{ column | sqlsafe }} IN {{ values | inclause }}
+            WHERE {{ column | sqlsafe }} = any{{ values | inclause }}
             ;
         """
         _sql_params = {
