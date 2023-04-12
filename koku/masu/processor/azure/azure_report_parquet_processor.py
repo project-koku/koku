@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Azure Parquet files."""
-import logging
-
 import ciso8601
 import pytz
 from tenant_schemas.utils import schema_context
@@ -15,8 +13,6 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):

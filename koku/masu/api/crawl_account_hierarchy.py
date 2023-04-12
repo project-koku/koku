@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for temporary force crawl account hierarchy endpoint."""
-import logging
-
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -17,8 +15,6 @@ from rest_framework.settings import api_settings
 from masu.celery.tasks import crawl_account_hierarchy as crawl_hierarchy
 from masu.database.provider_collector import ProviderCollector
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
-
-LOG = logging.getLogger(__name__)
 
 
 @never_cache

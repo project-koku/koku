@@ -7,4 +7,4 @@ services:
     image: quay.io/mskarbek/ubi-hive:3.1.2-metastore-008
 
   trino:
-    image: quay.io/mskarbek/ubi-trino:405-001
+    image: quay.io/mskarbek/ubi-trino:411-001

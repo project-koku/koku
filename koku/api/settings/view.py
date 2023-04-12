@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Settings."""
-import logging
-
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
@@ -14,8 +12,6 @@ from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.settings import Settings
-
-LOG = logging.getLogger(__name__)
 
 SETTINGS_GENERATORS = {"settings": Settings}
 

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
-import logging
 import random
 from decimal import Decimal
 from unittest import skip
@@ -21,8 +20,6 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.test import MasuTestCase
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from reporting.models import OCPUsageLineItemDailySummary
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):

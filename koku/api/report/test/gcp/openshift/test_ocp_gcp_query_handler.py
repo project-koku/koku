@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
-import logging
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -37,9 +36,6 @@ from reporting.models import OCPGCPCostSummaryByAccountP
 from reporting.models import OCPGCPCostSummaryByServiceP
 from reporting.models import OCPGCPCostSummaryP
 from reporting.models import OCPGCPStorageSummaryP
-
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPGCPQueryHandlerTestNoData(IamTestCase):

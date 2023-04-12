@@ -83,7 +83,7 @@ class ApplicationStatus:
         try:
             conn = celery_app.connection()
             conn.heartbeat_check()
-        except (OSError, ConnectionRefusedError, socket.timeout):
+        except (OSError, socket.timeout):
             CELERY_ERRORS_COUNTER.inc()
             return {"Error": BROKER_CONNECTION_ERROR}
         # Now check if Celery workers are running

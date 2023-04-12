@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Settings views."""
-import logging
 import random
 from unittest import skip
-from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -17,8 +15,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import OCPAWSTagsSummary
 from reporting.models import OCPEnabledTagKeys
-
-LOG = logging.getLogger(__name__)
 
 
 class SettingsViewTest(IamTestCase):
@@ -68,8 +64,7 @@ class SettingsViewTest(IamTestCase):
             {"name": "gcp", "label": "Google Cloud Platform tags"},
         ]
 
-        with patch("api.settings.settings.UNLEASH_CLIENT.is_enabled", return_value=True):
-            response = self.get_settings()
+        response = self.get_settings()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         duallist = self.get_duallist_from_response(response)
         all_enabled_tags = duallist.get("initialValue")

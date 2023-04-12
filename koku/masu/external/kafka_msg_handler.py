@@ -22,7 +22,7 @@ from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import InterfaceError
 from django.db import OperationalError
-from kombu.exceptions import OperationalError as RabbitOperationalError
+from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
 from kafka_utils.utils import extract_from_header
@@ -750,7 +750,7 @@ def listen_for_messages(msg, consumer):
         close_and_set_db_connection()
         LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
         rewind_consumer_to_retry(consumer, topic_partition)
-    except (KafkaMsgHandlerError, RabbitOperationalError) as error:
+    except (KafkaMsgHandlerError, KombuOperationalError) as error:
         LOG.error(f"[listen_for_messages] Internal error. {type(error).__name__}: {error}. Retrying...")
         rewind_consumer_to_retry(consumer, topic_partition)
     except ReportProcessorError as error:
