@@ -85,7 +85,7 @@ class ProviderErrors:
         "Edit your Azure source to include the subscription ID."
     )
     AZURE_MISSING_EXPORT_NAME_MESSAGE = (
-        "Cost management requeires an export name when a scope is"
+        "Cost management requires an export name when a scope is"
         " provided for a source. "
         "Edit your Azure source to include an export name."
     )

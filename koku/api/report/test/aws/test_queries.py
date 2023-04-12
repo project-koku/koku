@@ -2972,13 +2972,6 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
 
     def test_prefixed_logical_and(self):
         """Test prefixed logical AND."""
-        # Create Test Accounts
-        # account_ab_fake_aws = FakeAWSCostData(self.provider, account_alias="ab")
-        # self.generator.add_data_to_tenant(account_ab_fake_aws, product="ec2")
-
-        # account_ac_fake_aws = FakeAWSCostData(self.provider, account_alias="ac")
-        # self.generator.add_data_to_tenant(account_ac_fake_aws, product="ec2")
-
         data_to_test = {
             "1": {
                 "url": "?group_by[and:account]=a&group_by[and:account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
