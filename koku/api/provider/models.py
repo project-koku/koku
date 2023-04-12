@@ -371,13 +371,14 @@ select ftn.nspname as "table_schema",
         _sql = """
             delete
                 from {{ schema | sqlsafe }}.{{ table | sqlsafe }}
-            where {{ column | sqlsafe }} = any(%s)
+            where {{ column | sqlsafe }} = any({{ values | inclause }})
             ;
         """
         _sql_params = {
             "schema": target_info["table_schema"],
             "table": target_info["table_name"],
             "column": target_info["column_name"],
+            "values": target_values,
         }
         sql, sql_params = jinja_sql.prepare_query(_sql, _sql_params)
         with transaction.get_connection().cursor() as cur:
