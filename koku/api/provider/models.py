@@ -369,9 +369,9 @@ select ftn.nspname as "table_schema",
 
         jinja_sql = JinjaSql()
         _sql = """
-            delete
-                from {{ schema | sqlsafe }}.{{ table | sqlsafe }}
-            where {{ column | sqlsafe }} = any({{ values | inclause }})
+            DELETE
+                FROM {{ schema | sqlsafe }}.{{ table | sqlsafe }}
+            WHERE {{ column | sqlsafe }} IN {{ values | inclause }}
             ;
         """
         _sql_params = {
