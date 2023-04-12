@@ -13,6 +13,7 @@ from rest_framework.serializers import ValidationError
 
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from providers.azure.provider import AzureProvider
+from providers.provider_errors import ProviderErrors
 
 FAKE = Faker()
 
@@ -97,6 +98,82 @@ class AzureProviderTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             AzureProvider().cost_usage_source_is_reachable({}, {})
+
+    def test_cost_usage_source_is_reachable_specific_badargs(self):
+        """Test various ValidationErrors in _verify_patch_entries."""
+        fake_word = FAKE.word()
+
+        test_table = [
+            {
+                "args": {
+                    "data_source": {"scope": fake_word},
+                    "credentials": {},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_EXPORT_NAME_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {"scope": fake_word, "export_name": fake_word},
+                    "credentials": {},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {},
+                    "credentials": {"subscription_id": fake_word},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {"scope": fake_word, "export_name": fake_word, "resource_group": fake_word},
+                    "credentials": {},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {"resource_group": fake_word},
+                    "credentials": {"subscription_id": fake_word},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {"scope": fake_word, "export_name": fake_word, "storage_account": fake_word},
+                    "credentials": {},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {"storage_account": fake_word},
+                    "credentials": {"subscription_id": fake_word},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {"resource_group": fake_word, "storage_account": fake_word},
+                    "credentials": {},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE,
+            },
+            {
+                "args": {
+                    "data_source": {},
+                    "credentials": {},
+                },
+                "expected": ProviderErrors.AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE,
+            },
+        ]
+
+        for test in test_table:
+            with self.subTest(test["expected"]):
+                with self.assertRaises(ValidationError) as exc:
+                    AzureProvider().cost_usage_source_is_reachable(**test["args"])
+                self.assertIn(test["expected"], str(exc.exception))
 
     def test_infra_type_implementation(self):
         """Test that infra type returns None."""

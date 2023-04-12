@@ -4,7 +4,6 @@
 #
 """Test the Report Queries."""
 import copy
-import logging
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -36,8 +35,6 @@ from reporting.models import OCPAWSCostSummaryP
 from reporting.models import OCPAWSDatabaseSummaryP
 from reporting.models import OCPAWSNetworkSummaryP
 from reporting.models import OCPAWSStorageSummaryP
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPAWSQueryHandlerTestNoData(IamTestCase):
