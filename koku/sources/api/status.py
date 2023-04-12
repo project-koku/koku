@@ -15,8 +15,8 @@ from django.db import InterfaceError
 from django.db import NotSupportedError
 from django.db import OperationalError
 from django.db import ProgrammingError
+from django.views.decorators.http import require_GET
 from kafka import BrokerConnection
-from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
@@ -56,7 +56,7 @@ def check_sources_connection():
         return
 
 
-@api_view(http_method_names=["GET"])
+@require_GET
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def get_status(request):

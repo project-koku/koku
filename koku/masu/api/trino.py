@@ -10,6 +10,7 @@ import requests
 import trino
 from django.conf import settings
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -28,58 +29,55 @@ LOG = logging.getLogger(__name__)
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES) + (CSVRenderer,))
 def trino_query(request):
     """Run a trino query."""
-    if request.method == "POST":
-        data = request.data
-        query = data.get("query")
-        schema_name = data.get("schema")
+    if request.method != "POST":
+        return
+    data = request.data
+    query = data.get("query")
+    schema_name = data.get("schema")
 
-        if query is None:
-            errmsg = "Must provide a query key to run."
+    if query is None:
+        errmsg = "Must provide a query key to run."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    if schema_name is None:
+        errmsg = "Must provide a schema key to run."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    lowered_query = query.lower()
+    dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
+    for keyword in dissallowed_keywords:
+        if keyword in lowered_query:
+            errmsg = f"This endpoint does not allow a {keyword} operation to be performed."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        if schema_name is None:
-            errmsg = "Must provide a schema key to run."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        lowered_query = query.lower()
-        dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
-        for keyword in dissallowed_keywords:
-            if keyword in lowered_query:
-                errmsg = f"This endpoint does not allow a {keyword} operation to be performed."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        msg = f"Running Trino query: {query}"
-        LOG.info(msg)
+    msg = f"Running Trino query: {query}"
+    LOG.info(msg)
 
-        with trino.dbapi.connect(
-            host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
-        ) as conn:
-            cur = conn.cursor()
-            cur.execute(query)
-            cols = [des[0] for des in cur.description]
-            rows = cur.fetchall()
-            results = []
-            for row in rows:
-                result = {}
-                for i, value in enumerate(row):
-                    result[cols[i]] = value
-                results.append(result)
+    with trino.dbapi.connect(
+        host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
+    ) as conn:
+        cur = conn.cursor()
+        cur.execute(query)
+        cols = [des[0] for des in cur.description]
+        rows = cur.fetchall()
+        results = []
+        for row in rows:
+            result = {cols[i]: value for i, value in enumerate(row)}
+            results.append(result)
 
-        return Response(results)
+    return Response(results)
 
 
 @never_cache
-@api_view(http_method_names=["GET"])
+@require_GET
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def trino_ui(request):
     """Get trino ui api responses."""
-    trino_ui_api_services = ["query", "stats", "cluster"]
-    if request.method == "GET":
-        params = request.query_params
-        api_service = params.get("api_service", "")
-        if api_service in trino_ui_api_services:
-            api_str = f"http://{settings.TRINO_HOST}:{settings.TRINO_PORT}/ui/api/{api_service}"
-            LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
-            response = requests.get(api_str)
-            return Response({"api_service_name": api_service, "trino_response": response.json()})
-        errmsg = "Must provide a valid parameter and trino-ui api service."
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    params = request.query_params
+    api_service = params.get("api_service", "")
+    if api_service in ["query", "stats", "cluster"]:
+        api_str = f"http://{settings.TRINO_HOST}:{settings.TRINO_PORT}/ui/api/{api_service}"
+        LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
+        response = requests.get(api_str)
+        return Response({"api_service_name": api_service, "trino_response": response.json()})
+    errmsg = "Must provide a valid parameter and trino-ui api service."
+    return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
