@@ -144,7 +144,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 
     ORDER_BY_SERIALIZER = InventoryOrderBySerializer
 
-    delta_choices = ("cost", "usage", "request", "cost_total")
+    delta_choices = ("cost", "usage", "request", "cost_total", "distributed_cost")
 
     delta_fields = ("usage", "request", "limit", "capacity")
 
