@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 
 import requests
 
@@ -207,7 +206,7 @@ class SourcesDataGenerator:
         return response.get("id")
 
 
-def main(args):  # noqa
+def main():  # noqa
     parser = create_parser()
     args = parser.parse_args()
     parameters = vars(args)
@@ -299,4 +298,4 @@ def main(args):  # noqa
 
 
 if "__main__" in __name__:
-    main(sys.argv[1:])
+    main()
