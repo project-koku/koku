@@ -67,15 +67,11 @@ do the following:
 
         pipenv install --dev
 
-7.  If dependency installation still fails, try using:
-
-        pipenv install --dev --sequential
-
-8.  To activate the virtual environment run:
+7.  To activate the virtual environment run:
 
         pipenv shell
 
-9.  Install the pre-commit hooks for the repository:
+8.  Install the pre-commit hooks for the repository:
 
         pre-commit install
 
