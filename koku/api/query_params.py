@@ -33,6 +33,7 @@ from api.tags.serializers import month_list
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -113,6 +114,7 @@ class QueryParameters:
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
         self.tag_handler = caller.tag_handler
+        self.aws_category_keys = set()
 
         try:
             query_params = parser.parse(self.url_data)
@@ -122,7 +124,7 @@ class QueryParameters:
             raise ValidationError(error) from e
 
         self._set_tag_keys(query_params)  # sets self.tag_keys
-        self._set_aws_category_keys(query_params)  # aws_category_keys
+        self._set_aws_category_keys(query_params)
         self._validate(query_params)  # sets self.parameters
 
         if settings.DEVELOPMENT:
@@ -172,7 +174,7 @@ class QueryParameters:
             return key
         for prefix in prefix_list:
             if key.startswith(prefix):
-                return key[len(prefix) :]  # noqa: E203
+                return key[len(prefix) :]
 
     def _configure_access_params(self, caller):
         """Configure access for the appropriate providers."""
@@ -416,23 +418,35 @@ class QueryParameters:
         self.tag_keys = param_tag_keys
 
     def _set_aws_category_keys(self, query_params):
-        """Set the valid aws_category keys"""
+        """Set the valid self.aws_category keys.
+
+        The aws_category_keys variable is used in the report serializer
+        to update the valid field names list. Any key added to this set
+        will not a trigger the unsupport parameter or invalid value error.
+        """
         prefix_list = [AWS_CATEGORY_PREFIX, AND_AWS_CATEGORY_PREFIX, OR_AWS_CATEGORY_PREFIX]
-        self.aws_category_keys = set()
         if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             return
-        param_aws_category_keys = set()
+        enabled_category_keys = set()
+        with tenant_context(self.tenant):
+            enabled_category_keys.update(
+                AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct()
+            )
+        if not enabled_category_keys:
+            return
+        # Make sure keys passed in exist in the DB.
         for key, value in query_params.items():
+            # Check key
+            stripped_key = self._strip_prefix(key, AWS_CATEGORY_PREFIX, prefix_list)
+            if stripped_key in enabled_category_keys:
+                self.aws_category_keys.add(stripped_key)
+            # Check Values
             if not isinstance(value, (dict, list)):
                 value = [value]
             for inner_key in value:
-                if AWS_CATEGORY_PREFIX in inner_key:
-                    param_aws_category_keys.add(inner_key)
-                    # TODO: Right now we accept any key passed in.
-                    # However, we should rewrite this to only
-                    # allow acceptable categorites keys based off
-                    # keys found in the DB. (like above)
-        self.aws_category_keys = param_aws_category_keys
+                stripped_key = self._strip_prefix(inner_key, AWS_CATEGORY_PREFIX, prefix_list)
+                if stripped_key in enabled_category_keys:
+                    self.aws_category_keys.add(inner_key)
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""

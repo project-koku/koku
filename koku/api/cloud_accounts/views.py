@@ -4,7 +4,6 @@
 #
 """View for Cloud Account."""
 import copy
-import logging
 
 from rest_framework import permissions
 from rest_framework.decorators import api_view
@@ -18,7 +17,6 @@ from api.common.pagination import ListPaginator
 from api.metrics.serializers import QueryParamsSerializer
 
 
-LOG = logging.getLogger(__name__)
 """View for Cloud Accounts."""
 
 

@@ -15,11 +15,11 @@ Amazon S3 Bucket for AWS Cost and Usage
 Reports](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-reports-gettingstarted-s3.html).
 When creating a report choose the following options:
 
--   **Report name:** koku
--   **Time unit:** Hourly
--   **Include:** Resource IDs
--   **Enable support for...:** Redshift, QuickSight
--   **Report path prefix:** *(leave blank)*
+- **Report name:** koku
+- **Time unit:** Hourly
+- **Include:** Resource IDs
+- **Enable support for...:** Redshift, QuickSight
+- **Report path prefix:** *(leave blank)*
 
 Make a note of the name of the S3 bucket as you will need it when
 creating an IAM policy and creating the provider.
@@ -32,28 +32,25 @@ order to obtain this data with the minimal amount of access follow the
 steps below to create an IAM Policy and Role for Koku to utilize.
 
 Sign in to the AWS Management Console as an administrator of the account
-you wish to add, and open the IAM console at
-<https://console.aws.amazon.com/iam/>.
+you wish to add, and open the [IAM console][].
 
 ### Creating an IAM Policy
 
-1.  Browse to the *Policies* tab.
-2.  Choose *Create Policy*.
-3.  Select the *JSON* tab and paste the following JSON policy into the
-    editor replacing *bucket_name* with the S3 bucket that was
+1.  Browse to the **Policies** tab.
+1.  Choose **Create Policy**.
+1.  Select the **JSON** tab and paste the following JSON policy into the
+    editor replacing **bucket_name** with the S3 bucket that was
     configured in the [Configuring an Amazon Account for Cost & Usage
     Reporting](#configuring-an-amazon-account-for-cost-usage-reporting)
     section.
-4.  Including Action [iam:ListAccountAliases]{.title-ref} will allow
+1.  Including Action `iam:ListAccountAliases` will allow
     Koku to display the AWS account alias rather than the account id.
-5.  Including Actions [organization:List\*]{.title-ref} and
-    [organizations:Describe\*]{.title-ref} will allow Koku to obtain the
+1.  Including Actions `organization:List*` and
+    `organizations:Describe*` will allow Koku to obtain the
     display names of AWS member accounts if you are using consolidated
     billing rather than the account id.
 
-```{=html}
-<!-- -->
-```
+    ```json
     {
         "Version": "2012-10-17",
         "Statement": [
@@ -84,27 +81,31 @@ you wish to add, and open the IAM console at
             }
         ]
     }
+    ```
 
-1.  Choose the *Review Policy* button and complete the creation of the
+1.  Choose the **Review Policy** button and complete the creation of the
     policy by naming the policy `CostUsage`.
 
 ### Creating an IAM Role
 
-1.  Browse to the *Roles* tab.
-2.  Choose *Create role*.
-3.  Select the type of trusted entity as *Another AWS Account*.
-4.  Provide the Account ID `589173575009`, no options need to be
+1.  Browse to the **Roles** tab.
+1.  Choose **Create role**.
+1.  Select the type of trusted entity as **Another AWS Account**.
+1.  Provide the Account ID `589173575009`, no options need to be
     selected.
-5.  Move to the *Permissions* selection and search for the policy just
+1.  Move to the **Permissions** selection and search for the policy just
     created `CostUsage`.
-6.  Choose the *Review* button and complete the creation fo the role by
+1.  Choose the **Review** button and complete the creation fo the role by
     naming the role `CostManagement`.
-7.  Select the newly created role `CostManagement` to view the summary.
-8.  Capture the *Role ARN* as it will be used in the provider creation.
+1.  Select the newly created role `CostManagement` to view the summary.
+1.  Capture the **Role ARN** as it will be used in the provider creation.
 
 ## Create an AWS Account Source
 
-Using the information from the steps above which included the *S3 bucket
-name* and the *Role ARN* you can create an AWS account provider. Once
+Using the information from the steps above which included the **S3 bucket
+name** and the **Role ARN** you can create an AWS account provider. Once
 created the cost and usage data will be processed and made viewable
 within the system.
+
+
+[IAM Console]: https://console.aws.amazon.com/iam/

@@ -460,11 +460,6 @@ DISABLE_LOGGING = ENVIRONMENT.bool("DISABLE_LOGGING", default=False)
 if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
     logging.disable(logging.CRITICAL)
 
-# AMQP Message Broker
-RABBITMQ_HOST = ENVIRONMENT.get_value("RABBITMQ_HOST", default="localhost")
-RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
-
-
 # AWS S3 Bucket Settings
 REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
 REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
@@ -492,8 +487,6 @@ OCI_CONFIG = {
 }
 
 # Trino Settings
-PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
-PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
@@ -535,9 +528,6 @@ ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", defa
 
 # Set Broker
 CELERY_BROKER_URL = REDIS_URL
-USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
-if USE_RABBIT:
-    CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
 
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 400
 CELERY_BROKER_CONNECTION_RETRY = True

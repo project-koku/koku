@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the HCS task."""
-import logging
 import uuid
 from datetime import timedelta
 from unittest.mock import Mock
@@ -18,8 +17,6 @@ from hcs.tasks import collect_hcs_report_finalization
 from hcs.tasks import get_start_and_end_from_manifest_id
 from hcs.tasks import should_finalize
 from hcs.test import HCSTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 @patch("hcs.daily_report.ReportHCS.generate_report")

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
-import logging
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
@@ -41,8 +40,6 @@ from reporting.models import OCPAzureCostSummaryP
 from reporting.models import OCPAzureDatabaseSummaryP
 from reporting.models import OCPAzureNetworkSummaryP
 from reporting.models import OCPAzureStorageSummaryP
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPAzureQueryHandlerTestNoData(IamTestCase):

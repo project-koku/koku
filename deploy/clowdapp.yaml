@@ -197,8 +197,6 @@ objects:
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -255,8 +253,6 @@ objects:
           name: koku-api-nginx-conf
       replicas: ${{NGINX_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -323,22 +319,12 @@ objects:
               optional: true
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -422,8 +408,6 @@ objects:
             secretName: koku-oci
       replicas: ${{LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -549,10 +533,6 @@ objects:
           value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -615,8 +595,6 @@ objects:
             secretName: koku-oci
       replicas: ${{MASU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -709,10 +687,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -723,12 +697,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -796,8 +764,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: false
         private:
           enabled: false
         public:
@@ -962,8 +928,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -1135,8 +1099,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1217,10 +1179,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1231,12 +1189,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1322,8 +1274,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1404,10 +1354,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1418,12 +1364,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1511,8 +1451,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1593,10 +1531,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1607,12 +1541,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1698,8 +1626,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1780,10 +1706,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1794,12 +1716,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1887,8 +1803,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1969,10 +1883,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1983,12 +1893,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2074,8 +1978,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2156,10 +2058,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2170,12 +2068,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2263,8 +2155,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2345,10 +2235,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2359,12 +2245,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2452,8 +2332,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2536,10 +2414,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2550,12 +2424,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2643,8 +2511,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2994,30 +2860,12 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
-- description: Use rabbitmq as message broker
-  displayName: Use rabbitmq as message broker
-  name: USE_RABBIT
-  value: "False"
-- description: RabbitMQ host
-  displayName: RabbitMQ host
-  name: RABBITMQ_HOST
-  value: rabbitmq
-- description: RabbitMQ port
-  displayName: RabbitMQ port
-  name: RABBITMQ_PORT
-  value: "5672"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
-- displayName: Presto/Trino host
-  name: PRESTO_HOST
-  value: trino-coordinator
-- displayName: Presto/Trino port
-  name: PRESTO_PORT
-  value: "10000"
 - displayName: Trino host
   name: TRINO_HOST
   value: trino-coordinator

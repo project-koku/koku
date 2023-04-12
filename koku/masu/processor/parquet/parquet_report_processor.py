@@ -27,6 +27,7 @@ from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
+from masu.util.aws.common import check_aws_custom_columns
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import CSV_COLUMN_PREFIX as AWS_COLUMN_PREFIX
 from masu.util.aws.common import get_column_converters as aws_column_converters
@@ -35,6 +36,7 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
+from masu.util.common import CSV_ALT_COLUMNS
 from masu.util.common import CSV_REQUIRED_COLUMNS
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -49,6 +51,7 @@ from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
 from masu.util.ocp.common import ocp_post_processor
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -240,6 +243,14 @@ class ParquetReportProcessor:
         return post_processor
 
     @property
+    def col_checker(self):
+        """Customer column checker based on provider type."""
+        col_checker = None
+        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+            col_checker = check_aws_custom_columns
+        return col_checker
+
+    @property
     def daily_data_processor(self):
         """Post processor based on provider type."""
         daily_data_processor = None
@@ -326,10 +337,17 @@ class ParquetReportProcessor:
         return None
 
     @property
+    def enabled_category_model(self):
+        """Return the enabled tags model class."""
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return AWSEnabledCategoryKeys
+        return None
+
+    @property
     def csv_columns(self):
         """Return the required CSV columns if we need to filter them"""
         if self.provider_type == Provider.PROVIDER_AWS:
-            return CSV_REQUIRED_COLUMNS.get(Provider.PROVIDER_AWS)
+            return CSV_REQUIRED_COLUMNS[Provider.PROVIDER_AWS] + CSV_ALT_COLUMNS[Provider.PROVIDER_AWS]
         return None
 
     @property
@@ -462,6 +480,7 @@ class ParquetReportProcessor:
         converters = self._get_column_converters()
         csv_path, csv_name = os.path.split(csv_filename)
         unique_keys = set()
+        category_keys = set()
         parquet_file = None
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
@@ -475,7 +494,12 @@ class ParquetReportProcessor:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
                 REQUIRED_COLS = set(CSV_REQUIRED_COLUMNS.get(self._provider_type))
+                missing_cols = False
                 if not set(col_names).issuperset(REQUIRED_COLS):
+                    missing_cols = True
+                    if self.col_checker:
+                        missing_cols, REQUIRED_COLS = self.col_checker(col_names)
+                if missing_cols:
                     missing_cols = [x for x in REQUIRED_COLS if x not in col_names]
                     message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
                     if self.ingress_reports_uuid:
@@ -500,11 +524,14 @@ class ParquetReportProcessor:
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     if self.post_processor:
                         data_frame = self.post_processor(data_frame)
-                        if isinstance(data_frame, tuple):
-                            data_frame, data_frame_tag_keys = data_frame
-                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
-                            unique_keys.update(data_frame_tag_keys)
-                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                        data_frame, data_frame_tag_keys, df_category_keys = data_frame
+                        LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
+                        unique_keys.update(data_frame_tag_keys)
+                        LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                        if df_category_keys:
+                            LOG.info(f"updating category keys: {df_category_keys}")
+                            category_keys.update(df_category_keys)
+                            LOG.info(f"Total unique category keys: {category_keys}")
                     if self.daily_data_processor is not None:
                         daily_data_frames.append(self.daily_data_processor(data_frame))
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
@@ -513,6 +540,9 @@ class ParquetReportProcessor:
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
+            if category_keys and self.enabled_category_model:
+                create_enabled_keys(self._schema_name, self.enabled_category_model, category_keys)
+
         except Exception as err:
             msg = (
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"

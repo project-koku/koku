@@ -21,6 +21,8 @@ from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
+OCI_REPORT_TYPES = {"cost", "usage"}
+
 
 def get_column_converters():
     """Return source specific parquet column converters."""
@@ -114,7 +116,7 @@ def oci_post_processor(data_frame):
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    return (data_frame, unique_keys)
+    return (data_frame, unique_keys, None)
 
 
 def oci_generate_daily_data(data_frame):

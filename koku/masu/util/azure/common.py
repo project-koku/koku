@@ -166,7 +166,7 @@ def azure_post_processor(data_frame):
     for tags_json in data_frame["tags"]:
         unique_tags.update(json.loads(tags_json))
 
-    return (data_frame, unique_tags)
+    return (data_frame, unique_tags, None)
 
 
 def get_column_converters():

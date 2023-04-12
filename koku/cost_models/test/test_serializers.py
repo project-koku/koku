@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
-import logging
 import random
 from decimal import Decimal
 from uuid import uuid4
@@ -22,8 +21,6 @@ from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import RateSerializer
 from cost_models.serializers import UUIDKeyRelatedField
-
-LOG = logging.getLogger(__name__)
 
 
 def format_tag_value(**kwarg_dict):

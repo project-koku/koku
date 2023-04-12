@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test HCS csv_file_handler."""
-import logging
 from unittest.mock import patch
 
 from dateutil import parser
@@ -12,8 +11,6 @@ from api.models import Provider
 from api.utils import DateHelper
 from hcs.csv_file_handler import CSVFileHandler
 from hcs.test import HCSTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 class TestHCSCSVFileHandler(HCSTestCase):

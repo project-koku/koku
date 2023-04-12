@@ -25,31 +25,26 @@ you wish to add,
 Koku\'s service account needs 3 permissions on the storage bucket
 
 1.  storage.buckets.get
-2.  storage.objects.get
-3.  storage.objects.list
+1.  storage.objects.get
+1.  storage.objects.list
 
 The best way to grant these permissions is to create a custom role.
-Navigate to [IAM \> Roles \> Create]{.title-ref} and create a new role
+Navigate to **IAM > Roles > Create** and create a new role
 with these 3 permissions.
 
 ### Grant Access to Storage Bucket
 
 1.  Navigate to the storage bucket you\'ve created previously.
-2.  Open the Info Panel
-3.  Add the koku service account for the correct environment as a new
+1.  Open the Info Panel
+1.  Add the koku service account for the correct environment as a new
     member of the storage account with the role previously created.
 
-  ------------- ------------------------------------------------------------
-  Environment   Service Account
-
-  prod          <koku-prod@cost-management-prod.iam.gserviceaccount.com>
-
-  stage         <koku-stage@cost-management-stage.iam.gserviceaccount.com>
-
-  qa            <koku-qa@cost-management-qa.iam.gserviceaccount.com>
-
-  ci            <koku-ci@cost-management-ci.iam.gserviceaccount.com>
-  ------------- ------------------------------------------------------------
+  Environment  | Service Account
+  -------------|----------------
+  prod         | <koku-prod@cost-management-prod.iam.gserviceaccount.com>
+  stage        | <koku-stage@cost-management-stage.iam.gserviceaccount.com>
+  qa           | <koku-qa@cost-management-qa.iam.gserviceaccount.com>
+  ci           | <koku-ci@cost-management-ci.iam.gserviceaccount.com>
 
 ## Create an GCP Account Source
 
@@ -63,10 +58,10 @@ http POST 0.0.0.0:8000/api/v1/sources/ name="GCP Source" type=GCP billing_source
 
 ## Creating a GCP Service Account for Local Testing
 
-Login to your GCP account. Navigate to [IAM \> Service
-Accounts]{.title-ref} and create an account. Take note of the generated
+Login to your GCP account. Navigate to **IAM > Service
+Accounts** and create an account. Take note of the generated
 email which will look something like
-[service-accnt@project-id.iam.gserviceaccount.com]{.title-ref}. Create
+`service-accnt@project-id.iam.gserviceaccount.com`. Create
 and download the key for this service account, and save it onto your
 local file system.
 

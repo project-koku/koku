@@ -70,13 +70,11 @@ ARG USER_ID=1000
 # Create a Python virtual environment for use by any application to avoid
 # potential conflicts with Python packages preinstalled in the main Python
 # installation.
-RUN python3.9 -m venv /pipenv-venv
-ENV PATH="/pipenv-venv/bin:$PATH"
-# Install pipenv into the virtual env
-RUN \
-    pip install --upgrade pip && \
-    pip install pipenv
+RUN python3.9 -m venv /pipenv-venv \
+    && /pipenv-venv/bin/python -m pip install --upgrade pip setuptools \
+    && /pipenv-venv/bin/python -m pip install pipenv
 
+ENV PATH="/pipenv-venv/bin:$PATH"
 WORKDIR ${APP_ROOT}
 
 # install dependencies

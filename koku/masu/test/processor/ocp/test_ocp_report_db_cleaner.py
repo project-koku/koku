@@ -4,7 +4,6 @@
 #
 """Test the OCPReportDBCleaner utility object."""
 import datetime
-import logging
 import uuid
 
 import django
@@ -21,8 +20,6 @@ from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.models import PartitionedTable
-
-LOG = logging.getLogger(__name__)
 
 
 def table_exists(schema_name, table_name):

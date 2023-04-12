@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCIReportDownloader class."""
-import logging
 import os
 import shutil
 import tempfile
@@ -21,8 +20,6 @@ from masu.external.downloader.oci.oci_report_downloader import DATA_DIR
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloaderError
 from masu.test import MasuTestCase
-
-LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
 

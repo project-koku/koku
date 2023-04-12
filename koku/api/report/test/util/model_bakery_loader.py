@@ -22,6 +22,7 @@ from api.models import Provider
 from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
 from api.report.test.util.common import update_cost_category
+from api.report.test.util.constants import AWS_COST_CATEGORIES
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -62,6 +63,7 @@ class ModelBakeryDataLoader(DataLoader):
         self.tag_test_tag_key = "app"
         self.ocp_tag_keys = ["app", "storageclass", "environment", "version"]
         self._populate_enabled_tag_key_table()
+        self._populate_enabled_aws_category_key_table()
         self._populate_exchange_rates()
 
     def get_test_data_dates(self, num_days):
@@ -92,6 +94,15 @@ class ModelBakeryDataLoader(DataLoader):
             for key in self.ocp_tag_keys:
                 baker.make("OCPEnabledTagKeys", key=key, enabled=True)
             baker.make("OCPEnabledTagKeys", key="disabled", enabled=False)
+
+    def _populate_enabled_aws_category_key_table(self):
+        """Insert records for aws category keys."""
+        for item in AWS_COST_CATEGORIES:
+            if isinstance(item, dict):
+                keys = item.keys()
+                for key in keys:
+                    with schema_context(self.schema):
+                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
 
     def _populate_exchange_rates(self):
         rates = [
@@ -232,6 +243,7 @@ class ModelBakeryDataLoader(DataLoader):
                     )
         bill_ids = [bill.id for bill in bills]
         with AWSReportDBAccessor(self.schema) as accessor:
+            accessor.populate_category_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return bills

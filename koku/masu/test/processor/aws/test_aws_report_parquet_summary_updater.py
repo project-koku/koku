@@ -120,6 +120,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
 
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_category_summary_table")
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
@@ -128,8 +129,8 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _):
-        """Test that we run Presto summary."""
+    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _, mock_category_update):
+        """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
@@ -156,6 +157,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_category_update.assert_called_with(bill_ids, start, end)
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)

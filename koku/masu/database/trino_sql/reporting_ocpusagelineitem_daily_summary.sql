@@ -452,7 +452,15 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     month,
     day
 )
-WITH cte_unallocated_capacity AS (
+WITH cte_node_role AS (
+    SELECT
+        max(node_role) AS node_role,
+        node,
+        resource_id
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocp_nodes
+    GROUP BY node, resource_id
+),
+cte_unallocated_capacity AS (
     SELECT
         NULL as uuid,
         {{report_period_id}} as report_period_id,
@@ -486,7 +494,7 @@ WITH cte_unallocated_capacity AS (
         cast(month(lids.usage_start) as varchar) as month,
         cast(day(lids.usage_start) as varchar) as day
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
+    LEFT JOIN cte_node_role AS nodes
         ON lids.node = nodes.node
         AND lids.resource_id = nodes.resource_id
     WHERE lids.source = {{source}}

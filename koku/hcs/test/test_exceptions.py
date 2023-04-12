@@ -3,12 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test HCS csv_file_handler."""
-import logging
-
 from hcs.exceptions import HCSTableNotFoundError
 from hcs.test import HCSTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 class TestHCSExceptions(HCSTestCase):
