@@ -144,9 +144,9 @@ def get_report_files(  # noqa: C901
     provider_uuid,
     report_month,
     report_context,
+    tracing_id,
     ingress_reports=None,
     ingress_reports_uuid=None,
-    tracing_id=None,
 ):
     """
     Task to download a Report and process the report.
@@ -175,8 +175,6 @@ def get_report_files(  # noqa: C901
     else:
         context["org_id"] = customer_name[3:]
     context["provider_uuid"] = provider_uuid
-    if tracing_id is None:
-        tracing_id = report_context.get("assembly_id", "no-tracing-id")
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
         month = report_month
