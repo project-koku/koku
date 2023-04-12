@@ -36,6 +36,14 @@ from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
 
+def date_to_string(dt):
+    return dt.strftime("%Y-%m-%d")
+
+
+def string_to_date(dt):
+    return datetime.datetime.strptime(dt, "%Y-%m-%d").date()
+
+
 class OCPReportViewTest(IamTestCase):
     """Tests the report view."""
 
@@ -602,11 +610,91 @@ class OCPReportViewTest(IamTestCase):
         date_delta = relativedelta.relativedelta(months=1)
         last_month_end = self.dh.this_month_end - date_delta
 
-        def date_to_string(dt):
-            return dt.strftime("%Y-%m-%d")
+        with tenant_context(self.tenant):
+            current_total = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.cost_term)
+                .get("total")
+            )
+            current_total = current_total if current_total is not None else 0
 
-        def string_to_date(dt):
-            return datetime.datetime.strptime(dt, "%Y-%m-%d").date()
+            current_totals = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
+                .annotate(
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
+                )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
+            )
+
+            prev_totals = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
+                .filter(usage_start__lte=last_month_end.date())
+                .annotate(
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
+                )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
+            )
+
+        current_totals = {total.get("date"): total.get("total") for total in current_totals}
+        prev_totals = {
+            date_to_string(string_to_date(total.get("date")) + date_delta): total.get("total")
+            for total in prev_totals
+            if date_to_string(string_to_date(total.get("date")) + date_delta) in current_totals
+        }
+
+        prev_total = sum(prev_totals.values())
+        prev_total = prev_total if prev_total is not None else 0
+
+        expected_delta = current_total - prev_total
+        delta = data.get("meta", {}).get("delta", {}).get("value")
+        self.assertNotEqual(delta, Decimal(0))
+        self.assertAlmostEqual(delta, expected_delta, 6)
+        for item in data.get("data"):
+            date = item.get("date")
+            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
+            values = item.get("values", [])
+            delta_value = 0
+            if values:
+                delta_value = values[0].get("delta_value")
+            self.assertAlmostEqual(delta_value, expected_delta, 1)
+
+    def test_execute_query_ocp_costs_with_delta_distributed_cost(self):
+        """Test that deltas work for costs."""
+        url = reverse("reports-openshift-costs")
+        client = APIClient()
+        params = {
+            "delta": "distributed_cost",
+            "filter[resolution]": "daily",
+            "filter[time_scope_value]": "-1",
+            "filter[time_scope_units]": "month",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        this_month_start = self.dh.this_month_start
+        last_month_start = self.dh.last_month_start
+
+        date_delta = relativedelta.relativedelta(months=1)
+        last_month_end = self.dh.this_month_end - date_delta
+
+        self.cost_term = (
+            self.provider_map.cloud_infrastructure_cost_by_project
+            + self.provider_map.markup_cost_by_project
+            + self.provider_map.cost_model_cost
+            + self.provider_map.cost_model_distributed_cost_by_project
+        )
 
         with tenant_context(self.tenant):
             current_total = (

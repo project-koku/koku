@@ -146,7 +146,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 
     delta_choices = ("cost", "usage", "request", "cost_total", "distributed_cost")
 
-    delta_fields = ("usage", "request", "limit", "capacity")
+    delta_fields = ("usage", "request", "limit", "capacity", "distributed_cost")
 
     delta = serializers.CharField(required=False)
 
