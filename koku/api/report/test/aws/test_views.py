@@ -4,7 +4,6 @@
 #
 """Test the AWS Report views."""
 import copy
-import logging
 
 from django.urls import reverse
 from rest_framework import status
@@ -14,8 +13,6 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.utils import DateHelper
-
-LOG = logging.getLogger(__name__)
 
 
 def _calculate_accounts_and_subous(data):

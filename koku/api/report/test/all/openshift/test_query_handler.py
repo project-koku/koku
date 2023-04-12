@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All query handler."""
-import logging
 from unittest import skip
 from unittest.mock import patch
 
@@ -35,8 +34,6 @@ COMPUTE_SUMMARY = OCPAllComputeSummaryPT
 STORAGE_SUMMARY = OCPAllStorageSummaryPT
 NETWORK_SUMMARY = OCPAllNetworkSummaryPT
 DATABASE_SUMMARY = OCPAllDatabaseSummaryPT
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPAllQueryHandlerTest(IamTestCase):

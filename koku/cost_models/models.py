@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for cost models."""
-import logging
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
@@ -13,8 +12,6 @@ from django.db.models import JSONField
 
 from api.provider.models import Provider
 from koku.settings import KOKU_DEFAULT_CURRENCY
-
-LOG = logging.getLogger(__name__)
 
 DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
 DEFAULT_DISTRIBUTION = "cpu"

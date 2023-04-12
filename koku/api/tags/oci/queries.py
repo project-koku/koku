@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCI Tag Query Handling."""
-import logging
 from copy import deepcopy
 
 from django.db.models import Exists
@@ -15,9 +14,6 @@ from api.tags.queries import TagQueryHandler
 from reporting.models import OCITagsSummary
 from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import OCITagsValues
-
-
-LOG = logging.getLogger(__name__)
 
 
 class OCITagQueryHandler(TagQueryHandler):

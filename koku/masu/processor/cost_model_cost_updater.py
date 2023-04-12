@@ -4,7 +4,6 @@
 #
 """Update Cost Model Cost info for report summary tables."""
 import datetime
-import logging
 
 import ciso8601
 
@@ -16,8 +15,6 @@ from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCos
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 from masu.processor.oci.oci_cost_model_cost_updater import OCICostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
-
-LOG = logging.getLogger(__name__)
 
 
 class CostModelCostUpdaterError(Exception):

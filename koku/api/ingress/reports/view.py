@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for report posting."""
-import logging
 from uuid import UUID
 
 from rest_framework import status
@@ -15,8 +14,6 @@ from api.common.pagination import ListPaginator
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Sources
 from reporting.ingress.models import IngressReports
-
-LOG = logging.getLogger(__name__)
 
 
 class IngressReportsDetailView(APIView):

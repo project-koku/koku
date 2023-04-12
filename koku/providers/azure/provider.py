@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure provider."""
-import logging
-
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import AzureError
@@ -21,8 +19,6 @@ from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureProvider(ProviderInterface):

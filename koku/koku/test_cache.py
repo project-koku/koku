@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test view caching functions."""
-import logging
 import random
 
 from django.core.cache import caches
@@ -27,8 +26,6 @@ from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import set_cached_infra_map
 from koku.cache import set_cached_matching_tags
 
-
-LOG = logging.getLogger(__name__)
 
 CACHE_PREFIXES = (
     AWS_CACHE_PREFIX,

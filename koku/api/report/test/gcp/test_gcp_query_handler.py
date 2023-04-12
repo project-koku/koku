@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Report Queries."""
-import logging
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -35,8 +34,6 @@ from reporting.models import GCPCostSummaryByProjectP
 from reporting.models import GCPCostSummaryByServiceP
 from reporting.models import GCPCostSummaryP
 from reporting.models import GCPTagsSummary
-
-LOG = logging.getLogger(__name__)
 
 
 class GCPReportQueryHandlerTest(IamTestCase):
