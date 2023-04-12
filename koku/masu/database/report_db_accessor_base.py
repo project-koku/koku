@@ -307,6 +307,14 @@ class ReportDBAccessorBase(KokuDBAccess):
             return True
         return False
 
+    def schema_exists_trino(self):
+        """Check if table exists."""
+        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        schema_exists = self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino")
+        if schema_exists:
+            return True
+        return False
+
     def execute_delete_sql(self, query):
         """
         Detach a partition by marking the active columnm as False in the tracking table
