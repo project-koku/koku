@@ -9,7 +9,6 @@ import logging
 import os
 import pkgutil
 import random
-import string
 from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -233,79 +232,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             elif type(value) is float:
                 columns[name] = "FLOAT"
         return columns
-
-    def test_insert_on_conflict_do_nothing_with_conflict(self):
-        """Test that an INSERT succeeds ignoring the conflicting row."""
-        table_name = AWS_CUR_TABLE_MAP["product"]
-        table = get_model(table_name)
-        with schema_context(self.schema):
-            data = self.creator.create_columns_for_table_with_bakery(table)
-            query = self.accessor._get_db_obj_query(table_name)
-
-            initial_count = query.count()
-
-            row_id = self.accessor.insert_on_conflict_do_nothing(table, data)
-
-            insert_count = query.count()
-
-            self.assertEqual(insert_count, initial_count + 1)
-
-            row_id_2 = self.accessor.insert_on_conflict_do_nothing(table, data)
-
-            self.assertEqual(insert_count, query.count())
-            self.assertEqual(row_id, row_id_2)
-
-    def test_insert_on_conflict_do_nothing_without_conflict(self):
-        """Test that an INSERT succeeds inserting all non-conflicting rows."""
-        # table_name = random.choice(self.foreign_key_tables)
-        table_name = AWS_CUR_TABLE_MAP["product"]
-        table = get_model(table_name)
-
-        data = [
-            self.creator.create_columns_for_table_with_bakery(table),
-            self.creator.create_columns_for_table_with_bakery(table),
-        ]
-        query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            previous_count = query.count()
-            previous_row_id = None
-            for entry in data:
-                row_id = self.accessor.insert_on_conflict_do_nothing(table, entry)
-                count = query.count()
-
-                self.assertEqual(count, previous_count + 1)
-                self.assertNotEqual(row_id, previous_row_id)
-
-                previous_count = count
-                previous_row_id = row_id
-
-    def test_get_primary_key(self):
-        """Test that a primary key is returned."""
-        table_name = random.choice(self.foreign_key_tables)
-        table = get_model(table_name)
-        with schema_context(self.schema):
-            data = self.creator.create_columns_for_table_with_bakery(table)
-            if table_name == AWS_CUR_TABLE_MAP["bill"]:
-                data["provider_id"] = self.aws_provider_uuid
-            obj = self.accessor.create_db_object(table_name, data)
-            obj.save()
-
-            p_key = self.accessor._get_primary_key(table_name, data)
-
-            self.assertIsNotNone(p_key)
-
-    def test_get_primary_key_attribute_error(self):
-        """Test that an AttributeError is raised on bad primary key lookup."""
-        table_name = AWS_CUR_TABLE_MAP["product"]
-        table = get_model(table_name)
-        with schema_context(self.schema):
-            data = self.creator.create_columns_for_table_with_bakery(table)
-            obj = self.accessor.create_db_object(table_name, data)
-            obj.save()
-
-            data["sku"] = "".join(random.choice(string.digits) for _ in range(5))
-            with self.assertRaises(AttributeError):
-                self.accessor._get_primary_key(table_name, data)
 
     def test_clean_data(self):
         """Test that data cleaning produces proper data types."""
