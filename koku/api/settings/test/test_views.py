@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Settings views."""
-import logging
 import random
 from unittest import skip
 
@@ -16,8 +15,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import OCPAWSTagsSummary
 from reporting.models import OCPEnabledTagKeys
-
-LOG = logging.getLogger(__name__)
 
 
 class SettingsViewTest(IamTestCase):

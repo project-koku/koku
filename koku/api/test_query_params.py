@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the QueryParameters."""
-import logging
 import random
 from collections import OrderedDict
 from unittest.mock import Mock
@@ -26,7 +25,6 @@ from api.query_params import QueryParameters
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
-LOG = logging.getLogger(__name__)
 PROVIDERS = [
     Provider.PROVIDER_AWS,
     Provider.PROVIDER_AZURE,

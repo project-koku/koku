@@ -9,6 +9,7 @@ import io
 import random
 import uuid
 from decimal import Decimal
+from decimal import InvalidOperation
 
 import django.apps
 from dateutil import parser
@@ -24,7 +25,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.account_alias_accessor import AccountAliasAccessor
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -47,6 +47,74 @@ class ReportObjectCreator:
         self.schema = schema
         self.report_schema = ReportSchema(django.apps.apps.get_models())
         self.column_types = self.report_schema.column_types
+
+    def create_db_object(self, table_name, data):
+        """Instantiate a populated database object.
+
+        Args:
+            table_name (str): The name of the table to create
+            data (dict): A dictionary of data to insert into the object
+
+        Returns:
+            (Table): A populated SQLAlchemy table object specified by table_name
+
+        """
+        table = getattr(self.report_schema, table_name)
+        data = self.clean_data(data, table_name)
+
+        with schema_context(self.schema):
+            model_object = table(**data)
+            model_object.save()
+            return model_object
+
+    def clean_data(self, data, table_name):
+        """Clean data for insertion into database.
+
+        Args:
+            data (dict): The data to be cleaned
+            table_name (str): The table name the data is associated with
+
+        Returns:
+            (dict): The data with values converted to required types
+
+        """
+        column_types = self.report_schema.column_types[table_name]
+
+        for key, value in data.items():
+            if value is None or value == "":
+                data[key] = None
+                continue
+            if column_types.get(key) in [int, "BigIntegerField"]:
+                data[key] = self._convert_value(value, int)
+            elif column_types.get(key) == float:
+                data[key] = self._convert_value(value, float)
+            elif column_types.get(key) == Decimal:
+                data[key] = self._convert_value(value, Decimal)
+
+        return data
+
+    def _convert_value(self, value, column_type):
+        """Convert a single value to the specified column type.
+
+        Args:
+            value (var): A value of any type
+            column_type (type) A Python type
+
+        Returns:
+            (var): The variable converted to type or None if conversion fails.
+
+        """
+        if column_type == Decimal:
+            try:
+                value = Decimal(value).quantize(Decimal(self.decimal_precision))
+            except InvalidOperation:
+                value = None
+        else:
+            try:
+                value = column_type(value)
+            except ValueError:
+                value = None
+        return value
 
     def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
@@ -248,8 +316,12 @@ class ReportObjectCreator:
             return dt
         return timezone.make_aware(dt)
 
-    def create_cost_model(self, provider_uuid, source_type, rates=[], markup={}):
+    def create_cost_model(self, provider_uuid, source_type, rates=None, markup=None):
         """Create an OCP rate database object for test."""
+        if rates is None:
+            rates = []
+        if markup is None:
+            markup = {}
         table_name = OCP_REPORT_TABLE_MAP["cost_model"]
         cost_model_map = OCP_REPORT_TABLE_MAP["cost_model_map"]
 
@@ -266,11 +338,11 @@ class ReportObjectCreator:
 
         with ProviderDBAccessor(provider_uuid) as accessor:
             provider_obj = accessor.get_provider()
-        with OCPReportDBAccessor(self.schema) as accessor:
-            cost_model_obj = accessor.create_db_object(table_name, data)
-            data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
-            accessor.create_db_object(cost_model_map, data)
-            return cost_model_obj
+
+        cost_model_obj = self.create_db_object(table_name, data)
+        data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
+        self.create_db_object(cost_model_map, data)
+        return cost_model_obj
 
     def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
         """Create an ocpawscostlineitem_project_daily_summary object for test."""

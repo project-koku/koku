@@ -27,7 +27,6 @@ BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
 P_TYPE = Provider.PROVIDER_AWS
 GEN_NUM_ACT_DEFAULT = 2
-LOG = logging.getLogger(__name__)
 
 
 def _generate_act_for_parent_side_effect(schema, parent_id, num_of_accounts=GEN_NUM_ACT_DEFAULT):

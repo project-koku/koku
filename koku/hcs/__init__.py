@@ -4,6 +4,3 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Hybrid Cloud Spend (HCS) report processing"""
-import logging
-
-LOG = logging.getLogger(__name__)

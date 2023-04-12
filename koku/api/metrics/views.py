@@ -4,7 +4,6 @@
 #
 """Views for CostModelMetricsMap."""
 import copy
-import logging
 
 from django.utils.encoding import force_text
 from django.views.decorators.vary import vary_on_headers
@@ -21,8 +20,6 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import QueryParamsSerializer
-
-LOG = logging.getLogger(__name__)
 
 
 @api_view(["GET"])  # noqa: C901

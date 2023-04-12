@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Tag Query Handling."""
-import logging
 from copy import deepcopy
 
 from django.db.models import Exists
@@ -15,9 +14,6 @@ from api.tags.queries import TagQueryHandler
 from reporting.models import AzureTagsSummary
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureTagsValues
-
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureTagQueryHandler(TagQueryHandler):

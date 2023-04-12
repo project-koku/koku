@@ -80,9 +80,6 @@ from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 
-LOG = logging.getLogger(__name__)
-
-
 class FakeDownloader(Mock):
     """Fake Downloader."""
 

@@ -4,7 +4,6 @@
 #
 """OCP Query Handling for Reports."""
 import copy
-import logging
 
 from django.db.models import CharField
 from django.db.models import F
@@ -15,8 +14,6 @@ from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.queries import is_grouped_by_project
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):

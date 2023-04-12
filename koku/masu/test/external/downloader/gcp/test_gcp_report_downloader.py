@@ -1,6 +1,5 @@
 """Test the GCPReportDownloader class."""
 import datetime
-import logging
 import os
 import shutil
 import tempfile
@@ -26,8 +25,6 @@ from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownload
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
-
-LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
 

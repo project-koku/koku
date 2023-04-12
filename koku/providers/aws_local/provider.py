@@ -3,16 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS-local service provider implementation to be used by Koku."""
-import logging
-
 from rest_framework import serializers
 
 from ..aws.provider import AWSProvider
 from ..provider_errors import ProviderErrors
 from api.common import error_obj
 from api.models import Provider
-
-LOG = logging.getLogger(__name__)
 
 
 class AWSLocalProvider(AWSProvider):

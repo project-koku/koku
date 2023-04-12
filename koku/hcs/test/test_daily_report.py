@@ -3,15 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test HCS csv_file_handler."""
-import logging
 from datetime import timedelta
 
 from api.provider.models import Provider
 from api.utils import DateHelper
 from hcs.daily_report import ReportHCS
 from hcs.test import HCSTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 class TestReportHCS(HCSTestCase):
