@@ -142,6 +142,9 @@ class SourcesErrorMessageTest(TestCase):
         self.assertEqual(message_obj, "")
 
     def test_error_details_are_dict(self):
+        """Given a ValidationError for billing_source whose details are a dict,
+        return a useful error message.
+        """
         err_dict = {
             "billing_source": {
                 "data_source": {
@@ -158,4 +161,15 @@ class SourcesErrorMessageTest(TestCase):
         message_obj = SourcesErrorMessage(error)
         message = message_obj.display(source_id=1)
 
-        self.assertIn(message, ProviderErrors.AWS_BUCKET_MISSING)
+        self.assertIn(message, ProviderErrors.REQUIRED_FIELD_MISSING)
+
+    def test_error_details_are_dict_general(self):
+        """Given a ValidationError for billing_source whose details are a dict,
+        return a non-specific but helpful error message.
+        """
+        err_dict = {"billing_source": {"data_source": {}}}
+        error = ValidationError(err_dict)
+        message_obj = SourcesErrorMessage(error)
+        message = message_obj.display(source_id=1)
+
+        self.assertIn(message, ProviderErrors.BILLING_SOURCE_GENERAL_ERROR)

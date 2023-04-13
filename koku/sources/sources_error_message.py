@@ -50,9 +50,12 @@ class SourcesErrorMessage:
         """AWS invalid compression message."""
         return ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG_MESSAGE
 
-    def aws_bucket_missing(self, message):
-        """AWS missing bucket message."""
-        return ProviderErrors.AWS_BUCKET_MISSING
+    def general_errors(self, message):
+        msg = ProviderErrors.BILLING_SOURCE_GENERAL_ERROR
+        if "one or more required fields is invalid/missing" in message.lower():
+            msg = ProviderErrors.REQUIRED_FIELD_MISSING
+
+        return msg
 
     def _display_string_function(self, key):
         """Return function to get user facing string."""
@@ -60,8 +63,8 @@ class SourcesErrorMessage:
             ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors,
             ProviderErrors.AWS_ROLE_ARN_UNREACHABLE: self.aws_client_errors,
             ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND: self.aws_no_billing_source,
-            ProviderErrors.AWS_BILLING_SOURCE: self.aws_bucket_missing,
             ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG: self.aws_invalid_report_compression,
+            ProviderErrors.BILLING_SOURCE: self.general_errors,
         }
         string_function = ui_function_map.get(key)
         return string_function
