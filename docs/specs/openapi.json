@@ -3173,6 +3173,9 @@
                         "$ref": "#/components/parameters/QueryKey"
                     },
                     {
+                        "$ref": "#/components/parameters/QuerySearch"
+                    },
+                    {
                         "$ref": "#/components/parameters/QueryValue"
                     },
                     {
@@ -5558,6 +5561,15 @@
                 "name": "type",
                 "in": "query",
                 "description": "String to identify user access permission type (i.e. AWS, cost_model).",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "QuerySearch": {
+                "in": "query",
+                "name": "search",
+                "required": false,
+                "description": "Parameter for matching on a key using a contains.",
                 "schema": {
                     "type": "string"
                 }

@@ -47,6 +47,7 @@ class AWSCategoryView(generics.ListAPIView):
     serializer_class = AWSCategorySerializer
 
     FILTER_MAP = {
+        "search": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
         "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
         "value": {"field": "values", "operation": "icontains", "composition_key": "value_filter"},
         "account": [
