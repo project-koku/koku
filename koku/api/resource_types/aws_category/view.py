@@ -61,48 +61,41 @@ class AWSCategoryView(generics.ListAPIView):
     SUPPORTED_FILTERS = ["limit"] + list(FILTER_MAP.keys())
     RBAC_FILTER = {"field": "usage_account_id", "operation": "in", "composition_key": "account_filter"}
 
-    def check_user_access(self):
-        """
-        Checks to see if we need to filter the account access.
-
-        Always returns a QueryFilterCollection
-        """
-
-        def build_query_collection(check_user_access=None):
-            """Creates a query_filter of the account."""
-            query_collection = QueryFilterCollection()
-            if account_param := self.request.query_params.get("account"):
-                if check_user_access and account_param not in check_user_access:
-                    # ensure the user has access to the filtered value
-                    LOG.warning(
-                        "User does not have permissions for the requested params: %s. Current access: %s.",
-                        account_param,
-                        check_user_access,
-                    )
-                    raise PermissionDenied()
-                for filter in self.FILTER_MAP.get("account"):
-                    account_filter = QueryFilter(parameter=account_param, **filter)
-                    query_collection.add(account_filter)
-            elif check_user_access:  # default to user access kwargs
-                # use the account filter if passed in instead of deault RBAC.
-                access_filter = QueryFilter(parameter=check_user_access, **self.RBAC_FILTER)
-                query_collection.add(access_filter)
-            return query_collection
-
-        if settings.ENHANCED_ORG_ADMIN and self.request.user.admin:
-            return build_query_collection()
-        elif self.request.user.access:
-            check_user_access = self.request.user.access.get("aws.account", {}).get("read", [])
-            if check_user_access and check_user_access[0] != "*":
-                return build_query_collection(check_user_access)
-        return build_query_collection()
+    def build_query_collection(self, check_user_access=None):
+        """Creates a query_filter of the account."""
+        query_collection = QueryFilterCollection()
+        if account_param := self.request.query_params.get("account"):
+            if check_user_access and account_param not in check_user_access:
+                # ensure the user has access to the filtered value
+                LOG.warning(
+                    "User does not have permissions for the requested params: %s. Current access: %s.",
+                    account_param,
+                    check_user_access,
+                )
+                raise PermissionDenied()
+            for filter in self.FILTER_MAP.get("account"):
+                account_filter = QueryFilter(parameter=account_param, **filter)
+                query_collection.add(account_filter)
+        elif check_user_access:  # default to user access kwargs
+            # use the account filter if passed in instead of deault RBAC.
+            access_filter = QueryFilter(parameter=check_user_access, **self.RBAC_FILTER)
+            query_collection.add(access_filter)
+        return query_collection
 
     def build_filters(self):
         """Builds the query filters"""
-        filters = self.check_user_access()
+        check_user_access = False
+        if not (settings.ENHANCED_ORG_ADMIN and self.request.user.admin):
+            read_access_list = self.request.user.access.get("aws.account", {}).get("read")
+            if "*" not in read_access_list:
+                # only check if the aws.account.read != *
+                check_user_access = read_access_list
+
+        filters = self.build_query_collection(check_user_access)
+
         for key, value in self.request.query_params.items():
             if key in ["account", "limit"]:
-                # we set account separately
+                # account handled when we build the query collection
                 continue
             filter_kwargs = self.FILTER_MAP.get(key)
             query_filter = QueryFilter(parameter=value, **filter_kwargs)
