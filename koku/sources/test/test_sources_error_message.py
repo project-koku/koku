@@ -158,4 +158,4 @@ class SourcesErrorMessageTest(TestCase):
         message_obj = SourcesErrorMessage(error)
         message = message_obj.display(source_id=1)
 
-        self.assertIn("One or more required fields is invalid", message)
+        self.assertIn(message, ProviderErrors.AWS_BUCKET_MISSING)
