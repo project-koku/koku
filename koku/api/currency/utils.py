@@ -2,12 +2,9 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import logging
 from decimal import Decimal
 
 from api.currency.models import ExchangeRateDictionary
-
-LOG = logging.getLogger(__name__)
 
 
 def build_exchange_dictionary(rates):

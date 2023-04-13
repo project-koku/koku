@@ -5,14 +5,8 @@ import os
 import trino
 from trino.exceptions import TrinoExternalError
 
+
 logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
-PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
-PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
-PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
-try:
-    PRESTO_PORT = int(os.environ.get("PRESTO_PORT", "8080"))
-except ValueError:
-    PRESTO_PORT = 8080
 
 TRINO_HOST = os.environ.get("TRINO_HOST", "localhost")
 TRINO_USER = os.environ.get("TRINO_USER", "admin")
@@ -24,10 +18,10 @@ except ValueError:
 
 # After the TRINO_* params land in app-interface, these CONNECT_PARAMS can be switched to TRINO_*
 CONNECT_PARAMS = {
-    "host": PRESTO_HOST,
-    "port": PRESTO_PORT,
-    "user": PRESTO_USER,
-    "catalog": PRESTO_CATALOG,
+    "host": TRINO_HOST,
+    "port": TRINO_PORT,
+    "user": TRINO_USER,
+    "catalog": TRINO_CATALOG,
     "schema": "default",
 }
 

@@ -8,6 +8,7 @@ AWS_CUR_TABLE_MAP = {
     "bill": "reporting_awscostentrybill",
     "line_item_daily_summary": "reporting_awscostentrylineitem_daily_summary",
     "tags_summary": "reporting_awstags_summary",
+    "category_summary": "reporting_awscategory_summary",
     "enabled_tag_keys": "reporting_awsenabledtagkeys",
     "ocp_on_aws_daily_summary": "reporting_ocpawscostlineitem_daily_summary_p",
     "ocp_on_aws_project_daily_summary": "reporting_ocpawscostlineitem_project_daily_summary_p",

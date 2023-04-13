@@ -118,3 +118,12 @@ def enable_ocp_amortized_monthly_cost(account):
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context))
 
     return res
+
+
+def enable_aws_category_settings(account):
+    """Enable aws category settings."""
+    account = convert_account(account)
+
+    context = {"schema": account}
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable_aws_category_settings", context))
+    return res

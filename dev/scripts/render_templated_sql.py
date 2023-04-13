@@ -61,7 +61,7 @@ if __name__ == "__main__":
         default=datetime.datetime.utcnow().date().isoformat(),
         help="Date to end generating data (YYYY-MM-DD). Default is today.",
     )
-    parser.add_argument("-d", "--schema", dest="schema", required=False, default="acct10001")
+    parser.add_argument("-d", "--schema", dest="schema", required=False, default="org1234567")
     parser.add_argument(
         "-b", "--bill-ids", dest="bill_ids", required=False, type=id_list, help="A comma separated list of bill IDs"
     )

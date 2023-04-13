@@ -5,7 +5,6 @@
 """Test the running_celery_tasks endpoint view."""
 import base64
 import json
-import logging
 import os
 from decimal import Decimal
 from unittest.mock import Mock
@@ -26,9 +25,6 @@ from masu.api.db_performance.dbp_views import get_parameter_bool
 from masu.api.db_performance.dbp_views import get_parameter_list
 from masu.api.db_performance.dbp_views import make_db_options
 from masu.api.db_performance.dbp_views import make_pagination
-
-
-LOG = logging.getLogger(__name__)
 
 
 TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))

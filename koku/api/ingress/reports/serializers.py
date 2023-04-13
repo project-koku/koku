@@ -3,16 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Post Report Serializers."""
-import logging
-
 from rest_framework import serializers
 
 from api.common import error_obj
 from api.utils import DateHelper
 from providers.provider_access import ProviderAccessor
 from reporting.ingress.models import IngressReports
-
-LOG = logging.getLogger(__name__)
 
 PROVIDER_LIST = ["aws", "aws-local", "azure", "azure-local", "gcp", "gcp-local"]
 

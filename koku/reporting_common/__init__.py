@@ -3,12 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Reporting Common init."""
-import logging
 import os
 from collections import defaultdict
 
-
-LOG = logging.getLogger(__name__)
 
 package_directory = os.path.dirname(os.path.abspath(__file__))
 

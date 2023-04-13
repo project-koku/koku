@@ -5,7 +5,6 @@
 """Test the AWSReportDBAccessor utility object."""
 import datetime
 import decimal
-import logging
 import os
 import pkgutil
 import random
@@ -45,8 +44,6 @@ from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting_common import REPORT_COLUMN_MAP
-
-LOG = logging.getLogger(__name__)
 
 
 class ReportSchemaTest(MasuTestCase):

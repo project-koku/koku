@@ -57,7 +57,7 @@ class ReportSchema:
             setattr(self, model._meta.db_table, model)
             columns = REPORT_COLUMN_MAP[model._meta.db_table].values()
             types = {column: model._meta.get_field(column).get_internal_type() for column in columns}
-            column_types.update({model._meta.db_table: types})
+            column_types[model._meta.db_table] = types
             self.column_types = column_types
 
 
@@ -87,57 +87,6 @@ class ReportDBAccessorBase(KokuDBAccess):
     def line_item_daily_summary_table(self):
         """Require this property in subclases."""
         raise ReportDBAccessorException("This must be a property on the sub class.")
-
-    def merge_temp_table(self, table_name, temp_table_name, columns, conflict_columns=None):
-        """INSERT temp table rows into the primary table specified.
-
-        Args:
-            table_name (str): The main table to insert into
-            temp_table_name (str): The temp table to pull from
-            columns (list): A list of columns to use in the insert logic
-
-        Returns:
-            (None)
-
-        """
-        column_str = ",".join(columns)
-        upsert_sql = f"""
-            INSERT INTO {table_name} ({column_str})
-                SELECT {column_str}
-                FROM {temp_table_name}
-            """
-
-        if conflict_columns:
-            conflict_col_str = ",".join(conflict_columns)
-            set_clause = ",".join([f"{column} = excluded.{column}" for column in columns])
-            conflict_sql = f"""
-                    ON CONFLICT ({conflict_col_str}) DO UPDATE
-                    SET {set_clause}
-                """
-            upsert_sql += conflict_sql
-
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(upsert_sql)
-
-            delete_sql = f"DELETE FROM {temp_table_name}"
-            cursor.execute(delete_sql)
-
-    def bulk_insert_rows(self, file_obj, table, columns, sep=","):
-        """Insert many rows using Postgres copy functionality.
-
-        Args:
-            file_obj (file): A file-like object containing CSV rows
-            table (str): The table name in the databse to copy to
-            columns (list): A list of columns in the order of the CSV file
-            sep (str): The separator in the file. Default: ','
-
-        """
-        columns = ", ".join(columns)
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            statement = f"COPY {table} ({columns}) FROM STDIN WITH CSV DELIMITER '{sep}'"
-            cursor.copy_expert(statement, file_obj)
 
     def _get_db_obj_query(self, table, columns=None):
         """Return a query on a specific database table.
@@ -355,6 +304,14 @@ class ReportDBAccessorBase(KokuDBAccess):
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
         table = self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")
         if table:
+            return True
+        return False
+
+    def schema_exists_trino(self):
+        """Check if table exists."""
+        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        schema_exists = self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino")
+        if schema_exists:
             return True
         return False
 

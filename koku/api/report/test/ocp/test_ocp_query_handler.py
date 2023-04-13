@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
-import logging
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
@@ -35,8 +34,6 @@ from api.utils import materialized_view_month_start
 from reporting.models import OCPCostSummaryByProjectP
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-
-LOG = logging.getLogger(__name__)
 
 
 def _calculate_subtotals(data, cost, infra, sup):

@@ -10,6 +10,8 @@ generators:
       tags:
         resourceTags/user:version: prod
         resourceTags/user:dashed-key-on-aws: dashed-value
+      cost_category:
+        costCategory/env: prod
       instance_type:
         inst_type: m5.large
         vcpu: 2
@@ -52,6 +54,7 @@ generators:
         resourceTags/user:dashed-key-on-aws: dashed-value
       cost_category:
         costCategory/env: stage
+        costCategory/Organization: Ninja
       instance_type:
         inst_type: m5.large
         vcpu: 2
@@ -72,6 +75,7 @@ generators:
         resourceTags/user:dashed-key-on-aws: dashed-value
       cost_category:
         costCategory/env: ephemeral
+        costCategory/Organization: Ninja
       instance_type:
         inst_type: m5.large
         vcpu: 2
@@ -88,6 +92,9 @@ generators:
       rate: 0.05
       tags:
         resourceTags/user:storageclass: charlie
+      cost_category:
+        costCategory/env: stage
+        costCategory/Organization: Ninja
   - EBSGenerator:
       product_sku: VEAJHRNBBBBA
       resource_id: 12345671
@@ -95,6 +102,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: bravo
+      cost_category:
+        costCategory/env: stage
   - EBSGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -104,6 +113,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: delta
+      cost_category:
+        costCategory/env: ephemeral
   - EBSGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -113,6 +124,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: epsilon
+      cost_category:
+        costCategory/env: ephemeral
   - EBSGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -122,37 +135,51 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: gamma
+      cost_category:
+        costCategory/env: ephemeral
   - RDSGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       tags:
         resourceTags/user:app: analytics
+      cost_category:
+        costCategory/env: prod
   - VPCGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       tags:
         resourceTags/user:app: cost
+      cost_category:
+        costCategory/env: prod
   - Route53Generator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       # product_family: DNS Zone
       tags:
         resourceTags/user:app: catalog
+      cost_category:
+        costCategory/env: ephemeral
   - Route53Generator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       product_family: DNS Query
       tags:
         resourceTags/user:app: cost
+      cost_category:
+        costCategory/env: prod
   - Route53Generator:
       product_family: DNS Query
       tags:
         resourceTags/user:app: analytics
+      cost_category:
+        costCategory/env: ephemeral
   - DataTransferGenerator:
       product_sku: VEAJHRNKTJZQ
       resource_id: i-55555555
       tags:
         resourceTags/user:app: analytics
+      cost_category:
+        costCategory/env: prod
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -160,6 +187,8 @@ generators:
       resource_id: i-55555556
       tags:
         resourceTags/user:app: cost
+      cost_category:
+        costCategory/env: ephemeral
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -167,6 +196,8 @@ generators:
       resource_id: i-55555557
       tags:
         resourceTags/user:app: catalog
+      cost_category:
+        costCategory/env: prod
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -174,6 +205,9 @@ generators:
       resource_id: i-55555558
       tags:
         resourceTags/user:app: catalog
+      cost_category:
+        costCategory/env: prod
+        costCategory/Organization: Ninja
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -181,6 +215,8 @@ generators:
       resource_id: i-55555559
       tags:
         resourceTags/user:app: cost
+      cost_category:
+        costCategory/env: ephemeral
   - DataTransferGenerator:
       resource_id: ''
       product_sku: AERJHRNCCCCC
@@ -188,6 +224,8 @@ generators:
       product_name: Amazon DynamoDB
       tags:
         resourceTags/user:app: catalog
+      cost_category:
+        costCategory/env: prod
   - DataTransferGenerator:
       resource_id: ''
       product_sku: AERJHRNCCCCD
@@ -195,6 +233,8 @@ generators:
       product_name: Amazon DynamoDB
       tags:
         resourceTags/user:app: catalog
+      cost_category:
+        costCategory/env: prod
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -204,6 +244,9 @@ generators:
       product_name: Amazon DynamoDB
       tags:
         resourceTags/user:app: catalog
+      cost_category:
+        costCategory/env: prod
+        costCategory/Organization: Ninja
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -213,6 +256,8 @@ generators:
       product_name: Amazon Relational Database Service
       tags:
         resourceTags/user:app: analytics
+      cost_category:
+        costCategory/env: prod
   - MarketplaceGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -223,6 +268,8 @@ generators:
       region: us-east-1a
       tags:
         resourceTags/aws:createdBy: AssumedRole:AROAYSLL3JVQ6DYUNKWQJ:1637692740557658269
+      cost_category:
+        costCategory/env: prod
       instance_type:
         inst_type: m5.large
         vcpu: 2

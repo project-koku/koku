@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Azure Provider query handler."""
-import logging
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
@@ -40,8 +39,6 @@ from reporting.models import AzureCostSummaryP
 from reporting.models import AzureDatabaseSummaryP
 from reporting.models import AzureNetworkSummaryP
 from reporting.models import AzureStorageSummaryP
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureReportQueryHandlerTest(IamTestCase):

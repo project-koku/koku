@@ -155,7 +155,7 @@ class TestOCIUtils(MasuTestCase):
 
         processed_data_frame = utils.oci_post_processor(data_frame)
         if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
+            processed_data_frame, df_tag_keys, _ = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
 
         columns = list(processed_data_frame)
@@ -386,7 +386,7 @@ class TestOCIUtils(MasuTestCase):
 
         processed_data_frame = utils.oci_post_processor(data_frame)
         if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
+            processed_data_frame, df_tag_keys, _ = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
 
         self.assertFalse(processed_data_frame["tags"].isna().values.any())

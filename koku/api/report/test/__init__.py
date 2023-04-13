@@ -1,1 +1,1 @@
-# no_qa
+# noqa

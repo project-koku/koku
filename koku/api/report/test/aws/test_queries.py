@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
-import logging
 import operator
 from collections import OrderedDict
 from datetime import datetime
@@ -54,8 +53,6 @@ from reporting.models import AWSNetworkSummaryP
 from reporting.models import AWSStorageSummaryByAccountP
 from reporting.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
-
-LOG = logging.getLogger(__name__)
 
 
 def get_account_ailases():
@@ -2972,7 +2969,6 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
 
     def test_prefixed_logical_and(self):
         """Test prefixed logical AND."""
-
         data_to_test = {
             "1": {
                 "url": "?group_by[and:account]=a&group_by[and:account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
