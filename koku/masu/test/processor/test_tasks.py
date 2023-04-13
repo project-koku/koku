@@ -452,6 +452,7 @@ class TestProcessorTasks(MasuTestCase):
             "provider_uuid": self.aws_provider_uuid,
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
+            "tracing_id": "my-totally-made-up-id",
         }
         self.get_report_args_gcp = {
             "customer_name": self.schema,
@@ -462,6 +463,7 @@ class TestProcessorTasks(MasuTestCase):
             "provider_uuid": self.gcp_provider_uuid,
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
+            "tracing_id": "my-totally-made-up-id",
         }
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
