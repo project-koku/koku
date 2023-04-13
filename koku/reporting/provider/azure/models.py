@@ -113,6 +113,65 @@ class AzureCostEntryBill(models.Model):
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
+class AzureCostEntryProductService(models.Model):
+    """The Azure product identified in a cost entry line item."""
+
+    class Meta:
+        """Meta for AzureCostEntryProductService."""
+
+        unique_together = ("instance_id", "instance_type", "service_tier", "service_name")
+
+    instance_id = models.TextField(max_length=512, null=False)
+    resource_location = models.TextField(null=True)
+    consumed_service = models.TextField(null=True)
+    resource_type = models.TextField(null=True)
+    resource_group = models.TextField(null=True)
+    additional_info = JSONField(null=True)
+    service_tier = models.TextField(null=True)
+    service_name = models.TextField(null=True)
+    service_info1 = models.TextField(null=True)
+    service_info2 = models.TextField(null=True)
+    instance_type = models.TextField(null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
+
+
+class AzureMeter(models.Model):
+    """The Azure meter."""
+
+    meter_id = models.TextField(editable=False, unique=True, null=False)
+    meter_name = models.TextField(null=False)
+    meter_category = models.TextField(null=True)
+    meter_subcategory = models.TextField(null=True)
+    meter_region = models.TextField(null=True)
+    resource_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    unit_of_measure = models.TextField(null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
+
+
+class AzureCostEntryLineItemDaily(models.Model):
+    """A line item in a cost entry.
+
+    This identifies specific costs and usage of Azure resources.
+
+    """
+
+    class Meta:
+        """Meta for AzureCostEntryLineItemDaily."""
+
+        db_table = "reporting_azurecostentrylineitem_daily"
+
+    id = models.BigAutoField(primary_key=True)
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    cost_entry_product = models.ForeignKey("AzureCostEntryProductService", on_delete=models.SET_NULL, null=True)
+    meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
+    subscription_guid = models.TextField(null=False)
+    tags = JSONField(null=True)
+    usage_date = models.DateField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+
 class AzureCostEntryLineItemDailySummary(models.Model):
     """A line item in a cost entry.
 
@@ -140,6 +199,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
     uuid = models.UUIDField(primary_key=True)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
     subscription_guid = models.TextField(null=False)
     instance_type = models.TextField(null=True)
     service_name = models.TextField(null=True)
