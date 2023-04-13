@@ -100,7 +100,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         """Test aws categories return."""
         aws_cat_dict = self.aws_category_tuple[0]
         aws_cat_value = list(aws_cat_dict.values())[0]
-        url = reverse("aws-categories") + f"?key={aws_cat_value}"
+        url = reverse("aws-categories") + f"?value={aws_cat_value}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
