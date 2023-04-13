@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp (
@@ -194,7 +194,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp 
     unblended_cost,
     labels,
     ocp_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT cast(uuid() as varchar),
     gcp.usage_start_time as usage_start,
@@ -216,7 +218,9 @@ SELECT cast(uuid() as varchar),
     cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
     gcp.labels,
     max(gcp.ocp_matched) as ocp_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
@@ -235,7 +239,7 @@ GROUP BY gcp.usage_start_time,
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
@@ -259,7 +263,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
     unblended_cost,
     labels,
     matched_tag,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 WITH cte_enabled_tag_keys AS (
     SELECT
@@ -298,7 +304,9 @@ SELECT cast(uuid() as varchar),
         )
     ) as labels,
     gcp.matched_tag,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE gcp.source = {{gcp_source_uuid}}
@@ -319,7 +327,7 @@ GROUP BY gcp.usage_start_time,
 
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
 
 -- Direct resource_id matching
@@ -371,7 +379,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     tags,
     cost_category_id,
     ocp_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -420,7 +430,9 @@ SELECT gcp.uuid as gcp_uuid,
     max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     max(gcp.ocp_matched) as ocp_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
@@ -486,7 +498,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     tags,
     cost_category_id,
     ocp_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -535,7 +549,9 @@ SELECT gcp.uuid as gcp_uuid,
     max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     FALSE as ocp_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
@@ -786,5 +802,5 @@ WHERE gcp_source = {{gcp_source_uuid}}
 
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
