@@ -133,7 +133,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        self.delete_hive_partition_by_month(source_uuid, year, month)
+        tables = [
+            "reporting_ocpawscostlineitem_project_daily_summary_temp",
+            "aws_openshift_daily_resource_matched_temp",
+            "aws_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, source_uuid, year, month)
 
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")

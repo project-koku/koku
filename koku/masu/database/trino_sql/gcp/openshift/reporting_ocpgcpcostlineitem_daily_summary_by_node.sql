@@ -107,10 +107,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['gcp_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
-;
-
 -- OCP ON GCP kubernetes-io-cluster-{cluster_id} label is applied on the VM and is exclusively a pod cost
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
@@ -570,8 +566,4 @@ WHERE gcp_source = {{gcp_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN {{days | inclause}}
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;

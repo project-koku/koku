@@ -326,9 +326,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         return exec_del_sql(query)
 
-    def delete_hive_partition_by_month(self, source, year, month):
+    def delete_hive_partition_by_month(self, table, source, year, month):
         """Deletes partitions individually by month."""
-        table = "reporting_ocpusagelineitem_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(

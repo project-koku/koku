@@ -87,10 +87,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['azure_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
-WHERE ocp_source = '{{ocp_source_uuid | sqlsafe}}' AND year = {{year}} AND month = {{month}}
-;
-
 
 -- Directly resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
@@ -498,8 +494,4 @@ WHERE azure_source = {{azure_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day in {{days | inclause}}
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
