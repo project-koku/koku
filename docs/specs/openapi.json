@@ -3167,16 +3167,16 @@
                 "summary": "Obtain mapping of key and values for AWS Categories.",
                 "operationId": "listResourcesAwsCategories",
                 "parameters": [{
-                        "$ref": "#/components/parameters/QueryOffset"
+                        "$ref": "#/components/parameters/QueryLimit"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryLimit"
+                        "$ref": "#/components/parameters/QueryKey"
                     },
                     {
                         "$ref": "#/components/parameters/QueryValue"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryOrder"
+                        "$ref": "#/components/parameters/QueryAccount"
                     }
                 ],
                 "responses": {
@@ -5562,11 +5562,29 @@
                     "type": "string"
                 }
             },
+            "QueryKey": {
+                "in": "query",
+                "name": "key",
+                "required": false,
+                "description": "Parameter for matching on a key using a contains.",
+                "schema": {
+                    "type": "string"
+                }
+            },
             "QueryValue": {
                 "in": "query",
                 "name": "value",
                 "required": false,
                 "description": "Parameter for matching the value data using a contains.",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "QueryAccount": {
+                "in": "query",
+                "name": "account",
+                "required": false,
+                "description": "Parameter for matching the account data using a contains.",
                 "schema": {
                     "type": "string"
                 }
