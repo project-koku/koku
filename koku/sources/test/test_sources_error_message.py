@@ -140,3 +140,22 @@ class SourcesErrorMessageTest(TestCase):
         """Test an available source message."""
         message_obj = SourcesErrorMessage(None).display(source_id=1)
         self.assertEqual(message_obj, "")
+
+    def test_error_details_are_dict(self):
+        err_dict = {
+            "billing_source": {
+                "data_source": {
+                    "provider.data_source": [
+                        (
+                            'ErrorDetail(string="One or more required fields is invalid/missing. '
+                            "Required fields are ['bucket']\", code='invalid')"
+                        )
+                    ]
+                }
+            }
+        }
+        error = ValidationError(err_dict)
+        message_obj = SourcesErrorMessage(error)
+        message = message_obj.display(source_id=1)
+
+        self.assertIn("One or more required fields is invalid", message)
