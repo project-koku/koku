@@ -88,6 +88,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        self.delete_hive_partition_by_month(source_uuid, year, month)
+
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_azurecostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")

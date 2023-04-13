@@ -134,6 +134,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self.delete_line_item_daily_summary_entries_for_date_range(source_uuid, end_date, new_end_date)
             end_date = new_end_date
 
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        self.delete_hive_partition_by_month(source_uuid, year, month)
+
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")

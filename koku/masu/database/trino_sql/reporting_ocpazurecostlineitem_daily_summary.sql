@@ -429,7 +429,7 @@ SELECT pds.azure_uuid,
 FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.azure_uuid = r.azure_uuid
-WHERE pds.ocp_source = {{ocp_source_uuid}}
+WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
