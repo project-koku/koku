@@ -3,6 +3,8 @@
 [![license](https://img.shields.io/github/license/project-koku/koku.svg)](https://github.com/project-koku/koku/blob/main/LICENSE)
 [![Unittests](https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg)](https://github.com/project-koku/koku/actions)
 [![codecov](https://codecov.io/gh/project-koku/koku/branch/main/graph/badge.svg)](https://codecov.io/gh/project-koku/koku)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=coverage)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
 
 ## About
 
