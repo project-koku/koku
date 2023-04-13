@@ -144,9 +144,9 @@ def get_report_files(  # noqa: C901
     provider_uuid,
     report_month,
     report_context,
+    tracing_id,
     ingress_reports=None,
     ingress_reports_uuid=None,
-    tracing_id=None,
 ):
     """
     Task to download a Report and process the report.
@@ -182,7 +182,6 @@ def get_report_files(  # noqa: C901
             month = parser.parse(report_month)
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
-        tracing_id = report_context.get("assembly_id", "no-tracing-id")
         WorkerCache().add_task_to_cache(cache_key)
 
         try:
