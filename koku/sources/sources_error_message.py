@@ -68,12 +68,14 @@ class SourcesErrorMessage:
         if isinstance(self._error, ValidationError):
             err_dict = self._error.detail
             LOG.info(f"validation error: {self._error}. Validation detail {err_dict}")
-            err_key = list(err_dict.keys()).pop()
-            err_body = err_dict.get(err_key, []).pop()
-            if err_body:
-                err_msg = err_body.encode().decode("UTF-8")
-            else:
+            err_key = list(err_dict).pop()
+            try:
+                err_body = err_dict.get(err_key, []).pop()
+            except (TypeError, IndexError):
                 err_msg = str(self._error.detail).encode().decode("UTF-8")
+            else:
+                err_msg = err_body.encode().decode("UTF-8")
+
         return err_key, err_msg
 
     def display(self, source_id):
