@@ -343,7 +343,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 try:
                     sql = f"""
                     DELETE FROM hive.{self.schema}.{table}
-                    WHERE source = '{source}'
+                    WHERE ocp_source = '{source}'
                     AND year = '{year}'
                     AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                     """
