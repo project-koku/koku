@@ -72,6 +72,11 @@ GROUP BY billing_account_id,
     date(usage_end_time),
     location_region,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]'),
-    labels,
+    cast(
+        map_filter(
+            cast(json_parse(labels) as map(varchar, varchar)),
+            (k,v) -> contains(etk.enabled_keys, k)
+        ) as json
+    ),
     cost_type,
     invoice_month
