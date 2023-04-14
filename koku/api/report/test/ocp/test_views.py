@@ -675,6 +675,7 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             "delta": "distributed_cost",
+            "group_by[project]": "*",
             "filter[resolution]": "daily",
             "filter[time_scope_value]": "-1",
             "filter[time_scope_units]": "month",
@@ -741,19 +742,10 @@ class OCPReportViewTest(IamTestCase):
 
         prev_total = sum(prev_totals.values())
         prev_total = prev_total if prev_total is not None else 0
-
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
         self.assertAlmostEqual(delta, expected_delta, 6)
-        for item in data.get("data"):
-            date = item.get("date")
-            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
-            values = item.get("values", [])
-            delta_value = 0
-            if values:
-                delta_value = values[0].get("delta_value")
-            self.assertAlmostEqual(delta_value, expected_delta, 1)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self):
         """Test that bad deltas don't work for costs."""

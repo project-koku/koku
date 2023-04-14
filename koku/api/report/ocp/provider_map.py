@@ -271,7 +271,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost,
-                            "distributed_cost": self.cloud_infrastructure_cost_by_project
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,
@@ -333,7 +333,7 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
-                            "distributed_cost": self.cloud_infrastructure_cost_by_project
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.cost_model_distributed_cost_by_project,

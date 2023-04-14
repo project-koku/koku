@@ -575,16 +575,11 @@ class ReportQueryParamSerializer(ParamSerializer):
 
     def validate_delta(self, value):
         """Validate incoming delta value based on path."""
-        valid_delta = "usage"
+        valid_deltas = ["usage"]
         request = self.context.get("request")
         if request and "costs" in request.path:
-            alternate_costs_deltas = ["distributed_cost"]
-            valid_delta = "cost_total"
-            if value in ["cost", "cost_total"]:
-                return valid_delta
-            elif value in alternate_costs_deltas:
-                return value
-        if value != valid_delta:
+            valid_deltas = ["cost", "cost_total", "distributed_cost"]
+        if value not in valid_deltas:
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         return value
