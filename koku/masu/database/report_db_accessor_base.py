@@ -10,11 +10,13 @@ import time
 import ciso8601
 import django.apps
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 import koku.trino_database as trino_db
 from api.common import log_json
@@ -323,3 +325,36 @@ class ReportDBAccessorBase(KokuDBAccess):
             query (QuerySet) : A valid django queryset
         """
         return exec_del_sql(query)
+
+    def delete_hive_partition_by_month(self, table, source, year, month):
+        """Deletes partitions individually by month."""
+        retries = settings.HIVE_PARTITION_DELETE_RETRIES
+        if self.schema_exists_trino() and self.table_exists_trino(table):
+            LOG.info(
+                "Deleting Hive partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tTable: %s \n\tYear: %s \n\tMonths: %s",
+                self.schema,
+                source,
+                table,
+                year,
+                month,
+            )
+            for i in range(retries):
+                try:
+                    sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                    WHERE ocp_source = '{source}'
+                    AND year = '{year}'
+                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                    """
+                    self._execute_trino_raw_sql_query(
+                        sql,
+                        log_ref=f"delete_hive_partition_by_month for {year}-{month}",
+                        attempts_left=(retries - 1) - i,
+                    )
+                    break
+                except TrinoExternalError as err:
+                    if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                        continue
+                    else:
+                        raise err

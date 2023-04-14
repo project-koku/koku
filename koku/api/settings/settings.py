@@ -40,7 +40,7 @@ LOG = logging.getLogger(__name__)
 obtainCategoryKeysParams = {
     "aws": {
         "provider": Provider.PROVIDER_AWS,
-        "title": "Amazon Web Services Catgories",
+        "title": "Amazon Web Services Categories",
         "leftLabel": "Available category keys",
         "rightLabel": "Category keys for reporting",
         "enabled_model": AWSEnabledCategoryKeys,
