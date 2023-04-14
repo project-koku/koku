@@ -183,6 +183,13 @@ OCP_ON_AZURE_PERSPECTIVES = (
 TRINO_MANAGED_TABLES = {
     "reporting_ocpusagelineitem_daily_summary": "source",
     "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
+    "aws_openshift_daily_resource_matched_temp": "ocp_source",
+    "aws_openshift_daily_tag_matched_temp": "ocp_source",
     "reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
     "reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
+    "gcp_openshift_daily_resource_matched_temp": "ocp_source",
+    "gcp_openshift_daily_tag_matched_temp": "ocp_source",
 }

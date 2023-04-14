@@ -19,8 +19,10 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_resource_mat
     tags varchar,
     aws_cost_category varchar,
     resource_id_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp
@@ -43,8 +45,10 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_tag_matched_
     tags varchar,
     aws_cost_category varchar,
     matched_tag varchar,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
@@ -97,8 +101,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_rank integer,
     data_source_rank integer,
     resource_id_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -148,10 +154,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
-;
-
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
@@ -171,7 +173,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp 
     tags,
     aws_cost_category,
     resource_id_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT cast(uuid() as varchar) as uuid,
     aws.lineitem_usagestartdate as usage_start,
@@ -194,7 +198,9 @@ SELECT cast(uuid() as varchar) as uuid,
     aws.resourcetags as tags,
     aws.costcategory as aws_cost_category,
     max(aws.resource_id_matched) as resource_id_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(aws.year) as year,
+    max(aws.month) as month
 FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
 WHERE aws.source = {{aws_source_uuid}}
     AND aws.year = {{year}}
@@ -212,10 +218,6 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.product_region,
     aws.resourcetags,
     aws.costcategory
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
@@ -237,7 +239,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
     tags,
     aws_cost_category,
     matched_tag,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 WITH cte_enabled_tag_keys AS (
     SELECT
@@ -276,7 +280,9 @@ SELECT cast(uuid() as varchar) as uuid,
     ) as tags,
     aws.costcategory as aws_cost_category,
     aws.matched_tag,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(aws.year) as year,
+    max(aws.month) as month
 FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE aws.source = {{aws_source_uuid}}
@@ -296,11 +302,6 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.costcategory,
     16, -- tags
     aws.matched_tag
-;
-
-
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
 ;
 
 -- Direct resource_id matching
@@ -351,7 +352,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     aws_cost_category,
     cost_category_id,
     resource_id_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_id) as cluster_id,
@@ -399,7 +402,9 @@ SELECT aws.uuid as aws_uuid,
         max(aws.aws_cost_category) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
         max(aws.resource_id_matched) as resource_id_matched,
-        {{ocp_source_uuid}} as ocp_source
+        {{ocp_source_uuid}} as ocp_source,
+        max(aws.year) as year,
+        max(aws.month) as month
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
         ON aws.usage_start = ocp.usage_start
@@ -410,6 +415,8 @@ SELECT aws.uuid as aws_uuid,
         AND ocp.day IN {{days | inclause}}
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         AND aws.ocp_source = {{ocp_source_uuid}}
+        AND aws.year = {{year}}
+        AND aws.month = {{month}}
     GROUP BY aws.uuid, ocp.namespace
 ;
 
@@ -461,7 +468,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     aws_cost_category,
     cost_category_id,
     resource_id_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT aws.uuid as aws_uuid,
         max(ocp.cluster_id) as cluster_id,
@@ -509,7 +518,9 @@ SELECT aws.uuid as aws_uuid,
         max(aws.aws_cost_category) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
         FALSE as resource_id_matched,
-        {{ocp_source_uuid}} as ocp_source
+        {{ocp_source_uuid}} as ocp_source,
+        max(aws.year) as year,
+        max(aws.month) as month
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp as aws
         ON aws.usage_start = ocp.usage_start
@@ -529,6 +540,8 @@ SELECT aws.uuid as aws_uuid,
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN {{days | inclause}}
         AND aws.ocp_source = {{ocp_source_uuid}}
+        AND aws.year = {{year}}
+        AND aws.month = {{month}}
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
 ;
 
@@ -659,7 +672,7 @@ JOIN cte_rankings as r
     ON pds.aws_uuid = r.aws_uuid
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON pds.usage_account_id = aa.account_id
-WHERE pds.ocp_source = {{ocp_source_uuid}}
+WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
@@ -744,16 +757,4 @@ WHERE aws_source = {{aws_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN {{days | inclause}}
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
 ;
