@@ -209,7 +209,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cost_category_id) as cost_category_id,
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
-    max(gcp.month) as month,
+    max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
