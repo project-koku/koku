@@ -415,6 +415,8 @@ SELECT aws.uuid as aws_uuid,
         AND ocp.day IN {{days | inclause}}
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         AND aws.ocp_source = {{ocp_source_uuid}}
+        AND aws.year = {{year}}
+        AND aws.month = {{month}}
     GROUP BY aws.uuid, ocp.namespace
 ;
 
@@ -538,6 +540,8 @@ SELECT aws.uuid as aws_uuid,
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN {{days | inclause}}
         AND aws.ocp_source = {{ocp_source_uuid}}
+        AND aws.year = {{year}}
+        AND aws.month = {{month}}
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
 ;
 
