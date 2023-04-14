@@ -332,8 +332,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_trino(self, mock_trino, mock_delete):
+    def test_populate_ocp_on_aws_cost_daily_summary_trino(self, mock_trino, mock_month_delete, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -361,8 +362,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_trino_memory_distribution(self, mock_trino, mock_delete):
+    def test_populate_ocp_on_aws_cost_daily_summary_trino_memory_distribution(
+        self, mock_trino, mock_month_delete, mock_delete
+    ):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -653,3 +657,30 @@ class AWSReportDBAccessorTest(MasuTestCase):
         partition_name = "table_name_2023_03"
         self.accessor.truncate_partition(partition_name)
         mock_query.assert_called()
+
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_delete_aws_hive_partition_by_month(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        table = "reporting_ocpawscostlineitem_project_daily_summary_temp"
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
+        ):
+            with self.assertRaises(TrinoExternalError):
+                self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_called()
+            # Confirms that the error log would be logged on last attempt
+            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+            self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        # Test that deletions short circuit if the schema does not exist
+        mock_trino.reset_mock()
+        mock_table_exist.reset_mock()
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
+        ):
+            self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_not_called()
+            mock_table_exist.assert_not_called()
