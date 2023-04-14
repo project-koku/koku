@@ -128,9 +128,9 @@ class Orchestrator:
 
         return sorted(DateAccessor().get_billing_months(number_of_months), reverse=True)
 
-    def start_manifest_processing(  # noqa: 13
+    def start_manifest_processing(  # noqa: C901
         self, customer_name, credentials, data_source, provider_type, schema_name, provider_uuid, report_month
-    ):  # noqa: 13
+    ):
         """
         Start processing an account's manifest for the specified report_month.
 
@@ -246,6 +246,7 @@ class Orchestrator:
                         provider_uuid,
                         report_month,
                         report_context,
+                        tracing_id=tracing_id,
                         ingress_reports=self.ingress_reports,
                         ingress_reports_uuid=self.ingress_report_uuid,
                     ).set(queue=REPORT_QUEUE)

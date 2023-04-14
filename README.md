@@ -3,6 +3,8 @@
 [![license](https://img.shields.io/github/license/project-koku/koku.svg)](https://github.com/project-koku/koku/blob/main/LICENSE)
 [![Unittests](https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg)](https://github.com/project-koku/koku/actions)
 [![codecov](https://codecov.io/gh/project-koku/koku/branch/main/graph/badge.svg)](https://codecov.io/gh/project-koku/koku)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=coverage)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
 
 ## About
 
@@ -67,15 +69,11 @@ do the following:
 
         pipenv install --dev
 
-7.  If dependency installation still fails, try using:
-
-        pipenv install --dev --sequential
-
-8.  To activate the virtual environment run:
+7.  To activate the virtual environment run:
 
         pipenv shell
 
-9.  Install the pre-commit hooks for the repository:
+8.  Install the pre-commit hooks for the repository:
 
         pre-commit install
 
