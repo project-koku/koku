@@ -32,6 +32,8 @@ class OCIReportDownloaderTest(MasuTestCase):
         super().setUp()
         self.dh = DateHelper()
         self.provider_uuid = uuid4()
+        self.test_cost_report_name = "reports_cost-csv_0001000000603504.csv"
+        self.test_usage_report_name = "reports_usage-csv_0001000000829494.csv"
 
     def tearDown(self):
         """Remove files and directories created during the test run."""
@@ -76,28 +78,28 @@ class OCIReportDownloaderTest(MasuTestCase):
 
         return downloader
 
-    def test_prepare_monthly_files(self):
+    def test_prepare_monthly_files_dict(self):
         """
-        Test _prepare_monthly_files returns a pseudo dictionary of monthly files.
+        Test _prepare_monthly_files_dict returns a pseudo dictionary of monthly files.
         """
 
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
-        result_monthly_files_dict = downloader._prepare_monthly_files(start_date, end_date)
+        result_monthly_files_dict = downloader._prepare_monthly_files_dict(start_date, end_date)
         expected_monthly_files_dict = {start_date.date(): []}
         self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)
 
-    def test_prepare_monthly_files_initial_ingest(self):
+    def test_prepare_monthly_files_dict_initial_ingest(self):
         """
-        Test _prepare_monthly_files returns a pseudo dictionary of monthly files
+        Test _prepare_monthly_files_dict returns a pseudo dictionary of monthly files
         """
 
         previous_month = self.dh.previous_month(self.dh.last_month_start)
         last_month = self.dh.last_month_start
         this_month = self.dh.this_month_start
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
-        result_monthly_files_dict = downloader._prepare_monthly_files(previous_month, this_month)
+        result_monthly_files_dict = downloader._prepare_monthly_files_dict(previous_month, this_month)
         expected_monthly_files_dict = {
             previous_month.date(): [],
             last_month.date(): [],
@@ -106,90 +108,22 @@ class OCIReportDownloaderTest(MasuTestCase):
         self.assertEqual(result_monthly_files_dict, expected_monthly_files_dict)
 
     def test_collect_reports(self):
-        """Test _collect_reports returns list of cost or usage reports"""
-        # cost reports
-        cost_report = MagicMock()
-        cost_report.name = "test_cost_report.csv"
-        cost_report.time_created = self.dh._now
-        cost_reports = MagicMock()
-        cost_reports.data.objects = [cost_report]
+        """Test _collect_reports returns list of reports objects"""
 
-        # usage reports
-        usage_report = MagicMock()
-        usage_report.name = "test_usage_report.csv"
-        usage_report.time_created = self.dh._now
-        usage_reports = MagicMock()
-        usage_reports.data.objects = [cost_report]
-
-        cost_usage_reports = {"cost": cost_reports, "usage": usage_reports}
-        report_prefix = {"cost": "reports/cost-csv", "usage": "reports/usage-csv"}
+        test_report = MagicMock()
+        test_report.name = self.test_cost_report_name
+        test_report.time_created = self.dh._now
+        list_objects_res = MagicMock()
+        list_objects_res.data.objects = [test_report]
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
-        downloader._oci_client.list_objects = MagicMock()
+        downloader._oci_client = MagicMock()
         mock_list_objects = downloader._oci_client.list_objects
+        mock_list_objects.return_value = list_objects_res
 
-        for rpt_type, rpt_list in cost_usage_reports.items():
-            mock_list_objects.return_value = rpt_list
-            returned_reports = downloader._collect_reports(prefix=report_prefix.get(rpt_type, ""))
-            mock_list_objects.assert_called()
-            self.assertEqual(returned_reports, rpt_list)
+        returned_reports = downloader._collect_reports()
 
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
-    def test_extract_names(self, mock_collect_reports):
-        """Test _extract_names returns filenames for files created in a month."""
-
-        start_date = self.dh.this_month_start
-        filenames = [
-            "test_cost_this_month.csv",
-            "test_usage_this_month.csv",
-            "test_cost_last_month.csv",
-            "test_usage_last_month.csv",
-        ]
-        cost_report = MagicMock()
-        cost_report.name = filenames[0]
-        cost_report.time_created = self.dh._now
-        usage_report = MagicMock()
-        usage_report.name = filenames[1]
-        usage_report.time_created = self.dh._now
-        cost_reports = MagicMock()
-        cost_reports.data.objects = [cost_report]
-        usage_reports = MagicMock()
-        usage_reports.data.objects = [usage_report]
-        mock_collect_reports.side_effect = [cost_reports, usage_reports]
-        invoice_month = start_date.strftime("%Y%m")
-        assembly_id = ":".join([str(self.provider_uuid), str(invoice_month)])
-        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
-        result_file_names = downloader._extract_names(assembly_id, start_date)
-        mock_collect_reports.assert_called()
-        expected_filenames = filenames[:2]
-        self.assertEqual(result_file_names, expected_filenames)
-        self.assertNotEqual(result_file_names, filenames)
-
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
-    def test_extract_no_file_names(self, mock_collect_reports):
-        """Test _extract_names returns no filenames outside expected month range."""
-
-        start_date = self.dh.this_month_start
-        filenames = [
-            "test_cost_last_month.csv",
-            "test_usage_last_month.csv",
-        ]
-        cost_report = MagicMock()
-        cost_report.name = filenames[0]
-        cost_report.time_created = self.dh.last_month_start
-        usage_report = MagicMock()
-        usage_report.name = filenames[1]
-        usage_report.time_created = self.dh.last_month_start
-        cost_reports = MagicMock()
-        cost_reports.data.objects = [cost_report]
-        usage_reports = MagicMock()
-        usage_reports.data.objects = [usage_report]
-        mock_collect_reports.side_effect = [cost_reports, usage_reports]
-        invoice_month = start_date.strftime("%Y%m")
-        assembly_id = ":".join([str(self.provider_uuid), str(invoice_month)])
-        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
-        result_file_names = downloader._extract_names(assembly_id, start_date)
-        mock_collect_reports.assert_called()
-        self.assertEqual(result_file_names, [])
+        mock_list_objects.assert_called()
+        self.assertEqual(returned_reports, [test_report, test_report])
 
     def test_generate_monthly_pseudo_manifest(self):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
@@ -214,9 +148,9 @@ class OCIReportDownloaderTest(MasuTestCase):
         manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
         self.assertIsNotNone(manifest_dict)
 
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._extract_names")
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._prepare_monthly_files")
-    def test_get_manifest_context_for_date(self, mock_prepare_monthly_files, mock_extract_names):
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._get_month_report_names")
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._prepare_monthly_files_dict")
+    def test_get_manifest_context_for_date(self, mock_prepare_monthly_files, mock_month_rpt_names):
         """Test successful return of get manifest context for date."""
 
         start_date = self.dh.this_month_start
@@ -227,7 +161,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         test_file_list = [cost_report, usage_report]
         expected_assembly_id = f"{p_uuid}:{str(file_month_year)}"
         mock_prepare_monthly_files.return_value = {start_date: []}
-        mock_extract_names.return_value = test_file_list
+        mock_month_rpt_names.return_value = test_file_list
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
         with patch(
             "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",
@@ -242,16 +176,14 @@ class OCIReportDownloaderTest(MasuTestCase):
                 expected_assembly_id,
             )
 
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._extract_names")
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._prepare_monthly_files")
-    def test_get_manifest_context_for_date_no_month_reports(self, mock_prepare_monthly_files, mock_extract_names):
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._prepare_monthly_files_dict")
+    def test_get_manifest_context_for_date_no_month_reports(self, mock_prepare_monthly_files):
         """Test successful return of get manifest context for date."""
 
         start_date = self.dh.this_month_start
         p_uuid = uuid4()
         test_file_list = []
         mock_prepare_monthly_files.return_value = {start_date: []}
-        mock_extract_names.return_value = test_file_list
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
         with patch(
             "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",
@@ -301,7 +233,7 @@ class OCIReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.oci.oci_report_downloader.os.makedirs")
     def test_download_file_success(self, mock_makedirs):
         """Assert download_file successful scenario"""
-        key = "reports_cost-csv_0001000000603504.csv"
+        key = self.test_cost_report_name
         start_date = self.dh.today
         mock_name = "mock-test-customer-success"
         expected_full_path = f"{DATA_DIR}/{mock_name}/oci/{key}"
@@ -319,7 +251,7 @@ class OCIReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.oci.oci_report_downloader.open")
     def test_download_file_error(self, mock_open):
         """Test download error is handled correctly in download file method."""
-        key = "reports_cost-csv_0001000000603504.csv"
+        key = self.test_cost_report_name
         err_msg = "Unknown Error"
         downloader = self.create_oci_downloader_with_mocked_values()
         with patch("masu.external.downloader.oci.oci_report_downloader.object_storage"):

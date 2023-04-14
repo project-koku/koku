@@ -208,6 +208,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
 
         reports = []
+        fields = "timeCreated, timeModified"
 
         for report_type in OCI_REPORT_TYPES:
             prefix = f"reports/{report_type}-csv"
@@ -215,7 +216,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.namespace,
                 self.bucket,
                 prefix=prefix,
-                fields="timeCreated, timeModified",
+                fields=fields,
                 start_after=last_report,
             )
             reports.extend(list_objects_response.data.objects)
