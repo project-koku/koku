@@ -174,6 +174,6 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
 
-    DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"))
+    DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"), ("distributed_cost", "distributed_cost"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
