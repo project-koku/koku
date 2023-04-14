@@ -382,3 +382,30 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)
+
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_delete_azure_hive_partition_by_month(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        table = "reporting_ocpazurecostlineitem_project_daily_summary_temp"
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
+        ):
+            with self.assertRaises(TrinoExternalError):
+                self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_called()
+            # Confirms that the error log would be logged on last attempt
+            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+            self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        # Test that deletions short circuit if the schema does not exist
+        mock_trino.reset_mock()
+        mock_table_exist.reset_mock()
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
+        ):
+            self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_not_called()
+            mock_table_exist.assert_not_called()

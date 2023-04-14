@@ -376,6 +376,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        tables = [
+            "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+            "gcp_openshift_daily_resource_matched_temp",
+            "gcp_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
+
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
@@ -444,6 +452,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        tables = [
+            "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+            "gcp_openshift_daily_resource_matched_temp",
+            "gcp_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
+
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
