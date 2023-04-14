@@ -134,16 +134,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self.delete_line_item_daily_summary_entries_for_date_range(source_uuid, end_date, new_end_date)
             end_date = new_end_date
 
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        tables = [
-            "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-            "gcp_openshift_daily_resource_matched_temp",
-            "gcp_openshift_daily_tag_matched_temp",
-        ]
-        for table in tables:
-            self.delete_hive_partition_by_month(table, source_uuid, year, month)
-
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
@@ -391,6 +381,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        tables = [
+            "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+            "gcp_openshift_daily_resource_matched_temp",
+            "gcp_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
+
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
@@ -459,6 +457,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        tables = [
+            "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+            "gcp_openshift_daily_resource_matched_temp",
+            "gcp_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
+
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
