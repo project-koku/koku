@@ -119,10 +119,6 @@ class OCIReportDownloaderNoFileError(Exception):
     """OCI Report Downloader error for missing file."""
 
 
-class OCIReportDownloaderFileError(Exception):
-    """OCI Report Downloader error for empty file."""
-
-
 class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
     OCI Cost and Usage Report Downloader.
@@ -199,29 +195,22 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest.save()
                 return last_reports
 
-    def _collect_reports(self, last_report=None):
+    def _collect_reports(self, prefix, last_report=None):
         """
-        Collect list of reports from OCI
+        Collect list of report objects from OCI
 
         Returns:
-            list of reports
+            list_objects_response
         """
 
-        reports = []
-        fields = "timeCreated, timeModified"
-
-        for report_type in OCI_REPORT_TYPES:
-            prefix = f"reports/{report_type}-csv"
-            list_objects_response = self._oci_client.list_objects(
-                self.namespace,
-                self.bucket,
-                prefix=prefix,
-                fields=fields,
-                start_after=last_report,
-            )
-            reports.extend(list_objects_response.data.objects)
-
-        return reports
+        list_objects_response = self._oci_client.list_objects(
+            self.namespace,
+            self.bucket,
+            prefix=prefix,
+            fields="timeCreated",
+            start_after=last_report,
+        )
+        return list_objects_response
 
     def _prepare_monthly_files_dict(self, start_date, end_date):
         """
@@ -250,6 +239,21 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         LOG.info(f"Prepared Monthly files dictionary: {monthly_files_dict}")
         return monthly_files_dict
+
+    def _extract_names(self, assembly_id=None):
+        """Get list of list of cost and usage report objects for manifest/downloading."""
+
+        last_reports = self.get_last_reports(assembly_id)
+        last_report_type_map = {"cost": last_reports.get("cost", ""), "usage": last_reports.get("usage", "")}
+        report_objects_list = []
+
+        # Collecting CUR's from OCI bucket
+        for report_type in OCI_REPORT_TYPES:
+            prefix = f"reports/{report_type}-csv"
+            report_obj_list = self._collect_reports(prefix=prefix, last_report=last_report_type_map.get(report_type))
+            report_objects_list.extend(report_obj_list.data.objects)
+
+        return report_objects_list
 
     def _get_month_report_names(self, month, report_objects_list):
         """Get month report objects from list of report objects"""
@@ -292,16 +296,20 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         monthly_report_files = self._prepare_monthly_files_dict(ingest_month, date)
         dh = DateHelper()
         report_manifests_list = []
-        extracted_reports = self._collect_reports()
+        extracted_report_obj_list = self._extract_names()
 
         for month in monthly_report_files.keys():
             monthly_report = {}
             invoice_month = month.strftime(self.date_fmt)
-            assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
-            report_names = self._get_month_report_names(month, extracted_reports)
-            files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in report_names]
+            assembly_id = ":".join([str(self._provider_uuid), invoice_month])
+            month_report_names = self._get_month_report_names(month, extracted_report_obj_list)
+            files_list = [
+                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_report_names
+            ]
             if files_list:
-                manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(report_names), dh._now)
+                manifest_id = self._process_manifest_db_record(
+                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh._now
+                )
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id
                 monthly_report["compression"] = manifest_dict.get("compression")
@@ -406,7 +414,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
 
             if not file_names and not date_range:
-                raise OCIReportDownloaderFileError("Empty report retrieved")
+                raise OCIReportDownloaderError("Empty report retrieved")
 
         except Exception as err:
             err_msg = (
