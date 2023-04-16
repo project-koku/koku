@@ -32,8 +32,10 @@ class OCIReportDownloaderTest(MasuTestCase):
         super().setUp()
         self.dh = DateHelper()
         self.provider_uuid = uuid4()
-        self.test_cost_report_name = "reports_cost-csv_0001000000603504.csv"
+        self.test_cost_report_name = "reports_cost-csv_0001000000603747.csv"
+        self.cost_file_path = f"./koku/masu/test/data/oci/{self.test_cost_report_name}"
         self.test_usage_report_name = "reports_usage-csv_0001000000829494.csv"
+        self.usage_file_path = f"./koku/masu/test/data/oci/{self.test_usage_report_name}"
 
     def tearDown(self):
         """Remove files and directories created during the test run."""
@@ -125,6 +127,23 @@ class OCIReportDownloaderTest(MasuTestCase):
         mock_list_objects.assert_called()
         self.assertEqual(returned_reports, [test_report, test_report])
 
+    def test_get_month_report_names(self):
+        """Test _get_month_report_names returns list of month report names"""
+
+        cost_test_report = MagicMock()
+        cost_test_report.name = self.test_cost_report_name
+        cost_test_report.time_created = self.dh.this_month_start
+        usage_test_report = MagicMock()
+        usage_test_report.name = self.test_usage_report_name
+        usage_test_report.time_created = self.dh.last_month_start
+        list_report_objects = [cost_test_report, usage_test_report]
+        expected_report_names_list = [self.test_cost_report_name]
+
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
+        returned_report_names_list = downloader._get_month_report_names(self.dh.this_month_start, list_report_objects)
+
+        self.assertEqual(returned_report_names_list, expected_report_names_list)
+
     def test_generate_monthly_pseudo_manifest(self):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
 
@@ -197,7 +216,7 @@ class OCIReportDownloaderTest(MasuTestCase):
     def test_get_local_file_for_report(self):
         """Assert that get_local_file_for_report is a simple pass-through."""
         downloader = self.create_oci_downloader_with_mocked_values()
-        report_name = FAKE.file_path()
+        report_name = self.cost_file_path
         expected_report_name = report_name.replace("/", "_")
         local_name = downloader.get_local_file_for_report(report_name)
         self.assertEqual(local_name, expected_report_name)
@@ -264,12 +283,12 @@ class OCIReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.oci.oci_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_monthly_archives(self, mock_s3):
         """Test that we load daily files to S3."""
+
         # Use the processor example for data:
-        file_path = "./koku/masu/test/data/oci/reports_cost-csv_0001000000603747.csv"
-        file_name = "reports_cost-csv_0001000000603747.csv"
+        file_name = self.test_cost_report_name
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
-        shutil.copy2(file_path, temp_path)
+        shutil.copy2(self.cost_file_path, temp_path)
         uuid = uuid4()
 
         with patch("masu.external.downloader.oci.oci_report_downloader.uuid.uuid4", return_value=uuid):
