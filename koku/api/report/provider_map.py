@@ -42,6 +42,8 @@ class ProviderMap:
         "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
     }
 
+    DELTA_REPLACEMENTS = {"cost": "cost_total"}
+
     def provider_data(self, provider):
         """Return provider portion of map structure."""
         for item in self._mapping:
