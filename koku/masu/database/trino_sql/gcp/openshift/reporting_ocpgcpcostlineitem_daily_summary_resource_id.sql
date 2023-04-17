@@ -313,7 +313,7 @@ GROUP BY gcp.usage_start_time,
     gcp.service_id,
     gcp.location_region,
     gcp.invoice_month,
-    19,
+    19, -- label matching
     gcp.matched_tag
 ;
 
