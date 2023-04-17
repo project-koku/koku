@@ -1157,6 +1157,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that this task runs."""
         start_date = DateHelper().this_month_start.date()
         end_date = DateHelper().today.date()
+        mock_updater.return_value = (start_date, end_date)
 
         update_summary_tables(
             self.schema,
