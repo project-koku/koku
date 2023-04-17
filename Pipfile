@@ -17,7 +17,7 @@ bs4 = ">=0.0.1"
 cachetools = ">=4.1.0"
 celery = ">=5.2.2"
 ciso8601 = ">=2.1"
-confluent-kafka = ">=1.4.1"
+confluent-kafka = "==2.0.2" # new version causes message timed out errors
 croniter = "*"
 Django = "<4.0"
 django-cors-headers = ">=3.1"
