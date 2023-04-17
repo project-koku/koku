@@ -30,6 +30,7 @@ from api.query_handler import TruncDayString
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.test.util.constants import OCP_NAMESPACES
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -672,16 +673,16 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_ocp_costs_with_delta_distributed_cost(self):
         """Test that deltas work for costs."""
         url = reverse("reports-openshift-costs")
-        client = APIClient()
+        project_name = OCP_NAMESPACES[4]
         params = {
             "delta": "distributed_cost",
-            "group_by[project]": "*",
+            "group_by[project]": project_name,
             "filter[resolution]": "daily",
             "filter[time_scope_value]": "-1",
             "filter[time_scope_units]": "month",
         }
         url = url + "?" + urlencode(params, quote_via=quote_plus)
-        response = client.get(url, **self.headers)
+        response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
         this_month_start = self.dh.this_month_start
@@ -699,7 +700,9 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             current_total = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=this_month_start.date(), namespace=project_name
+                )
                 .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
                 .aggregate(total=self.cost_term)
                 .get("total")
@@ -707,7 +710,9 @@ class OCPReportViewTest(IamTestCase):
             current_total = current_total if current_total is not None else 0
 
             current_totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=this_month_start.date(), namespace=project_name
+                )
                 .annotate(
                     **{
                         "date": TruncDayString("usage_start"),
@@ -720,7 +725,9 @@ class OCPReportViewTest(IamTestCase):
             )
 
             prev_totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=last_month_start.date(), namespace=project_name
+                )
                 .filter(usage_start__lte=last_month_end.date())
                 .annotate(
                     **{
@@ -746,6 +753,16 @@ class OCPReportViewTest(IamTestCase):
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
         self.assertAlmostEqual(delta, expected_delta, 6)
+        tested = False
+        for item in data.get("data"):
+            date = item.get("date")
+            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
+            if projects := item.get("projects"):
+                values = projects[0].get("values", [])
+                delta_value = values[0].get("delta_value")
+                self.assertAlmostEqual(delta_value, expected_delta, 1)
+                tested = True
+        self.assertTrue(tested)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self):
         """Test that bad deltas don't work for costs."""
