@@ -5,14 +5,8 @@ import os
 import trino
 from trino.exceptions import TrinoExternalError
 
+
 logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
-PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
-PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
-PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
-try:
-    PRESTO_PORT = int(os.environ.get("PRESTO_PORT", "8080"))
-except ValueError:
-    PRESTO_PORT = 8080
 
 TRINO_HOST = os.environ.get("TRINO_HOST", "localhost")
 TRINO_USER = os.environ.get("TRINO_USER", "admin")
@@ -24,10 +18,10 @@ except ValueError:
 
 # After the TRINO_* params land in app-interface, these CONNECT_PARAMS can be switched to TRINO_*
 CONNECT_PARAMS = {
-    "host": PRESTO_HOST,
-    "port": PRESTO_PORT,
-    "user": PRESTO_USER,
-    "catalog": PRESTO_CATALOG,
+    "host": TRINO_HOST,
+    "port": TRINO_PORT,
+    "user": TRINO_USER,
+    "catalog": TRINO_CATALOG,
     "schema": "default",
 }
 
@@ -125,22 +119,26 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    # tables_to_drop = [
-    #     "gcp_openshift_daily",
-    #     "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-    # ]
+    tables_to_drop = [
+        "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+        "gcp_openshift_daily_resource_matched_temp",
+        "gcp_openshift_daily_tag_matched_temp",
+        "reporting_ocpawscostlineitem_project_daily_summary_temp",
+        "aws_openshift_daily_resource_matched_temp",
+        "aws_openshift_daily_tag_matched_temp",
+        "reporting_ocpazurecostlineitem_project_daily_summary_temp",
+    ]
     # columns_to_drop = ["ocp_matched"]
-    columns_to_add = {
-        "aws_cost_category": "varchar",
-    }
+    # columns_to_add = {
+    #     "aws_cost_category": "varchar",
+    # }
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** Adding column to tables for schema {schema} ***")
-        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
-        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
-        # logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
-        # drop_tables(tables_to_drop, CONNECT_PARAMS)
+        # logging.info(f"*** Adding column to tables for schema {schema} ***")
+        # add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
+        logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
+        drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 
 if __name__ == "__main__":

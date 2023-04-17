@@ -40,8 +40,6 @@ from koku.middleware import KokuTenantMiddleware
 from koku.middleware import RequestTimingMiddleware
 from koku.test_rbac import mocked_requests_get_500_text
 
-LOG = logging.getLogger(__name__)
-
 
 class KokuTenantMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""

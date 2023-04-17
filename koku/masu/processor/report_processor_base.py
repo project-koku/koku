@@ -109,13 +109,6 @@ class ReportProcessorBase:
 
         return file_obj
 
-    def _save_to_db(self, temp_table, report_db_accessor):
-        """Save current batch of records to the database."""
-        columns = tuple(self.processed_report.line_items[0].keys())
-        csv_file = self._write_processed_rows_to_csv()
-
-        report_db_accessor.bulk_insert_rows(csv_file, temp_table, columns)
-
     def _should_process_row(self, row, date_column, is_full_month, is_finalized=None):
         """Determine if we want to process this row.
 

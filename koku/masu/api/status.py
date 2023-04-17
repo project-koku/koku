@@ -5,7 +5,6 @@
 """View for server status."""
 import logging
 import platform
-import socket
 import sys
 
 from django.conf import settings
@@ -83,7 +82,7 @@ class ApplicationStatus:
         try:
             conn = celery_app.connection()
             conn.heartbeat_check()
-        except (OSError, ConnectionRefusedError, socket.timeout):
+        except OSError:
             CELERY_ERRORS_COUNTER.inc()
             return {"Error": BROKER_CONNECTION_ERROR}
         # Now check if Celery workers are running

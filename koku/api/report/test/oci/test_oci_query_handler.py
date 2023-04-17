@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCI Provider query handler."""
-import logging
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -39,8 +38,6 @@ from reporting.models import OCIDatabaseSummaryP
 from reporting.models import OCINetworkSummaryP
 from reporting.models import OCIStorageSummaryByAccountP
 from reporting.models import OCIStorageSummaryP
-
-LOG = logging.getLogger(__name__)
 
 
 class OCIReportQueryHandlerTest(IamTestCase):

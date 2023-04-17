@@ -1,9 +1,6 @@
 """Upload utility functions."""
-import logging
-
 from django.conf import settings
 
-LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 

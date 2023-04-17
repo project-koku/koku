@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the update_cost_model_costs endpoint view."""
+import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
+import pytz
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from api.utils import DateHelper
 from masu.processor.tasks import QUEUE_LIST
 from masu.test import MasuTestCase
 
@@ -35,11 +36,14 @@ class UpdateCostModelCostTest(MasuTestCase):
     @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_with_dates(self, mock_update, _):
         """Test the GET report_data endpoint."""
+
+        start_date = datetime.datetime(2023, 3, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2023, 4, 4, tzinfo=pytz.UTC)
         params = {
             "schema": self.schema,
             "provider_uuid": self.ocp_provider_uuid,
-            "start_date": DateHelper().last_month_start,
-            "end_date": DateHelper().today,
+            "start_date": start_date.strftime("%Y-%m-%d"),
+            "end_date": end_date.strftime("%Y-%m-%d"),
         }
         expected_key = "Update Cost Model Cost Task ID"
 

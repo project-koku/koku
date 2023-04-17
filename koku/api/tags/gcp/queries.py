@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Tag Query Handling."""
-import logging
 from copy import deepcopy
 
 from django.db.models import Exists
@@ -15,9 +14,6 @@ from api.tags.queries import TagQueryHandler
 from reporting.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.gcp.models import GCPTagsValues
-
-
-LOG = logging.getLogger(__name__)
 
 
 class GCPTagQueryHandler(TagQueryHandler):

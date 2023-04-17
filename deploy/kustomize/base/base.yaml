@@ -406,19 +406,6 @@ parameters:
   name: KAFKA_CONNECT
   value: "True"
 
-- description: Use rabbitmq as message broker
-  displayName: Use rabbitmq as message broker
-  name: USE_RABBIT
-  value: "False"
-- description: RabbitMQ host
-  displayName: RabbitMQ host
-  name: RABBITMQ_HOST
-  value: "rabbitmq"
-- description: RabbitMQ port
-  displayName: RabbitMQ port
-  name: RABBITMQ_PORT
-  value: "5672"
-
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -426,12 +413,6 @@ parameters:
   name: RBAC_CACHE_TTL
   value: "30"
 
-- displayName: Presto/Trino host
-  name: PRESTO_HOST
-  value: "trino-coordinator"
-- displayName: Presto/Trino port
-  name: PRESTO_PORT
-  value: "10000"
 - displayName: Trino host
   name: TRINO_HOST
   value: "trino-coordinator"

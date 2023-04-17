@@ -22,8 +22,6 @@ from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
-LOG = logging.getLogger(__name__)
-
 
 class FakeDownloader:
     """Fake Downloader for tests."""

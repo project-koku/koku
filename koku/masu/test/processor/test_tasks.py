@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the download task."""
+import datetime
 import json
 import logging
 import os
@@ -20,6 +21,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
+import pytz
 from cachetools import TTLCache
 from dateutil import relativedelta
 from django.conf import settings
@@ -76,9 +78,6 @@ from masu.test.external.downloader.aws import fake_arn
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-
-
-LOG = logging.getLogger(__name__)
 
 
 class FakeDownloader(Mock):
@@ -353,6 +352,8 @@ class ProcessReportFileTests(MasuTestCase):
             {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
             {"type": Provider.PROVIDER_OCI, "uuid": self.oci_test_provider_uuid},
         ]
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=pytz.UTC)
+
         for provider_dict in providers:
             invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(
                 DateHelper().yesterday, DateHelper().today
@@ -363,25 +364,25 @@ class ProcessReportFileTests(MasuTestCase):
             with self.subTest(provider_dict=provider_dict):
                 mock_update_summary.s = Mock()
                 report_meta = {}
-                report_meta["start_date"] = str(DateHelper().today)
+                report_meta["start_date"] = test_date.strftime("%Y-%m-%d")
                 report_meta["schema_name"] = self.schema
                 report_meta["provider_type"] = provider_type
                 report_meta["provider_uuid"] = provider_uuid
                 report_meta["manifest_id"] = 1
-                report_meta["start"] = str(DateHelper().yesterday)
-                report_meta["end"] = str(DateHelper().today)
+                report_meta["start"] = test_date.strftime("%Y-%m-%d")
+                report_meta["end"] = test_date.strftime("%Y-%m-%d")
                 if provider_type == Provider.PROVIDER_GCP:
                     report_meta["invoice_month"] = invoice_month
 
                 # add a report with start/end dates specified
                 report2_meta = {}
-                report2_meta["start_date"] = str(DateHelper().today)
+                report2_meta["start_date"] = test_date.strftime("%Y-%m-%d")
                 report2_meta["schema_name"] = self.schema
                 report2_meta["provider_type"] = provider_type
                 report2_meta["provider_uuid"] = provider_uuid
                 report2_meta["manifest_id"] = 2
-                report2_meta["start"] = str(DateHelper().yesterday)
-                report2_meta["end"] = str(DateHelper().today)
+                report2_meta["start"] = test_date.strftime("%Y-%m-%d")
+                report2_meta["end"] = test_date.strftime("%Y-%m-%d")
                 if provider_type == Provider.PROVIDER_GCP:
                     report2_meta["invoice_month"] = invoice_month
 
@@ -395,9 +396,10 @@ class ProcessReportFileTests(MasuTestCase):
         """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
 
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=pytz.UTC)
         report_meta = {}
-        report_meta["start"] = str(DateHelper().today)
-        report_meta["end"] = str(DateHelper().today)
+        report_meta["start"] = test_date.strftime("%Y-%m-%d")
+        report_meta["end"] = test_date.strftime("%Y-%m-%d")
         report_meta["schema_name"] = self.schema
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
@@ -450,6 +452,7 @@ class TestProcessorTasks(MasuTestCase):
             "provider_uuid": self.aws_provider_uuid,
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
+            "tracing_id": "my-totally-made-up-id",
         }
         self.get_report_args_gcp = {
             "customer_name": self.schema,
@@ -460,6 +463,7 @@ class TestProcessorTasks(MasuTestCase):
             "provider_uuid": self.gcp_provider_uuid,
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
+            "tracing_id": "my-totally-made-up-id",
         }
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the update_cost_model_costs endpoint view."""
-import logging
 from collections import OrderedDict
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -13,8 +12,6 @@ from django.urls import reverse
 
 from masu.api.bigquery_cost import get_total
 from masu.test import MasuTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 @override_settings(ROOT_URLCONF="masu.urls")

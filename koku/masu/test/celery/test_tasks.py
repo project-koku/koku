@@ -1,5 +1,4 @@
 """Tests for celery tasks."""
-import logging
 import os
 import tempfile
 from collections import namedtuple
@@ -29,8 +28,6 @@ from reporting.models import TRINO_MANAGED_TABLES
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
-
-LOG = logging.getLogger(__name__)
 
 
 class FakeManifest:

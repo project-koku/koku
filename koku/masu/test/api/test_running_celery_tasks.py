@@ -3,15 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the running_celery_tasks endpoint view."""
-import logging
 from unittest.mock import patch
 from urllib.parse import urlencode
 
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
-
-LOG = logging.getLogger(__name__)
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
