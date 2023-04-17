@@ -78,6 +78,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ocp_order_by_replacements = copy.deepcopy(self._mapper.ORDER_BY_REPLACEMENTS)
         ocp_order_by_replacements["distributed_cost"] = "cost_total_distributed"
 
+        ocp_delta_replacements = copy.deepcopy(self._mapper.DELTA_REPLACEMENTS)
+        ocp_delta_replacements["distributed_cost"] = "cost_total_distributed"
+        self._mapper.DELTA_REPLACEMENTS = ocp_delta_replacements
+
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
