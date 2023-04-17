@@ -383,10 +383,11 @@ class OCPInventoryQueryParamSerializerTest(IamTestCase):
         base_url = "/api/cost-management/v1/reports/openshift/costs/"
         valid_deltas = ["usage__request", "usage__capacity", "request__capacity"]
         for valid_delta in valid_deltas:
-            self.request_path = base_url + f"?delta={valid_delta}"
-            query_params = {"delta": valid_delta}
-            serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
-            self.assertTrue(serializer.is_valid())
+            with self.subTest(valid_delta=valid_delta):
+                self.request_path = base_url + f"?delta={valid_delta}"
+                query_params = {"delta": valid_delta}
+                serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+                self.assertTrue(serializer.is_valid())
 
     def test_current_month_delta_failure(self):
         """Test that a bad current month delta value is not serialized."""
