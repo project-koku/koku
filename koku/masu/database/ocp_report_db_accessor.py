@@ -555,7 +555,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         for cost_model_key, metadata in distribute_mapping.items():
-            populate = distribution_info.get(cost_model_key)
+            populate = distribution_info.get(cost_model_key, False)
             # if populate is false we only execute the delete sql.
             sql_params = {
                 "start_date": start_date,
