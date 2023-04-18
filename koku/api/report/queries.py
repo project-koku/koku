@@ -659,13 +659,11 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
-            group_data = self.parameters.get_group_by(tag)
-            if group_data:
-                if not isinstance(tag, (bytes, bytearray)):
-                    tag = str.encode(tag)
-                tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(tag)
-                group_by.append((tag_db_name, group_pos))
+            if not isinstance(tag, (bytes, bytearray)):
+                tag = str.encode(tag)
+            tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(tag)
+            group_by.append((tag_db_name, group_pos))
         return group_by
 
     def _get_aws_category_group_by(self):
@@ -675,13 +673,11 @@ class ReportQueryHandler(QueryHandler):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
                 db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                group_data = self.parameters.get_group_by(aws_category)
-                if group_data:
-                    if not isinstance(aws_category, (bytes, bytearray)):
-                        aws_category = str.encode(aws_category)
-                    aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
-                    group_pos = self.parameters.url_data.index(aws_category)
-                    group_by.append((db_name, group_pos))
+                if not isinstance(aws_category, (bytes, bytearray)):
+                    aws_category = str.encode(aws_category)
+                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(aws_category)
+                group_by.append((db_name, group_pos))
         return group_by
 
     @cached_property
