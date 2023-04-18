@@ -78,11 +78,11 @@ class SourcesErrorMessage:
             LOG.info(f"validation error: {self._error}. Validation detail {err_dict}")
             err_key = list(err_dict).pop()
             try:
-                err_body = err_dict.get(err_key, []).pop()
-            except (TypeError, IndexError):
+                err_body = err_dict.get(err_key, [None]).pop()
+            except TypeError:
                 err_msg = str(self._error.detail).encode().decode("UTF-8")
             else:
-                err_msg = err_body.encode().decode("UTF-8")
+                err_msg = err_body.encode().decode("UTF-8") or str(self._error.detail)
 
         return err_key, err_msg
 
