@@ -222,12 +222,6 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
         self.provider_uuid = self.ocpaws_provider_uuid
         self.creator = ReportObjectCreator(self.schema)
-
-        reporting_period = self.creator.create_ocp_report_period(self.provider_uuid)
-        report = self.creator.create_ocp_report(reporting_period)
-        self.creator.create_ocp_usage_line_item(reporting_period, report)
-        self.creator.create_ocp_node_label_line_item(reporting_period, report)
-
         self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP)
 
     def test_initializer_no_rate_no_markup(self):
@@ -341,11 +335,6 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
         # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
         self.provider_uuid = self.ocpaws_provider_uuid
         self.creator = ReportObjectCreator(self.schema)
-
-        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
-        report = self.creator.create_ocp_report(reporting_period)
-        self.creator.create_ocp_usage_line_item(reporting_period, report)
-        self.creator.create_ocp_node_label_line_item(reporting_period, report)
         self.rates, self.mapping = self.build_tag_rates()
         self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP, self.rates)
 
@@ -431,10 +420,6 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
         self.provider_uuid = self.ocpaws_provider_uuid
         self.creator = ReportObjectCreator(self.schema)
 
-        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
-        report = self.creator.create_ocp_report(reporting_period)
-        self.creator.create_ocp_usage_line_item(reporting_period, report)
-        self.creator.create_ocp_node_label_line_item(reporting_period, report)
         self.rates = [
             {
                 "metric": {
