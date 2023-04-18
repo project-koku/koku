@@ -75,6 +75,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
+        ocp_order_by_replacements = copy.deepcopy(self._mapper.ORDER_BY_REPLACEMENTS)
+        ocp_order_by_replacements["distributed_cost"] = "cost_total_distributed"
 
         ocp_delta_replacements = copy.deepcopy(self._mapper.DELTA_REPLACEMENTS)
         ocp_delta_replacements["distributed_cost"] = "cost_total_distributed"
@@ -85,6 +87,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         # super() needs to be called before _get_group_by is called
 
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
+        self._mapper.ORDER_BY_REPLACEMENTS = ocp_order_by_replacements
 
     @property
     def annotations(self):
