@@ -42,6 +42,7 @@ class ProviderMap:
         "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
     }
 
+    ORDER_BY_REPLACEMENTS = {"delta": "delta_percent"}
     DELTA_REPLACEMENTS = {"cost": "cost_total"}
 
     def provider_data(self, provider):
