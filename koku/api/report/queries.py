@@ -978,12 +978,14 @@ class ReportQueryHandler(QueryHandler):
             "sup_total",
             "infra_total",
             "cost_total",
+            "cost_total_distributed",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
-            field = field.replace("delta", "delta_percent")
+            for key, value in self._mapper.ORDER_BY_REPLACEMENTS.items():
+                field = field.replace(key, value)
             if field.startswith("-"):
                 reverse = True
                 field = field[1:]
