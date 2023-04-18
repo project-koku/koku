@@ -984,8 +984,7 @@ class ReportQueryHandler(QueryHandler):
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
-            for key, value in self._mapper.ORDER_BY_REPLACEMENTS.items():
-                field = field.replace(key, value)
+            field = field.replace("delta", "delta_percent")
             if field.startswith("-"):
                 reverse = True
                 field = field[1:]
