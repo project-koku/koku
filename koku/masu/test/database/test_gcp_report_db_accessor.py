@@ -19,7 +19,6 @@ from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.utils import DateHelper
-from koku.database import get_model
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -47,8 +46,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
         cls.all_tables = list(GCP_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             GCP_REPORT_TABLE_MAP["bill"],
-            GCP_REPORT_TABLE_MAP["product"],
-            GCP_REPORT_TABLE_MAP["project"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -253,14 +250,14 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.line_item_table, get_model("GCPCostEntryLineItem"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_gcp_cost_daily_summary_trino(self, mock_trino, mock_delete):
+    def test_populate_ocp_on_gcp_cost_daily_summary_trino(self, mock_trino, mock_month_delete, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -287,11 +284,15 @@ class GCPReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_trino.assert_called()
+        mock_month_delete.assert_called()
         mock_delete.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_gcp_cost_daily_summary_trino_resource_names(self, mock_trino, mock_delete):
+    def test_populate_ocp_on_gcp_cost_daily_summary_trino_resource_names(
+        self, mock_trino, mock_month_delete, mock_delete
+    ):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -326,13 +327,16 @@ class GCPReportDBAccessorTest(MasuTestCase):
                         )
                         mock_trino.assert_called()
                         mock_delete.assert_called()
+                        mock_month_delete.assert_called()
                         self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
         self,
         mock_trino,
+        mock_month_delete,
         mock_delete,
     ):
         """Test that we construst our SQL and query using Trino."""
@@ -365,6 +369,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 )
                 mock_trino.assert_called()
                 mock_delete.assert_called()
+                mock_month_delete.assert_called()
 
     def test_get_openshift_on_cloud_matched_tags(self):
         """Test that matched tags are returned."""
@@ -517,3 +522,30 @@ class GCPReportDBAccessorTest(MasuTestCase):
         # Confirms that the error log would be logged on last attempt
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_delete_gcp_hive_partition_by_month(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        table = "reporting_ocpgcpcostlineitem_project_daily_summary_temp"
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
+        ):
+            with self.assertRaises(TrinoExternalError):
+                self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_called()
+            # Confirms that the error log would be logged on last attempt
+            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+            self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        # Test that deletions short circuit if the schema does not exist
+        mock_trino.reset_mock()
+        mock_table_exist.reset_mock()
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
+        ):
+            self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_not_called()
+            mock_table_exist.assert_not_called()

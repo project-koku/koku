@@ -280,6 +280,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        table = "reporting_ocpazurecostlineitem_project_daily_summary_temp"
+        self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_azure_hive_partition_by_day(

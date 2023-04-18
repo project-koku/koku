@@ -17,7 +17,6 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.processor.gcp.gcp_report_db_cleaner import GCPReportDBCleaner
 from masu.processor.gcp.gcp_report_db_cleaner import GCPReportDBCleanerError
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from reporting.models import PartitionedTable
 
 
@@ -45,9 +44,8 @@ class GCPReportDBCleanerTest(MasuTestCase):
         super().setUpClass()
         cls.accessor = GCPReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(GCP_REPORT_TABLE_MAP.values())
-        cls.foreign_key_tables = [GCP_REPORT_TABLE_MAP["bill"], GCP_REPORT_TABLE_MAP["product"]]
+        cls.foreign_key_tables = [GCP_REPORT_TABLE_MAP["bill"]]
 
     def test_initializer(self):
         """Test initializer."""
