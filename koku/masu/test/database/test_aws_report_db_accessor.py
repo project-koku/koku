@@ -56,9 +56,6 @@ class ReportSchemaTest(MasuTestCase):
         self.all_tables = list(AWS_CUR_TABLE_MAP.values())
         self.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
-            AWS_CUR_TABLE_MAP["product"],
-            AWS_CUR_TABLE_MAP["pricing"],
-            AWS_CUR_TABLE_MAP["reservation"],
         ]
 
     def test_init(self):
@@ -159,9 +156,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
-            AWS_CUR_TABLE_MAP["product"],
-            AWS_CUR_TABLE_MAP["pricing"],
-            AWS_CUR_TABLE_MAP["reservation"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -179,9 +173,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "num_total_files": 2,
             "provider_id": self.aws_provider.uuid,
         }
-        self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_pricing()
-        self.creator.create_cost_entry_product()
 
     def test_initializer(self):
         """Test initializer."""
@@ -514,8 +505,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
-        self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
-        self.assertEqual(self.accessor.cost_entry_table, get_model("AWSCostEntry"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
