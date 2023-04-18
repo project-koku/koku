@@ -108,7 +108,7 @@ class ReportQueryHandler(QueryHandler):
         self._category = parameters.category
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
-        self._delta = parameters.delta
+        self._delta = self._mapper.DELTA_REPLACEMENTS.get(parameters.delta, parameters.delta)
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
@@ -978,12 +978,14 @@ class ReportQueryHandler(QueryHandler):
             "sup_total",
             "infra_total",
             "cost_total",
+            "cost_total_distributed",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
-            field = field.replace("delta", "delta_percent")
+            for key, value in self._mapper.ORDER_BY_REPLACEMENTS.items():
+                field = field.replace(key, value)
             if field.startswith("-"):
                 reverse = True
                 field = field[1:]
@@ -1265,6 +1267,7 @@ class ReportQueryHandler(QueryHandler):
         # e.g. date, account, region, availability zone, et cetera
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         delta_annotation = {self._delta: delta_field}
+
         previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
         previous_dict = OrderedDict()
         for row in previous_sums:
