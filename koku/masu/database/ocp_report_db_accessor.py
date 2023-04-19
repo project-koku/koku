@@ -524,12 +524,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         distribute_mapping = {}
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-        if distribution_info.get("platform_cost"):
-            distribute_mapping["distribute_platform_cost.sql"] = "platform"
-        if distribution_info.get("worker_cost"):
-            distribute_mapping["distribute_worker_cost.sql"] = "worker unallocated"
-        if not distribute_mapping:
-            return
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
@@ -542,28 +536,48 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
-        default_sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "schema": self.schema,
-            "report_period_id": report_period_id,
-            "distribution": distribution,
-            "source_uuid": provider_uuid,
+
+        distribute_mapping = {
+            "platform_cost": {
+                "sql_file": "distribute_platform_cost.sql",
+                "log_msg": {
+                    True: "Distributing platform cost.",
+                    False: "Removing platform_distributed cost model rate type.",
+                },
+            },
+            "worker_cost": {
+                "sql_file": "distribute_worker_cost.sql",
+                "log_msg": {
+                    True: "Distributing worker unallocated cost.",
+                    False: "Removing worker_distributed cost model rate type.",
+                },
+            },
         }
 
-        LOG.debug(default_sql_params)
-        for sql_file, log_msg in distribute_mapping.items():
-            templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{sql_file}")
+        for cost_model_key, metadata in distribute_mapping.items():
+            populate = distribution_info.get(cost_model_key, False)
+            # if populate is false we only execute the delete sql.
+            sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "report_period_id": report_period_id,
+                "distribution": distribution,
+                "source_uuid": provider_uuid,
+                "populate": populate,
+            }
+            LOG.debug(f"sql_params: {sql_params}")
+
+            templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{metadata['sql_file']}")
             templated_sql = templated_sql.decode("utf-8")
-            templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, default_sql_params)
-            log_msg = f"Distributing {log_msg} cost."
+            templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, sql_params)
             context = {
                 "provider_uuid": provider_uuid,
                 "start_date": start_date,
                 "end_date": end_date,
                 "report_period": report_period_id,
             }
-            LOG.info(log_json(provider_uuid, log_msg, context))
+            LOG.info(log_json(provider_uuid, metadata["log_msg"][populate], context))
             self._execute_raw_sql_query(
                 table_name,
                 templated_sql,
