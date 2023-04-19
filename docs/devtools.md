@@ -117,7 +117,7 @@ Additional Reads:
 
 ## PostgreSQL Tips:
 
-**Connect to Postgre**
+**Connect to PostgreSQL**
 ```
 PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 ```
