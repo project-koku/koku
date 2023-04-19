@@ -34,7 +34,15 @@ class OCPOrderBySerializer(OrderSerializer):
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
-    distributed_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        internal_values = {"distributed_cost": "cost_total_distributed"}
+        for serializer_key, internal_key in internal_values.items():
+            if serializer_key in data.keys():
+                data[internal_key] = data.pop(serializer_key)
+        return super().to_internal_value(data)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
