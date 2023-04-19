@@ -47,7 +47,7 @@ def string_to_date(dt):
 
 def get_distributed_cost(dikt):
     "given a dictionary with a nested vlaues return distributed cost"
-    return dikt.get("values")[0].get("cost", {}).get("distributed", {}).get("value")
+    return dikt.get("values", [{}])[0].get("cost", {}).get("distributed", {}).get("value")
 
 
 class OCPReportViewTest(IamTestCase):
