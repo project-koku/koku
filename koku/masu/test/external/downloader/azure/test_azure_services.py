@@ -21,6 +21,7 @@ from faker import Faker
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
+from masu.external.downloader.azure.azure_service import ResourceNotFoundError
 from masu.test import MasuTestCase
 from providers.azure.client import AzureClientFactory
 
@@ -471,3 +472,16 @@ class AzureServiceTest(MasuTestCase):
         latest_blob = azure_service._get_latest_blob(f"{report_path}", blobs, ".csv")
 
         self.assertEqual(latest_blob.name, f"{report_path}/file03.csv")
+
+    def test_get_latest_cost_export_missing_container(self):
+        """Test resource not found error with a missing container"""
+        report_path = "{}_{}".format(self.container_name, "blob")
+
+        mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
+        name_attr = PropertyMock(return_value=report_path)
+        type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
+
+        svc = self.get_mock_client(blob_list=[mock_blob])
+        svc._cloud_storage_account.get_container_client.side_effect = ResourceNotFoundError("Oops!")
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
