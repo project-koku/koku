@@ -122,6 +122,24 @@ Additional Reads:
 PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 ```
 
+Another alternative is to configure a [connection service file](https://www.postgresql.org/docs/current/libpq-pgservice.html).
+
+Example `~/.pg_service.conf`:
+```
+[koku_db]
+host=localhost
+dbname=postgres
+port=5432
+user=postgres
+password=postgres
+```
+
+You can then connect through setting the `PGSERVICE` variable:
+```
+PGSERVICE=koku_db psql
+```
+
+
 **Commonly used psql commands**
 
 1. Set search Schema: `SET search_path TO org1234567`
