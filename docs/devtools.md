@@ -6,7 +6,7 @@ This section describes tooling and features included in Koku to assist developer
 
 Koku makes use of environment variables to configure features and application capabilities.
 
-In the repository, there is an `.env.example` file with sample environment settings. The `.env` file is used by Django\'s tools as well as Koku\'s scripting. It is the recommended way to configure your local development environment settings.
+In the repository, there is an `.env.example` file with sample environment settings. The `.env` file is used by Django's tools as well as Koku's scripting. It is the recommended way to configure your local development environment settings.
 
 This section documents environment variables that may be of interest to developers.
 
@@ -138,7 +138,7 @@ WHERE pod_labels ? 'environment';
 
 **Extensions**
 
-We use postgresql's [uuid-ossp extension](https://www.postgresql.org/docs/current/uuid-ossp.html) to generate uuids. However, this extension is not enabled by default when connecting through a terminal. If you ever need the extension locally, it can can be enabled with the following command:
+We use PostgreSQL's [uuid-ossp extension](https://www.postgresql.org/docs/current/uuid-ossp.html) to generate uuids. However, this extension is not enabled by default when connecting through a terminal. If you ever need the extension locally, it can can be enabled with the following command:
 
 ```
 ALTER EXTENSION "uuid-ossp" SET SCHEMA org1234567;
