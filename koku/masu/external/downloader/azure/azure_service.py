@@ -93,8 +93,13 @@ class AzureService:
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
-        except (AdalError, AzureException, ClientException, ResourceNotFoundError) as error:
+        except (AdalError, AzureException, ClientException) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
+        except ResourceNotFoundError as Error:
+            message = f"Specified container {container_name} does not exist for report path {report_path}."
+            error_msg = f"{message} Azure Error: {Error}."
+            LOG.warning(error_msg)
+            raise AzureCostReportNotFound(message)
         except HttpResponseError as httpError:
             if httpError.status_code == 403:
                 message = (
