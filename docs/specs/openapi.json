@@ -3173,13 +3173,13 @@
                         "$ref": "#/components/parameters/QueryKey"
                     },
                     {
-                        "$ref": "#/components/parameters/QuerySearch"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryValue"
                     },
                     {
                         "$ref": "#/components/parameters/QueryAccount"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
                     }
                 ],
                 "responses": {

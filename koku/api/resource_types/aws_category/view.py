@@ -31,7 +31,15 @@ LOG = logging.getLogger(__name__)
 
 class AWSCategoryView(generics.ListAPIView):
     """
-    Get a list of category key value pairs
+    Get a list of category key value pairs.
+
+    Note:
+        Although, this class lives in the resource_types directory
+        it has not been added to the ResourceTypeView.
+        This class is solely for type ahead functionality, and
+        will differ from the other views due to needing to return
+        key value pairs. It is modeled after the Tags endpoint
+        instead.
     """
 
     permission_classes = [
@@ -59,7 +67,8 @@ class AWSCategoryView(generics.ListAPIView):
             {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
         ],
     }
-    SUPPORTED_FILTERS = ["limit"] + list(FILTER_MAP.keys())
+    KEY_ONLY_PARAM = "key_only"
+    SUPPORTED_FILTERS = ["limit", KEY_ONLY_PARAM] + list(FILTER_MAP.keys())
     RBAC_FILTER = {"field": "usage_account_id", "operation": "in", "composition_key": "account_filter"}
 
     def build_query_collection(self, check_user_access=None):
@@ -83,6 +92,15 @@ class AWSCategoryView(generics.ListAPIView):
             query_collection.add(access_filter)
         return query_collection
 
+    def key_only_check(self):
+        """
+        Check to switch to key only queryset
+        """
+        if key_only := self.request.query_params.get(self.KEY_ONLY_PARAM):
+            if key_only.lower() == "true":
+                return True
+        return False
+
     def build_filters(self):
         """Builds the query filters"""
         check_user_access = False
@@ -95,18 +113,22 @@ class AWSCategoryView(generics.ListAPIView):
         filters = self.build_query_collection(check_user_access)
 
         for key, value in self.request.query_params.items():
-            if key in ["account", "limit"]:
-                # account handled when we build the query collection
+            if key == "account":
+                # account filter is handle when we build the query collection
+                # to check if they have rbac access to filter on the account
                 continue
-            filter_kwargs = self.FILTER_MAP.get(key)
-            query_filter = QueryFilter(parameter=value, **filter_kwargs)
-            filters.add(query_filter)
+            if filter_kwargs := self.FILTER_MAP.get(key):
+                query_filter = QueryFilter(parameter=value, **filter_kwargs)
+                filters.add(query_filter)
         return filters.compose()
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         error_message = {}
-        # # Test for only supported query_params
+        if self.key_only_check():
+            self.queryset = AWSCategorySummary.objects.annotate(**({"value": F("key")})).values("value").distinct()
+            self.SUPPORTED_FILTERS = ["limit", self.KEY_ONLY_PARAM, "account"]
+        # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
                 if key not in self.SUPPORTED_FILTERS:
@@ -123,6 +145,9 @@ class AWSCategoryView(generics.ListAPIView):
         """
         Return a single page of results, or `None` if pagination is disabled.
         """
+        if self.key_only_check():
+            return super().paginate_queryset(queryset)
+        # Return paginate
         key_to_values = {}
         for row in queryset:
             key = row.get("key")
