@@ -137,6 +137,7 @@ WHERE pod_labels ? 'environment';
 ```
 
 **Extensions**
+
 We use postgresql's [uuid-ossp extension](https://www.postgresql.org/docs/current/uuid-ossp.html) to generate uuids. However, this extension is not enabled by default when connecting through a terminal. If you ever need the extension locally, it can can be enabled with the following command:
 
 ```
