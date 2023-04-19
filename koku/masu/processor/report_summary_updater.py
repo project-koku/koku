@@ -123,29 +123,6 @@ class ReportSummaryUpdater:
             end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date, invoice_month=None):
-        """
-        Update report daily rollup tables.
-
-        Args:
-            start_date (str, datetime): When to start.
-            end_date (str, datetime): When to end.
-
-        Returns:
-            (str, str): The start and end date strings used in the daily SQL.
-
-        """
-        msg = f"Daily summary starting for source {self._provider_uuid}"
-        LOG.info(log_json(self._tracing_id, msg))
-        start_date, end_date = self._format_dates(start_date, end_date)
-
-        start_date, end_date = self._updater.update_daily_tables(start_date, end_date, invoice_month=invoice_month)
-
-        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
-        msg = f"Daily summary completed for source {self._provider_uuid}"
-        LOG.info(log_json(self._tracing_id, msg))
-        return start_date, end_date
-
     def update_summary_tables(self, start_date, end_date, tracing_id, invoice_month=None):
         """
         Update report summary tables.

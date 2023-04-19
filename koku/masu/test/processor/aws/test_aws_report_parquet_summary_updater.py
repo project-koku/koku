@@ -102,24 +102,6 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, end_date)
 
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
-    def test_update_daily_tables(self, _):
-        """Test that this is a placeholder method."""
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
-
-        expected_log = (
-            "INFO:masu.processor.aws.aws_report_parquet_summary_updater:"
-            f"update_daily_tables for: {expected_start}-{expected_end}"
-        )
-
-        with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str)
-            self.assertIn(expected_log, logger.output)
-        self.assertEqual(start, expected_start)
-        self.assertEqual(end, expected_end)
-
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_category_summary_table")
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(

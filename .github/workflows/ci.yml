@@ -129,6 +129,7 @@ jobs:
             .github/scripts/check_migrations.sh
             .github/workflows/ci.yml
             Pipfile.lock
+            sonar-project.properties
 
       - name: Check files or fork
         id: check-files-or-fork
