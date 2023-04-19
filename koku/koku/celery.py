@@ -16,7 +16,7 @@ from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
-from koku import sentry  # noqa: F401
+from koku import sentry
 from koku.env import ENVIRONMENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
@@ -31,7 +31,8 @@ class LogErrorsTask(Task):  # pragma: no cover
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
-        LOG.exception("Task failed: %s", exc, exc_info=exc)
+        # LOG.exception("Task failed: %s", exc, exc_info=exc)
+        sentry.sentry_sdk.capture_exception(exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
