@@ -32,18 +32,19 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
             row = AWSCategorySummary.objects.filter(account_alias__isnull=False).first()
             self.account_id = row.usage_account_id
             self.account_alias = row.account_alias.account_alias
-        self.key_only_expected_keys = ["value"]
-        self.expected_keys = ["key", "values", "enabled"]
 
-    def check_data_return(self, data, expected_keys, expected_length):
+    def check_data_return(self, data, expected_length=0, data_return=dict):
         """Checks that the correct keys is as expected."""
         self.assertIsNotNone(data)
         self.assertIsInstance(data, list)
-        if expected_length > 0:
-            self.assertEqual(len(data), expected_length)
-        for dikt in data:
-            unexpected_keys = set(dikt.keys()) - set(expected_keys)
-            self.assertFalse(unexpected_keys)
+        self.assertEqual(len(data), expected_length)
+        if expected_length != 0:
+            self.assertIsInstance(data[0], data_return)
+            for element in data:
+                if data_return == dict:
+                    self.assertIn(element.get("key"), self.enabled_keys)
+                else:
+                    self.assertIn(element, self.enabled_keys)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_categories_view_with_wildcard(self):
@@ -52,7 +53,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.expected_keys, len(self.enabled_keys))
+        self.check_data_return(json_result.get("data"), len(self.enabled_keys))
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_categories_view_with_bad_param(self):
@@ -69,7 +70,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.expected_keys, 0)
+        self.check_data_return(json_result.get("data"))
 
     @RbacPermissions({"aws.account": {"read": ["123456"]}})
     def test_aws_categories_filter_unauthorized_account(self):
@@ -86,20 +87,18 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.expected_keys, limit)
+        self.check_data_return(json_result.get("data"), limit)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_categories_key_filter(self):
         """Test aws categories return."""
-        aws_cat_dict = self.aws_category_tuple[0]
-        aws_cat_key = list(aws_cat_dict.keys())[0]
-        url = reverse("aws-categories") + f"?key={aws_cat_key}"
+        url = reverse("aws-categories") + f"?key={self.enabled_keys[0]}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.expected_keys, 1)
+        self.check_data_return(json_result.get("data"), 1)
         for item in json_result.get("data"):
-            self.assertEqual(item.get("key"), aws_cat_key)
+            self.assertEqual(item.get("key"), self.enabled_keys[0])
 
     def test_aws_categories_value_filter(self):
         """Test aws categories return."""
@@ -109,7 +108,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.expected_keys, 1)
+        self.check_data_return(json_result.get("data"), 1)
         for item in json_result.get("data"):
             self.assertIn(aws_cat_value, item.get("values"))
 
@@ -132,7 +131,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.key_only_expected_keys, len(self.enabled_keys))
+        self.check_data_return(json_result.get("data"), len(self.enabled_keys), data_return=str)
 
     @RbacPermissions({"aws.account": {"read": ["4567"]}})
     def test_aws_categories_view_with_wildcard_key_only_rbac(self):
@@ -141,7 +140,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        self.check_data_return(json_result.get("data"), self.key_only_expected_keys, 0)
+        self.check_data_return(json_result.get("data"), data_return=str)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_categories_key_only_filter_account(self):

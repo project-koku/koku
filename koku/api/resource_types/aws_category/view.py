@@ -22,6 +22,7 @@ from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions import AwsAccessPermission
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
+from api.resource_types.aws_category.serializers import AWSCategoryKeyOnlySerializer
 from api.resource_types.aws_category.serializers import AWSCategorySerializer
 from reporting.provider.aws.models import AWSCategorySummary
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
@@ -52,7 +53,6 @@ class AWSCategoryView(generics.ListAPIView):
     }
     queryset = AWSCategorySummary.objects.values("key").annotate(**annotations).distinct()
     pagination_class = ResourceTypeViewPaginator
-    serializer_class = AWSCategorySerializer
 
     FILTER_MAP = {
         "search": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
@@ -70,6 +70,20 @@ class AWSCategoryView(generics.ListAPIView):
     KEY_ONLY_PARAM = "key_only"
     SUPPORTED_FILTERS = ["limit", KEY_ONLY_PARAM] + list(FILTER_MAP.keys())
     RBAC_FILTER = {"field": "usage_account_id", "operation": "in", "composition_key": "account_filter"}
+
+    @property
+    def key_only_check(self):
+        """
+        Check to switch to key only queryset
+        """
+        if key_only := self.request.query_params.get(self.KEY_ONLY_PARAM):
+            if key_only.lower() == "true":
+                return True
+        return False
+
+    def get_serializer_class(self):
+        """Decide which serializer class to use."""
+        return AWSCategoryKeyOnlySerializer if self.key_only_check else AWSCategorySerializer
 
     def build_query_collection(self, check_user_access=None):
         """Creates a query_filter of the account."""
@@ -91,15 +105,6 @@ class AWSCategoryView(generics.ListAPIView):
             access_filter = QueryFilter(parameter=check_user_access, **self.RBAC_FILTER)
             query_collection.add(access_filter)
         return query_collection
-
-    def key_only_check(self):
-        """
-        Check to switch to key only queryset
-        """
-        if key_only := self.request.query_params.get(self.KEY_ONLY_PARAM):
-            if key_only.lower() == "true":
-                return True
-        return False
 
     def build_filters(self):
         """Builds the query filters"""
@@ -125,10 +130,13 @@ class AWSCategoryView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         error_message = {}
-        if self.key_only_check():
-            self.queryset = AWSCategorySummary.objects.annotate(**({"value": F("key")})).values("value").distinct()
+        if self.key_only_check:
+            annotate = {
+                "enabled": Exists(AWSEnabledCategoryKeys.objects.filter(key=OuterRef("key")).filter(enabled=True))
+            }
+            self.queryset = AWSCategorySummary.objects.values_list("key", flat=True).annotate(**annotate).distinct()
             self.SUPPORTED_FILTERS = ["limit", self.KEY_ONLY_PARAM, "account"]
-        # Test for only supported query_params
+        # Check for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
                 if key not in self.SUPPORTED_FILTERS:
@@ -139,15 +147,14 @@ class AWSCategoryView(generics.ListAPIView):
             self.queryset = self.queryset.filter(filters)
         return super().list(request)
 
-    # Overwrite generics.ListAPIView paginate_queryset to
-    # combine values before return
+    # Overwrite generics.ListAPIView paginate_queryset
     def paginate_queryset(self, queryset):
         """
         Return a single page of results, or `None` if pagination is disabled.
         """
-        if self.key_only_check():
-            return super().paginate_queryset(queryset)
-        # Return paginate
+        if self.key_only_check:
+            return self.paginator.paginate_queryset(queryset, self.request, view=self)
+        # combine unnested distinct values into a single array.
         key_to_values = {}
         for row in queryset:
             key = row.get("key")

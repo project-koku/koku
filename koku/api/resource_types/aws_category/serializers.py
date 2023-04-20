@@ -9,7 +9,13 @@ from rest_framework import serializers
 class AWSCategorySerializer(serializers.Serializer):
     """Serializer for resource-specific resource-type APIs."""
 
-    key = serializers.CharField(required=False)
-    values = serializers.ListField(required=False)
-    enabled = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
+    key = serializers.CharField()
+    values = serializers.ListField()
+    enabled = serializers.CharField()
+
+
+class AWSCategoryKeyOnlySerializer(serializers.BaseSerializer):
+    child = serializers.CharField()
+
+    def to_representation(self, data):
+        return data
