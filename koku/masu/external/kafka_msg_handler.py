@@ -331,7 +331,8 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     manifest_ros_files = report_meta.get("resource_optimization_files") or []
     manifest_files = report_meta.get("files") or []
     for ros_file in manifest_ros_files:
-        ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
+        if os.path.exists(f"{subdirectory}/{ros_file}"):
+            ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
     ros_processor = ROSReportShipper(
         report_meta,
         b64_identity,
@@ -341,7 +342,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
         ros_processor.process_manifest_reports(ros_reports)
     except Exception as e:
         # If a ROS report fails to process, this should not prevent Koku processing from continuing.
-        msg = f"ROS reports not processed for manifest_id {report_meta['manifest_id']}. Reason: {e}"
+        msg = f"ROS reports not processed for payload. Reason: {e}"
         LOG.warning(log_json(manifest_uuid, msg, context))
     for report_file in manifest_files:
         current_meta = report_meta.copy()

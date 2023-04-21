@@ -77,7 +77,7 @@ class ROSReportShipper:
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
         if not reports_to_upload:
-            msg = "No ROS reports to handle for manifest."
+            msg = "No ROS reports to handle in the current payload."
             LOG.info(log_json(self.request_id, msg, self.context))
             return
         msg = "Preparing to upload ROS reports to S3 bucket."
