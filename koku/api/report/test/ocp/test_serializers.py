@@ -361,7 +361,7 @@ class OCPInventoryQueryParamSerializerTest(IamTestCase):
 
     def test_delta_success(self):
         """Test that a proper delta value is serialized."""
-        valid_deltas = ["cost", "usage", "request", "distributed_cost"]
+        valid_deltas = ["cost", "usage", "request"]
         url_base = "/api/cost-management/v1/reports/openshift/costs/"
         for valid_delta in valid_deltas:
             with self.subTest(valid_delta=valid_delta):
@@ -369,6 +369,15 @@ class OCPInventoryQueryParamSerializerTest(IamTestCase):
                 query_params = {"delta": valid_delta}
                 serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
                 self.assertTrue(serializer.is_valid())
+
+    def test_distributed_cost_group_by_project(self):
+        """Test the group by project requirement."""
+        self.request_path = (
+            "/api/cost-management/v1/reports/openshift/costs/?group_by[project]=*&order_by[distributed_cost=asc"
+        )
+        params = {"order_by": {"distributed_cost": "asc"}, "group_by": {"project": ["*"]}}
+        serializer = OCPQueryParamSerializer(data=params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
 
     def test_delta_failure(self):
         """Test that a bad delta value is not serialized."""
@@ -413,6 +422,22 @@ class OCPInventoryQueryParamSerializerTest(IamTestCase):
         """Test that order_by[delta] does not work without a delta param."""
         self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
         query_params = {"order_by": {"delta": "asc"}}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_order_by_distributed_cost_without_project(self):
+        """Test that order_by[delta] does not work without a delta param."""
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        query_params = {"order_by": {"cost_distributed": "asc"}}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_delta_distributed_cost_without_project(self):
+        """Test that order_by[delta] does not work without a delta param."""
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        query_params = {"delta": "cost_distributed"}
         serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

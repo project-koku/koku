@@ -76,10 +76,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
 
-        ocp_delta_replacements = copy.deepcopy(self._mapper.DELTA_REPLACEMENTS)
-        ocp_delta_replacements["distributed_cost"] = "cost_total_distributed"
-        self._mapper.DELTA_REPLACEMENTS = ocp_delta_replacements
-
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
