@@ -379,7 +379,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
     max(nullif(ocp.persistentvolume, '')) as persistentvolume,
     max(nullif(ocp.storageclass, '')) as storageclass,
-    max(ocp.pod_labels) as pod_labels,
+    ocp.pod_labels,
     max(ocp.resource_id) as resource_id,
     max(gcp.usage_start) as usage_start,
     max(gcp.usage_start) as usage_end,
@@ -413,7 +413,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-    NULL as volume_labels,
+    ocp.volume_labels,
     max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     max(gcp.ocp_matched) as ocp_matched,
@@ -435,7 +435,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
-GROUP BY gcp.uuid, ocp.namespace, ocp.data_source
+GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
 -- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
