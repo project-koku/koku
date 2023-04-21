@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration loader for Masu application."""
-from tempfile import TemporaryDirectory
+from tempfile import mkdtemp
 
 from django.conf import settings
 
@@ -12,7 +12,7 @@ from koku.env import ENVIRONMENT
 
 
 DEFAULT_ACCOUNT_ACCCESS_TYPE = "db"
-DEFAULT_TMP_DIR = TemporaryDirectory("/var/tmp/masu")
+DEFAULT_TMP_DIR = mkdtemp(suffix="/var/tmp/masu")
 DEFAULT_VOLUME_FILE_RETENTION = 60 * 60 * 24
 DEFAULT_REPORT_PROCESSING_BATCH_SIZE = 100000
 DEFAULT_MASU_DATE_OVERRIDE = None
