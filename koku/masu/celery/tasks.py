@@ -331,7 +331,7 @@ def autovacuum_tune_schemas():
 @celery_app.task(name="masu.celery.tasks.clean_volume", queue=DEFAULT)
 def clean_volume():
     """Clean up the volume in the worker pod."""
-    LOG.info("Cleaning up the volume at %s " % Config.PVC_DIR)
+    LOG.info("Cleaning up the volume at %s " % Config.DATA_DIR)
     # get the billing months to use below
     months = DateAccessor().get_billing_months(Config.INITIAL_INGEST_NUM_MONTHS)
     db_accessor = ReportManifestDBAccessor()
@@ -348,7 +348,7 @@ def clean_volume():
     datehelper = DateHelper()
     now = datehelper.now
     expiration_date = now - timedelta(seconds=Config.VOLUME_FILE_RETENTION)
-    for [root, _, filenames] in os.walk(Config.PVC_DIR):
+    for [root, _, filenames] in os.walk(Config.DATA_DIR):
         for file in filenames:
             match = False
             for assembly_id in assembly_ids_to_exclude:

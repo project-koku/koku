@@ -270,7 +270,7 @@ class TestCeleryTasks(MasuTestCase):
         # create two files on the temporary volume one with a matching prefix id
         #  as the assembly_id in the manifest above
         with tempfile.TemporaryDirectory() as tmpdirname:
-            mock_config.PVC_DIR = tmpdirname
+            mock_config.DATA_DIR = tmpdirname
             mock_config.VOLUME_FILE_RETENTION = 60 * 60 * 24
             old_matching_file = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
             new_no_match_file = os.path.join(tmpdirname, "newfile.csv")

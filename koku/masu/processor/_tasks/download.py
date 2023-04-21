@@ -70,10 +70,10 @@ def _get_report_files(
     )
     LOG.info(log_json(tracing_id, log_statement, context))
     try:
-        disk = psutil.disk_usage(Config.PVC_DIR)
+        disk = psutil.disk_usage(Config.DATA_DIR)
         disk_msg = f"{function_name}: Available disk space: {disk.free} bytes ({100 - disk.percent}%)"
     except OSError:
-        disk_msg = f"{function_name}: Unable to find available disk space. {Config.PVC_DIR} does not exist"
+        disk_msg = f"{function_name}: Unable to find available disk space. {Config.DATA_DIR} does not exist"
     LOG.info(log_json(tracing_id, disk_msg, context))
 
     downloader = ReportDownloader(

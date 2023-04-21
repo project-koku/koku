@@ -13,7 +13,7 @@ class ConfigSerializer(serializers.Serializer):
 
     debug = serializers.BooleanField(source="DEBUG", read_only=True)
     account_access_type = serializers.CharField(source="ACCOUNT_ACCESS_TYPE", read_only=True)
-    pvc_dir = serializers.CharField(source="PVC_DIR", read_only=True)
+    # data_dir = serializers.CharField(source="DATA_DIR", read_only=True) <- not sure we need to publish this...
     volume_file_retention = serializers.IntegerField(source="VOLUME_FILE_RETENTION", read_only=True)
     insights_local_report_dir = serializers.CharField(source="INSIGHTS_LOCAL_REPORT_DIR", read_only=True)
     tmp_dir = serializers.CharField(source="TMP_DIR", read_only=True)

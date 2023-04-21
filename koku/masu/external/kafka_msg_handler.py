@@ -142,8 +142,8 @@ def download_payload(request_id, url, context={}):
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
     # the pod goes down.
-    os.makedirs(Config.PVC_DIR, exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=Config.PVC_DIR)
+    os.makedirs(Config.DATA_DIR, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=Config.DATA_DIR)
 
     # Download file from quarantine bucket as tar.gz
     try:
