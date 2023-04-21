@@ -144,10 +144,10 @@ class GetReportFileTests(MasuTestCase):
         """Test task for logging when temp directory does not exist."""
         logging.disable(logging.NOTSET)
 
-        Config.PVC_DIR = "/this/path/does/not/exist"
+        Config.DATA_DIR = "/this/path/does/not/exist"
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = "Unable to find" + f" available disk space. {Config.PVC_DIR} does not exist"
+        expected = "Unable to find" + f" available disk space. {Config.DATA_DIR} does not exist"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
