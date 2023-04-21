@@ -13,7 +13,6 @@ from koku.env import ENVIRONMENT
 
 DEFAULT_ACCOUNT_ACCCESS_TYPE = "db"
 DEFAULT_TMP_DIR = mkdtemp(prefix="/var/tmp/masu")
-DEFAULT_VOLUME_FILE_RETENTION = 60 * 60 * 24
 DEFAULT_REPORT_PROCESSING_BATCH_SIZE = 100000
 DEFAULT_MASU_DATE_OVERRIDE = None
 DEFAULT_MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = 1
@@ -35,9 +34,6 @@ class Config:
 
     # Data directory for processing incoming data
     DATA_DIR = ENVIRONMENT.get_value("DATA_DIR", default=DEFAULT_TMP_DIR)
-
-    # File retention time for cleaning out the volume (in seconds) # defaults to 1 day
-    VOLUME_FILE_RETENTION = ENVIRONMENT.int("VOLUME_FILE_RETENTION", default=DEFAULT_VOLUME_FILE_RETENTION)
 
     # OCP intermediate report storage
     INSIGHTS_LOCAL_REPORT_DIR = f"{DATA_DIR}/insights_local"
