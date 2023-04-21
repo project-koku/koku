@@ -15,9 +15,9 @@ import django.apps
 from dateutil import parser
 from dateutil import relativedelta
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from koku.database import get_model
 from masu.config import Config

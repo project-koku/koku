@@ -16,7 +16,7 @@ import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from koku.database import get_model
 

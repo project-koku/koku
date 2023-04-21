@@ -18,8 +18,8 @@ from uuid import uuid4
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
+from django_tenants.utils import schema_context
 from pytz import UTC
-from tenant_schemas.utils import schema_context
 
 import koku.trino_database as trino_db
 from api.models import Provider

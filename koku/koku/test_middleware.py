@@ -19,11 +19,11 @@ from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
 from django_prometheus.testutils import PrometheusTestCaseMixin
+from django_tenants.middleware import TenantMainMiddleware
 from faker import Faker
 from requests.exceptions import ConnectionError
 from rest_framework import status
 from rest_framework.test import APIClient
-from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
@@ -97,7 +97,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
         )
 
         middleware = KokuTenantMiddleware()
-        with patch.object(BaseTenantMiddleware, "process_request") as mock_process_request:
+        with patch.object(TenantMainMiddleware, "process_request") as mock_process_request:
             _ = middleware.process_request(mock_request)
             mock_process_request.assert_called()
 

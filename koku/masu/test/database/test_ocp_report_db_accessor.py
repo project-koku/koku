@@ -19,7 +19,7 @@ from django.db.models import Min
 from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.query import QuerySet
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakeTrinoConn

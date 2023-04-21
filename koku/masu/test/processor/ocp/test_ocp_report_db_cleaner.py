@@ -10,7 +10,7 @@ import django
 import pytz
 from dateutil import relativedelta
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP

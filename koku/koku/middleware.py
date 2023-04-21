@@ -13,6 +13,7 @@ from json.decoder import JSONDecodeError
 from cachetools import TTLCache
 from django.conf import settings
 from django.core.cache import caches
+from django.core.exceptions import DisallowedHost
 from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db import transaction
@@ -21,16 +22,17 @@ from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
 from django.db.utils import ProgrammingError
 from django.http import HttpResponse
+from django.http import HttpResponseNotFound
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
 from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
+from django_tenants.middleware import TenantMainMiddleware
+from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.middleware import BaseTenantMiddleware
-from tenant_schemas.utils import schema_exists
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
@@ -134,8 +136,8 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
             return paginator.get_paginated_response()
 
 
-class KokuTenantMiddleware(BaseTenantMiddleware):
-    """A subclass of the Django-tenant-schemas tenant middleware.
+class KokuTenantMiddleware(TenantMainMiddleware):
+    """A subclass of the Django-tenants middleware.
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
     """
@@ -153,6 +155,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_request(self, request):
         """Check before super."""
+
         connection.set_schema_to_public()
 
         if not is_no_auth(request):
@@ -169,31 +172,49 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                         raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
+
         try:
-            super().process_request(request)
+            _tenant = None
+            if tenant := self._get_tenant(request):
+                _tenant = tenant
+            else:
+                schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
+                tenant_username = request.user.username
+                _tenant = self._create_tenant(tenant_username, schema_name)
+
+            hostname = self.hostname_from_request(request)  # inherited from superclass
+            _tenant.domain_url = hostname
+            request.tenant = _tenant
+            connection.set_tenant(request.tenant)
+            self.setup_url_routing(request)  # inherited from superclass
+
+        except DisallowedHost:
+            return HttpResponseNotFound()
+
         except OperationalError as err:
             LOG.error("Request resulted in OperationalError: %s", err)
             DB_CONNECTION_ERRORS_COUNTER.inc()
             return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
-    def get_tenant(self, model, hostname, request):
-        """Override the tenant selection logic."""
-        schema_name = "public"
-        tenant_username = request.user.username
-        tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
-        if not tenant:
-            if not is_no_auth(request):
-                schema_name = request.user.customer.schema_name
+    def _get_tenant(self, request):
+        """Get tenant from tenant cache."""
 
-            tenant = model.objects.filter(schema_name=schema_name).first()
-            if tenant and schema_name != "public":
+        tenant_username = request.user.username
+        return KokuTenantMiddleware.tenant_cache.get(tenant_username)
+
+    def _create_tenant(self, tenant_username, schema_name="public"):
+        """Create a tenant"""
+
+        try:
+            tenant = Tenant.objects.get(schema_name=schema_name)
+            if schema_name != "public":
                 with KokuTenantMiddleware.tenant_lock:
                     KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
                     LOG.debug(f"Tenant added to cache: {tenant_username}")
-            elif not tenant:
-                tenant, __ = model.objects.get_or_create(schema_name="public")
-
-        return tenant
+            return tenant
+        except Tenant.DoesNotExist:
+            tenant, __ = Tenant.objects.get_or_create(schema_name="public")
+            return tenant
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):

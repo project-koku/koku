@@ -13,10 +13,10 @@ from django.db.models import Count
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_handler import TruncDayString

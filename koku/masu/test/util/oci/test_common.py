@@ -9,8 +9,8 @@ from datetime import datetime
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor

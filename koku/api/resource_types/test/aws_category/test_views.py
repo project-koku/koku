@@ -4,8 +4,8 @@
 #
 """Test the Resource Types views."""
 from django.urls import reverse
+from django_tenants.utils import schema_context
 from rest_framework import status
-from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import RbacPermissions
 from api.report.test.util.constants import AWS_CONSTANTS
