@@ -73,12 +73,6 @@
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
