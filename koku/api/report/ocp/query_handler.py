@@ -27,7 +27,6 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -149,9 +148,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """A flag that lets UI know there is is distributed cost so that they can show a drop down."""
         if is_grouped_by_project(self.parameters):
             output["distributed_overhead"] = False
-            if OCPUsageLineItemDailySummary.objects.filter(
+            check = self.query_table.objects.filter(self.query_filter).filter(
                 cost_model_rate_type__in=["platform_distributed", "worker_distributed"]
-            ):
+            )
+            if check:
                 output["distributed_overhead"] = True
         return output
 
