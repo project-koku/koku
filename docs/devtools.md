@@ -200,8 +200,7 @@ If you are debugging queries generated for the report endpoints, a good place to
 ## How to check Redis Keys
 
 ```
-docker exec -it koku_redis bash
-root@04b44144ce2a:/data# redis-cli
+docker exec -it koku_redis redis-cli
 127.0.0.1:6379> select 1
 OK
 127.0.0.1:6379[1]> keys *
