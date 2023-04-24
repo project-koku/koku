@@ -549,7 +549,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=self.tarball_file)
 
             fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
@@ -568,7 +568,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_pvc_dir)
+                                shutil.rmtree(fake_data_dir)
 
     @patch("masu.external.kafka_msg_handler.ROSReportShipper")
     def test_extract_payload_ROS_report(self, mock_ros_shipper):
@@ -637,7 +637,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=self.dates_tarball)
 
             fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
@@ -658,7 +658,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_pvc_dir)
+                                shutil.rmtree(fake_data_dir)
 
     def test_extract_payload_no_account(self):
         """Test to verify extracting payload when no provider exists."""
@@ -667,7 +667,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=self.tarball_file)
 
             fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch("masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=None):
@@ -675,7 +675,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")[0]
                         )
                         shutil.rmtree(fake_dir)
-                        shutil.rmtree(fake_pvc_dir)
+                        shutil.rmtree(fake_data_dir)
 
     def test_extract_incomplete_file_payload(self):
         """Test to verify extracting payload missing report files is successful."""
@@ -685,7 +685,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=self.bad_tarball_file)
 
             fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
@@ -704,7 +704,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 )
                                 self.assertFalse(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_pvc_dir)
+                                shutil.rmtree(fake_data_dir)
 
     def test_extract_no_manifest(self):
         """Test to verify extracting payload missing a manifest is not successful."""
@@ -714,7 +714,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=self.no_manifest_file)
 
             fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
@@ -725,7 +725,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                                     msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_pvc_dir)
+                                shutil.rmtree(fake_data_dir)
 
     @patch("masu.external.kafka_msg_handler.TarFile.extractall", side_effect=raise_OSError)
     def test_extract_bad_payload_not_tar(self, mock_extractall):
@@ -736,7 +736,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=self.bad_tarball_file)
 
             fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
@@ -747,7 +747,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                                     msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
                                 shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_pvc_dir)
+                                shutil.rmtree(fake_data_dir)
 
     def test_extract_payload_bad_url(self):
         """Test to verify extracting payload exceptions are handled."""
