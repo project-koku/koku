@@ -59,6 +59,7 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
+from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
@@ -143,10 +144,10 @@ class GetReportFileTests(MasuTestCase):
         """Test task for logging when temp directory does not exist."""
         logging.disable(logging.NOTSET)
 
-        Config.PVC_DIR = "/this/path/does/not/exist"
+        Config.DATA_DIR = "/this/path/does/not/exist"
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = "Unable to find" + f" available disk space. {Config.PVC_DIR} does not exist"
+        expected = "Unable to find" + f" available disk space. {Config.DATA_DIR} does not exist"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -592,6 +593,49 @@ class TestProcessorTasks(MasuTestCase):
             call(self.schema, expected_count_sql),
             call(self.schema, expected_fetch_sql),
         ]
+        mock_trino.assert_has_calls(expected_calls, any_order=True)
+        mock_s3_delete.assert_called()
+        mock_process.assert_called()
+
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process")
+    @patch("masu.processor.tasks.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.processor.tasks.execute_trino_query")
+    def test_process_daily_openshift_on_cloud(self, mock_trino, mock_s3_delete, mock_process):
+        """Test the process_daily_openshift_on_cloud task."""
+        tracing_id = uuid4()
+        month_start = DateHelper().last_month_start
+        end_date = month_start.replace(day=14)
+        year = month_start.strftime("%Y")
+        month = month_start.strftime("%m")
+        mock_trino.return_value = ([[1000]], ["column_name"])
+        process_daily_openshift_on_cloud(
+            self.schema, self.gcp_provider_uuid, month_start, month_start, end_date, tracing_id=tracing_id
+        )
+        day_where_clause = (
+            "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, TIMESTAMP '{0}')"
+        )
+        days = DateHelper().list_days(month_start, end_date)
+        expected_calls = []
+        for day in days:
+            today_where_clause = day_where_clause.format(day)
+            expected_count_sql = (
+                "SELECT count(*) FROM gcp_line_items_daily "
+                f"WHERE source='{self.gcp_provider_uuid}' AND year='{year}'"
+                f" AND month='{month}' AND {today_where_clause}"
+            )
+
+            expected_fetch_sql = (
+                "SELECT * FROM gcp_line_items_daily "
+                f"WHERE source='{self.gcp_provider_uuid}' AND year='{year}'"
+                f" AND month='{month}' AND {today_where_clause}"
+                f" OFFSET 0 LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            )
+            expected_calls.extend(
+                [
+                    call(self.schema, expected_count_sql),
+                    call(self.schema, expected_fetch_sql),
+                ]
+            )
         mock_trino.assert_has_calls(expected_calls, any_order=True)
         mock_s3_delete.assert_called()
         mock_process.assert_called()

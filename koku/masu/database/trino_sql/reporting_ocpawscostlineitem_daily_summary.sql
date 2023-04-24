@@ -396,7 +396,7 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        max(ocp.pod_labels) as pod_labels,
+        ocp.pod_labels,
         NULL as volume_labels,
         max(aws.tags) as tags,
         max(aws.aws_cost_category) as aws_cost_category,
@@ -417,7 +417,7 @@ SELECT aws.uuid as aws_uuid,
         AND aws.ocp_source = {{ocp_source_uuid}}
         AND aws.year = {{year}}
         AND aws.month = {{month}}
-    GROUP BY aws.uuid, ocp.namespace
+    GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
 
 -- Tag matching

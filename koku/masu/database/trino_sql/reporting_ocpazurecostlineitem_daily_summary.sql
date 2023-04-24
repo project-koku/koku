@@ -175,8 +175,8 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    max(ocp.pod_labels) as pod_labels,
-    max(ocp.volume_labels) as volume_labels,
+    ocp.pod_labels,
+    ocp.volume_labels,
     max(azure.tags) as tags,
     max(azure.resource_id_matched) as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
@@ -201,7 +201,7 @@ SELECT azure.uuid as azure_uuid,
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
-    GROUP BY azure.uuid, ocp.namespace, ocp.data_source
+    GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
 -- Tag matching

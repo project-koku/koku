@@ -375,18 +375,6 @@ parameters:
   displayName: Vacuum data utc time
   name: VACUUM_DATA_UTC_TIME
   value: "00:00"
-- description: Volume file retention length
-  displayName: Volume file retention length
-  name: VOLUME_FILE_RETENTION
-  value: "86400"
-- description: Clean volume on day
-  displayName: Clean volume on day
-  name: CLEAN_VOLUME_DAY_OF_WEEK
-  value: "sunday"
-- description: Clean volume utc time
-  displayName: Clean volume utc time
-  name: CLEAN_VOLUME_UTC_TIME
-  value: "00:00"
 - displayName: Date overrider
   name: DATE_OVERRIDE
   required: false
