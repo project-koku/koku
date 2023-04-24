@@ -67,54 +67,59 @@ class SourcesViewTests(IamTestCase):
         """Test the PATCH endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
 
-        with requests_mock.mock() as m:
-            m.patch(
-                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                status_code=200,
-                json={"credentials": credentials},
-            )
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.patch(
+                    f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
+                    status_code=200,
+                    json={"credentials": credentials},
+                )
 
-            params = '{"credentials: blah}'
-            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+                params = '{"credentials: blah}'
+                url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.patch(
-                url, params, content_type="application/json", **self.request_context["request"].META
-            )
+                response = self.client.patch(
+                    url, params, content_type="application/json", **self.request_context["request"].META
+                )
 
-            self.assertEqual(response.status_code, 405)
+                self.assertEqual(response.status_code, 405)
 
     def test_source_put(self):
         """Test the PUT endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
 
-        with requests_mock.mock() as m:
-            m.put(
-                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                status_code=200,
-                json={"credentials": credentials},
-            )
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.put(
+                    f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
+                    status_code=200,
+                    json={"credentials": credentials},
+                )
 
-            params = {"credentials": credentials}
-            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+                params = {"credentials": credentials}
+                url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.put(
-                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-            )
+                response = self.client.put(
+                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+                )
 
-            self.assertEqual(response.status_code, 405)
+                self.assertEqual(response.status_code, 405)
 
     def test_source_list(self):
         """Test the LIST endpoint."""
-        with requests_mock.mock() as m:
-            m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
-            url = reverse("sources-list")
+                url = reverse("sources-list")
 
-            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-            body = response.json()
+                response = self.client.get(
+                    url, content_type="application/json", **self.request_context["request"].META
+                )
+                body = response.json()
 
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(body.get("meta").get("count"), 1)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(body.get("meta").get("count"), 1)
 
     def test_aws_s3_regions(self):
         """Given a request for AWS S3 regions, a subset of all available regions should be returned"""
@@ -147,9 +152,10 @@ class SourcesViewTests(IamTestCase):
             "us-west-1",
             "us-west-2",
         }
-        response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
-        regions = response.json()["data"]
-        count = response.json()["meta"]["count"]
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
+            regions = response.json()["data"]
+            count = response.json()["meta"]["count"]
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(set(regions).issubset(all_regions))
@@ -158,15 +164,15 @@ class SourcesViewTests(IamTestCase):
     def test_aws_s3_regions_pagination(self):
         """Test that the API response is paginated"""
         limit = 4
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            response = self.client.get(
+                reverse("sources-aws-s3-regions"),
+                {"limit": limit},
+                **self.request_context["request"].META,
+            )
+            regions = response.json()["data"]
 
-        response = self.client.get(
-            reverse("sources-aws-s3-regions"),
-            {"limit": limit},
-            **self.request_context["request"].META,
-        )
-        regions = response.json()["data"]
-
-        self.assertEqual(len(regions), limit)
+            self.assertEqual(len(regions), limit)
 
     def test_source_list_other_header(self):
         """Test the LIST endpoint with other auth header not matching test data."""
@@ -176,33 +182,38 @@ class SourcesViewTests(IamTestCase):
         customer = self._create_customer_data(account=other_account, org_id=other_org_id)
         IdentityHeaderMiddleware.create_customer(other_account, other_org_id)
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
-        with requests_mock.mock() as m:
-            m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
-            url = reverse("sources-list")
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
-            response = self.client.get(url, content_type="application/json", **request_context["request"].META)
-            body = response.json()
+                url = reverse("sources-list")
 
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(body.get("meta").get("count"), 0)
+                response = self.client.get(url, content_type="application/json", **request_context["request"].META)
+                body = response.json()
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(body.get("meta").get("count"), 0)
 
     def test_source_get(self):
         """Test the GET endpoint."""
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                status_code=200,
-                headers={"Content-Type": "application/json"},
-            )
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.get(
+                    f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
+                    status_code=200,
+                    headers={"Content-Type": "application/json"},
+                )
 
-            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+                url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-            body = response.json()
+                response = self.client.get(
+                    url, content_type="application/json", **self.request_context["request"].META
+                )
+                body = response.json()
 
-            self.assertEqual(response.status_code, 200)
-            self.assertIsNotNone(body)
+                self.assertEqual(response.status_code, 200)
+                self.assertIsNotNone(body)
 
     def test_source_get_other_header(self):
         """Test the GET endpoint other header not matching test data."""
@@ -213,40 +224,45 @@ class SourcesViewTests(IamTestCase):
         IdentityHeaderMiddleware.create_customer(other_account, other_org_id)
 
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                status_code=200,
-                headers={"Content-Type": "application/json"},
-            )
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.get(
+                    f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
+                    status_code=200,
+                    headers={"Content-Type": "application/json"},
+                )
 
-            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+                url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.get(url, content_type="application/json", **request_context["request"].META)
-            self.assertEqual(response.status_code, 404)
+                response = self.client.get(url, content_type="application/json", **request_context["request"].META)
+                self.assertEqual(response.status_code, 404)
 
     def test_source_destroy_not_allowed(self):
         """Test access to the destroy endpoint."""
         url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
-        response = self.client.delete(url, content_type="application/json", **self.request_context["request"].META)
-        self.assertEqual(response.status_code, 405)
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            response = self.client.delete(url, content_type="application/json", **self.request_context["request"].META)
+            self.assertEqual(response.status_code, 405)
 
     @patch("sources.api.view.ProviderManager.provider_statistics", return_value={})
     def test_source_get_stats(self, _):
         """Test the GET status endpoint."""
-        url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
-        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-        body = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(body)
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNotNone(body)
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_list_zerror(self, _):
         """Test provider_linked is False in list when Provider does not exist."""
         cache.clear()
-        url = reverse("sources-list")
-        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-        body = response.json()
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            url = reverse("sources-list")
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
         self.assertTrue(body.get("data"))
@@ -257,9 +273,12 @@ class SourcesViewTests(IamTestCase):
         """Test provider_linked is True in list when Provider exists."""
         provider_manager = ProviderManager(self.azure_provider.uuid)
         mock_provider_manager.return_value = provider_manager
-        url = reverse("sources-list")
-        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-        body = response.json()
+
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            url = reverse("sources-list")
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
         self.assertTrue(body.get("data"))
@@ -269,9 +288,12 @@ class SourcesViewTests(IamTestCase):
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_retrieve_error(self, _):
         """Test provider_linked is False in Source when Provider does not exist."""
-        url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
-        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-        body = response.json()
+
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
         self.assertFalse(body["provider_linked"])
@@ -280,48 +302,58 @@ class SourcesViewTests(IamTestCase):
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_get_stats_error(self, _):
         """Test provider_linked is False in source-stats when Provider does not exist."""
-        url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
-        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-        body = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(body)
-        self.assertFalse(body["provider_linked"])
+
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNotNone(body)
+            self.assertFalse(body["provider_linked"])
 
     def test_source_get_random_int(self):
         """Test the GET endpoint with non-existent source int id."""
         source_id = randint(20, 100)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
-                status_code=404,
-                headers={"Content-Type": "application/json"},
-            )
 
-            url = reverse("sources-detail", kwargs={"pk": source_id})
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.get(
+                    f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
+                    status_code=404,
+                    headers={"Content-Type": "application/json"},
+                )
 
-            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-            body = response.json()
+                url = reverse("sources-detail", kwargs={"pk": source_id})
 
-            self.assertEqual(response.status_code, 404)
-            self.assertIsNotNone(body)
+                response = self.client.get(
+                    url, content_type="application/json", **self.request_context["request"].META
+                )
+                body = response.json()
+
+                self.assertEqual(response.status_code, 404)
+                self.assertIsNotNone(body)
 
     def test_source_get_random_uuid(self):
         """Test the GET endpoint with non-existent source uuid."""
         source_id = uuid4()
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
-                status_code=404,
-                headers={"Content-Type": "application/json"},
-            )
 
-            url = reverse("sources-detail", kwargs={"pk": source_id})
+        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
+            with requests_mock.mock() as m:
+                m.get(
+                    f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
+                    status_code=404,
+                    headers={"Content-Type": "application/json"},
+                )
 
-            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
-            body = response.json()
+                url = reverse("sources-detail", kwargs={"pk": source_id})
 
-            self.assertEqual(response.status_code, 404)
-            self.assertIsNotNone(body)
+                response = self.client.get(
+                    url, content_type="application/json", **self.request_context["request"].META
+                )
+                body = response.json()
+
+                self.assertEqual(response.status_code, 404)
+                self.assertIsNotNone(body)
 
     def test_sources_access(self):
         """Test the limiting of source type visibility."""
