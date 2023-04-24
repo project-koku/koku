@@ -545,7 +545,7 @@ class ReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         groups = ["gcp_project"]
-        data = {"gcp_project": None, "units": "USD"}
+        data = {"gcp_project": "", "units": "USD"}
         expected = {"gcp_project": "No-gcp_project", "units": "USD"}
         out_data = handler._apply_group_null_label(data, groups)
         self.assertEqual(expected, out_data)
