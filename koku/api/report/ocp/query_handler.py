@@ -27,6 +27,7 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -144,6 +145,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
         }
 
+    def _check_if_distributed_overhead(self, output):
+        """A flag that lets UI know there is is distributed cost so that they can show a drop down."""
+        if is_grouped_by_project(self.parameters):
+            output["distributed_overhead"] = False
+            if OCPUsageLineItemDailySummary.objects.filter(
+                cost_model_rate_type__in=["platform_distributed", "worker_distributed"]
+            ):
+                output["distributed_overhead"] = True
+        return output
+
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -152,6 +163,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         output = self._initialize_response_output(self.parameters)
+        output = self._check_if_distributed_overhead(output)
         output["data"] = self.query_data
 
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
