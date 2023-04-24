@@ -1599,13 +1599,12 @@ class TestRemoveStaleTenants(MasuTestCase):
         initial_date_updated = self.customer.date_updated
         self.assertIsNotNone(initial_date_updated)
         with schema_context("public"):
-            # TODO: update unittest
-            # mock_request = self.request_context["request"]
-            # middleware = KokuTenantMiddleware()
-            # middleware._get_tenant(mock_request)
-            # self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
-            # remove_stale_tenants()  # Check that it is not clearing the cache unless removing
-            # self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            mock_request = self.request_context["request"]
+            middleware = KokuTenantMiddleware()
+            middleware._get_tenant(mock_request)
+            self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            remove_stale_tenants()  # Check that it is not clearing the cache unless removing
+            self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             self.customer.date_updated = DateHelper().n_days_ago(self.customer.date_updated, days)
             self.customer.save()
             before_len = Tenant.objects.count()

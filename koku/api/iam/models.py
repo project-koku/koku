@@ -13,7 +13,7 @@ from django.db import models
 from django.db import transaction
 from django_tenants.models import DomainMixin
 from django_tenants.models import TenantMixin
-from django_tenants.postgresql_backend.base import _check_schema_name
+from django_tenants.postgresql_backend.base import is_valid_schema_name
 from django_tenants.utils import schema_exists
 
 from koku.database import dbfunc_exists
@@ -163,7 +163,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 
         db_exc = None
         # Verify name structure
-        if not _check_schema_name(self.schema_name):
+        if not is_valid_schema_name(self.schema_name):
             exc = ValidationError(f'Invalid schema name: "{self.schema_name}"')
             LOG.error(f"{exc.__class__.__name__}:: {''.join(exc)}")
             raise exc

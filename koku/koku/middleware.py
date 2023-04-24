@@ -154,39 +154,36 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             return HttpResponseFailedDependency({"source": "Database", "exception": exception})
 
     def process_request(self, request):
-        """Check before super."""
+        """Process the incoming request and set the appropriate tenant.
+
+        Args:
+            request (HttpRequest): The incoming request object.
+
+        Returns:
+            HttpResponse: The response object if tenant setup fails.
+
+        Raises:
+            PermissionDenied: If the user does not have permissions for Cost Management.
+
+        """
 
         connection.set_schema_to_public()
 
         if not is_no_auth(request):
-            if hasattr(request, "user") and hasattr(request.user, "username"):
-                username = request.user.username
-                if username not in USER_CACHE:
-                    USER_CACHE[username] = request.user
-                    LOG.debug(f"User added to cache: {username}")
-                if not request.user.admin and request.user.access is None:
-                    LOG.warning("User %s is does not have permissions for Cost Management.", username)
-                    # For /user-access we do not want to raise the exception since the API will
-                    # return a false boolean response that the platfrom frontend code is expecting.
-                    if request.path != reverse("user-access"):
-                        raise PermissionDenied()
-            else:
+            self._check_user_has_access_to_cost_management(request)
+
+            if not self._cache_user(request.user):
                 return HttpResponseUnauthorizedRequest()
 
         try:
-            _tenant = None
-            if tenant := self._get_tenant(request):
-                _tenant = tenant
-            else:
-                schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
-                tenant_username = request.user.username
-                _tenant = self._create_tenant(tenant_username, schema_name)
 
-            hostname = self.hostname_from_request(request)  # inherited from superclass
-            _tenant.domain_url = hostname
-            request.tenant = _tenant
+            tenant = self._get_or_create_tenant(request)
+            # inherited from superclass
+            hostname = self.hostname_from_request(request)
+            tenant.domain_url = hostname
+            request.tenant = tenant
             connection.set_tenant(request.tenant)
-            self.setup_url_routing(request)  # inherited from superclass
+            self.setup_url_routing(request)
 
         except DisallowedHost:
             return HttpResponseNotFound()
@@ -196,14 +193,58 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             DB_CONNECTION_ERRORS_COUNTER.inc()
             return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
-    def _get_tenant(self, request):
+    def _check_user_has_access_to_cost_management(self, request):
+        """Check if the request is for an unauthenticated user or a user with valid credentials."""
+
+        if not (hasattr(request, "user") and hasattr(request.user, "username")):
+            return HttpResponseUnauthorizedRequest()
+
+        username = request.user.username
+        if username not in USER_CACHE:
+            USER_CACHE[username] = request.user
+            LOG.debug(f"User added to cache: {username}")
+
+        if not request.user.admin and request.user.access is None:
+            LOG.warning("User %s is does not have permissions for Cost Management.", username)
+            # For /user-access we do not want to raise the exception since the API will
+            # return a false boolean response that the platform frontend code is expecting.
+            if request.path != reverse("user-access"):
+                raise PermissionDenied()
+
+    def _cache_user(self, user):
+        """Add user to the cache if is not present."""
+
+        username = user.username
+        if username not in USER_CACHE:
+            USER_CACHE[username] = user
+            LOG.debug(f"User added to cache: {username}")
+            return False
+
+        return True
+
+    def _get_or_create_tenant(self, request):
+        """Get or create tenant"""
+
+        tenant_username = request.user.username
+        schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
+
+        if tenant := self._get_tenant_from_tenant_cache(request):
+            return tenant
+
+        if tenant := self._get_tenant_from_db(request, tenant_username, schema_name):
+            return tenant
+
+        return self._create_tenant()
+
+    def _get_tenant_from_tenant_cache(self, request):
         """Get tenant from tenant cache."""
 
         tenant_username = request.user.username
-        return KokuTenantMiddleware.tenant_cache.get(tenant_username)
+        tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
+        return tenant
 
-    def _create_tenant(self, tenant_username, schema_name="public"):
-        """Create a tenant"""
+    def _get_tenant_from_db(self, request, tenant_username, schema_name):
+        """Get tenant from database."""
 
         try:
             tenant = Tenant.objects.get(schema_name=schema_name)
@@ -213,8 +254,14 @@ class KokuTenantMiddleware(TenantMainMiddleware):
                     LOG.debug(f"Tenant added to cache: {tenant_username}")
             return tenant
         except Tenant.DoesNotExist:
-            tenant, __ = Tenant.objects.get_or_create(schema_name="public")
-            return tenant
+            LOG.info(f"Tenant does not exist: {tenant_username}")
+            return
+
+    def _create_tenant(self):
+        """Create a tenant"""
+
+        tenant, __ = Tenant.objects.get_or_create(schema_name="public")
+        return tenant
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):

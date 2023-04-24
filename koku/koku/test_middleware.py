@@ -7,6 +7,7 @@ import base64
 import json
 import logging
 import time
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -47,34 +48,82 @@ class KokuTenantMiddlewareTest(IamTestCase):
     def setUp(self):
         """Set up middleware tests."""
         super().setUp()
-        request = self.request_context["request"]
-        request.path = "/api/v1/tags/aws/"
+        self.request = self.request_context["request"]
+        self.request.path = "/api/v1/tags/aws/"
+        self.middleware = KokuTenantMiddleware()
 
-    def test_get_tenant_with_user(self):
-        """Test that the customer tenant is returned."""
+    def test_process_request_when_not_authenticated(self):
+        """Test that request for unaunthenticated user returns a 401 code"""
+
+        mock_request = self.request
+        mock_request.user = None
+        with patch("koku.middleware.KokuTenantMiddleware.hostname_from_request", return_value="localhost"):
+            with patch("koku.middleware.is_no_auth", return_value=False):
+                response = self.middleware.process_request(mock_request)
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 401)
+
+    def test_create_tenant(self):
+        """Test that a tenant is created if does not exist in database"""
+
+        tenant = MagicMock()
+        schema_name = "testschema"
+        tenant.schema_name = schema_name
+        mock_tenant_objects = MagicMock()
+        mock_tenant_objects.get_or_create.return_value = (tenant, True)
+
+        with patch("koku.middleware.Tenant.objects", mock_tenant_objects):
+            result = self.middleware._create_tenant()
+        self.assertIsNotNone(result)
+        self.assertEqual(result, tenant)
+        self.assertEqual(result.schema_name, schema_name)
+
+    def test_get_tenant_from_tenant_cache(self):
+        """Test that a tenant is returned when exists in tenant_cache"""
+
+        tenant = MagicMock()
+        tenant.schema_name = self.schema_name
+        mock_request = self.request
+        tenant_username = mock_request.user.username
+        KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+
+        with patch("koku.middleware.KokuTenantMiddleware.tenant_cache.get") as mock_cache_get:
+            mock_cache_get.return_value = tenant
+            result = self.middleware._get_tenant_from_tenant_cache(mock_request)
+
+        self.assertEqual(result, tenant)
+        self.assertEqual(result.schema_name, tenant.schema_name)
+
+    def test_get_tenant_from_db(self):
+        """Test that a tenant is returned when exists in Tenant database"""
+
         mock_request = self.request_context["request"]
-        middleware = KokuTenantMiddleware()
-        result = middleware.get_tenant(Tenant, "localhost", mock_request)
+        tenant_username = mock_request.user.username
+        result = self.middleware._get_tenant_from_db(mock_request, tenant_username, self.schema_name)
+        self.assertIsNotNone(result)
         self.assertEqual(result.schema_name, self.schema_name)
 
     def test_get_tenant_with_no_user(self):
         """Test that a 401 is returned."""
-        mock_request = Mock(path="/api/v1/tags/aws/", user=None)
-        middleware = KokuTenantMiddleware()
-        result = middleware.process_request(mock_request)
+
+        mock_request = self.request
+        mock_request.user = None
+        result = self.middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
 
     def test_get_tenant_user_not_found(self):
         """Test that a 401 is returned."""
+
         mock_user = Mock(spec=["not-username"])
-        mock_request = Mock(path="/api/v1/tags/aws/", user=mock_user)
-        middleware = KokuTenantMiddleware()
-        result = middleware.process_request(mock_request)
+        mock_request = self.request
+        mock_request.user = mock_user
+        result = self.middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
 
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_request_user_access_no_permissions(self, get_access_mock):
         """Test PermissionDenied is not raised for user-access calls"""
+
         mock_access = {}
         username = "mockuser"
         get_access_mock.return_value = mock_access
@@ -96,24 +145,22 @@ class KokuTenantMiddlewareTest(IamTestCase):
             request=mock_request,
         )
 
-        middleware = KokuTenantMiddleware()
         with patch.object(TenantMainMiddleware, "process_request") as mock_process_request:
-            _ = middleware.process_request(mock_request)
+            _ = self.middleware.process_request(mock_request)
             mock_process_request.assert_called()
 
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_request_denied(self, get_access_mock):
         """Test PermissionDenied is raised for non-user-access calls"""
+
         mock_access = {}
         username = "mockuser"
         get_access_mock.return_value = mock_access
 
         user_data = self._create_user_data()
         customer = self._create_customer_data()
-        request_context = self._create_request_context(
-            customer, user_data, create_customer=True, create_tenant=True, is_admin=False
-        )
-        mock_request = request_context["request"]
+        self._create_request_context(customer, user_data, create_customer=True, create_tenant=True, is_admin=False)
+        mock_request = self.request
         mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
         mock_user = Mock(username=username, admin=False, access=None)
@@ -125,22 +172,33 @@ class KokuTenantMiddlewareTest(IamTestCase):
             request=mock_request,
         )
 
-        middleware = KokuTenantMiddleware()
-
         with self.assertRaises(PermissionDenied):
-            _ = middleware.process_request(mock_request)
+            _ = self.middleware.process_request(mock_request)
 
     @patch("koku.middleware.KokuTenantMiddleware.tenant_cache", TTLCache(5, 3))
     def test_tenant_caching(self):
         """Test that the tenant cache is successfully storing and expiring."""
+
+        # Create a mock tenant and request
+        tenant = MagicMock()
+        tenant.schema_name = self.schema_name
         mock_request = self.request_context["request"]
-        middleware = KokuTenantMiddleware()
-        middleware.get_tenant(Tenant, "localhost", mock_request)  # Add one item to the cache
+        # Add user to the mock_request
+        mock_user = Mock(username="testuser")
+        mock_request.user = mock_user
+        tenant_username = mock_request.user.username
+
+        # Check that the cache is initially empty
+        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+
+        with patch("koku.middleware.KokuTenantMiddleware.tenant_cache.get") as mock_cache_get:
+            # Add one item to the cache
+            KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+            mock_cache_get.return_value = tenant
+            self.middleware._get_tenant_from_tenant_cache(mock_request)
+
         self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 1)
-        middleware.get_tenant(Tenant, "localhost", mock_request)  # Call the same tenant
-        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 1)  # Size should remain the same
-        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 1)
-        time.sleep(4)  # Wait the time greater than the ttl
+        time.sleep(4)  # Wait more than the ttl
         self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
 
 
