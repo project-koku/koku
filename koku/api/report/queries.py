@@ -16,7 +16,7 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
-from urllib.parse import quote_plus
+from urllib.parse import quote_from_bytes
 
 import ciso8601
 import numpy as np
@@ -108,7 +108,7 @@ class ReportQueryHandler(QueryHandler):
         self._category = parameters.category
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
-        self._delta = parameters.delta
+        self._delta = self._mapper.DELTA_REPLACEMENTS.get(parameters.delta, parameters.delta)
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
@@ -659,11 +659,10 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
-            group_data = self.parameters.get_group_by(tag)
-            if group_data:
-                tag = quote_plus(tag, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(tag)
-                group_by.append((tag_db_name, group_pos))
+            tag = str.encode(tag)
+            tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(tag)
+            group_by.append((tag_db_name, group_pos))
         return group_by
 
     def _get_aws_category_group_by(self):
@@ -673,11 +672,10 @@ class ReportQueryHandler(QueryHandler):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
                 db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                group_data = self.parameters.get_group_by(aws_category)
-                if group_data:
-                    aws_category = quote_plus(aws_category, safe=URL_ENCODED_SAFE)
-                    group_pos = self.parameters.url_data.index(aws_category)
-                    group_by.append((db_name, group_pos))
+                aws_category = str.encode(aws_category)
+                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(aws_category)
+                group_by.append((db_name, group_pos))
         return group_by
 
     @cached_property
@@ -793,7 +791,7 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         for group in groupby:
-            if group in data and pd.isnull(data.get(group)):
+            if group in data and pd.isnull(data.get(group)) or data.get(group) == "":
                 value = self._clean_prefix_grouping_labels(group)
                 group_label = f"No-{value}"
                 data[group] = group_label
@@ -978,6 +976,7 @@ class ReportQueryHandler(QueryHandler):
             "sup_total",
             "infra_total",
             "cost_total",
+            "cost_total_distributed",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
@@ -1265,6 +1264,7 @@ class ReportQueryHandler(QueryHandler):
         # e.g. date, account, region, availability zone, et cetera
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         delta_annotation = {self._delta: delta_field}
+
         previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
         previous_dict = OrderedDict()
         for row in previous_sums:

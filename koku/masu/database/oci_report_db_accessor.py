@@ -117,7 +117,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_id": bill_id,
         }
 
-        LOG.info(f"Summary SQL: {str(summary_sql)}")
         self._execute_trino_raw_sql_query(
             summary_sql, sql_params=summary_sql_params, log_ref="reporting_ocicostentrylineitem_daily_summary.sql"
         )

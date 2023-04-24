@@ -30,10 +30,24 @@ from api.query_handler import TruncDayString
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.test.util.constants import OCP_NAMESPACES
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
+
+
+def date_to_string(dt):
+    return dt.strftime("%Y-%m-%d")
+
+
+def string_to_date(dt):
+    return datetime.datetime.strptime(dt, "%Y-%m-%d").date()
+
+
+def get_distributed_cost(dikt):
+    "given a dictionary with a nested vlaues return distributed cost"
+    return dikt.get("values", [{}])[0].get("cost", {}).get("distributed", {}).get("value")
 
 
 class OCPReportViewTest(IamTestCase):
@@ -602,12 +616,6 @@ class OCPReportViewTest(IamTestCase):
         date_delta = relativedelta.relativedelta(months=1)
         last_month_end = self.dh.this_month_end - date_delta
 
-        def date_to_string(dt):
-            return dt.strftime("%Y-%m-%d")
-
-        def string_to_date(dt):
-            return datetime.datetime.strptime(dt, "%Y-%m-%d").date()
-
         with tenant_context(self.tenant):
             current_total = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
@@ -666,6 +674,100 @@ class OCPReportViewTest(IamTestCase):
             if values:
                 delta_value = values[0].get("delta_value")
             self.assertAlmostEqual(delta_value, expected_delta, 1)
+
+    def test_execute_query_ocp_costs_with_delta_distributed_cost(self):
+        """Test that deltas work for costs."""
+        url = reverse("reports-openshift-costs")
+        project_name = OCP_NAMESPACES[4]
+        params = {
+            "delta": "distributed_cost",
+            "group_by[project]": project_name,
+            "filter[resolution]": "daily",
+            "filter[time_scope_value]": "-1",
+            "filter[time_scope_units]": "month",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        this_month_start = self.dh.this_month_start
+        last_month_start = self.dh.last_month_start
+
+        date_delta = relativedelta.relativedelta(months=1)
+        last_month_end = self.dh.this_month_end - date_delta
+
+        self.cost_term = (
+            self.provider_map.cloud_infrastructure_cost_by_project
+            + self.provider_map.markup_cost_by_project
+            + self.provider_map.cost_model_cost
+            + self.provider_map.cost_model_distributed_cost_by_project
+        )
+
+        with tenant_context(self.tenant):
+            current_total = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=this_month_start.date(), namespace=project_name
+                )
+                .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
+                .aggregate(total=self.cost_term)
+                .get("total")
+            )
+            current_total = current_total if current_total is not None else 0
+
+            current_totals = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=this_month_start.date(), namespace=project_name
+                )
+                .annotate(
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
+                )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
+            )
+
+            prev_totals = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=last_month_start.date(), namespace=project_name
+                )
+                .filter(usage_start__lte=last_month_end.date())
+                .annotate(
+                    **{
+                        "date": TruncDayString("usage_start"),
+                        "infra_exchange_rate": Value(Decimal(1.0)),
+                        "exchange_rate": Value(Decimal(1.0)),
+                    }
+                )
+                .values(*["date"])
+                .annotate(total=self.cost_term)
+            )
+
+        current_totals = {total.get("date"): total.get("total") for total in current_totals}
+        prev_totals = {
+            date_to_string(string_to_date(total.get("date")) + date_delta): total.get("total")
+            for total in prev_totals
+            if date_to_string(string_to_date(total.get("date")) + date_delta) in current_totals
+        }
+
+        prev_total = sum(prev_totals.values())
+        prev_total = prev_total if prev_total is not None else 0
+        expected_delta = current_total - prev_total
+        delta = data.get("meta", {}).get("delta", {}).get("value")
+        self.assertNotEqual(delta, Decimal(0))
+        self.assertAlmostEqual(delta, expected_delta, 6)
+        tested = False
+        for item in data.get("data"):
+            date = item.get("date")
+            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
+            if projects := item.get("projects"):
+                values = projects[0].get("values", [])
+                delta_value = values[0].get("delta_value")
+                self.assertAlmostEqual(delta_value, expected_delta, 1)
+                tested = True
+        self.assertTrue(tested)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self):
         """Test that bad deltas don't work for costs."""
@@ -1243,6 +1345,92 @@ class OCPReportViewTest(IamTestCase):
                     else:
                         current_value = entry.get("values", [])[0].get(option, {}).get("value")
                     self.assertTrue(current_value <= previous_value)
+                    previous_value = current_value
+
+    def test_order_by_distributed_cost_ranked_list(self):
+        """Test that data is grouped by & limited using offset.
+
+        - offset here triggers our ranked list logic
+        """
+        limit_size = 2
+        for order_option in ["asc", "desc"]:
+            with self.subTest(order_option=order_option):
+                client = APIClient()
+                params = {
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-1",
+                    "filter[time_scope_units]": "month",
+                    "group_by[project]": "*",
+                    "order_by[distributed_cost]": order_option,
+                    "filter[limit]": limit_size,
+                    "filter[offset]": 0,
+                }
+                url = f'{reverse("reports-openshift-costs")}?' + urlencode(params, quote_via=quote_plus)
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+                data = response.json()
+                self.assertTrue(data.get("links", {}).get("next"))
+                self.assertTrue(data.get("links", {}).get("last"))
+                data = data.get("data", [])
+                self.assertTrue(data)
+                projects = data[0].get("projects")
+                self.assertEqual(len(projects), limit_size)
+                # Grab first element
+                for project in projects:
+                    if project.get("project") in ("Others", "No-project"):
+                        continue
+                    previous_value = get_distributed_cost(project)
+                    self.assertIsNotNone(previous_value)
+                    break
+                for entry in projects:
+                    if entry.get("project", "") in ("Others", "No-project"):
+                        continue
+                    current_value = get_distributed_cost(entry)
+                    if order_option == "desc":
+                        self.assertTrue(current_value <= previous_value)
+                    else:
+                        self.assertTrue(current_value >= previous_value)
+                    previous_value = current_value
+
+    def test_execute_query_with_group_by_project_order_by_distributed_cost(self):
+        """Test that data is grouped by and limited on order by."""
+        for order_option in ["asc", "desc"]:
+            with self.subTest(order_option=order_option):
+                client = APIClient()
+                params = {
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-1",
+                    "filter[time_scope_units]": "month",
+                    "group_by[project]": "*",
+                    "order_by[distributed_cost]": order_option,
+                    "filter[limit]": 5,
+                }
+
+                url = f'{reverse("reports-openshift-costs")}?' + urlencode(params, quote_via=quote_plus)
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+                data = response.json()
+                data = data.get("data", [])
+                self.assertTrue(data)
+                projects = data[0].get("projects")
+                self.assertIsNotNone(projects)
+                # Grab first element
+                for project in projects:
+                    if project.get("project") in ("Others", "No-project"):
+                        continue
+                    previous_value = get_distributed_cost(project)
+                    self.assertIsNotNone(previous_value)
+                    break
+                for entry in projects:
+                    if entry.get("project", "") in ("Others", "No-project"):
+                        continue
+                    current_value = get_distributed_cost(entry)
+                    if order_option == "desc":
+                        self.assertTrue(current_value <= previous_value)
+                    else:
+                        self.assertTrue(current_value >= previous_value)
                     previous_value = current_value
 
     def test_execute_query_with_order_by(self):

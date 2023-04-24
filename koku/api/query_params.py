@@ -429,9 +429,7 @@ class QueryParameters:
             return
         enabled_category_keys = set()
         with tenant_context(self.tenant):
-            enabled_category_keys.update(
-                AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct()
-            )
+            enabled_category_keys.update(AWSEnabledCategoryKeys.objects.values_list("key", flat=True).distinct())
         if not enabled_category_keys:
             return
         # Make sure keys passed in exist in the DB.

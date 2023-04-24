@@ -24,9 +24,11 @@ import masu.prometheus_stats as worker_stats
 from api.common import log_json
 from api.iam.models import Tenant
 from api.provider.models import Provider
+from api.utils import DateHelper
 from api.utils import get_months_in_date_range
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
+from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -57,6 +59,7 @@ from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
+from masu.util.common import get_path_prefix
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 
@@ -475,8 +478,9 @@ def update_summary_tables(  # noqa: C901
 
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
-        start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month=invoice_month)
-        updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month=invoice_month)
+        start_date, end_date = updater.update_summary_tables(
+            start_date, end_date, tracing_id, invoice_month=invoice_month
+        )
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
@@ -1078,3 +1082,73 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
 
         file_name = f"ocp_on_{provider_type}_{i}"
         processor.process(file_name, [data_frame])
+
+
+@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_daily", queue=GET_REPORT_FILES_QUEUE, bind=True)
+def process_daily_openshift_on_cloud(
+    self, schema_name, provider_uuid, bill_date, start_date, end_date, tracing_id=None
+):
+    """Process daily partitioned OpenShift on Cloud parquet files using Trino."""
+    provider = Provider.objects.get(uuid=provider_uuid)
+    provider_type = provider.type.replace("-local", "")
+
+    table_info = {
+        Provider.PROVIDER_GCP: {
+            "table": "gcp_line_items_daily",
+            "date_columns": ["usage_start_time", "usage_end_time"],
+            "date_where_clause": "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, TIMESTAMP '{0}')",  # noqa: E501
+        },
+    }
+    table_name = table_info.get(provider_type).get("table")
+    provider_where_clause = table_info.get(provider_type).get("date_where_clause")
+    if isinstance(bill_date, str):
+        bill_date = ciso8601.parse_datetime(bill_date)
+    year = bill_date.strftime("%Y")
+    month = bill_date.strftime("%m")
+    invoice_month = bill_date.strftime("%Y%m")
+
+    base_where_clause = f"WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}'"
+
+    days = DateHelper().list_days(start_date, end_date)
+    for day in days:
+        today_where_clause = f"{base_where_clause} AND {provider_where_clause.format(day)}"
+        table_count_sql = f"SELECT count(*) FROM {table_name} {today_where_clause}"
+        count, _ = execute_trino_query(schema_name, table_count_sql)
+        count = count[0][0]
+
+        processor = OCPCloudParquetReportProcessor(
+            schema_name,
+            "",
+            provider_uuid,
+            provider_type,
+            0,
+            context={"tracing_id": tracing_id, "start_date": day.date(), "invoice_month": invoice_month},
+        )
+        daily_s3_path = get_path_prefix(
+            processor.account,
+            processor.provider_type,
+            processor.provider_uuid,
+            day,
+            Config.PARQUET_DATA_TYPE,
+            report_type=processor.report_type,
+            daily=True,
+            partition_daily=True,
+        )
+        remove_files_not_in_set_from_s3_bucket(tracing_id, daily_s3_path, 0, processor.error_context)
+        for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
+            query_sql = (
+                f"SELECT * FROM {table_name}"
+                f" {today_where_clause} "
+                f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            )
+            results, columns = execute_trino_query(schema_name, query_sql)
+            data_frame = pd.DataFrame(data=results, columns=columns)
+            data_frame = data_frame.drop(
+                columns=[col for col in {"source", "year", "month", "day"} if col in data_frame.columns]
+            )
+            for column in table_info.get(provider_type).get("date_columns"):
+                if column in data_frame.columns:
+                    data_frame[column] = pd.to_datetime(data_frame[column])
+
+            file_name = f"ocp_on_{provider_type}_{i}"
+            processor.process(file_name, [data_frame])

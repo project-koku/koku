@@ -19,7 +19,6 @@ from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.utils import DateHelper
-from koku.database import get_model
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -47,8 +46,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
         cls.all_tables = list(GCP_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             GCP_REPORT_TABLE_MAP["bill"],
-            GCP_REPORT_TABLE_MAP["product"],
-            GCP_REPORT_TABLE_MAP["project"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -253,7 +250,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.line_item_table, get_model("GCPCostEntryLineItem"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)

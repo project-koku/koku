@@ -103,13 +103,11 @@ class TestProviderDeleteSQL(IamTestCase):
             azureceb.save()
 
         expected = "reporting_azurecostentrybill"
-        expected2 = "DELETE CASCADE BRANCH TO reporting_azuremeter"
         expected3 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
             pazure.delete()
             _log_output = "\n".join(_logger.output)
             self.assertIn(expected, _log_output)
-            self.assertIn(expected2, _log_output)
             self.assertIn(expected3, _log_output)
 
         with schema_context(c.schema_name):

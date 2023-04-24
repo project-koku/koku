@@ -316,17 +316,6 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     if skip_relations is None:
         skip_relations = []
 
-    # Skip the low-level data.
-    skip_relations.extend(
-        (
-            get_model("reporting_awscostentrylineitem"),
-            get_model("reporting_gcpcostentrylineitem"),
-            get_model("reporting_ocpusagelineitem"),
-            get_model("reporting_ocpnodelabellineitem"),
-            get_model("reporting_ocpstoragelineitem"),
-        )
-    )
-
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
     LOG.debug(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:

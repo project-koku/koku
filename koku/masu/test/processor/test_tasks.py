@@ -59,6 +59,7 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
+from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
@@ -73,7 +74,6 @@ from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
@@ -144,10 +144,10 @@ class GetReportFileTests(MasuTestCase):
         """Test task for logging when temp directory does not exist."""
         logging.disable(logging.NOTSET)
 
-        Config.PVC_DIR = "/this/path/does/not/exist"
+        Config.DATA_DIR = "/this/path/does/not/exist"
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = "Unable to find" + f" available disk space. {Config.PVC_DIR} does not exist"
+        expected = "Unable to find" + f" available disk space. {Config.DATA_DIR} does not exist"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -597,6 +597,49 @@ class TestProcessorTasks(MasuTestCase):
         mock_s3_delete.assert_called()
         mock_process.assert_called()
 
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process")
+    @patch("masu.processor.tasks.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.processor.tasks.execute_trino_query")
+    def test_process_daily_openshift_on_cloud(self, mock_trino, mock_s3_delete, mock_process):
+        """Test the process_daily_openshift_on_cloud task."""
+        tracing_id = uuid4()
+        month_start = DateHelper().last_month_start
+        end_date = month_start.replace(day=14)
+        year = month_start.strftime("%Y")
+        month = month_start.strftime("%m")
+        mock_trino.return_value = ([[1000]], ["column_name"])
+        process_daily_openshift_on_cloud(
+            self.schema, self.gcp_provider_uuid, month_start, month_start, end_date, tracing_id=tracing_id
+        )
+        day_where_clause = (
+            "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, TIMESTAMP '{0}')"
+        )
+        days = DateHelper().list_days(month_start, end_date)
+        expected_calls = []
+        for day in days:
+            today_where_clause = day_where_clause.format(day)
+            expected_count_sql = (
+                "SELECT count(*) FROM gcp_line_items_daily "
+                f"WHERE source='{self.gcp_provider_uuid}' AND year='{year}'"
+                f" AND month='{month}' AND {today_where_clause}"
+            )
+
+            expected_fetch_sql = (
+                "SELECT * FROM gcp_line_items_daily "
+                f"WHERE source='{self.gcp_provider_uuid}' AND year='{year}'"
+                f" AND month='{month}' AND {today_where_clause}"
+                f" OFFSET 0 LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            )
+            expected_calls.extend(
+                [
+                    call(self.schema, expected_count_sql),
+                    call(self.schema, expected_fetch_sql),
+                ]
+            )
+        mock_trino.assert_has_calls(expected_calls, any_order=True)
+        mock_s3_delete.assert_called()
+        mock_process.assert_called()
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -626,8 +669,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.aws_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
-
-        cls.creator = ReportObjectCreator(cls.schema)
 
     def setUp(self):
         """Set up each test."""
@@ -711,13 +752,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             for item in items:
                 self.assertNotEqual(item.infrastructure_usage_cost.get("cpu"), 0)
                 self.assertNotEqual(item.infrastructure_usage_cost.get("memory"), 0)
-
-            storage_daily_name = OCP_REPORT_TABLE_MAP["storage_line_item_daily"]
-
-            items = self.ocp_accessor._get_db_obj_query(storage_daily_name).filter(cluster_id=cluster_id)
-            for item in items:
-                self.assertIsNotNone(item.volume_request_storage_byte_seconds)
-                self.assertIsNotNone(item.persistentvolumeclaim_usage_byte_seconds)
 
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
@@ -1167,6 +1201,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that this task runs."""
         start_date = DateHelper().this_month_start.date()
         end_date = DateHelper().today.date()
+        mock_updater.return_value = (start_date, end_date)
 
         update_summary_tables(
             self.schema,
@@ -1283,7 +1318,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.group")
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
@@ -1298,7 +1332,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_update_cost,
         mock_complete,
         mock_chain,
-        mock_daily,
         mock_summary,
         mock_delay,
         mock_ocp_on_cloud,
@@ -1311,7 +1344,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
         mock_lock.side_effect = self.lock_single_task
 
-        mock_daily.return_value = start_date, end_date
         mock_summary.return_value = start_date, end_date
         update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
         mock_delay.assert_not_called()
@@ -1337,7 +1369,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
@@ -1352,7 +1383,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_update_cost,
         mock_complete,
         mock_chain,
-        mock_daily,
         mock_summary,
         mock_delay,
     ):
@@ -1363,7 +1393,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
-        mock_daily.return_value = start_date, end_date
         mock_summary.side_effect = ReportProcessorError
         with self.assertRaises(ReportProcessorError):
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
@@ -1372,7 +1401,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
@@ -1387,7 +1415,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_update_cost,
         mock_complete,
         mock_chain,
-        mock_daily,
         mock_summary,
         mock_delay,
     ):
@@ -1395,7 +1422,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
-        mock_daily.return_value = start_date, end_date
         mock_summary.side_effect = ReportSummaryUpdaterCloudError
         expected = "Failed to correlate"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
@@ -1408,7 +1434,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
@@ -1423,7 +1448,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_update_cost,
         mock_complete,
         mock_chain,
-        mock_daily,
         mock_summary,
         mock_delay,
     ):
@@ -1431,7 +1455,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
-        mock_daily.return_value = start_date, end_date
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
         expected = "Processing for this provier will halt."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:

@@ -317,7 +317,17 @@ class ParamSerializer(BaseSerializer):
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
 
-    order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
+    order_by_allowlist = (
+        "cost",
+        "supplementary",
+        "infrastructure",
+        "delta",
+        "usage",
+        "request",
+        "limit",
+        "capacity",
+        "cost_total_distributed",
+    )
 
     def validate(self, data):
         """Validate incoming data.
@@ -575,13 +585,11 @@ class ReportQueryParamSerializer(ParamSerializer):
 
     def validate_delta(self, value):
         """Validate incoming delta value based on path."""
-        valid_delta = "usage"
+        valid_deltas = ["usage"]
         request = self.context.get("request")
         if request and "costs" in request.path:
-            valid_delta = "cost_total"
-            if value == "cost":
-                return valid_delta
-        if value != valid_delta:
+            valid_deltas = ["cost", "cost_total", "distributed_cost"]
+        if value not in valid_deltas:
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         return value

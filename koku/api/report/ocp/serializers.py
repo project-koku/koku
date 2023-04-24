@@ -28,12 +28,21 @@ class OCPGroupBySerializer(GroupSerializer):
 class OCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("project", "cluster", "node", "date")
+    _opfields = ("project", "cluster", "node", "date", "distributed_cost")
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
+    cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        internal_values = {"distributed_cost": "cost_total_distributed"}
+        for serializer_key, internal_key in internal_values.items():
+            if serializer_key in data.keys():
+                data[internal_key] = data.pop(serializer_key)
+        return super().to_internal_value(data)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
@@ -144,9 +153,9 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 
     ORDER_BY_SERIALIZER = InventoryOrderBySerializer
 
-    delta_choices = ("cost", "usage", "request", "cost_total")
+    delta_choices = ("cost", "usage", "request", "cost_total", "distributed_cost")
 
-    delta_fields = ("usage", "request", "limit", "capacity")
+    delta_fields = ("usage", "request", "limit", "capacity", "distributed_cost")
 
     delta = serializers.CharField(required=False)
 
@@ -174,6 +183,6 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
 
-    DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"))
+    DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"), ("distributed_cost", "distributed_cost"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
