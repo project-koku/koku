@@ -1624,7 +1624,7 @@ class TestRemoveStaleTenants(MasuTestCase):
         with schema_context("public"):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
-            middleware._get_tenant(mock_request)
+            middleware._get_or_create_tenant(mock_request)
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
