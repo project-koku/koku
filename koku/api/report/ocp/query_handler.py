@@ -148,10 +148,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """A flag that lets UI know there is is distributed cost so that they can show a drop down."""
         if is_grouped_by_project(self.parameters):
             output["distributed_overhead"] = False
-            check = self.query_table.objects.filter(self.query_filter).filter(
-                cost_model_rate_type__in=["platform_distributed", "worker_distributed"]
-            )
-            if check:
+            if (
+                self.query_table.objects.filter(self.query_filter)
+                .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
+                .exists()
+            ):
                 output["distributed_overhead"] = True
         return output
 
