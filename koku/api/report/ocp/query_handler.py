@@ -144,8 +144,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
         }
 
-    def _check_if_distributed_overhead(self, output):
-        """A flag that lets UI know there is is distributed cost so that they can show a drop down."""
+    def _format_query_response(self):
+        """Format the query response with data.
+
+        Returns:
+            (Dict): Dictionary response of query params, data, and total
+
+        """
+        output = self._initialize_response_output(self.parameters)
+        # Add a distributed_overhead flag so that the UI
+        # knows whether or not to show the overhead dropdown.
         if self._report_type == "costs_by_project":
             with tenant_context(self.tenant):
                 output["distributed_overhead"] = False
@@ -155,17 +163,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     .exists()
                 ):
                     output["distributed_overhead"] = True
-        return output
-
-    def _format_query_response(self):
-        """Format the query response with data.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        output = self._initialize_response_output(self.parameters)
-        output = self._check_if_distributed_overhead(output)
         output["data"] = self.query_data
 
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
