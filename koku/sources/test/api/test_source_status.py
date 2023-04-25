@@ -37,11 +37,10 @@ class SourcesStatusTest(IamTestCase):
 
         When there's no provider or source, the endpoint should return 404.
         """
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            url = reverse("source-status")
-            client = APIClient()
-            response = client.get(url + "?source_id=1", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        url = reverse("source-status")
+        client = APIClient()
+        response = client.get(url + "?source_id=1", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_mock_response_returns_false(self):
         """
@@ -82,12 +81,11 @@ class SourcesStatusTest(IamTestCase):
         The API should respond with an error that there is a missing query paramter 'source_id'
         The API should respond with HTTP_400_BAD_REQUEST
         """
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            url = reverse("source-status")
-            client = APIClient()
-            response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertEqual(response.data, "Missing query parameter source_id")
+        url = reverse("source-status")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, "Missing query parameter source_id")
 
     def test_source_id_not_integer(self):
         """
@@ -96,34 +94,32 @@ class SourcesStatusTest(IamTestCase):
         The API should respond with an error that the source_id must be an integer
         The API should respond with HTTP_400_BAD_REQUEST
         """
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            url = reverse("source-status")
-            client = APIClient()
-            response = client.get(url + "?source_id=string", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertEqual(response.data, "source_id must be an integer")
+        url = reverse("source-status")
+        client = APIClient()
+        response = client.get(url + "?source_id=string", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, "source_id must be an integer")
 
     def test_post_status(self):
         """Test that the API pushes sources status with POST."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
-                url = reverse("source-status")
-                client = APIClient()
-                # Insert a source with ID 1
-                Sources.objects.create(
-                    source_id=1,
-                    name="New AWS Mock Test Source",
-                    source_type=Provider.PROVIDER_AWS,
-                    authentication={"authentication": {"rolearn": "myarn"}},
-                    billing_source={"bucket": "my-bucket"},
-                    koku_uuid="uuid",
-                    offset=1,
-                )
-                json_data = {"source_id": 1}
-                with patch.object(SourcesHTTPClient, "set_source_status", return_value=True):
-                    response = client.post(url, data=json_data, **self.headers)
-                self.assertEqual(response.status_code, 204)
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            url = reverse("source-status")
+            client = APIClient()
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=1,
+                name="New AWS Mock Test Source",
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"authentication": {"rolearn": "myarn"}},
+                billing_source={"bucket": "my-bucket"},
+                koku_uuid="uuid",
+                offset=1,
+            )
+            json_data = {"source_id": 1}
+            with patch.object(SourcesHTTPClient, "set_source_status", return_value=True):
+                response = client.post(url, data=json_data, **self.headers)
+            self.assertEqual(response.status_code, 204)
 
     @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
     @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
@@ -312,24 +308,23 @@ class SourcesStatusTest(IamTestCase):
     def test_post_status_error(self):
         """Test that the API pushes sources status with POST with connection error."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
-                url = reverse("source-status")
-                client = APIClient()
-                # Insert a source with ID 1
-                Sources.objects.create(
-                    source_id=1,
-                    name="New AWS Mock Test Source",
-                    source_type=Provider.PROVIDER_AWS,
-                    authentication={"authentication": {"rolearn": "myarn"}},
-                    billing_source={"bucket": "my-bucket"},
-                    koku_uuid="uuid",
-                    offset=1,
-                )
-                json_data = {"source_id": 1}
-                with patch.object(SourcesHTTPClient, "set_source_status", side_effect=SourcesHTTPClientError):
-                    response = client.post(url, data=json_data, **self.headers)
-                self.assertEqual(response.status_code, 204)
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            url = reverse("source-status")
+            client = APIClient()
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=1,
+                name="New AWS Mock Test Source",
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"authentication": {"rolearn": "myarn"}},
+                billing_source={"bucket": "my-bucket"},
+                koku_uuid="uuid",
+                offset=1,
+            )
+            json_data = {"source_id": 1}
+            with patch.object(SourcesHTTPClient, "set_source_status", side_effect=SourcesHTTPClientError):
+                response = client.post(url, data=json_data, **self.headers)
+            self.assertEqual(response.status_code, 204)
 
     def test_available(self):
         """Test that availability status is available when cost_usage_source_ready is True."""
@@ -372,20 +367,19 @@ class SourcesStatusTest(IamTestCase):
         ]
         for i, test in enumerate(test_matrix):
             with self.subTest(test=test):
-                with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-                    with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                        provider = Provider.objects.create(
-                            name=test.get("name"), created_by=request.user, customer=request.user.customer, active=True
-                        )
-                        test["koku_uuid"] = str(provider.uuid)
-                        url = reverse("source-status")
-                        client = APIClient()
-                        # Insert a source with ID 1
-                        Sources.objects.create(source_id=i, **test)
-                        response = client.get(url + f"?source_id={i}", **self.headers)
-                        actual_source_status = response.data
-                        self.assertEqual("available", actual_source_status.get("availability_status"))
-                        self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
+                with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                    provider = Provider.objects.create(
+                        name=test.get("name"), created_by=request.user, customer=request.user.customer, active=True
+                    )
+                    test["koku_uuid"] = str(provider.uuid)
+                    url = reverse("source-status")
+                    client = APIClient()
+                    # Insert a source with ID 1
+                    Sources.objects.create(source_id=i, **test)
+                    response = client.get(url + f"?source_id={i}", **self.headers)
+                    actual_source_status = response.data
+                    self.assertEqual("available", actual_source_status.get("availability_status"))
+                    self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
     @override_settings(
         DEMO_ACCOUNTS={"123": {"arn:aws:iam::999:role/DEMO": {"report_prefix": "cur", "report_name": "awscost"}}}
@@ -483,18 +477,17 @@ class SourcesStatusTest(IamTestCase):
         ]
         for i, test in enumerate(test_matrix):
             with self.subTest(test=test):
-                with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-                    with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                        provider = Provider.objects.create(
-                            name=test.get("name"), created_by=request.user, customer=request.user.customer, active=True
-                        )
-                        test["koku_uuid"] = str(provider.uuid)
-                        url = reverse("source-status")
-                        client = APIClient()
-                        # Insert a source with ID 1
-                        Sources.objects.create(source_id=i, **test)
-                        response = client.get(url + f"?source_id={i}", **self.headers)
-                        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+                with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                    provider = Provider.objects.create(
+                        name=test.get("name"), created_by=request.user, customer=request.user.customer, active=True
+                    )
+                    test["koku_uuid"] = str(provider.uuid)
+                    url = reverse("source-status")
+                    client = APIClient()
+                    # Insert a source with ID 1
+                    Sources.objects.create(source_id=i, **test)
+                    response = client.get(url + f"?source_id={i}", **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_aws_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
@@ -510,14 +503,13 @@ class SourcesStatusTest(IamTestCase):
             koku_uuid=faker.uuid4(),
             offset=1,
         )
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            response = client.get(url + "?source_id=1", **self.headers)
-            actual_source_status = response.data
-            expected = {
-                "availability_status": "unavailable",
-                "availability_status_error": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE,
-            }
-            self.assertEqual(actual_source_status, expected)
+        response = client.get(url + "?source_id=1", **self.headers)
+        actual_source_status = response.data
+        expected = {
+            "availability_status": "unavailable",
+            "availability_status_error": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE,
+        }
+        self.assertEqual(actual_source_status, expected)
 
     @patch("providers.azure.client.ClientSecretCredential")
     def test_azure_unavailable(self, mock_client_credential):
@@ -541,14 +533,13 @@ class SourcesStatusTest(IamTestCase):
             koku_uuid=faker.uuid4(),
             offset=1,
         )
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            response = client.get(url + "?source_id=1", **self.headers)
-            actual_source_status = response.data
-            expected = {
-                "availability_status": "unavailable",
-                "availability_status_error": ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE,
-            }
-            self.assertEqual(actual_source_status, expected)
+        response = client.get(url + "?source_id=1", **self.headers)
+        actual_source_status = response.data
+        expected = {
+            "availability_status": "unavailable",
+            "availability_status_error": ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE,
+        }
+        self.assertEqual(actual_source_status, expected)
 
     def test_ocp_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
@@ -564,14 +555,13 @@ class SourcesStatusTest(IamTestCase):
             koku_uuid=faker.uuid4(),
             offset=1,
         )
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            response = client.get(url + "?source_id=1", **self.headers)
-            actual_source_status = response.data
-            expected = {
-                "availability_status": "unavailable",
-                "availability_status_error": "Provider resource name is a required parameter for OCP.",
-            }
-            self.assertEqual(actual_source_status, expected)
+        response = client.get(url + "?source_id=1", **self.headers)
+        actual_source_status = response.data
+        expected = {
+            "availability_status": "unavailable",
+            "availability_status_error": "Provider resource name is a required parameter for OCP.",
+        }
+        self.assertEqual(actual_source_status, expected)
 
     # TODO double check these new tests
     def test_post_status_provider_available(self):
@@ -579,26 +569,24 @@ class SourcesStatusTest(IamTestCase):
         request = self.request_context.get("request")
         source_id = 1
         source_name = "New AWS Mock Test Source"
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            provider = Provider.objects.create(
+                name=source_name, created_by=request.user, customer=request.user.customer, active=False
+            )
 
-        with patch("koku.middleware.KokuTenantMiddleware._cache_user", return_value=True):
-            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                provider = Provider.objects.create(
-                    name=source_name, created_by=request.user, customer=request.user.customer, active=False
-                )
+            Sources.objects.create(
+                source_id=1,
+                name=source_name,
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"credentials": {"role_arn": "fake-iam"}},
+                billing_source={"data_source": {"bucket": "my-bucket"}},
+                koku_uuid=str(provider.uuid),
+                offset=1,
+            )
+            status_obj = SourceStatus(source_id)
+            status_obj.status()
 
-                Sources.objects.create(
-                    source_id=1,
-                    name=source_name,
-                    source_type=Provider.PROVIDER_AWS,
-                    authentication={"credentials": {"role_arn": "fake-iam"}},
-                    billing_source={"data_source": {"bucket": "my-bucket"}},
-                    koku_uuid=str(provider.uuid),
-                    offset=1,
-                )
-                status_obj = SourceStatus(source_id)
-                status_obj.status()
-
-                self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
+            self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
     def test_post_status_provider_unavailable(self):
         """Test that the provider active flag is set to true when source is unavailable."""

@@ -172,9 +172,6 @@ class KokuTenantMiddleware(TenantMainMiddleware):
         if not is_no_auth(request):
             self._check_user_has_access_to_cost_management(request)
 
-            if not self._cache_user(request.user):
-                return HttpResponseUnauthorizedRequest()
-
         try:
 
             tenant = self._get_or_create_tenant(request)
@@ -196,31 +193,19 @@ class KokuTenantMiddleware(TenantMainMiddleware):
     def _check_user_has_access_to_cost_management(self, request):
         """Check if the request is for an unauthenticated user or a user with valid credentials."""
 
-        if not (hasattr(request, "user") and hasattr(request.user, "username")):
+        if hasattr(request, "user") and hasattr(request.user, "username"):
+            username = request.user.username
+            if username not in USER_CACHE:
+                USER_CACHE[username] = request.user
+                LOG.debug(f"User added to cache: {username}")
+            if not request.user.admin and request.user.access is None:
+                LOG.warning("User %s is does not have permissions for Cost Management.", username)
+                # For /user-access we do not want to raise the exception since the API will
+                # return a false boolean response that the platfrom frontend code is expecting.
+                if request.path != reverse("user-access"):
+                    raise PermissionDenied()
+        else:
             return HttpResponseUnauthorizedRequest()
-
-        username = request.user.username
-        if username not in USER_CACHE:
-            USER_CACHE[username] = request.user
-            LOG.debug(f"User added to cache: {username}")
-
-        if not request.user.admin and request.user.access is None:
-            LOG.warning("User %s is does not have permissions for Cost Management.", username)
-            # For /user-access we do not want to raise the exception since the API will
-            # return a false boolean response that the platform frontend code is expecting.
-            if request.path != reverse("user-access"):
-                raise PermissionDenied()
-
-    def _cache_user(self, user):
-        """Add user to the cache if is not present."""
-
-        username = user.username
-        if username not in USER_CACHE:
-            USER_CACHE[username] = user
-            LOG.debug(f"User added to cache: {username}")
-            return False
-
-        return True
 
     def _get_or_create_tenant(self, request):
         """Get or create tenant"""
