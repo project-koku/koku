@@ -429,22 +429,34 @@ class OCPInventoryQueryParamSerializerTest(IamTestCase):
     def test_order_by_distributed_cost_without_project(self):
         """Test that order_by[delta] does not work without a delta param."""
         self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
-        query_params = {"order_by": {"cost_distributed": "asc"}}
-        serializers_list = [OCPInventoryQueryParamSerializer, OCPQueryParamSerializer]
+        query_params = {"order_by": {"distributed_cost": "asc"}}
+        serializers_list = [
+            OCPInventoryQueryParamSerializer,
+            OCPQueryParamSerializer,
+            OCPCostQueryParamSerializer,
+            OCPOrderBySerializer,
+        ]
         for serializer_class in serializers_list:
-            serializer = serializer_class(data=query_params, context=self.ctx_w_path)
-            with self.assertRaises(serializers.ValidationError):
-                serializer.is_valid(raise_exception=True)
+            with self.subTest(serializer_class=serializer_class):
+                serializer = serializer_class(data=query_params, context=self.ctx_w_path)
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.is_valid(raise_exception=True)
 
     def test_delta_distributed_cost_without_project(self):
         """Test that order_by[delta] does not work without a delta param."""
         self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
-        query_params = {"delta": "cost_distributed"}
-        serializers_list = [OCPInventoryQueryParamSerializer, OCPQueryParamSerializer]
+        query_params = {"delta": "distributed_cost"}
+        serializers_list = [
+            OCPInventoryQueryParamSerializer,
+            OCPQueryParamSerializer,
+            OCPCostQueryParamSerializer,
+            OCPOrderBySerializer,
+        ]
         for serializer_class in serializers_list:
-            serializer = serializer_class(data=query_params, context=self.ctx_w_path)
-            with self.assertRaises(serializers.ValidationError):
-                serializer.is_valid(raise_exception=True)
+            with self.subTest(serializer_class=serializer_class):
+                serializer = serializer_class(data=query_params, context=self.ctx_w_path)
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.is_valid(raise_exception=True)
 
     def test_order_by_node_with_groupby(self):
         """Test that order_by[node] works with a matching group-by."""
