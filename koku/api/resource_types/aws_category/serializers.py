@@ -11,4 +11,11 @@ class AWSCategorySerializer(serializers.Serializer):
 
     key = serializers.CharField()
     values = serializers.ListField()
-    enabled = serializers.CharField(required=False)
+    enabled = serializers.CharField()
+
+
+class AWSCategoryKeyOnlySerializer(serializers.BaseSerializer):
+    child = serializers.CharField()
+
+    def to_representation(self, data):
+        return data
