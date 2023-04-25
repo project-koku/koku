@@ -201,11 +201,8 @@ class CloneSchemaTest(IamTestCase):
         """
         Test that creating a tenant with a bad name will throw an exception
         """
-        bad_schema_names = ["", "pg_bad_schema_name", "bad schema-name"]
 
-        for schema_name in bad_schema_names:
-            with self.subTest(param=schema_name):
-                with self.assertRaises(ValidationError):
-                    with patch("api.iam.models.is_valid_schema_name", return_value=False):
-                        t = Tenant.objects.create(schema_name=schema_name)
-                        t.create_schema()
+        with patch("api.iam.models.is_valid_schema_name", return_value=False):
+            with self.assertRaises(ValidationError):
+                t = Tenant.objects.create(schema_name="bad schema-name")
+                t.create_schema()
