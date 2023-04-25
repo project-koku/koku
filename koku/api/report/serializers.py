@@ -326,7 +326,7 @@ class ParamSerializer(BaseSerializer):
         "request",
         "limit",
         "capacity",
-        "distributed_cost",
+        "cost_total_distributed",
     )
 
     def validate(self, data):

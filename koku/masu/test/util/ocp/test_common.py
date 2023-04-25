@@ -17,7 +17,6 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from masu.util.ocp import common as utils
 
 
@@ -30,15 +29,8 @@ class OCPUtilTests(MasuTestCase):
         self.accessor = OCPReportDBAccessor(schema=self.schema)
         self.provider_accessor = ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid)
         self.report_schema = self.accessor.report_schema
-        self.creator = ReportObjectCreator(self.schema)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
-
         self.provider_uuid = self.provider_accessor.get_provider().uuid
-        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
-        report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
-        self.creator.create_ocp_usage_line_item(reporting_period, report)
-        self.creator.create_ocp_storage_line_item(reporting_period, report)
-        self.creator.create_ocp_node_label_line_item(reporting_period, report)
 
     def test_get_cluster_id_from_provider(self):
         """Test that the cluster ID is returned from OCP provider."""
