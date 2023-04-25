@@ -152,9 +152,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         output = self._initialize_response_output(self.parameters)
-        # Add a distributed_overhead flag so that the UI
-        # knows whether or not to show the overhead dropdown.
         if self._report_type == "costs_by_project":
+            # Add a boolean flag for the overhead dropdown in the UI
             with tenant_context(self.tenant):
                 output["distributed_overhead"] = False
                 if (
