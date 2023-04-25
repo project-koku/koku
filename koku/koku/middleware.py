@@ -162,6 +162,8 @@ class KokuTenantMiddleware(TenantMainMiddleware):
         Returns:
             HttpResponse: The response object if tenant setup fails.
 
+            HttpResponseNotFound: The response object if header contains invalid hostname.
+
         Raises:
             PermissionDenied: If the user does not have permissions for Cost Management.
 
