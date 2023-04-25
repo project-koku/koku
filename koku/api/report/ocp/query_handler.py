@@ -148,6 +148,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         output = self._initialize_response_output(self.parameters)
+        if self._report_type == "costs_by_project":
+            # Add a boolean flag for the overhead dropdown in the UI
+            with tenant_context(self.tenant):
+                output["distributed_overhead"] = False
+                if (
+                    self.query_table.objects.filter(self.query_filter)
+                    .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
+                    .exists()
+                ):
+                    output["distributed_overhead"] = True
         output["data"] = self.query_data
 
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
