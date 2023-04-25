@@ -792,7 +792,7 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         for group in groupby:
-            if group in data and pd.isnull(data.get(group)):
+            if group in data and pd.isnull(data.get(group)) or data.get(group) == "":
                 value = self._clean_prefix_grouping_labels(group)
                 group_label = f"No-{value}"
                 data[group] = group_label
