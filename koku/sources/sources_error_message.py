@@ -80,9 +80,9 @@ class SourcesErrorMessage:
             try:
                 err_body = err_dict.get(err_key, [None]).pop()
             except TypeError:
-                err_msg = str(self._error.detail).encode().decode("UTF-8")
+                err_msg = str(self._error.detail)
             else:
-                err_msg = err_body.encode().decode("UTF-8") or str(self._error.detail)
+                err_msg = err_body or str(self._error.detail)
 
         return err_key, err_msg
 
