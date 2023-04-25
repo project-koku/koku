@@ -76,10 +76,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
 
-        ocp_delta_replacements = copy.deepcopy(self._mapper.DELTA_REPLACEMENTS)
-        ocp_delta_replacements["distributed_cost"] = "cost_total_distributed"
-        self._mapper.DELTA_REPLACEMENTS = ocp_delta_replacements
-
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
@@ -152,6 +148,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         output = self._initialize_response_output(self.parameters)
+        if self._report_type == "costs_by_project":
+            # Add a boolean flag for the overhead dropdown in the UI
+            with tenant_context(self.tenant):
+                output["distributed_overhead"] = False
+                if (
+                    self.query_table.objects.filter(self.query_filter)
+                    .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
+                    .exists()
+                ):
+                    output["distributed_overhead"] = True
         output["data"] = self.query_data
 
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)

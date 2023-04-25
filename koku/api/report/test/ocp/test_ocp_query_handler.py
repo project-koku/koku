@@ -866,6 +866,20 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
+    def test_group_by_project_overhead_distributed(self):
+        """COST-1252: Test that grouping by project with limit works as expected."""
+        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
+        with tenant_context(self.tenant):
+            OCPCostSummaryByProjectP.objects.update(cost_model_rate_type="platform_distributed")
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertTrue(query_output.get("distributed_overhead"))
+
     def test_group_by_project_w_classification(self):
         """Test that classification works as expected."""
         url = "?group_by[project]=*&category=*"
