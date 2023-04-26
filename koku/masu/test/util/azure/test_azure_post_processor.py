@@ -37,16 +37,10 @@ class TestAzurePostProcessor(MasuTestCase):
 
         with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
             result, _ = self.post_processor.process_dataframe(df)
-            if isinstance(result, tuple):
-                result, df_tag_keys, _ = result
-                self.assertIsInstance(df_tag_keys, set)
-
             columns = list(result)
-
             expected_columns = sorted(
                 col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_COLUMNS
             )
-
             self.assertEqual(columns, expected_columns)
 
     def test_azure_date_converter(self):

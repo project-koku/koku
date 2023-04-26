@@ -6,9 +6,11 @@
 import copy
 import datetime
 import random
+from json import loads as json_loads
 from unittest.mock import patch
 
 import pandas as pd
+from dateutil.parser import ParserError
 
 from masu.test import MasuTestCase
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
@@ -62,6 +64,7 @@ class TestOCPPostProcessor(MasuTestCase):
             "node_capacity_memory_bytes": capacity,
             "node_capacity_memory_byte_seconds": capacity,
             "pod_labels": label,
+            "unexpected_column": None,
         }
 
         base_storage_data = {
@@ -76,6 +79,7 @@ class TestOCPPostProcessor(MasuTestCase):
             "persistentvolumeclaim_usage_byte_seconds": usage,
             "persistentvolume_labels": label,
             "persistentvolumeclaim_labels": label,
+            "unexpected_column": None,
         }
 
         base_node_data = {"node": node, "node_labels": label}
@@ -195,3 +199,57 @@ class TestOCPPostProcessor(MasuTestCase):
         expected = pd.to_datetime(expected_dt_str)
         dt = datetime_converter("2020-07-01 00:00:00 +0000 UTC")
         self.assertEqual(expected, dt)
+
+    def test_process_openshift_datetime_parse_error(self):
+        """Test process_openshift_datetime method with good and bad values."""
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        csv_converters, panda_kwargs = post_processor.get_column_converters(["report_period_start"], {})
+        self.assertEqual({}, panda_kwargs)
+        datetime_converter = csv_converters.get("report_period_start")
+        with patch("masu.util.ocp.ocp_post_processor.ciso8601.parse_datetime") as mock_parse:
+            mock_parse.side_effect = ParserError
+            dt = datetime_converter("parse error")
+            self.assertIsNone(dt)
+
+    def test_check_ingress_required_columns(self):
+        """Test that None is returned."""
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        self.assertIsNone(post_processor.check_ingress_required_columns([]))
+
+    def test_process_openshift_labels(self):
+        """Test that labels are correctly processed."""
+        converter_column = "pod_labels"
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        csv_converters, panda_kwargs = post_processor.get_column_converters([converter_column], {})
+        self.assertEqual({}, panda_kwargs)
+        label_converter = csv_converters.get(converter_column)
+        example_label = "label_environment:ruby|label_app:fall|label_version:red"
+        result = label_converter(example_label)
+        self.assertIsInstance(result, str)
+        result = json_loads(result)
+        self.assertEqual(result.get("environment"), "ruby")
+        self.assertEqual(result.get("app"), "fall")
+        self.assertEqual(result.get("version"), "red")
+
+    def test_process_openshift_labels_unexpected_strings(self):
+        """Test that unexpected labels return str of empty dict."""
+        converter_column = "pod_labels"
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        csv_converters, panda_kwargs = post_processor.get_column_converters([converter_column], {})
+        self.assertEqual({}, panda_kwargs)
+        label_converter = csv_converters.get(converter_column)
+        unexpected_strings = [
+            "label_environment:ruby?label_app:fall?label_version:red",  # no |
+            "label_environment?ruby|label_app?fall|label_version?red",  # no :
+        ]
+        for string in unexpected_strings:
+            result = label_converter(string)
+            self.assertIsInstance(result, str)
+            self.assertEqual(result, "{}")
+
+    def test_gernerate_daily_data_empty_dataframe(self):
+        """Test if we pass in an empty dataframe, we get one back."""
+        df = pd.DataFrame()
+        post_processor = OCPPostProcessor(self.schema, "storage_usage")
+        processed_df = post_processor._generate_daily_data(df)
+        self.assertTrue(processed_df.empty)
