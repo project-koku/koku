@@ -673,12 +673,6 @@ objects:
           value: ${VACUUM_DATA_DAY_OF_WEEK}
         - name: VACUUM_DATA_UTC_TIME
           value: ${VACUUM_DATA_UTC_TIME}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1165,12 +1159,6 @@ objects:
           value: ${WORKER_CELERY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1340,12 +1328,6 @@ objects:
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1517,12 +1499,6 @@ objects:
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1692,12 +1668,6 @@ objects:
           value: ${WORKER_OCP_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1869,12 +1839,6 @@ objects:
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2044,12 +2008,6 @@ objects:
           value: ${WORKER_REFRESH_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2221,12 +2179,6 @@ objects:
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2400,12 +2352,6 @@ objects:
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2829,18 +2775,6 @@ parameters:
 - description: Vacuum data utc time
   displayName: Vacuum data utc time
   name: VACUUM_DATA_UTC_TIME
-  value: "00:00"
-- description: Volume file retention length
-  displayName: Volume file retention length
-  name: VOLUME_FILE_RETENTION
-  value: "86400"
-- description: Clean volume on day
-  displayName: Clean volume on day
-  name: CLEAN_VOLUME_DAY_OF_WEEK
-  value: sunday
-- description: Clean volume utc time
-  displayName: Clean volume utc time
-  name: CLEAN_VOLUME_UTC_TIME
   value: "00:00"
 - displayName: Date overrider
   name: DATE_OVERRIDE
