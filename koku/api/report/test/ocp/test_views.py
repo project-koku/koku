@@ -1845,3 +1845,13 @@ class OCPReportViewTest(IamTestCase):
             url = baseurl + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_distributed_cost_requires_group_by_project(self):
+        """Test the distributed cost param requires group by project."""
+        url = reverse("reports-openshift-costs")
+        params = [{"delta": "distributed_cost"}, {"order_by[distributed_cost]": "asc"}]
+        for param in params:
+            with self.subTest(param=param):
+                url = url + "?" + urlencode(param, quote_via=quote_plus)
+                response = APIClient().get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
