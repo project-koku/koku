@@ -241,7 +241,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         return monthly_files_dict
 
     def _extract_names(self, assembly_id=None):
-        """Get list of list of cost and usage report objects for manifest/downloading."""
+        """Get list of cost and usage report objects for manifest/downloading."""
 
         last_reports = self.get_last_reports(assembly_id)
         last_report_type_map = {"cost": last_reports.get("cost", ""), "usage": last_reports.get("usage", "")}
@@ -419,9 +419,9 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except Exception as err:
             err_msg = (
                 "Could not complete download. "
-                f"Provider: {self._provider_uuid}. "
-                f"Customer: {self.customer_name}. "
-                f"Response: {err}."
+                f"\n Provider: {self._provider_uuid}"
+                f"\n Customer: {self.customer_name}"
+                f"\n Response: {err}"
             )
             raise OCIReportDownloaderError(err_msg)
 
