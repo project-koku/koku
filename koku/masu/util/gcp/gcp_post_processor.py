@@ -57,9 +57,9 @@ class GCPPostProcessor(PostProcessor):
             """Process the credits column, which is non-standard JSON."""
             credit_dict = {}
             try:
-                credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
-                if credits:
-                    credit_dict = credits[0]
+                gcp_credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
+                if gcp_credits:
+                    credit_dict = gcp_credits[0]
             except JSONDecodeError:
                 LOG.warning("Unable to process GCP credits.")
 

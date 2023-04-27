@@ -27,6 +27,8 @@ from masu.util.ocp.common import match_openshift_labels
 
 LOG = logging.getLogger(__name__)
 
+PRODUCT_SKU_COL = "product/sku"  # removes code smell
+
 COL_TRANSLATION = {
     "bill_billing_entity": "bill/BillingEntity",
     "bill_bill_type": "bill/BillType",
@@ -62,7 +64,7 @@ COL_TRANSLATION = {
     "reservation_unused_recurring_fee": "reservation/UnusedRecurringFee",
     "pricing_term": "pricing/term",
     "pricing_unit": "pricing/unit",
-    "product_sku": "product/sku",
+    "product_sku": PRODUCT_SKU_COL,
     "product_product_name": "product/ProductName",
     "product_product_family": "product/productFamily",
     "product_servicecode": "product/servicecode",
@@ -86,7 +88,7 @@ CSV_COLUMN_PREFIX = (
     "lineItem/",
     "pricing/",
     "discount/",
-    "product/sku",
+    PRODUCT_SKU_COL,
 )
 
 INGRESS_REQUIRED_COLUMNS = {
@@ -124,7 +126,7 @@ INGRESS_REQUIRED_COLUMNS = {
     "reservation/UnusedRecurringFee",
     "pricing/term",
     "pricing/unit",
-    "product/sku",
+    PRODUCT_SKU_COL,
     "product/ProductName",
     "product/productFamily",
     "product/servicecode",
