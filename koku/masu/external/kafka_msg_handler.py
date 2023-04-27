@@ -387,9 +387,8 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer = get_producer()
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
-    # Trigger any available delivery report callbacks from previous produce() calls before producing a new message
-    producer.poll(0)
     producer.produce(Config.VALIDATION_TOPIC, value=msg, callback=delivery_callback)
+    producer.flush(3)
 
 
 def handle_message(kmsg):

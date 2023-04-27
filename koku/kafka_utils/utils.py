@@ -58,7 +58,7 @@ def get_consumer(conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragm
 
 def _get_producer_config(address, conf_settings):  # pragma: no cover
     """Return Kafka Producer config"""
-    producer_conf = {"bootstrap.servers": address}
+    producer_conf = {"bootstrap.servers": address, "message.timeout.ms": 3000}
     producer_conf = _get_managed_kafka_config(producer_conf)
     producer_conf.update(conf_settings)
 

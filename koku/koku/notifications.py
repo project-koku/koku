@@ -95,9 +95,8 @@ class NotificationService:
             None
         """
         producer = get_producer()
-        # Trigger any available delivery report callbacks from previous produce() calls before producing a new message
-        producer.poll(0)
         producer.produce(Config.NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
+        producer.flush(3)
 
     def cost_model_notification(self, account):
         """Send cost-model notifications via kafka"""
