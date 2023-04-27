@@ -13,7 +13,6 @@ from json.decoder import JSONDecodeError
 from cachetools import TTLCache
 from django.conf import settings
 from django.core.cache import caches
-from django.core.exceptions import DisallowedHost
 from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db import transaction
@@ -22,7 +21,6 @@ from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
 from django.db.utils import ProgrammingError
 from django.http import HttpResponse
-from django.http import HttpResponseNotFound
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
@@ -162,10 +160,19 @@ class KokuTenantMiddleware(TenantMainMiddleware):
         Returns:
             HttpResponse: The response object if tenant setup fails.
 
-            HttpResponseNotFound: The response object if header contains invalid hostname.
-
         Raises:
             PermissionDenied: If the user does not have permissions for Cost Management.
+
+        Explanation:
+            This method is responsible for processing the incoming request and setting the appropriate
+            tenant based on the user associated with the request.
+
+            The inherited line `connection.set_tenant(request.tenant)` is called to set the current tenant
+            for the request. This ensures that any subsequent database operations are performed within the
+            context of the correct schema associated with the tenant.
+
+            This method also performs several checks and operations such as authentication and permission checks
+            for the user, to ensure proper tenant setup.
 
         """
 
@@ -177,35 +184,51 @@ class KokuTenantMiddleware(TenantMainMiddleware):
                 if username not in USER_CACHE:
                     USER_CACHE[username] = request.user
                     LOG.debug(f"User added to cache: {username}")
-                if not request.user.admin and request.user.access is None:
-                    LOG.warning("User %s does not have permissions for Cost Management.", username)
-                    # For /user-access we do not want to raise the exception since the API will
-                    # return a false boolean response that the platfrom frontend code is expecting.
-                    if request.path != reverse("user-access"):
-                        raise PermissionDenied()
+                self._check_user_has_access(request)
+
             else:
                 return HttpResponseUnauthorizedRequest()
 
         try:
-
             tenant = self._get_or_create_tenant(request)
-            # inherited from superclass
-            hostname = self.hostname_from_request(request)
-            tenant.domain_url = hostname
+            # Inherited from superclass. Set the tenant for the request
             request.tenant = tenant
             connection.set_tenant(request.tenant)
-            self.setup_url_routing(request)
-
-        except DisallowedHost:
-            return HttpResponseNotFound()
 
         except OperationalError as err:
             LOG.error("Request resulted in OperationalError: %s", err)
             DB_CONNECTION_ERRORS_COUNTER.inc()
             return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
+    def _check_user_has_access(self, request):
+        """Check if the user has access to Cost Management.
+
+        Args:
+            request (HttpRequest): The incoming request object.
+
+        Raises:
+            PermissionDenied: If the user does not have permissions for Cost Management.
+
+        """
+
+        username = request.user.username
+        if not request.user.admin and request.user.access is None:
+            LOG.warning("User %s does not have permissions for Cost Management.", username)
+            # For /user-access we do not want to raise the exception since the API will
+            # return a false boolean response that the platfrom frontend code is expecting.
+            if request.path != reverse("user-access"):
+                raise PermissionDenied()
+
     def _get_or_create_tenant(self, request):
-        """Get or create tenant"""
+        """Get or create tenant based on the user's schema.
+
+        Args:
+            request(HttpRquest): The incoming request object.
+
+        Returns:
+            Tenant: The tenant object.
+
+        """
 
         if tenant := self._get_tenant_from_tenant_cache(request):
             return tenant
@@ -225,7 +248,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
         return tenant
 
     def _get_tenant_from_db(self, tenant_username, schema_name):
-        """Get tenant from database."""
+        """Get tenant with the schema from the database."""
 
         try:
             tenant = Tenant.objects.get(schema_name=schema_name)
