@@ -8,9 +8,12 @@ from datetime import datetime
 from unittest.mock import patch
 
 from pandas import DataFrame
+from tenant_schemas.utils import schema_context
 
 from masu.test import MasuTestCase
 from masu.util.aws.aws_post_processor import AWSPostProcessor
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
+from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 
@@ -141,31 +144,30 @@ class TestAWSPostProcessor(MasuTestCase):
 
     def test_aws_process_dataframe(self):
         """Test that missing columns in a report end up in the data frame."""
-        column_one = "column_one"
-        column_two = "column_two"
-        column_three = "column-three"
-        column_four = "resourceTags/User:key"
-        column_five = "costCategory/Env"
+        expected_tag_key = "key"
+        expected_category_key = "Env"
         data = {
-            column_one: [1, 2],
-            column_two: [3, 4],
-            column_three: [5, 6],
-            column_four: ["value_1", "value_2"],
-            column_five: ["prod", "stage"],
+            "column_one": [1, 2],
+            "column_two": [3, 4],
+            "column-three": [5, 6],
+            "resourceTags/user:key": ["value_1", "value_2"],
+            "costCategory/Env": ["prod", "stage"],
         }
         data_frame = DataFrame.from_dict(data)
 
         with patch("masu.util.aws.aws_post_processor.AWSPostProcessor._generate_daily_data"):
             processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
-            self.assertIsInstance(self.post_processor.enabled_categories, set)
-            self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
+            self.assertEqual({expected_category_key}, self.post_processor.enabled_categories)
+            self.assertEqual({expected_tag_key}, self.post_processor.enabled_tag_keys)
             columns = list(processed_data_frame)
+            for key in data.keys():
+                if key == "resourceTags/user:key":
+                    self.assertIn("resourcetags", columns)
+                elif key == "costCategory/Env":
+                    self.assertIn("costcategory", columns)
+                else:
+                    self.assertIn(key.replace("-", "_"), columns)
 
-            self.assertIn(column_one, columns)
-            self.assertIn(column_two, columns)
-            self.assertIn(column_three.replace("-", "_"), columns)
-            self.assertNotIn(column_four, columns)
-            self.assertIn("resourcetags", columns)
             for column in TRINO_REQUIRED_COLUMNS:
                 self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
@@ -202,3 +204,38 @@ class TestAWSPostProcessor(MasuTestCase):
             processed_data_frame, _ = self.post_processor.process_dataframe(data_frame)
             self.assertIsInstance(self.post_processor.enabled_tag_keys, set)
             self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())
+
+    def test_finalize_post_processing(self):
+        """Test that the finalize post processing functionality works.
+
+        Note: For this test we want to process multiple dataframes
+        and make sure all keys are found in the db after finalization.
+        """
+        expected_tag_keys = []
+        expected_cat_keys = []
+        for idx in range(2):
+            expected_tag_key = f"tag_key{idx}"
+            expected_cat_key = f"cat_key{idx}"
+            expected_tag_keys.append(expected_tag_key)
+            expected_cat_keys.append(expected_cat_key)
+            data = {
+                "column_one": [1, 2],
+                "column_two": [3, 4],
+                "column-three": [5, 6],
+                f"resourceTags/user:tag_key{idx}": [f"tag_value_{idx}_A", f"tag_value_{idx}_B"],
+                f"costCategory/cat_key{idx}": [f"cat_value_{idx}_A", f"cat_value_{idx}_B"],
+            }
+            data_frame = DataFrame.from_dict(data)
+            with patch("masu.util.aws.aws_post_processor.AWSPostProcessor._generate_daily_data"):
+                self.post_processor.process_dataframe(data_frame)
+                self.assertIn(expected_tag_key, self.post_processor.enabled_tag_keys)
+                self.assertIn(expected_cat_key, self.post_processor.enabled_categories)
+        self.assertEqual(set(expected_tag_keys), self.post_processor.enabled_tag_keys)
+        self.assertEqual(set(expected_cat_keys), self.post_processor.enabled_categories)
+        self.post_processor.finalize_post_processing()
+
+        with schema_context(self.schema):
+            cat_key_count = AWSEnabledCategoryKeys.objects.filter(key__in=expected_cat_keys).count()
+            self.assertEqual(cat_key_count, len(expected_cat_keys))
+            tag_key_count = AWSEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            self.assertEqual(tag_key_count, len(expected_tag_keys))

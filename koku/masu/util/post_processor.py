@@ -17,23 +17,24 @@ class PostProcessor:
         """
         Creates enabled key records.
         """
+
         if not enabled_keys:
+            LOG.info("No enabled keys found")
             return
-        LOG.info("Creating enabled tag key records.")
+        LOG.info(f"Creating enabled key records: {str(table._meta.model_name)}.")
         changed = False
 
-        if enabled_keys:
-            with schema_context(self.schema):
-                new_keys = list(set(enabled_keys) - {k.key for k in table.objects.all()})
-                if new_keys:
-                    changed = True
-                    # Processing in batches for increased efficiency
-                    for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
-                        batch_size = len(new_batch)
-                        LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
-                        for ix in range(batch_size):
-                            new_batch[ix] = table(key=new_batch[ix])
-                        table.objects.bulk_create(new_batch, ignore_conflicts=True)
+        with schema_context(self.schema):
+            new_keys = list(set(enabled_keys) - {k for k in table.objects.values_list("key", flat=True)})
+            if new_keys:
+                changed = True
+                # Processing in batches for increased efficiency
+                for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                    batch_size = len(new_batch)
+                    LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                    for ix in range(batch_size):
+                        new_batch[ix] = table(key=new_batch[ix])
+                    table.objects.bulk_create(new_batch, ignore_conflicts=True)
         if not changed:
             LOG.info("No enabled keys added")
 

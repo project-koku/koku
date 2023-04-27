@@ -7,10 +7,13 @@ from unittest.mock import patch
 
 from numpy import isnan
 from pandas import DataFrame
+from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from masu.util.azure.azure_post_processor import AzurePostProcessor
+from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
+from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import TRINO_COLUMNS
 
 
@@ -75,3 +78,48 @@ class TestAzurePostProcessor(MasuTestCase):
             with self.subTest(key=key):
                 unconverted, expected = test_matrix[key]
                 self.assertEqual(json_converter(unconverted), expected)
+
+    def test_finalize_post_processing(self):
+        """Test that the finalize post processing functionality works.
+
+        Note: For this test we want to process multiple dataframes
+        and make sure all keys are found in the db after finalization.
+        """
+        expected_tag_keys = []
+        for idx in range(2):
+            expected_tag_key = f"tag_key{idx}"
+            expected_tag_keys.append(expected_tag_key)
+            tags = str({expected_tag_key: f"val{idx}"}).replace("'", '"')
+            data = {"MeterSubCategory": [1], "tags": [tags]}
+            data_frame = DataFrame.from_dict(data)
+            with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
+                self.post_processor.process_dataframe(data_frame)
+                self.assertIn(expected_tag_key, self.post_processor.enabled_tag_keys)
+        self.assertEqual(set(expected_tag_keys), self.post_processor.enabled_tag_keys)
+        self.post_processor.finalize_post_processing()
+
+        with schema_context(self.schema):
+            tag_key_count = AzureEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            self.assertEqual(tag_key_count, len(expected_tag_keys))
+
+    def test_ingress_required_columns(self):
+        """Test the ingress required columns."""
+        self.assertIsNone(self.post_processor.check_ingress_required_columns(INGRESS_REQUIRED_COLUMNS))
+        expected_missing_column = list(INGRESS_REQUIRED_COLUMNS)[0]
+        copy_set = set(INGRESS_REQUIRED_COLUMNS)
+        copy_set.remove(expected_missing_column)
+        missing_column = self.post_processor.check_ingress_required_columns(copy_set)
+        self.assertEqual(missing_column, [expected_missing_column])
+
+    def test_process_json_converter_expected_errors(self):
+        """Test process_openshift_datetime method with good and bad values."""
+        post_processor = AzurePostProcessor(self.schema)
+        csv_converters, panda_kwargs = post_processor.get_column_converters(["tags"], {})
+        self.assertEqual({}, panda_kwargs)
+        json_converter = csv_converters.get("tags")
+
+        for error in [TypeError, ValueError]:
+            with patch("masu.util.ocp.ocp_post_processor.json.loads") as mock_error:
+                mock_error.side_effect = error
+                dt = json_converter("error")
+                self.assertEqual("{}", dt)

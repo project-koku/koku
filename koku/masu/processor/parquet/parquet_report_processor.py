@@ -426,6 +426,7 @@ class ParquetReportProcessor:
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
+                post_processor.finalize_post_processing()
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
 

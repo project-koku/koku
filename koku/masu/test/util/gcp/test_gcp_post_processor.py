@@ -8,9 +8,11 @@ from datetime import datetime
 from unittest.mock import patch
 
 from pandas import DataFrame
+from tenant_schemas.utils import schema_context
 
 from masu.test import MasuTestCase
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
+from reporting.provider.gcp.models import GCPEnabledTagKeys
 
 
 class TestGCPPostProcessor(MasuTestCase):
@@ -332,3 +334,33 @@ class TestGCPPostProcessor(MasuTestCase):
         # Test label empty set
         label_string = label_converter([])
         self.assertEqual(label_converter(label_string), str({}))
+
+    def test_finalize_post_processing(self):
+        """Test that the finalize post processing functionality works.
+
+        Note: For this test we want to process multiple dataframes
+        and make sure all keys are found in the db after finalization.
+        """
+        expected_tag_keys = []
+        for idx in range(2):
+            expected_tag_key = f"tag_key{idx}"
+            expected_tag_keys.append(expected_tag_key)
+            lables = []
+            for abc in ["A", "B", "C"]:
+                lables.append(str({expected_tag_key: f"val{idx}{abc}"}).replace("'", '"'))
+            data = {
+                "column.one": [1, 2, 3],
+                "column.two": [4, 5, 6],
+                "three": [7, 8, 9],
+                "labels": lables,
+            }
+            data_frame = DataFrame.from_dict(data)
+            with patch("masu.util.gcp.gcp_post_processor.GCPPostProcessor._generate_daily_data"):
+                self.post_processor.process_dataframe(data_frame)
+                self.assertIn(expected_tag_key, self.post_processor.enabled_tag_keys)
+        self.assertEqual(set(expected_tag_keys), self.post_processor.enabled_tag_keys)
+        self.post_processor.finalize_post_processing()
+
+        with schema_context(self.schema):
+            tag_key_count = GCPEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            self.assertEqual(tag_key_count, len(expected_tag_keys))

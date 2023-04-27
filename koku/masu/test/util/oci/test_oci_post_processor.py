@@ -8,9 +8,11 @@ from datetime import datetime
 from unittest.mock import patch
 
 from pandas import DataFrame
+from tenant_schemas.utils import schema_context
 
 from masu.test import MasuTestCase
 from masu.util.oci.oci_post_processor import OCIPostProcessor
+from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 
@@ -262,3 +264,37 @@ class TestOCIPostProcessor(MasuTestCase):
         self.assertTrue((first_day["usage_consumedquantity"] == usageamount * 2).bool())
 
         self.assertTrue((second_day["usage_consumedquantity"] == usageamount).bool())
+
+    def test_finalize_post_processing(self):
+        """Test that the finalize post processing functionality works.
+
+        Note: For this test we want to process multiple dataframes
+        and make sure all keys are found in the db after finalization.
+        """
+        expected_tag_keys = []
+        for idx in range(2):
+            expected_tag_key = f"tag_key{idx}"
+            expected_tag_keys.append(expected_tag_key)
+            data = {
+                "column_one": [1, 2],
+                "column_two": [3, 4],
+                "column-three": [5, 6],
+                f"tags/user.tag_key{idx}": [f"tag_value_{idx}_A", f"tag_value_{idx}_B"],
+            }
+            data_frame = DataFrame.from_dict(data)
+            with patch("masu.util.oci.oci_post_processor.OCIPostProcessor._generate_daily_data"):
+                self.post_processor.process_dataframe(data_frame)
+                self.assertIn(expected_tag_key, self.post_processor.enabled_tag_keys)
+        self.assertEqual(set(expected_tag_keys), self.post_processor.enabled_tag_keys)
+        self.post_processor.finalize_post_processing()
+
+        with schema_context(self.schema):
+            tag_key_count = OCIEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            self.assertEqual(tag_key_count, len(expected_tag_keys))
+
+    def test_get_column_converters(self):
+        """Test get column converters"""
+        converter_column = "bill/billingperiodstartdate"
+        csv_converters, _ = self.post_processor.get_column_converters([converter_column], {})
+        datetime_converter = csv_converters.get(converter_column)
+        self.assertIsInstance(datetime_converter("20230101"), datetime)
