@@ -840,7 +840,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Set up the test for raising a kafka error during sending confirmation."""
         # grab the connection error count before
         connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        with patch("masu.external.kafka_msg_handler.get_producer", new=KafkaMsgHandlerError):
+        with patch("masu.external.kafka_msg_handler.get_producer", side_effect=KafkaMsgHandlerError):
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                 msg_handler.send_confirmation(request_id="foo", status=msg_handler.SUCCESS_CONFIRM_STATUS)
             # assert that the error caused the kafka error metric to be incremented
