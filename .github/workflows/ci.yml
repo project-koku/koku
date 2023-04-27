@@ -277,3 +277,29 @@ jobs:
         run: |
           gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/patch" -f state="success"
           gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f description="codecov skipped because unit tests were not required" -f context="codecov/project" -f state="success"
+
+  sonarcloud:
+    name: SonarCloud
+    needs: [changed-files,units]
+    runs-on: ubuntu-20.04
+    steps:
+
+      - name: Checkout
+        # this checkout is required for the coverage report. If we don't do this, then
+        # the uploaded report is invalid and codecov doesn't know how to process it.
+        if: needs.changed-files.outputs.run_tests == 'true'
+        uses: actions/checkout@v3.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage result from units
+        if: needs.changed-files.outputs.run_tests == 'true'
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
