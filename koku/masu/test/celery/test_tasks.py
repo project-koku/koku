@@ -1,9 +1,6 @@
 """Tests for celery tasks."""
-import os
-import tempfile
 from collections import namedtuple
 from datetime import datetime
-from datetime import timedelta
 from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -18,12 +15,10 @@ from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest as APIExportRequest
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
-from api.utils import DateHelper
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ManifestCreationHelper
 from reporting.models import TRINO_MANAGED_TABLES
 
 fake = faker.Faker()
@@ -252,68 +247,6 @@ class TestCeleryTasks(MasuTestCase):
         for table, partition_column in TRINO_MANAGED_TABLES.items():
             calls.append(call(table, partition_column, provider_uuid))
         mock_delete_partitions.assert_has_calls(calls)
-
-    @patch("masu.celery.tasks.Config")
-    @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
-    def test_clean_volume(self, mock_date, mock_config):
-        """Test that the clean volume function is cleaning the appropriate files"""
-        # create a manifest
-        mock_date.return_value = ["2020-02-01"]
-        manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": "2020-02-01",
-            "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
-        # create two files on the temporary volume one with a matching prefix id
-        #  as the assembly_id in the manifest above
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            mock_config.PVC_DIR = tmpdirname
-            mock_config.VOLUME_FILE_RETENTION = 60 * 60 * 24
-            old_matching_file = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
-            new_no_match_file = os.path.join(tmpdirname, "newfile.csv")
-            old_no_match_file = os.path.join(tmpdirname, "oldfile.csv")
-            filepaths = [old_matching_file, new_no_match_file, old_no_match_file]
-            for path in filepaths:
-                open(path, "a").close()
-                self.assertEqual(os.path.exists(path), True)
-
-            # Update timestame for oldfile.csv
-            datehelper = DateHelper()
-            now = datehelper.now
-            old_datetime = now - timedelta(seconds=mock_config.VOLUME_FILE_RETENTION * 2)
-            oldtime = old_datetime.timestamp()
-            os.utime(old_matching_file, (oldtime, oldtime))
-            os.utime(old_no_match_file, (oldtime, oldtime))
-
-            # now run the clean volume task
-            tasks.clean_volume()
-            # make sure that the file with the matching id still exists and that
-            # the file with the other id is gone
-            self.assertEqual(os.path.exists(old_matching_file), True)
-            self.assertEqual(os.path.exists(new_no_match_file), True)
-            self.assertEqual(os.path.exists(old_no_match_file), False)
-            # now edit the manifest to say that all the files have been processed
-            # and rerun the clean_volumes task
-            manifest.num_processed_files = manifest_dict.get("num_total_files")
-            manifest_helper = ManifestCreationHelper(
-                manifest.id, manifest_dict.get("num_total_files"), manifest_dict.get("assembly_id")
-            )
-            manifest_helper.generate_test_report_files()
-            manifest_helper.process_all_files()
-
-            manifest.save()
-            tasks.clean_volume()
-            # ensure that the original file is deleted from the volume
-            self.assertEqual(os.path.exists(old_matching_file), False)
-            self.assertEqual(os.path.exists(new_no_match_file), True)
-
-        # assert the tempdir is cleaned up
-        self.assertEqual(os.path.exists(tmpdirname), False)
-        # test no files found for codecov
-        tasks.clean_volume()
 
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_with_provider_uuid(self, mock_crawler):

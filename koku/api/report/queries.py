@@ -108,7 +108,8 @@ class ReportQueryHandler(QueryHandler):
         self._category = parameters.category
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
-        self._delta = self._mapper.DELTA_REPLACEMENTS.get(parameters.delta, parameters.delta)
+        replace_delta = {"cost": "cost_total"}
+        self._delta = replace_delta.get(parameters.delta, parameters.delta)
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
@@ -791,7 +792,7 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         for group in groupby:
-            if group in data and pd.isnull(data.get(group)):
+            if group in data and pd.isnull(data.get(group)) or data.get(group) == "":
                 value = self._clean_prefix_grouping_labels(group)
                 group_label = f"No-{value}"
                 data[group] = group_label

@@ -539,6 +539,17 @@ class ReportQueryHandlerTest(IamTestCase):
             self.assertIsNotNone(data)
             self.assertNotIn("Platform", data)
 
+    def test_apply_group_null_label_empty_string(self):
+        """Test adding group label for empty string values."""
+        url = "?"
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        groups = ["gcp_project"]
+        data = {"gcp_project": "", "units": "USD"}
+        expected = {"gcp_project": "No-gcp_project", "units": "USD"}
+        out_data = handler._apply_group_null_label(data, groups)
+        self.assertEqual(expected, out_data)
+
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label
     # FIXME: need test for _build_custom_filter_list  }
