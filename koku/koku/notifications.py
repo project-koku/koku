@@ -96,6 +96,9 @@ class NotificationService:
         """
         producer = get_producer()
         producer.produce(Config.NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
+        # Wait up to 3 seconds for events. Callbacks will be invoked during
+        # this method call if the message is acknowledged.
+        # `flush` makes this process synchronous compared to async with `poll`
         producer.flush(3)
 
     def cost_model_notification(self, account):

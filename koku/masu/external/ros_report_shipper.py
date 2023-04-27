@@ -121,6 +121,9 @@ class ROSReportShipper:
         """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
         producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)
+        # Wait up to 3 seconds for events. Callbacks will be invoked during
+        # this method call if the message is acknowledged.
+        # `flush` makes this process synchronous compared to async with `poll`
         producer.flush(3)
 
     def build_ros_msg(self, presigned_urls, upload_keys):
