@@ -16,6 +16,7 @@ from masu.config import Config
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
+PRODUCER = None
 
 
 def _get_managed_kafka_config(conf=None):  # pragma: no cover
@@ -57,7 +58,7 @@ def get_consumer(conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragm
 
 def _get_producer_config(address, conf_settings):  # pragma: no cover
     """Return Kafka Producer config"""
-    producer_conf = {"bootstrap.servers": address, "message.timeout.ms": 1000}
+    producer_conf = {"bootstrap.servers": address}
     producer_conf = _get_managed_kafka_config(producer_conf)
     producer_conf.update(conf_settings)
 
@@ -66,10 +67,14 @@ def _get_producer_config(address, conf_settings):  # pragma: no cover
 
 def get_producer(conf_settings=None, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
     """Create a Kafka producer."""
+    global PRODUCER
+    if PRODUCER:
+        return PRODUCER
     if conf_settings is None:
         conf_settings = {}
     conf = _get_producer_config(address, conf_settings)
-    return Producer(conf)
+    PRODUCER = Producer(conf)
+    return PRODUCER
 
 
 def delivery_callback(err, msg):
