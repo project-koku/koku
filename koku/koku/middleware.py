@@ -190,9 +190,8 @@ class KokuTenantMiddleware(TenantMainMiddleware):
                 return HttpResponseUnauthorizedRequest()
 
         try:
-            tenant = self._get_or_create_tenant(request)
             # Inherited from superclass. Set the tenant for the request
-            request.tenant = tenant
+            request.tenant = self._get_or_create_tenant(request)
             connection.set_tenant(request.tenant)
 
         except OperationalError as err:
@@ -213,11 +212,12 @@ class KokuTenantMiddleware(TenantMainMiddleware):
 
         username = request.user.username
         if not request.user.admin and request.user.access is None:
-            LOG.warning("User %s does not have permissions for Cost Management.", username)
+            msg = f"User {username} does not have permissions for Cost Management."
+            LOG.warning(msg)
             # For /user-access we do not want to raise the exception since the API will
             # return a false boolean response that the platfrom frontend code is expecting.
             if request.path != reverse("user-access"):
-                raise PermissionDenied()
+                raise PermissionDenied(msg)
 
     def _get_or_create_tenant(self, request):
         """Get or create tenant based on the user's schema.
@@ -235,10 +235,12 @@ class KokuTenantMiddleware(TenantMainMiddleware):
 
         tenant_username = request.user.username
         schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
-        if tenant := self._get_tenant_from_db(tenant_username, schema_name):
-            return tenant
 
-        return self._create_tenant()
+        try:
+            return self._get_tenant_from_db(tenant_username, schema_name)
+        except Tenant.DoesNotExist:
+            LOG.info("No tenant found. Creating new tenant with public schema.")
+            return self._create_tenant()
 
     def _get_tenant_from_tenant_cache(self, request):
         """Get tenant from tenant cache."""
@@ -252,14 +254,15 @@ class KokuTenantMiddleware(TenantMainMiddleware):
 
         try:
             tenant = Tenant.objects.get(schema_name=schema_name)
-            if schema_name != "public":
-                with KokuTenantMiddleware.tenant_lock:
-                    KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
-                    LOG.debug(f"Tenant added to cache: {tenant_username}")
-            return tenant
         except Tenant.DoesNotExist:
             LOG.info(f"Tenant does not exist: {tenant_username}")
-            return
+            raise Tenant.DoesNotExist()
+
+        if schema_name != "public":
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+                LOG.debug(f"Tenant added to cache: {tenant_username}")
+        return tenant
 
     def _create_tenant(self):
         """Create tenant"""
