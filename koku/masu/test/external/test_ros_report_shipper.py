@@ -63,7 +63,7 @@ class TestROSReportShipper(TestCase):
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
-    def test_process_manifest_reports_unleash_date(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
+    def test_process_manifest_reports_unleash_gate(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
         """Tests that process_manifest_reports flows as expected with unleash gating."""
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
         mock_report_copy.assert_not_called()
