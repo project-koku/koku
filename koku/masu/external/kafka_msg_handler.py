@@ -303,6 +303,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
     context["provider_type"] = provider_type
+    context["schema_name"] = schema_name
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name

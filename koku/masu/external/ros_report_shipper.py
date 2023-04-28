@@ -77,7 +77,7 @@ class ROSReportShipper:
         Uploads the ROS reports for a manifest to S3 and sends a kafka message containing
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
-        if not UNLEASH_CLIENT.is_enabled():
+        if not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context):
             msg = "ROS report handling gated by unleash"
             LOG.info(log_json(self.request_id, msg, self.context))
             return
