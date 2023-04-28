@@ -388,10 +388,7 @@ def send_confirmation(request_id, status):  # pragma: no cover
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
     producer.produce(Config.VALIDATION_TOPIC, value=msg, callback=delivery_callback)
-    # Wait up to 3 seconds for events. Callbacks will be invoked during
-    # this method call if the message is acknowledged.
-    # `flush` makes this process synchronous compared to async with `poll`
-    producer.flush(3)
+    producer.poll(0)
 
 
 def handle_message(kmsg):
