@@ -1023,7 +1023,7 @@ class ReportQueryHandler(QueryHandler):
         """
         descending = True if self.order_direction == "desc" else False
         tag_column, tag_value = tag.split("__")
-        return OrderBy(RawSQL(f"{tag_column} -> %s", (tag_value,)), descending=descending)
+        return OrderBy(RawSQL("%s -> %s", (tag_column, tag_value)), descending=descending)
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.

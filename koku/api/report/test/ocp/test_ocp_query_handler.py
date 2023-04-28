@@ -662,7 +662,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_tag_order_by(self):
         """Verify that a propery order by is returned."""
         tag = "pod_labels__key"
-        expected_param = (tag.split("__")[1],)
+        expected_param = tuple(tag.split("__"))
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -671,7 +671,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         expression = result.expression
 
         self.assertIsInstance(result, OrderBy)
-        self.assertEqual(expression.sql, "pod_labels -> %s")
+        self.assertEqual(expression.sql, "%s -> %s")
         self.assertEqual(expression.params, expected_param)
 
     def test_filter_by_infrastructure_ocp_on_aws(self):
