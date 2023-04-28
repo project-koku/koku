@@ -16,6 +16,7 @@ from api.common import log_json
 from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
@@ -76,6 +77,10 @@ class ROSReportShipper:
         Uploads the ROS reports for a manifest to S3 and sends a kafka message containing
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
+        if not UNLEASH_CLIENT.is_enabled():
+            msg = "ROS report handling gated by unleash"
+            LOG.info(log_json(self.request_id, msg, self.context))
+            return
         if not reports_to_upload:
             msg = "No ROS reports to handle in the current payload."
             LOG.info(log_json(self.request_id, msg, self.context))
