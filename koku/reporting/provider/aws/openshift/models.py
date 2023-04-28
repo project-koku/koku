@@ -98,6 +98,7 @@ class OCPAWSCostSummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -135,6 +136,7 @@ class OCPAWSCostSummaryByAccountP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -177,6 +179,7 @@ class OCPAWSCostSummaryByServiceP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -220,6 +223,7 @@ class OCPAWSCostSummaryByRegionP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -264,6 +268,7 @@ class OCPAWSComputeSummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -307,6 +312,7 @@ class OCPAWSStorageSummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -350,6 +356,7 @@ class OCPAWSNetworkSummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -393,6 +400,7 @@ class OCPAWSDatabaseSummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -485,6 +493,7 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
@@ -556,6 +565,7 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
     blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)  # this field is no longer used
