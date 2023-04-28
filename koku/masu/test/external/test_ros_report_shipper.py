@@ -48,20 +48,33 @@ class TestROSReportShipper(TestCase):
         actual = self.ros_shipper.ros_s3_path
         self.assertEqual(expected, actual)
 
+    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=True)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
-    def test_process_manifest_reports(self, mock_kafka_msg, mock_ros_msg, mock_report_copy):
+    def test_process_manifest_reports(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
         """Tests that process_manifest_reports flows as expected under normal circumstances."""
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
         mock_report_copy.assert_called_once()
         mock_ros_msg.assert_called_once()
         mock_kafka_msg.assert_called_once()
 
+    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=False)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
-    def test_process_manifest_reports_no_reports_uploaded(self, mock_kafka_msg, mock_ros_msg, mock_report_copy):
+    def test_process_manifest_reports_unleash_date(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
+        """Tests that process_manifest_reports flows as expected with unleash gating."""
+        self.ros_shipper.process_manifest_reports([("report1", "path1")])
+        mock_report_copy.assert_not_called()
+        mock_ros_msg.assert_not_called()
+        mock_kafka_msg.assert_not_called()
+
+    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=True)
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
+    @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
+    def test_process_manifest_reports_no_reports_uploaded(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
         """Tests that we do not send a kafka message if there were no reports successfully uploaded to s3"""
         mock_report_copy.return_value = None
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
