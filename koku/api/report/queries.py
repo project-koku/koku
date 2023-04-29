@@ -36,6 +36,7 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
+from psycopg2 import sql
 
 from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
@@ -1023,7 +1024,8 @@ class ReportQueryHandler(QueryHandler):
         """
         descending = True if self.order_direction == "desc" else False
         tag_column, tag_value = tag.split("__")
-        return OrderBy(RawSQL("%s -> %s", (tag_column, tag_value)), descending=descending)
+        query = sql.SQL("{tag_column} -> %s").format(tag_column=sql.Identifier(tag_column))
+        return OrderBy(RawSQL(query, (tag_value,)), descending=descending)
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
