@@ -256,7 +256,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             tenant = Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
             LOG.info(f"Tenant does not exist: {tenant_username}")
-            raise Tenant.DoesNotExist()
+            raise
 
         if schema_name != "public":
             with KokuTenantMiddleware.tenant_lock:
