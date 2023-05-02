@@ -82,7 +82,7 @@ class ReportQueryUtilsTest(TestCase):
                     {"account": "a1", "service": "s2", "units": "USD", "total": 7},
                     {"account": "a1", "service": "s3", "units": "USD", "total": 5},
                 ]
-                # shuffle(data)
+
                 out_data = handler._group_data_by_list(group_by, 0, data)
                 expected = {
                     "a1": {
@@ -116,8 +116,8 @@ class ReportQueryUtilsTest(TestCase):
                 out_data = handler._group_data_by_list(group_by, 0, data)
                 expected = {
                     "t2.micro": [
-                        {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.micro", "total": 1.0, "count": 0},
                         {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0},
+                        {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.micro", "total": 1.0, "count": 0},
                     ],
                     "t2.small": [
                         {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.small", "total": 17.0, "count": 0}

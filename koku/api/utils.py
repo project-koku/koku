@@ -5,6 +5,7 @@
 """Unit conversion util functions."""
 import calendar
 import datetime
+import itertools
 import logging
 from datetime import timedelta
 
@@ -78,6 +79,12 @@ def merge_dicts(*list_of_dicts):
                 output[k].extend(v)
                 output[k] = list(set(output[k]))
     return output
+
+
+def sort_and_group(iterable, key=None):
+    """Sort the data before passing to itertools.groupby in order to return
+    consistently grouped data."""
+    return itertools.groupby(sorted(iterable, key=key), key=key)
 
 
 class DateHelper:
