@@ -78,13 +78,22 @@ class ReportQueryUtilsTest(TestCase):
                     {"account": "a1", "service": "s2", "units": "USD", "total": 5},
                     {"account": "a2", "service": "s1", "units": "USD", "total": 6},
                     {"account": "a2", "service": "s2", "units": "USD", "total": 5},
+                    {"account": "a1", "service": "s1", "units": "USD", "total": 9},
+                    {"account": "a1", "service": "s2", "units": "USD", "total": 7},
                     {"account": "a1", "service": "s3", "units": "USD", "total": 5},
                 ]
+                # shuffle(data)
                 out_data = handler._group_data_by_list(group_by, 0, data)
                 expected = {
                     "a1": {
-                        "s1": [{"account": "a1", "service": "s1", "units": "USD", "total": 4}],
-                        "s2": [{"account": "a1", "service": "s2", "units": "USD", "total": 5}],
+                        "s1": [
+                            {"account": "a1", "service": "s1", "units": "USD", "total": 4},
+                            {"account": "a1", "service": "s1", "units": "USD", "total": 9},
+                        ],
+                        "s2": [
+                            {"account": "a1", "service": "s2", "units": "USD", "total": 5},
+                            {"account": "a1", "service": "s2", "units": "USD", "total": 7},
+                        ],
                         "s3": [{"account": "a1", "service": "s3", "units": "USD", "total": 5}],
                     },
                     "a2": {

@@ -733,6 +733,7 @@ class ReportQueryHandler(QueryHandler):
 
         Args:
             group_by_list (List): list of strings to group data by
+            group_index (Int): Position in group_by_list that contains group to group by
             data    (List): list of query results
         Returns:
             (Dict): dictionary of grouped query results or the original data
@@ -742,26 +743,29 @@ class ReportQueryHandler(QueryHandler):
         if group_index >= group_by_list_len:
             return data
 
-        out_data = OrderedDict()
-        curr_group = group_by_list[group_index]
+        def _current_group(data: dict):
+            curr_group = group_by_list[group_index]
+            return data.get(curr_group)
 
-        for key, group in groupby(data, lambda by: by.get(curr_group)):
+        out_data = OrderedDict()
+        for key, group in groupby(data, key=_current_group):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
-            datapoint = out_data.get(key)
+            datapoint = out_data.get(key, [])
             if datapoint and isinstance(datapoint, dict):
                 if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):
-                    datapoint_keys = list(datapoint.keys())
-                    grouped_keys = list(grouped.keys())
-                    intersect_keys = list(set(datapoint_keys).intersection(grouped_keys))
-                    if intersect_keys != []:
-                        for inter_key in intersect_keys:
-                            grouped[inter_key].update(datapoint[inter_key])
+                    # If any keys in the grouped dictionary exist in the datapoint,
+                    # append that data in matching keys into a single list of dictionaries.
+                    for inter_key in set(datapoint).intersection(grouped):
+                        # Since datapoint[inter_key] is the current data, use insert
+                        # so new data appears after existing data in the final list.
+                        grouped[inter_key].insert(0, *datapoint[inter_key])
                 out_data[key].update(grouped)
             elif datapoint and isinstance(datapoint, list):
                 out_data[key] = grouped + datapoint
             else:
                 out_data[key] = grouped
+
         return out_data
 
     def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
