@@ -1,4 +1,46 @@
 -- First we'll store the data in a "temp" table to do our grouping against
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp
+(
+    uuid varchar,
+    usage_start timestamp,
+    resource_id varchar,
+    service_name varchar,
+    instance_type varchar,
+    subscription_guid varchar,
+    resource_location varchar,
+    unit_of_measure varchar,
+    usage_quantity double,
+    currency varchar,
+    pretax_cost double,
+    tags varchar,
+    resource_id_matched boolean,
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
+;
+
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp
+(
+    uuid varchar,
+    usage_start timestamp,
+    resource_id varchar,
+    service_name varchar,
+    instance_type varchar,
+    subscription_guid varchar,
+    resource_location varchar,
+    unit_of_measure varchar,
+    usage_quantity double,
+    currency varchar,
+    pretax_cost double,
+    tags varchar,
+    matched_tag varchar,
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
+;
+
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
 (
     azure_uuid varchar,
@@ -87,6 +129,140 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['azure_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp (
+    uuid,
+    usage_start,
+    resource_id,
+    service_name,
+    instance_type,
+    subscription_guid,
+    resource_location,
+    unit_of_measure,
+    usage_quantity,
+    currency,
+    pretax_cost,
+    tags,
+    resource_id_matched,
+    ocp_source,
+    year,
+    month
+)
+SELECT cast(uuid() as varchar) as uuid,
+    coalesce(azure.date, azure.usagedatetime) as usage_start,
+    split_part(coalesce(resourceid, instanceid), '/', 9) as resource_id,
+    coalesce(servicename, metercategory) as service_name,
+    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
+    coalesce(azure.subscriptionid, azure.subscriptionguid) as subscription_guid,
+    azure.resourcelocation as resource_location,
+    max(CASE
+        WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
+            THEN  'Hrs'
+        WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
+            THEN  'GB-Mo'
+        WHEN split_part(unitofmeasure, ' ', 2) != ''
+            THEN  split_part(unitofmeasure, ' ', 2)
+        ELSE unitofmeasure
+    END) as unit_of_measure,
+    sum(coalesce(azure.quantity, azure.usagequantity)) as usage_quantity,
+    coalesce(azure.billingcurrencycode, azure.currency) as currency,
+    sum(coalesce(azure.costinbillingcurrency, azure.pretaxcost)) as pretax_cost,
+    azure.tags,
+    max(azure.resource_id_matched) as resource_id_matched,
+    {{ocp_source_uuid}} as ocp_source,
+    max(azure.year) as year,
+    max(azure.month) as month
+FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
+WHERE azure.source = {{azure_source_uuid}}
+    AND azure.year = {{year}}
+    AND azure.month = {{month}}
+    AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
+    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
+    AND azure.resource_id_matched = TRUE
+GROUP BY coalesce(azure.date, azure.usagedatetime),
+    split_part(coalesce(resourceid, instanceid), '/', 9),
+    coalesce(servicename, metercategory),
+    coalesce(subscriptionid, subscriptionguid),
+    azure.resourcelocation,
+    coalesce(azure.billingcurrencycode, azure.currency),
+    azure.tags
+;
+
+
+INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp (
+    uuid,
+    usage_start,
+    resource_id,
+    service_name,
+    instance_type,
+    subscription_guid,
+    resource_location,
+    unit_of_measure,
+    usage_quantity,
+    currency,
+    pretax_cost,
+    tags,
+    matched_tag,
+    ocp_source,
+    year,
+    month
+)
+WITH cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys
+    WHERE enabled = TRUE
+)
+SELECT cast(uuid() as varchar) as uuid,
+    coalesce(azure.date, azure.usagedatetime) as usage_start,
+    split_part(coalesce(resourceid, instanceid), '/', 9) as resource_id,
+    coalesce(servicename, metercategory) as service_name,
+    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
+    coalesce(azure.subscriptionid, azure.subscriptionguid) as subscription_guid,
+    azure.resourcelocation as resource_location,
+    max(CASE
+        WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
+            THEN  'Hrs'
+        WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
+            THEN  'GB-Mo'
+        WHEN split_part(unitofmeasure, ' ', 2) != ''
+            THEN  split_part(unitofmeasure, ' ', 2)
+        ELSE unitofmeasure
+    END) as unit_of_measure,
+    sum(coalesce(azure.quantity, azure.usagequantity)) as usage_quantity,
+    coalesce(azure.billingcurrencycode, azure.currency) as currency,
+    sum(coalesce(azure.costinbillingcurrency, azure.pretaxcost)) as pretax_cost,
+    json_format(
+        cast(
+            map_filter(
+                cast(json_parse(azure.tags) as map(varchar, varchar)),
+                (k, v) -> contains(etk.enabled_keys, k)
+            ) as json
+        )
+    ) as tags,
+    azure.matched_tag,
+    {{ocp_source_uuid}} as ocp_source,
+    max(azure.year) as year,
+    max(azure.month) as month
+FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
+CROSS JOIN cte_enabled_tag_keys as etk
+WHERE azure.source = {{azure_source_uuid}}
+    AND azure.year = {{year}}
+    AND azure.month = {{month}}
+    AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
+    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
+    AND (azure.resource_id_matched = FALSE OR azure.resource_id_matched IS NULL)
+GROUP BY coalesce(azure.date, azure.usagedatetime),
+    split_part(coalesce(resourceid, instanceid), '/', 9),
+    coalesce(servicename, metercategory),
+    coalesce(subscriptionid, subscriptionguid),
+    azure.resourcelocation,
+    coalesce(azure.billingcurrencycode, azure.currency),
+    12, -- tags
+    azure.matched_tag
+;
 
 -- Directly resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
@@ -142,26 +318,18 @@ SELECT azure.uuid as azure_uuid,
     max(persistentvolumeclaim) as persistentvolumeclaim,
     max(persistentvolume) as persistentvolume,
     max(storageclass) as storageclass,
-    max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
-    max(coalesce(date, usagedatetime)) as usage_start,
-    max(coalesce(date, usagedatetime)) as usage_end,
-    max(nullif(coalesce(servicename, metercategory), '')) as service_name,
-    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
-    max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
-    max(azure.resourcelocation) as resource_location,
-    max(CASE
-            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
-                THEN  'Hrs'
-            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
-                THEN  'GB-Mo'
-            WHEN split_part(unitofmeasure, ' ', 2) != ''
-                THEN  split_part(unitofmeasure, ' ', 2)
-            ELSE unitofmeasure
-        END) as unit_of_measure,
-    max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
-    max(coalesce(billingcurrencycode, currency)) as currency,
-    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
-    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
+    max(azure.resource_id) as resource_id,
+    max(azure.usage_start) as usage_start,
+    max(azure.usage_start) as usage_end,
+    max(nullif(azure.service_name, '')) as service_name,
+    max(azure.instance_type) as instance_type,
+    max(azure.subscription_guid) as subscription_guid,
+    max(nullif(azure.resource_location, '')) as resource_location,
+    max(azure.unit_of_measure) as unit_of_measure,
+    max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
+    max(azure.currency) as currency,
+    max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
+    max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
     cast(NULL as double) as pod_cost,
     cast(NULL as double) as project_markup_cost,
     sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
@@ -183,24 +351,22 @@ SELECT azure.uuid as azure_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
-    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        on coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
+        ON azure.usage_start = ocp.usage_start
         AND (
-                (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
-                    OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
+                (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
+                    OR (azure.resource_id = ocp.persistentvolume AND ocp.data_source = 'Storage')
             )
-    WHERE azure.source = {{azure_source_uuid}}
-        AND azure.year = {{year}}
-        AND azure.month = {{month}}
-        AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
-        AND ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.year = {{year}}
+        AND azure.month = {{month}}
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
@@ -258,26 +424,18 @@ SELECT azure.uuid as azure_uuid,
     max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
     max(nullif(ocp.persistentvolume, '')) as persistentvolume,
     max(nullif(ocp.storageclass, '')) as storageclass,
-    max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
-    max(coalesce(date, usagedatetime)) as usage_start,
-    max(coalesce(date, usagedatetime)) as usage_end,
-    max(nullif(coalesce(servicename, metercategory), '')) as service_name,
-    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
-    max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
-    max(nullif(azure.resourcelocation, '')) as resource_location,
-    max(CASE
-            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
-                THEN  'Hrs'
-            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
-                THEN  'GB-Mo'
-            WHEN split_part(unitofmeasure, ' ', 2) != ''
-                THEN  split_part(unitofmeasure, ' ', 2)
-            ELSE unitofmeasure
-        END) as unit_of_measure,
-    max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
-    max(coalesce(billingcurrencycode, azure.currency)) as currency,
-    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
-    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
+    max(azure.resource_id) as resource_id,
+    max(azure.usage_start) as usage_start,
+    max(azure.usage_start) as usage_end,
+    max(nullif(azure.service_name, '')) as service_name,
+    max(azure.instance_type) as instance_type,
+    max(azure.subscription_guid) as subscription_guid,
+    max(nullif(azure.resource_location, '')) as resource_location,
+    max(azure.unit_of_measure) as unit_of_measure,
+    max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
+    max(azure.currency) as currency,
+    max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
+    max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
     cast(NULL as double) as pod_cost,
     cast(NULL as double) as project_markup_cost,
     cast(NULL as double) as pod_usage_cpu_core_hours,
@@ -294,14 +452,14 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
-    max(azure.resource_id_matched) as resource_id_matched,
+    FALSE as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
-    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp as azure
+        ON azure.usage_start = ocp.usage_start
         AND (
                     (strpos(azure.tags, 'openshift_project') !=0 AND strpos(azure.tags, lower(ocp.namespace)) != 0)
                     OR (strpos(azure.tags, 'openshift_node') != 0 AND strpos(azure.tags,lower(ocp.node)) != 0)
@@ -311,19 +469,14 @@ SELECT azure.uuid as azure_uuid,
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
-    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
-        ON azure.uuid = pds.azure_uuid
-    WHERE azure.source = {{azure_source_uuid}}
-        AND azure.year = {{year}}
-        AND azure.month = {{month}}
-        AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
-        AND ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND pds.azure_uuid is NULL
+        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.year = {{year}}
+        AND azure.month = {{month}}
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source
 ;
 
