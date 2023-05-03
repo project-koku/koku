@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ProducerSingleton(Producer, metaclass=SingletonMeta):
-    """Creates a signleton instance of a Kafka Producer"""
+    """Creates a singleton instance of a Kafka Producer"""
 
 
 def _get_managed_kafka_config(conf=None):  # pragma: no cover

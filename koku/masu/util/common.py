@@ -14,6 +14,7 @@ from itertools import groupby
 from os import remove
 from tempfile import gettempdir
 from threading import Lock
+from threading import RLock
 from uuid import uuid4
 
 from dateutil import parser
@@ -579,7 +580,7 @@ class SingletonMeta(type):
     """
 
     _instances = {}
-    _lock: Lock = Lock()
+    _lock: Lock = RLock()
 
     def __call__(cls, *args, **kwargs):
         """
