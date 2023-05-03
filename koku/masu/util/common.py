@@ -579,7 +579,7 @@ class SingletonMeta(type):
     """
 
     _instances = {}
-    _lock: Lock = RLock()
+    _lock: RLock = RLock()
 
     def __call__(cls, *args, **kwargs):
         """
