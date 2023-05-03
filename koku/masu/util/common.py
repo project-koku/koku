@@ -13,6 +13,7 @@ from datetime import timedelta
 from itertools import groupby
 from os import remove
 from tempfile import gettempdir
+from threading import Lock
 from uuid import uuid4
 
 from dateutil import parser
@@ -570,3 +571,28 @@ def convert_account(account):
 def filter_dictionary(dictionary, keys_to_keep):
     """Filter a dictionary to only include the keys specified."""
     return {key: value for key, value in dictionary.items() if key in keys_to_keep}
+
+
+class SingletonMeta(type):
+    """
+    This is a thread-safe implementation of Singleton.
+    """
+
+    _instances = {}
+    _lock: Lock = Lock()
+
+    def __call__(cls, *args, **kwargs):
+        """
+        Possible changes to the value of the `__init__` argument do not affect
+        the returned instance.
+        """
+        with cls._lock:
+            # The first thread to acquire the lock, reaches this conditional,
+            # goes inside and creates the Singleton instance. Once it leaves the
+            # lock block, a thread that might have been waiting for the lock
+            # release may then enter this section. But since the Singleton field
+            # is already initialized, the thread won't create a new object.
+            if cls not in cls._instances:
+                instance = super().__call__(*args, **kwargs)
+                cls._instances[cls] = instance
+        return cls._instances[cls]
