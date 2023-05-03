@@ -13,7 +13,6 @@ from datetime import timedelta
 from itertools import groupby
 from os import remove
 from tempfile import gettempdir
-from threading import Lock
 from threading import RLock
 from uuid import uuid4
 
