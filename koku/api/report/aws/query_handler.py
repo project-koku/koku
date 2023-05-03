@@ -441,7 +441,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             # Therefore, at this time, the query will be written out until we can correct the ORM issue.
             sql = f"""
 select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
-       sum((coalesce(t.tags, '{{}}'::jsonb) <> '{{}}'::jsonb)::boolean::int)::int as "tags_exist_sum"
+       sum((coalesce(t.tags, %s::jsonb) <> %s::jsonb)::boolean::int)::int as "tags_exist_sum"
   from {aws_tags_daily_summary_table} as "t"{join_table}
   left
   join reporting_awsaccountalias as "raa"
