@@ -71,4 +71,3 @@ class GCPQueryParamSerializer(ReportQueryParamSerializer):
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    check_tags = serializers.BooleanField(required=False, default=False)

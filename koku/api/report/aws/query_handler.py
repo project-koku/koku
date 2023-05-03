@@ -391,7 +391,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query_table = self.query_table
             LOG.debug(f"Using query table: {query_table}")
-            tag_results = None
             query = query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
@@ -408,10 +407,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
-                if self.parameters.parameters.get("check_tags"):
-                    # tag_results = self._get_associated_tags(query_table, self.query_filter)
-                    tag_results = None
-
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:
@@ -427,14 +422,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             # Fetch the data (returning list(dict))
             query_results = list(query_data)
-
-            # Resolve tag exists for unique account returned
-            # if tag_results is not Falsey
-            # Append the flag to the query result for the report
-            if tag_results is not None:
-                # Add the tag results to the report query result dicts
-                for res in query_results:
-                    res["tags_exist"] = tag_results.get(res["account_alias"], False)
 
             if not self.is_csv_output:
                 groups = copy.deepcopy(query_group_by)
