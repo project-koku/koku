@@ -26,7 +26,7 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             "lineitem_unblendedrate",
             "lineitem_blendedcost",
             "lineitem_blendedrate",
-            "savingsplan_savingsplaneffectivecost",
+            "calculated_amortized_cost",
             "pricing_publicondemandrate",
             "pricing_publicondemandcost",
         ]

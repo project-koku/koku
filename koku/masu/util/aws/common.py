@@ -647,7 +647,7 @@ def aws_generate_daily_data(data_frame):
             "lineitem_blendedcost": ["sum"],
             "pricing_publicondemandcost": ["sum"],
             "pricing_publicondemandrate": ["max"],
-            "savingsplan_savingsplaneffectivecost": ["sum"],
+            "calculated_amortized_cost": ["sum"],
             "product_productname": ["max"],
             "bill_invoiceid": ["max"],
         }
