@@ -626,6 +626,7 @@ def aws_generate_daily_data(data_frame):
             "bill_billingentity",
             "lineitem_productcode",
             "lineitem_availabilityzone",
+            "lineitem_lineitemtype",
             "product_productfamily",
             "product_instancetype",
             "product_region",
