@@ -41,6 +41,7 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_ocp_on_cloud_summary
+from masu.processor import disable_source
 from masu.processor import disable_summary_processing
 from masu.processor import is_large_customer
 from masu.processor._tasks.download import _get_report_files
@@ -419,13 +420,15 @@ def update_summary_tables(  # noqa: C901
 
     """
     if disable_summary_processing(schema_name):
-        msg = f"Summary disabled for {schema_name}."
-        LOG.info(msg)
+        LOG.info(f"Summary disabled for {schema_name}.")
+        return
+    if disable_source(provider_uuid):
+        LOG.info(f"{provider_uuid} disabled in unleash.")
         return
     if disable_ocp_on_cloud_summary(schema_name):
-        msg = f"OCP on Cloud summary disabled for {schema_name}."
-        LOG.info(msg)
+        LOG.info(f"OCP on Cloud summary disabled for {schema_name}.")
         ocp_on_cloud = False
+
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     if isinstance(start_date, str):
