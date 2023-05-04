@@ -142,6 +142,7 @@ WHERE NOT EXISTS (
              AND y.namespace = x.namespace
              AND y.node = x.node
       )
+ON CONFLICT DO NOTHING
 ;
 
 
