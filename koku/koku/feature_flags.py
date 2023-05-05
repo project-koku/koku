@@ -56,7 +56,7 @@ strategies = {
 }
 headers = {}
 if settings.UNLEASH_TOKEN:
-    headers["Authorization"] = settings.UNLEASH_TOKEN
+    headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"
 
 UNLEASH_CLIENT = KokuUnleashClient(
     url=settings.UNLEASH_URL,
