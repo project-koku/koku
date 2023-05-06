@@ -1013,14 +1013,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
-        with schema_context(self.schema):
-            cluster, created = OCPCluster.objects.get_or_create(
-                cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider
-            )
 
-        if created:
-            msg = f"Add entry in reporting_ocp_clusters for {cluster_id}/{cluster_alias}"
-            LOG.info(msg)
+        with schema_context(self.schema):
+            clusters = OCPCluster.objects.filter(cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider)
+            cluster = clusters.first()
+
+            if cluster is None:
+                cluster = OCPCluster.objects.create(
+                    cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider
+                )
+                LOG.info(f"Add entry in reporting_ocp_clusters for {cluster_id}/{cluster_alias}")
+            elif clusters.count() > 1:
+                # If multiple clusters are found, delete all except the first one
+                OCPCluster.objects.filter(
+                    cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider
+                ).exclude(pk=cluster.pk).delete()
 
         return cluster
 
