@@ -728,6 +728,51 @@ select * from eek where val1 in {{report_period_id}} ;
             for project in projects:
                 self.assertIn(project.project, topo.get("projects"))
 
+    def test_populate_cluster_table_existing_entry(self):
+        """Test that an existing cluster entry is returned."""
+
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "cluster_alias_test"
+
+        with patch("masu.database.ocp_report_db_accessor.OCPCluster.objects") as mock_objects:
+            mock_objects.filter.return_value.count.return_value = 1
+            mock_objects.filter.return_value.first.return_value = OCPCluster()
+
+            cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+
+            self.assertIsInstance(cluster, OCPCluster)
+
+    def test_populate_cluster_table_multiple_entries(self):
+        """Test that one of the multiple cluster entries is returned."""
+
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "cluster_alias_test"
+
+        with patch("masu.database.ocp_report_db_accessor.OCPCluster.objects") as mock_objects:
+            mock_objects.filter.return_value.count.return_value = 2
+            mock_objects.filter.return_value.first.side_effect = [OCPCluster(), OCPCluster()]
+            mock_objects.all.return_value[1:].delete.return_value = None
+            mock_objects.filter.return_value.first.return_value = OCPCluster()
+
+            cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+
+            self.assertIsInstance(cluster, OCPCluster)
+
+    def test_populate_cluster_table_new_entry(self):
+        """Test that a new cluster entry is created and returned."""
+
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "cluster_alias_test"
+
+        with patch("masu.database.ocp_report_db_accessor.OCPCluster.objects") as mock_objects:
+            mock_objects.filter.return_value.count.return_value = 0
+            mock_objects.filter.return_value.first.return_value = None
+            mock_objects.create.return_value = OCPCluster()
+
+            cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+
+            self.assertIsInstance(cluster, OCPCluster)
+
     def test_populate_node_table_update_role(self):
         """Test that populating the node table for an entry that previously existed fills the node role correctly."""
         node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
