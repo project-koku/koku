@@ -66,7 +66,7 @@ class TestROSReportShipper(TestCase):
     def test_process_manifest_reports_unleash_gate(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
         """Tests that process_manifest_reports flows as expected with unleash gating."""
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
-        mock_report_copy.assert_not_called()
+        mock_report_copy.assert_called_once()
         mock_ros_msg.assert_not_called()
         mock_kafka_msg.assert_not_called()
 
