@@ -193,12 +193,6 @@ app.conf.beat_schedule["get_daily_currency_rates"] = {
     "schedule": crontab(hour=1, minute=0),
 }
 
-# Beat used to remove stale tenant data
-app.conf.beat_schedule["remove_stale_tenants"] = {
-    "task": "masu.processor.tasks.remove_stale_tenants",
-    "schedule": crontab(hour=0, minute=0),
-}
-
 # Beat used for HCS report finalization
 app.conf.beat_schedule["finalize_hcs_reports"] = {
     "task": "hcs.tasks.collect_hcs_report_finalization",
