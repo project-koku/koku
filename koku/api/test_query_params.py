@@ -697,7 +697,7 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
 
-    def test_process_exclude_query_params_enabled(self):
+    def test_process_exclude_query_params(self):
         """Test that a exclude filter is handled depnedent on unleash settings."""
         fake_uri = (
             "filter[resolution]=monthly&"
