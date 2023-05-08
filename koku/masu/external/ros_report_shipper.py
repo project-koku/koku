@@ -77,10 +77,6 @@ class ROSReportShipper:
         Uploads the ROS reports for a manifest to S3 and sends a kafka message containing
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
-        if not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context):
-            msg = "ROS report handling gated by unleash"
-            LOG.info(log_json(self.request_id, msg, self.context))
-            return
         if not reports_to_upload:
             msg = "No ROS reports to handle in the current payload."
             LOG.info(log_json(self.request_id, msg, self.context))
@@ -97,6 +93,12 @@ class ROSReportShipper:
             msg = "ROS reports did not upload cleanly to S3, skipping kafka message."
             LOG.info(log_json(self.request_id, msg, self.context))
             return
+
+        if not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context):
+            msg = "ROS report handling gated by unleash - not sending kafka msg"
+            LOG.info(log_json(self.request_id, msg, self.context))
+            return
+
         kafka_msg = self.build_ros_msg(report_urls, upload_keys)
         msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
         LOG.info(log_json(self.request_id, msg, self.context))
