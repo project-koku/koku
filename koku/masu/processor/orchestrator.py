@@ -309,6 +309,20 @@ class Orchestrator:
             account["report_month"] = month
             try:
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
+
+                # update labels
+                if reports_tasks_queued and not accounts_labeled:
+                    LOG.info("Running AccountLabel to get account aliases.")
+                    labeler = AccountLabel(
+                        auth=account.get("credentials"),
+                        schema=account.get("schema_name"),
+                        provider_type=account.get("provider_type"),
+                    )
+                    account_number, label = labeler.get_label_details()
+                    accounts_labeled = True
+                    if account_number:
+                        LOG.info("Account: %s Label: %s updated.", account_number, label)
+
             except ReportDownloaderError as err:
                 LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
                 continue
@@ -317,21 +331,6 @@ class Orchestrator:
                 # block all subsequent account processing.
                 LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
                 continue
-
-            # update labels
-            if reports_tasks_queued and not accounts_labeled:
-                LOG.info("Running AccountLabel to get account aliases.")
-                labeler = AccountLabel(
-                    auth=account.get("credentials"),
-                    schema=account.get("schema_name"),
-                    provider_type=account.get("provider_type"),
-                )
-                account_number, label = labeler.get_label_details()
-                accounts_labeled = True
-                if account_number:
-                    LOG.info("Account: %s Label: %s updated.", account_number, label)
-
-        return
 
     def prepare_continious_report_sources(self, account, provider_uuid):
         """

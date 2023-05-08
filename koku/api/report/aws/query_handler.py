@@ -8,7 +8,6 @@ import logging
 import operator
 from functools import reduce
 
-from django.core.exceptions import FieldDoesNotExist
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Q
@@ -331,140 +330,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
 
-    def _get_associated_tags(self, query_table, base_query_filters):  # noqa: C901
-        """
-        Query the reporting_awscostentrylineitem_daily_summary for existence of associated
-        tags grouped by the account.
-
-        Args:
-            query_table (django.db.model) : Table containing the data against which we want to check for tags
-            base_query_filters (django.db.model.Q) : Query filters to apply to table arg
-
-        Returns:
-            dict : {account (str): tags_exist(bool)}
-        """
-
-        def __resolve_op(op_str):
-            """
-            Resolve a django lookup op to a PostgreSQL operator
-
-            Args:
-                op_str (str) : django field lookup operator string
-
-            Returns:
-                str : Translated PostgreSQL operator
-            """
-            op_map = {
-                None: "=",
-                "": "=",
-                "lt": "<",
-                "lte": "<=",
-                "gt": ">",
-                "gte": ">=",
-                "contains": "like",
-                "icontains": "like",
-                "startswith": "like",
-                "istartswith": "like",
-                "endswith": "like",
-                "iendswith": "like",
-            }
-
-            return op_map[op_str]
-
-        def __resolve_conditions(condition, alias="t", where=None, values=None):
-            """
-            Resolve a Q object to a PostgreSQL where clause condition string
-
-            Args:
-                condition (django.db.models.Q) Filters for the query
-                alias (str) : Table alias (set by the calling function)
-                where (None/List): Used for recursive calls only.
-                values (None/List): Used for recursive calls only.
-
-            Returns:
-                dict : Result of query. On error, a log message is written and an empty dict is returned
-            """
-            if where is None:
-                where = []
-            if values is None:
-                values = []
-
-            for cond in condition.children:
-                if isinstance(cond, Q):
-                    __resolve_conditions(cond, alias, where, values)
-                else:
-                    conditional_parts = cond[0].split("__")
-                    cast = f"::{conditional_parts[1]}" if len(conditional_parts) > 2 else ""
-                    dj_op = conditional_parts[-1]
-                    op = __resolve_op(dj_op) if len(conditional_parts) > 1 else __resolve_op(None)
-                    col = (
-                        f"UPPER({alias}.{conditional_parts[0]})"
-                        if dj_op in ("icontains", "istartswith", "iendswith")
-                        else f"{alias}.{conditional_parts[0]}"
-                    )
-                    values.append(
-                        f"%{str(cond[1]).upper() if dj_op.startswith('i') else cond[1]}%"
-                        if dj_op.endswith("contains")
-                        else f"%{str(cond[1]).upper() if dj_op.startswith('i') else cond[1]}"
-                        if dj_op.endswith("startswith")
-                        else f"{str(cond[1]).upper() if dj_op.startswith('i') else cond[1]}%"
-                        if dj_op.endswith("endswith")
-                        else cond[1]
-                    )
-                    where.append(f" {'not ' if condition.negated else ''}{col}{cast} {op} %s{cast} ")
-
-            return f"( {condition.connector.join(where)} )", values
-
-        # Test the table to see if we can link to the daily summary table for tags
-        try:
-            _ = query_table._meta.get_field("usage_account_id")
-            _ = query_table._meta.get_field("account_alias_id")
-        except FieldDoesNotExist:
-            return {}
-        else:
-            aws_tags_daily_summary_table = "reporting_awscostentrylineitem_daily_summary"
-            # If the select table is not the above table, we need to join it to the above table
-            # as it is the table containing the tag data
-            if query_table._meta.db_table != aws_tags_daily_summary_table:
-                join_table = f"""
-  join {query_table._meta.db_table} as "b"
-    on b.usage_account_id = t.usage_account_id
-"""
-            else:
-                join_table = ""
-
-            where_clause, values = __resolve_conditions(
-                base_query_filters, "b" if query_table._meta.db_table != aws_tags_daily_summary_table else "t"
-            )
-
-            # Django ORM was producing inefficient and incorrect SQL for the query using this expression.
-            # Therefore, at this time, the query will be written out until we can correct the ORM issue.
-            sql = f"""
-select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
-       sum((coalesce(t.tags, '{{}}'::jsonb) <> '{{}}'::jsonb)::boolean::int)::int as "tags_exist_sum"
-  from {aws_tags_daily_summary_table} as "t"{join_table}
-  left
-  join reporting_awsaccountalias as "raa"
-    on raa.id = t.account_alias_id
- where {where_clause}
- group
-    by "account" ;"""
-            # Saving these in case we need them
-            # LOG.debug(f"AWS TAG CHECK QUERY: {sql}")
-            # LOG.debug(f"AWS_TAG CHECK QUERY VALUES: {values}")
-
-            from django.db import connection
-
-            try:
-                with connection.cursor() as cur:
-                    cur.execute(sql, values)
-                    res = {rec[0]: bool(rec[1]) for rec in cur}
-            except Exception as e:
-                LOG.error(e)
-                res = {}
-
-            return res
-
     def set_access_filters(self, access, filt, filters):
         """
         Sets the access filters to ensure RBAC restrictions given the users access,
@@ -526,7 +391,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         with tenant_context(self.tenant):
             query_table = self.query_table
             LOG.debug(f"Using query table: {query_table}")
-            tag_results = None
             query = query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
@@ -543,9 +407,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
-                if self.parameters.parameters.get("check_tags"):
-                    tag_results = self._get_associated_tags(query_table, self.query_filter)
-
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:
@@ -561,14 +422,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             # Fetch the data (returning list(dict))
             query_results = list(query_data)
-
-            # Resolve tag exists for unique account returned
-            # if tag_results is not Falsey
-            # Append the flag to the query result for the report
-            if tag_results is not None:
-                # Add the tag results to the report query result dicts
-                for res in query_results:
-                    res["tags_exist"] = tag_results.get(res["account_alias"], False)
 
             if not self.is_csv_output:
                 groups = copy.deepcopy(query_group_by)
