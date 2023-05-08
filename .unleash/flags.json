@@ -2,25 +2,6 @@
     "version": 1,
     "features": [
         {
-            "name": "cost-management.backend.cost-enable-negative-filtering",
-            "description": "Toggle to enable negative filtering in query",
-            "type": "permission",
-            "project": "default",
-            "enabled": true,
-            "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": "acct1234567"
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-09-08T11:50:00.756Z"
-        },
-        {
             "name": "cost-management.backend.cost-trino-processor",
             "description": "Toggle to enable trino processing",
             "type": "permission",
