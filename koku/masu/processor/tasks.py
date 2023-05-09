@@ -1013,7 +1013,7 @@ def remove_stale_tenants():
         JOIN api_tenant t
             ON c.schema_name = t.schema_name
         LEFT JOIN api_sources s
-            ON c.account_id = s.account_id
+            ON c.org_id = s.org_id
         WHERE s.source_id IS null
             AND c.date_updated < now() - INTERVAL '2 weeks'
         ;
