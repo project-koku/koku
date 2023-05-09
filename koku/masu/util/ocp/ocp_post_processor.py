@@ -14,11 +14,67 @@ from reporting.provider.ocp.models import OCPEnabledTagKeys
 LOG = logging.getLogger(__name__)
 
 
+def process_openshift_datetime(val):
+    """
+    Convert the date time from the Metering operator reports to a consumable datetime.
+    """
+    result = None
+    try:
+        datetime_str = str(val).replace(" +0000 UTC", "")
+        result = ciso8601.parse_datetime(datetime_str)
+    except ParserError:
+        pass
+    return result
+
+
+def process_openshift_labels(label_string):
+    """Convert the report string to a JSON dictionary.
+
+    Args:
+        label_string (str): The raw report string of pod labels
+
+    Returns:
+        (dict): The JSON dictionary made from the label string
+
+    """
+    labels = label_string.split("|") if label_string else []
+    label_dict = {}
+
+    for label in labels:
+        if ":" not in label:
+            continue
+        try:
+            key, value = label.split(":")
+            key = key.replace("label_", "")
+            label_dict[key] = value
+        except ValueError as err:
+            LOG.warning(err)
+            LOG.warning("%s could not be properly split", label)
+            continue
+    return label_dict
+
+
+def process_openshift_labels_to_json(label_val):
+    return json.dumps(process_openshift_labels(label_val))
+
+
 class OCPPostProcessor(PostProcessor):
     def __init__(self, schema, report_type):
         super().__init__(schema=schema)
         self.enabled_tag_keys = set()
         self.report_type = report_type
+
+    def __add_effective_usage_columns(self, data_frame):
+        """Add effective usage columns to pod data frame."""
+        if self.report_type != "pod_usage":
+            return data_frame
+        data_frame["pod_effective_usage_cpu_core_seconds"] = data_frame[
+            ["pod_usage_cpu_core_seconds", "pod_request_cpu_core_seconds"]
+        ].max(axis=1)
+        data_frame["pod_effective_usage_memory_byte_seconds"] = data_frame[
+            ["pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds"]
+        ].max(axis=1)
+        return data_frame
 
     def check_ingress_required_columns(self, col_names):
         """
@@ -30,48 +86,6 @@ class OCPPostProcessor(PostProcessor):
         """
         Return source specific parquet column converters.
         """
-
-        def process_openshift_datetime(val):
-            """
-            Convert the date time from the Metering operator reports to a consumable datetime.
-            """
-            result = None
-            try:
-                datetime_str = str(val).replace(" +0000 UTC", "")
-                result = ciso8601.parse_datetime(datetime_str)
-            except ParserError:
-                pass
-            return result
-
-        def process_openshift_labels(label_string):
-            """Convert the report string to a JSON dictionary.
-
-            Args:
-                label_string (str): The raw report string of pod labels
-
-            Returns:
-                (dict): The JSON dictionary made from the label string
-
-            """
-            labels = label_string.split("|") if label_string else []
-            label_dict = {}
-
-            for label in labels:
-                if ":" not in label:
-                    continue
-                try:
-                    key, value = label.split(":")
-                    key = key.replace("label_", "")
-                    label_dict[key] = value
-                except ValueError as err:
-                    LOG.warning(err)
-                    LOG.warning("%s could not be properly split", label)
-                    continue
-            return label_dict
-
-        def process_openshift_labels_to_json(label_val):
-            return json.dumps(process_openshift_labels(label_val))
-
         converters = {
             "report_period_start": process_openshift_datetime,
             "report_period_end": process_openshift_datetime,
@@ -106,19 +120,7 @@ class OCPPostProcessor(PostProcessor):
     def _generate_daily_data(self, data_frame):
         """Given a dataframe, group the data to create daily data."""
 
-        def add_effective_usage_columns(data_frame):
-            """Add effective usage columns to pod data frame."""
-            if self.report_type != "pod_usage":
-                return data_frame
-            data_frame["pod_effective_usage_cpu_core_seconds"] = data_frame[
-                ["pod_usage_cpu_core_seconds", "pod_request_cpu_core_seconds"]
-            ].max(axis=1)
-            data_frame["pod_effective_usage_memory_byte_seconds"] = data_frame[
-                ["pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds"]
-            ].max(axis=1)
-            return data_frame
-
-        data_frame = add_effective_usage_columns(data_frame)
+        data_frame = self.__add_effective_usage_columns(data_frame)
 
         if data_frame.empty:
             return data_frame

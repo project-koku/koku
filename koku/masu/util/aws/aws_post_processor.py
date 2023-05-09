@@ -18,6 +18,26 @@ from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 
+def scrub_resource_col_name(res_col_name, column_prefix):
+    return res_col_name.replace(column_prefix, "")
+
+
+def handle_user_defined_json_columns(data_frame, columns, column_prefix):
+    """Given a prefix convert multiple dataframe columns into a single json column."""
+
+    columns_of_interest = [column for column in columns if column_prefix in column]
+    unique_keys = {scrub_resource_col_name(column, column_prefix) for column in columns_of_interest}
+
+    df = data_frame[columns_of_interest]
+    column_dict = df.apply(
+        lambda row: {scrub_resource_col_name(column, column_prefix): value for column, value in row.items() if value},
+        axis=1,
+    )
+    column_dict.where(column_dict.notna(), lambda _: [{}], inplace=True)
+
+    return column_dict.apply(json.dumps), unique_keys
+
+
 class AWSPostProcessor(PostProcessor):
     def __init__(self, schema):
         super().__init__(schema=schema)
@@ -125,24 +145,6 @@ class AWSPostProcessor(PostProcessor):
 
     def process_dataframe(self, data_frame):
         """Process dataframe."""
-
-        def handle_user_defined_json_columns(data_frame, columns, column_prefix):
-            """Given a prefix convert multiple dataframe columns into a single json column."""
-
-            def scrub_resource_col_name(res_col_name):
-                return res_col_name.replace(column_prefix, "")
-
-            columns_of_interest = [column for column in columns if column_prefix in column]
-            unique_keys = {scrub_resource_col_name(column) for column in columns_of_interest}
-
-            df = data_frame[columns_of_interest]
-            column_dict = df.apply(
-                lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
-            )
-            column_dict.where(column_dict.notna(), lambda _: [{}], inplace=True)
-
-            return column_dict.apply(json.dumps), unique_keys
-
         org_columns = data_frame.columns.unique()
         columns = []
         for col in org_columns:

@@ -14,6 +14,40 @@ from reporting.provider.gcp.models import GCPEnabledTagKeys
 LOG = logging.getLogger(__name__)
 
 
+def process_gcp_labels(label_string):
+    """Convert the report string to a JSON dictionary.
+
+    Args:
+        label_string (str): The raw report string of pod labels
+
+    Returns:
+        (dict): The JSON dictionary made from the label string
+
+    """
+    label_dict = {}
+    try:
+        if label_string:
+            labels = json.loads(label_string)
+            label_dict = {entry.get("key"): entry.get("value") for entry in labels}
+    except JSONDecodeError:
+        LOG.warning("Unable to process GCP labels.")
+
+    return json.dumps(label_dict)
+
+
+def process_gcp_credits(credit_string):
+    """Process the credits column, which is non-standard JSON."""
+    credit_dict = {}
+    try:
+        gcp_credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
+        if gcp_credits:
+            credit_dict = gcp_credits[0]
+    except JSONDecodeError:
+        LOG.warning("Unable to process GCP credits.")
+
+    return json.dumps(credit_dict)
+
+
 class GCPPostProcessor(PostProcessor):
     def __init__(self, schema):
         super().__init__(schema=schema)
@@ -32,39 +66,6 @@ class GCPPostProcessor(PostProcessor):
         """
         Return source specific parquet column converters.
         """
-
-        def process_gcp_labels(label_string):
-            """Convert the report string to a JSON dictionary.
-
-            Args:
-                label_string (str): The raw report string of pod labels
-
-            Returns:
-                (dict): The JSON dictionary made from the label string
-
-            """
-            label_dict = {}
-            try:
-                if label_string:
-                    labels = json.loads(label_string)
-                    label_dict = {entry.get("key"): entry.get("value") for entry in labels}
-            except JSONDecodeError:
-                LOG.warning("Unable to process GCP labels.")
-
-            return json.dumps(label_dict)
-
-        def process_gcp_credits(credit_string):
-            """Process the credits column, which is non-standard JSON."""
-            credit_dict = {}
-            try:
-                gcp_credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
-                if gcp_credits:
-                    credit_dict = gcp_credits[0]
-            except JSONDecodeError:
-                LOG.warning("Unable to process GCP credits.")
-
-            return json.dumps(credit_dict)
-
         converters = {
             "usage_start_time": ciso8601.parse_datetime,
             "usage_end_time": ciso8601.parse_datetime,

@@ -10,6 +10,10 @@ from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 
+def scrub_resource_col_name(res_col_name):
+    return res_col_name.split(".")[-1]
+
+
 class OCIPostProcessor(PostProcessor):
     def __init__(self, schema):
         super().__init__(schema=schema)
@@ -76,9 +80,6 @@ class OCIPostProcessor(PostProcessor):
         """
         Consume the OCI data and add a column creating a dictionary for the oci tags
         """
-
-        def scrub_resource_col_name(res_col_name):
-            return res_col_name.split(".")[-1]
 
         columns = set(list(data_frame))
         columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
