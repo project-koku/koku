@@ -10,6 +10,7 @@ from masu.util.aws.common import CSV_COLUMN_PREFIX
 from masu.util.aws.common import INGRESS_ALT_COLUMNS
 from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.aws.common import RESOURCE_TAG_USER_PREFIX
+from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.post_processor import PostProcessor
@@ -40,7 +41,7 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
 
 class AWSPostProcessor(PostProcessor):
     def __init__(self, schema):
-        super().__init__(schema=schema)
+        self.schema = schema
         self.enabled_tag_keys = set()
         self.enabled_categories = set()
 
@@ -183,5 +184,5 @@ class AWSPostProcessor(PostProcessor):
         """
         Uses information gather in the
         """
-        self.create_enabled_keys(self.enabled_tag_keys, AWSEnabledTagKeys)
-        self.create_enabled_keys(self.enabled_categories, AWSEnabledCategoryKeys)
+        create_enabled_keys(self.schema, AWSEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema, AWSEnabledCategoryKeys, self.enabled_categories)

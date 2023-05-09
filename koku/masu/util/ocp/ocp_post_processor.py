@@ -6,6 +6,7 @@ import ciso8601
 import pandas as pd
 from dateutil.parser import ParserError
 
+from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from masu.util.post_processor import PostProcessor
@@ -60,7 +61,7 @@ def process_openshift_labels_to_json(label_val):
 
 class OCPPostProcessor(PostProcessor):
     def __init__(self, schema, report_type):
-        super().__init__(schema=schema)
+        self.schema = schema
         self.enabled_tag_keys = set()
         self.report_type = report_type
 
@@ -161,4 +162,4 @@ class OCPPostProcessor(PostProcessor):
         """
         Uses information gather in the post processing to update the cost models.
         """
-        self.create_enabled_keys(self.enabled_tag_keys, OCPEnabledTagKeys)
+        create_enabled_keys(self.schema, OCPEnabledTagKeys, self.enabled_tag_keys)

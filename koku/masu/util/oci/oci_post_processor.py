@@ -3,6 +3,7 @@ import json
 import ciso8601
 import pandas as pd
 
+from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.post_processor import PostProcessor
@@ -16,7 +17,7 @@ def scrub_resource_col_name(res_col_name):
 
 class OCIPostProcessor(PostProcessor):
     def __init__(self, schema):
-        super().__init__(schema=schema)
+        self.schema = schema
         self.enabled_tag_keys = set()
 
     def get_column_converters(self, col_names, panda_kwargs):
@@ -114,4 +115,4 @@ class OCIPostProcessor(PostProcessor):
         """
         Uses information gather in the post processing to update the cost models.
         """
-        self.create_enabled_keys(self.enabled_tag_keys, OCIEnabledTagKeys)
+        create_enabled_keys(self.schema, OCIEnabledTagKeys, self.enabled_tag_keys)

@@ -325,24 +325,29 @@ def batch(iterable, start=0, stop=None, _slice=1):
 
 
 def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
-    LOG.info("Creating enabled tag key records")
+    """
+    Creates enabled key records.
+    """
+
+    if not enabled_keys:
+        LOG.info("No enabled keys found")
+        return
+    LOG.info(f"Creating enabled key records: {str(enabled_keys_model._meta.model_name)}.")
     changed = False
 
-    if enabled_keys:
-        with schema_context(schema):
-            new_keys = list(set(enabled_keys) - {k.key for k in enabled_keys_model.objects.all()})
-            if new_keys:
-                changed = True
-                # Processing in batches for increased efficiency
-                for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
-                    batch_size = len(new_batch)
-                    LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
-                    for ix in range(batch_size):
-                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
-                    enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
-
+    with schema_context(schema):
+        new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
+        if new_keys:
+            changed = True
+            # Processing in batches for increased efficiency
+            for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                batch_size = len(new_batch)
+                LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                for ix in range(batch_size):
+                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
     if not changed:
-        LOG.info("No enabled keys added.")
+        LOG.info("No enabled keys added")
 
     return changed
 

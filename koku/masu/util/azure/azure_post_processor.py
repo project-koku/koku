@@ -4,6 +4,7 @@ import ciso8601
 from numpy import nan
 
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
+from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.post_processor import PostProcessor
@@ -44,7 +45,7 @@ def azure_date_converter(date):
 
 class AzurePostProcessor(PostProcessor):
     def __init__(self, schema):
-        super().__init__(schema=schema)
+        self.schema = schema
         self.enabled_tag_keys = set()
 
     def check_ingress_required_columns(self, col_names):
@@ -114,4 +115,4 @@ class AzurePostProcessor(PostProcessor):
         """
         Uses information gather in the post processing to update the cost models.
         """
-        self.create_enabled_keys(self.enabled_tag_keys, AzureEnabledTagKeys)
+        create_enabled_keys(self.schema, AzureEnabledTagKeys, self.enabled_tag_keys)

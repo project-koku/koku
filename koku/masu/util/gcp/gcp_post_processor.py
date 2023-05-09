@@ -5,6 +5,7 @@ from json.decoder import JSONDecodeError
 import ciso8601
 import pandas as pd
 
+from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.gcp.common import INGRESS_REQUIRED_COLUMNS
@@ -50,7 +51,7 @@ def process_gcp_credits(credit_string):
 
 class GCPPostProcessor(PostProcessor):
     def __init__(self, schema):
-        super().__init__(schema=schema)
+        self.schema = schema
         self.enabled_tag_keys = set()
 
     def check_ingress_required_columns(self, col_names):
@@ -163,4 +164,4 @@ class GCPPostProcessor(PostProcessor):
         """
         Uses information gather in the post processing to update the cost models.
         """
-        self.create_enabled_keys(self.enabled_tag_keys, GCPEnabledTagKeys)
+        create_enabled_keys(self.schema, GCPEnabledTagKeys, self.enabled_tag_keys)
