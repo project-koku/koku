@@ -139,4 +139,5 @@ def disable_source(source_uuid):
     context = {"source_uuid": source_uuid}
     LOG.info(f"Disabled source UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-source", context))
+    LOG.info(f"    Processing {'disabled' if res else 'enabled'} for source {source_uuid}")
     return res

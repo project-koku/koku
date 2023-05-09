@@ -423,7 +423,6 @@ def update_summary_tables(  # noqa: C901
         LOG.info(f"Summary disabled for {schema_name}.")
         return
     if disable_source(provider_uuid):
-        LOG.info(f"{provider_uuid} disabled in unleash.")
         return
     if disable_ocp_on_cloud_summary(schema_name):
         LOG.info(f"OCP on Cloud summary disabled for {schema_name}.")

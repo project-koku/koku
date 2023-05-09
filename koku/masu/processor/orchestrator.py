@@ -97,7 +97,6 @@ class Orchestrator:
                 LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
                 continue
             if disable_source(provider_uuid):
-                LOG.info(f"Cloud source processing disabled for {provider_uuid}")
                 continue
             else:
                 if AccountsAccessor().is_polling_account(account):
