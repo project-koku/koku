@@ -50,6 +50,13 @@ class SourcesErrorMessage:
         """AWS invalid compression message."""
         return ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG_MESSAGE
 
+    def general_errors(self, message):
+        msg = ProviderErrors.BILLING_SOURCE_GENERAL_ERROR
+        if "one or more required fields is invalid/missing" in message.lower():
+            msg = ProviderErrors.REQUIRED_FIELD_MISSING
+
+        return msg
+
     def _display_string_function(self, key):
         """Return function to get user facing string."""
         ui_function_map = {
@@ -57,6 +64,7 @@ class SourcesErrorMessage:
             ProviderErrors.AWS_ROLE_ARN_UNREACHABLE: self.aws_client_errors,
             ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND: self.aws_no_billing_source,
             ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG: self.aws_invalid_report_compression,
+            ProviderErrors.BILLING_SOURCE: self.general_errors,
         }
         string_function = ui_function_map.get(key)
         return string_function
@@ -68,12 +76,14 @@ class SourcesErrorMessage:
         if isinstance(self._error, ValidationError):
             err_dict = self._error.detail
             LOG.info(f"validation error: {self._error}. Validation detail {err_dict}")
-            err_key = list(err_dict.keys()).pop()
-            err_body = err_dict.get(err_key, []).pop()
-            if err_body:
-                err_msg = err_body.encode().decode("UTF-8")
+            err_key = list(err_dict).pop()
+            try:
+                err_body = err_dict.get(err_key, [None]).pop()
+            except TypeError:
+                err_msg = str(self._error.detail)
             else:
-                err_msg = str(self._error.detail).encode().decode("UTF-8")
+                err_msg = err_body or str(self._error.detail)
+
         return err_key, err_msg
 
     def display(self, source_id):

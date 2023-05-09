@@ -41,6 +41,7 @@ TRINO_REQUIRED_COLUMNS = (
     "lineItem/UsageAccountId",
     "lineItem/LegalEntity",
     "lineItem/LineItemDescription",
+    "lineItem/LineItemType",
     "lineItem/AvailabilityZone",
     "product/region",
     "product/instanceType",
@@ -153,6 +154,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -312,6 +314,7 @@ class AWSCostSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -352,6 +355,7 @@ class AWSCostSummaryByServiceP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -387,6 +391,7 @@ class AWSCostSummaryByAccountP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -429,6 +434,7 @@ class AWSCostSummaryByRegionP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -469,6 +475,7 @@ class AWSComputeSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -512,6 +519,7 @@ class AWSComputeSummaryByAccountP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -550,6 +558,7 @@ class AWSStorageSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -591,6 +600,7 @@ class AWSStorageSummaryByAccountP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -632,6 +642,7 @@ class AWSNetworkSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -673,6 +684,7 @@ class AWSDatabaseSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
