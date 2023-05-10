@@ -101,6 +101,9 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
     COST_TYPE_CHOICE = (
         ("blended_cost", "blended_cost"),
         ("unblended_cost", "unblended_cost"),
+        ("calculated_amortized_cost", "calculated_amortized_cost"),
+        # savingsplan_effective_cost is for backwards compatibility.
+        # Use calculated_amortized_cost for the correct amortized cost value.
         ("savingsplan_effective_cost", "savingsplan_effective_cost"),
     )
 
