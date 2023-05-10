@@ -25,6 +25,7 @@ from reporting.provider.aws.models import AWSCostSummaryByRegionP
 from reporting.provider.aws.models import AWSCostSummaryByServiceP
 from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.aws.models import AWSDatabaseSummaryP
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
 from reporting.provider.aws.models import AWSStorageSummaryP
@@ -74,6 +75,9 @@ class AWSProviderMap(ProviderMap):
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
                 "aws_category_column": "cost_category",
+                "aws_category_enabled": AWSEnabledCategoryKeys.objects.values_list("key", flat=True)
+                .filter(enabled=True)
+                .distinct(),
                 "report_type": {
                     "costs": {
                         "aggregates": {
