@@ -143,3 +143,26 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
+
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
+    )
+    def test_update_summary_tables_no_bills(self, *args):
+        """Test that summarization is skipped if no bill id found."""
+
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, end = self.updater._get_sql_inputs(start_str, end_str)
+
+        with patch(
+            "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.bills_for_provider_uuid",
+            return_value=[],
+        ):
+            with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logs:
+                start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
+                expected_log_msg = f"No bill was found for {start_return}. Skipping summarization"
+
+        self.assertEqual(start_return, start)
+        self.assertEqual(end_return, end)
+        self.assertIn(expected_log_msg, logs.output[-1])
