@@ -14,7 +14,7 @@ COST_TYPES = [
         "description": "Usage cost on the day you are charged",
     },
     {
-        "code": "savingsplan_effective_cost",
+        "code": "calculated_amortized_cost",
         "name": "Amortized",
         "description": "Recurring and/or upfront costs are distributed evenly across the month",
     },
