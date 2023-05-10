@@ -19,7 +19,7 @@ from django.http import JsonResponse
 from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
-from django_prometheus.testutils import PrometheusTestCaseMixin
+from django_prometheus.testutils import save_registry
 from faker import Faker
 from requests.exceptions import ConnectionError
 from rest_framework import status
@@ -541,7 +541,7 @@ class RequestTimingMiddlewareTest(IamTestCase):
 
     def test_process_request(self):
         """Test that the request gets a user."""
-        # mock_request = Mock(path="/api/v1/status/")
+
         middleware = RequestTimingMiddleware()
         middleware.process_request(self.request)
         self.assertTrue(hasattr(self.request, "start_time"))
@@ -549,7 +549,7 @@ class RequestTimingMiddlewareTest(IamTestCase):
     @patch("koku.middleware.KokuTenantMiddleware._get_or_create_tenant")
     def test_process_response(self, mock_get_tenant):
         """Test that the request gets a user."""
-        # mock_request = Mock(path="/api/v1/status/")
+
         mock_get_tenant.return_value = self.tenant
         client = APIClient()
         url = reverse("server-status")
@@ -563,7 +563,7 @@ class RequestTimingMiddlewareTest(IamTestCase):
             self.assertTrue(logged)
 
 
-class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):
+class AccountEnhancedMiddlewareTest(IamTestCase):
     """Test middleware to add account info to Prometheus API metrics."""
 
     @modify_settings(
@@ -583,7 +583,7 @@ class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):
         client = APIClient()
         client.get(url, **self.headers)
 
-        registry = self.saveRegistry()
+        registry = save_registry()
         for metric in registry:
             if metric.name in EXTENDED_METRICS:
                 self.assertIn("account", metric.samples[0].labels)
@@ -603,7 +603,6 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         user_data = self._create_user_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
 
-        # mock_request = Mock(path="/api/v1/tags/aws/")
         client = APIClient()
         url = reverse("aws-tags")
         result = client.get(url, **request_context["request"].META)
@@ -617,7 +616,6 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         user_data = self._create_user_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
 
-        # mock_request = Mock(path="/api/v1/user-access/")
         client = APIClient()
         url = reverse("user-access")
         result = client.get(url, **request_context["request"].META)
