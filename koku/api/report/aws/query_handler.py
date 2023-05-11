@@ -103,6 +103,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             enabled = set(AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct())
             if values - enabled:
+                self.query_data = []
+                query_sum = self._build_sum(self.query_table.objects.none(), {})
+                self.query_sum = self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
                 return True
         return False
 
@@ -183,9 +186,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         Else it will return the original query.
         """
         if self._contains_disabled_aws_category_keys():
-            self.query_data = []
-            query_sum = self._build_sum(self.query_table.objects.none(), {})
-            self.query_sum = self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
             return self._format_query_response()
 
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
