@@ -14,6 +14,7 @@ from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 from functools import cached_property
+from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote_from_bytes
 
@@ -44,7 +45,6 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
-from api.utils import sort_and_group
 
 LOG = logging.getLogger(__name__)
 
@@ -743,33 +743,23 @@ class ReportQueryHandler(QueryHandler):
         if group_index >= group_by_list_len:
             return data
 
-        # Nested function is necessary in order to use the current group value for sorting
-        def _current_group_value(data: dict):
-            """Return the value of the current group key for grouping"""
+        def _current_group(data: dict):
             curr_group = group_by_list[group_index]
             return data.get(curr_group)
 
         out_data = OrderedDict()
-        for key, group in sort_and_group(data, key=_current_group_value):
+        for key, group in groupby(data, key=_current_group):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
             datapoint = out_data.get(key, [])
             if datapoint and isinstance(datapoint, dict):
                 if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):
                     # If any keys in the grouped dictionary exist in the datapoint,
-                    # update the data if it is a dictionary or append that data
-                    # into a single list of dictionaries if it is a list.
+                    # append that data in matching keys into a single list of dictionaries.
                     for inter_key in set(datapoint).intersection(grouped):
-                        data_to_update = grouped[inter_key]
-                        if isinstance(data_to_update, (dict, OrderedDict)):
-                            data_to_update.update(datapoint[inter_key])
-                        else:
-                            # Assuming data_to_update is a list of dicts
-                            #
-                            # Since datapoint[inter_key] is the current data, use insert
-                            # so new data appears after existing data in the final list.
-                            data_to_update.insert(0, *datapoint[inter_key])
-
+                        # Since datapoint[inter_key] is the current data, use insert
+                        # so new data appears after existing data in the final list.
+                        grouped[inter_key].insert(0, *datapoint[inter_key])
                 out_data[key].update(grouped)
             elif datapoint and isinstance(datapoint, list):
                 out_data[key] = grouped + datapoint
