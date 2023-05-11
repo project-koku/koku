@@ -254,6 +254,7 @@ class OCPCluster(models.Model):
         """Meta for OCPCluster."""
 
         db_table = "reporting_ocp_clusters"
+        unique_together = ("cluster_id", "cluster_alias", "provider")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     cluster_id = models.TextField()
