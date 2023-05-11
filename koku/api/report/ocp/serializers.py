@@ -40,6 +40,8 @@ class OCPOrderBySerializer(OrderSerializer):
 
     def to_internal_value(self, data):
         """Send to internal value."""
+        if not isinstance(data, dict):
+            return super().to_internal_value(data)
         for serializer_key, internal_key in DISTRIBUTED_COST_INTERNAL.items():
             if serializer_key in data.keys():
                 data[internal_key] = data.pop(serializer_key)
