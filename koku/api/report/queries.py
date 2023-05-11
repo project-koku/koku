@@ -271,18 +271,6 @@ class ReportQueryHandler(QueryHandler):
             aws_category_filters = self.get_aws_category_keys("filter")
             aws_category_group_by = self.get_aws_category_keys("group_by")
             aws_category_filters.extend(aws_category_group_by)
-            striped_category_set = {
-                strip_prefix(cat_filter, AWS_CATEGORY_PREFIX) for cat_filter in aws_category_filters
-            }
-            if striped_category_set:
-                enabled_set = set(list(self._mapper.provider_map.get("aws_category_enabled")))
-                disabled_keys = list(striped_category_set - enabled_set)
-                if disabled_keys:
-                    # using exact here to return an empty list
-                    empty_filt = {"field": aws_category_column, "operation": "exact"}
-                    disable_filter = QueryFilter(parameter=disabled_keys, **empty_filt)
-                    filter_collection.add(disable_filter)
-                    return filter_collection.compose()
             filter_collection = self._set_prefix_based_filters(
                 filter_collection, aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
             )

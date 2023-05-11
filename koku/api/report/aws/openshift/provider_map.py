@@ -16,7 +16,6 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
-from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
@@ -72,9 +71,6 @@ class OCPAWSProviderMap(ProviderMap):
                 "group_by_options": ["account", "service", "region", "cluster", "project", "node", "product_family"],
                 "tag_column": "tags",
                 "aws_category_column": "aws_cost_category",
-                "aws_category_enabled": AWSEnabledCategoryKeys.objects.values_list("key", flat=True)
-                .filter(enabled=True)
-                .distinct(),
                 "report_type": {
                     "costs": {
                         "aggregates": {
