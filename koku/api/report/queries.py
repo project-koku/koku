@@ -746,35 +746,33 @@ class ReportQueryHandler(QueryHandler):
         out_data = OrderedDict()
         curr_group = group_by_list[group_index]
 
+        # FIXME: data needs to be sorted before passing to groupby because
+        #        groupby aggregates new groups every time it hits a new item while
+        #        iterating with no regard for what groups already exist.
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
 
             # Default to empty list for use in the set() constructor later on
-            datapoint = out_data.get(key, [])
+            if datapoint := out_data.get(key, []):
+                try:
+                    # If datapoint is a list, combine it with grouped
+                    out_data[key] = grouped + datapoint
+                except TypeError:
+                    # datapoint is a dictionary
+                    #
+                    # Update the data if any keys in the grouped dictionary exist in the datapoint.
+                    for inter_key in set(datapoint).intersection(grouped):
+                        data_to_update = grouped[inter_key]
+                        try:
+                            data_to_update.update(datapoint[inter_key])
+                        except AttributeError:
+                            # data_to_update is a list of dicts
+                            data_to_update.extend(datapoint[inter_key])
 
-            # Start by using the grouped data
-            out_data[key] = grouped
-            try:
-                # If datapoint is a list, combine it with grouped
-                out_data[key] = grouped + datapoint
-            except TypeError:
-                # datapoint is a dictionary
-                #
-                # Update the data if any keys in the grouped dictionary exist in the datapoint.
-                for inter_key in set(datapoint).intersection(grouped):
-                    data_to_update = grouped[inter_key]
-                    try:
-                        data_to_update.update(datapoint[inter_key])
-                    except AttributeError:
-                        # data_to_update is a list of dicts
-                        #
-                        # Since datapoint[inter_key] is the new data, use insert
-                        # so new data appears before existing data in the final list.
-                        # data_to_update.insert(0, *datapoint[inter_key])
-                        data_to_update.extend(datapoint[inter_key])
-
-                out_data[key].update(grouped)
+                    out_data[key].update(grouped)
+            else:
+                out_data[key] = grouped
 
         return out_data
 
