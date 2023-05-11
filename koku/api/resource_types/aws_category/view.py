@@ -134,7 +134,12 @@ class AWSCategoryView(generics.ListAPIView):
             annotate = {
                 "enabled": Exists(AWSEnabledCategoryKeys.objects.filter(key=OuterRef("key")).filter(enabled=True))
             }
-            self.queryset = AWSCategorySummary.objects.values_list("key", flat=True).annotate(**annotate).distinct()
+            self.queryset = (
+                AWSCategorySummary.objects.values_list("key", flat=True)
+                .annotate(**annotate)
+                .filter(enabled=True)
+                .distinct()
+            )
             self.SUPPORTED_FILTERS = ["limit", self.KEY_ONLY_PARAM, "account"]
         # Check for only supported query_params
         if self.request.query_params:
