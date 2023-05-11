@@ -64,6 +64,7 @@ class OCPPostProcessor(PostProcessor):
         self.schema = schema
         self.enabled_tag_keys = set()
         self.report_type = report_type
+        self.ocp_report_types = OCP_REPORT_TYPES
 
     def __add_effective_usage_columns(self, data_frame):
         """Add effective usage columns to pod data frame."""
@@ -126,7 +127,7 @@ class OCPPostProcessor(PostProcessor):
         if data_frame.empty:
             return data_frame
 
-        report = OCP_REPORT_TYPES.get(self.report_type, {})
+        report = self.ocp_report_types.get(self.report_type, {})
         group_bys = copy.deepcopy(report.get("group_by", []))
         group_bys.append(pd.Grouper(key="interval_start", freq="D"))
         aggs = report.get("agg", {})

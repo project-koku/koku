@@ -20,33 +20,6 @@ from masu.util.ocp.common import match_openshift_labels
 
 LOG = logging.getLogger(__name__)
 
-INGRESS_REQUIRED_COLUMNS = {
-    "SubscriptionGuid",
-    "ResourceGroup",
-    "ResourceLocation",
-    "UsageDateTime",
-    "MeterCategory",
-    "MeterSubcategory",
-    "MeterId",
-    "MeterName",
-    "MeterRegion",
-    "UsageQuantity",
-    "ResourceRate",
-    "PreTaxCost",
-    "ConsumedService",
-    "ResourceType",
-    "InstanceId",
-    "Tags",
-    "OfferId",
-    "AdditionalInfo",
-    "ServiceInfo1",
-    "ServiceInfo2",
-    "ServiceName",
-    "ServiceTier",
-    "Currency",
-    "UnitOfMeasure",
-}
-
 
 class AzureBlobExtension(Enum):
     manifest = "_manifest.json"

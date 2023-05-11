@@ -8,7 +8,6 @@ import pandas as pd
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from masu.util.gcp.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.post_processor import PostProcessor
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 
@@ -50,6 +49,39 @@ def process_gcp_credits(credit_string):
 
 
 class GCPPostProcessor(PostProcessor):
+
+    INGRESS_REQUIRED_COLUMNS = {
+        "billing_account_id",
+        "service.id",
+        "service.description",
+        "sku.id",
+        "sku.description",
+        "usage_start_time",
+        "usage_end_time",
+        "project.id",
+        "project.name",
+        "project.labels",
+        "project.ancestry_numbers",
+        "labels",
+        "system_labels",
+        "location.location",
+        "location.country",
+        "location.region",
+        "location.zone",
+        "export_time",
+        "cost",
+        "currency",
+        "currency_conversion_rate",
+        "usage.amount",
+        "usage.unit",
+        "usage.amount_in_pricing_units",
+        "usage.pricing_unit",
+        "credits",
+        "invoice.month",
+        "cost_type",
+        "partition_date",
+    }
+
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()
@@ -58,8 +90,8 @@ class GCPPostProcessor(PostProcessor):
         """
         Checks the required columns for ingress.
         """
-        if not set(col_names).issuperset(INGRESS_REQUIRED_COLUMNS):
-            missing_columns = [x for x in INGRESS_REQUIRED_COLUMNS if x not in col_names]
+        if not set(col_names).issuperset(self.INGRESS_REQUIRED_COLUMNS):
+            missing_columns = [x for x in self.INGRESS_REQUIRED_COLUMNS if x not in col_names]
             return missing_columns
         return None
 

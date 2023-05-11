@@ -3,7 +3,6 @@ import json
 import ciso8601
 from numpy import nan
 
-from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
@@ -44,6 +43,34 @@ def azure_date_converter(date):
 
 
 class AzurePostProcessor(PostProcessor):
+
+    INGRESS_REQUIRED_COLUMNS = {
+        "SubscriptionGuid",
+        "ResourceGroup",
+        "ResourceLocation",
+        "UsageDateTime",
+        "MeterCategory",
+        "MeterSubcategory",
+        "MeterId",
+        "MeterName",
+        "MeterRegion",
+        "UsageQuantity",
+        "ResourceRate",
+        "PreTaxCost",
+        "ConsumedService",
+        "ResourceType",
+        "InstanceId",
+        "Tags",
+        "OfferId",
+        "AdditionalInfo",
+        "ServiceInfo1",
+        "ServiceInfo2",
+        "ServiceName",
+        "ServiceTier",
+        "Currency",
+        "UnitOfMeasure",
+    }
+
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()
@@ -52,8 +79,8 @@ class AzurePostProcessor(PostProcessor):
         """
         Checks the required columns for ingress.
         """
-        if not set(col_names).issuperset(INGRESS_REQUIRED_COLUMNS):
-            missing_columns = [x for x in INGRESS_REQUIRED_COLUMNS if x not in col_names]
+        if not set(col_names).issuperset(self.INGRESS_REQUIRED_COLUMNS):
+            missing_columns = [x for x in self.INGRESS_REQUIRED_COLUMNS if x not in col_names]
             return missing_columns
         return None
 

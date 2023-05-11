@@ -20,38 +20,6 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 LOG = logging.getLogger(__name__)
 pd.options.mode.chained_assignment = None
 
-INGRESS_REQUIRED_COLUMNS = {
-    "billing_account_id",
-    "service.id",
-    "service.description",
-    "sku.id",
-    "sku.description",
-    "usage_start_time",
-    "usage_end_time",
-    "project.id",
-    "project.name",
-    "project.labels",
-    "project.ancestry_numbers",
-    "labels",
-    "system_labels",
-    "location.location",
-    "location.country",
-    "location.region",
-    "location.zone",
-    "export_time",
-    "cost",
-    "currency",
-    "currency_conversion_rate",
-    "usage.amount",
-    "usage.unit",
-    "usage.amount_in_pricing_units",
-    "usage.pricing_unit",
-    "credits",
-    "invoice.month",
-    "cost_type",
-    "partition_date",
-}
-
 
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """

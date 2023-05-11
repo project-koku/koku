@@ -3,6 +3,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import copy
 from unittest.mock import patch
 
 from numpy import isnan
@@ -12,7 +13,6 @@ from tenant_schemas.utils import schema_context
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from masu.util.azure.azure_post_processor import AzurePostProcessor
-from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import TRINO_COLUMNS
 
@@ -104,11 +104,10 @@ class TestAzurePostProcessor(MasuTestCase):
 
     def test_ingress_required_columns(self):
         """Test the ingress required columns."""
-        self.assertIsNone(self.post_processor.check_ingress_required_columns(INGRESS_REQUIRED_COLUMNS))
-        expected_missing_column = list(INGRESS_REQUIRED_COLUMNS)[0]
-        copy_set = set(INGRESS_REQUIRED_COLUMNS)
-        copy_set.remove(expected_missing_column)
-        missing_column = self.post_processor.check_ingress_required_columns(copy_set)
+        ingress_required_columns = list(copy.deepcopy(self.post_processor.INGRESS_REQUIRED_COLUMNS))
+        self.assertIsNone(self.post_processor.check_ingress_required_columns(ingress_required_columns))
+        expected_missing_column = ingress_required_columns[-1]
+        missing_column = self.post_processor.check_ingress_required_columns(set(ingress_required_columns[:-1]))
         self.assertEqual(missing_column, [expected_missing_column])
 
     def test_process_json_converter_expected_errors(self):
