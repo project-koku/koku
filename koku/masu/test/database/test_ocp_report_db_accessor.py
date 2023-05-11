@@ -816,7 +816,7 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_trino.assert_called()
         self.assertTrue(result)
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist, mock_schema_exists):

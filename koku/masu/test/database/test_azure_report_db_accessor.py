@@ -354,7 +354,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.schema_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
