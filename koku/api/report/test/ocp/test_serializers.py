@@ -247,6 +247,11 @@ class OCPOrderBySerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_invalid_data(self):
+        serializer = OCPOrderBySerializer(data="")
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
 
 class OCPQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
