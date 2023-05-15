@@ -913,6 +913,18 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertAlmostEqual(sum(expected_value), difference)
 
+    def test_aws_category_disabled_key(self):
+        """Test using a disabled key."""
+        aws_cat_key = "disabled_key"
+        query_params = self.mocked_query_params(
+            f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*", AWSCostView, reverse("reports-aws-costs")
+        )
+        handler = AWSReportQueryHandler(query_params)
+        handler._aws_category = {f"{AWS_CATEGORY_PREFIX}{aws_cat_key}"}
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertEqual(data, [])
+
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
         """Test execute_query for current month on monthly filtered by avail_zone for csv."""
