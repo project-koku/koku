@@ -22,6 +22,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_cloud_source_processing
+from masu.processor import disable_source
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
@@ -94,6 +95,8 @@ class Orchestrator:
         for account in all_accounts:
             if disable_cloud_source_processing(account.get("schema_name")) and not provider_uuid:
                 LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
+                continue
+            if disable_source(provider_uuid):
                 continue
             else:
                 if AccountsAccessor().is_polling_account(account):
