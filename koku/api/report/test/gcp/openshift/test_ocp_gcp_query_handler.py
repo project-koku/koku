@@ -1352,8 +1352,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCPGCPExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
@@ -1396,8 +1395,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_instance_types_when_not_returned(self, _):
+    def test_exclude_instance_types_when_not_returned(self):
         """Test that the exclude feature works for all options."""
         for view in [OCPGCPCostView, OCPGCPStorageView, OCPGCPInstanceTypeView]:
             filters = {
@@ -1441,8 +1439,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 else:
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", OCPGCPTagView)
         handler = OCPGCPTagQueryHandler(query_params)
@@ -1472,8 +1469,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCPGCPExcludeSerializer._opfields
         for ex_opt in exclude_opts:

@@ -43,6 +43,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
+        if self._contains_disabled_aws_category_keys():
+            return self._format_query_response()
         query_sum = self.initialize_totals()
         data = []
 

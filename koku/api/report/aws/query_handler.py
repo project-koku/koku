@@ -18,7 +18,10 @@ from django_tenants.utils import tenant_context
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
+from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.queries import ReportQueryHandler
+from api.report.queries import strip_prefix
+from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -89,6 +92,22 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if q_param in prefix_removed_parameters_list:
                 annotations[q_param] = F(db_field)
         return annotations
+
+    def _contains_disabled_aws_category_keys(self):
+        """
+        Checks to see if aws_category passed in a disabled key.
+        """
+        if not self._aws_category:
+            return False
+        values = {strip_prefix(category, AWS_CATEGORY_PREFIX) for category in self._aws_category}
+        with tenant_context(self.tenant):
+            enabled = set(AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct())
+            if values - enabled:
+                self.query_data = []
+                query_sum = self._build_sum(self.query_table.objects.none(), {})
+                self.query_sum = self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
+                return True
+        return False
 
     def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):  # noqa: C901
         """
@@ -166,6 +185,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
+        if self._contains_disabled_aws_category_keys():
+            return self._format_query_response()
 
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}

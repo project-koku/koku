@@ -1498,8 +1498,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, *args):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCIExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
@@ -1543,8 +1542,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", OCITagView)
         handler = OCITagQueryHandler(query_params)
@@ -1574,8 +1572,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, *args):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCIExcludeSerializer._opfields
         for ex_opt in exclude_opts:

@@ -1027,8 +1027,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")  # Tested separately
@@ -1074,8 +1073,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_infastructures(self, _):
+    def test_exclude_infastructures(self):
         """Test that the exclude feature works for all options."""
         # It works on cost endpoint, but not the other views:
         for view in [OCPVolumeView, OCPCostView, OCPCpuView, OCPMemoryView]:
@@ -1111,8 +1109,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 excluded_result = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                 self.assertAlmostEqual(expected_total, excluded_result, 6)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1150,8 +1147,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPExcludeSerializer._opfields)
         exclude_opts.remove("infrastructures")
