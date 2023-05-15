@@ -2,6 +2,25 @@
     "version": 1,
     "features": [
         {
+            "name": "cost-management.backend.disable-source",
+            "description": "Toggle to disable processing for a source",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "source-strategy",
+                    "parameters": {
+                        "source-uuid": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-05-03T11:50:00.756Z"
+        },
+        {
             "name": "cost-management.backend.cost-trino-processor",
             "description": "Toggle to enable trino processing",
             "type": "permission",
@@ -236,6 +255,18 @@
                     "name": "schema-name",
                     "type": "list",
                     "description": "values must begin with `acct` or `org`",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "name": "source-strategy",
+            "description": "Enablement based on source uuid",
+            "parameters": [
+                {
+                    "name": "source-uuid",
+                    "type": "list",
+                    "description": "UUID of the source.",
                     "required": false
                 }
             ]
