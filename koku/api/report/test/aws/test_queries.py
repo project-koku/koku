@@ -2728,15 +2728,13 @@ class AWSReportQueryTest(IamTestCase):
         """Test that the cost group_by and filter match."""
         excluded_org_unit = "OU_002"
         url = "?group_by[org_unit_id]=R_001&filter[org_unit_id]=R_001&exclude[org_unit_id]=OU_002"
-        with patch("api.query_params.enable_negative_filtering") as unleash_flag:
-            unleash_flag.return_value = True
-            with tenant_context(self.tenant):
-                _params = self.mocked_query_params(url, AWSCostView, "costs")
-                _handler = AWSReportQueryHandler(_params)
-                data = _handler.execute_query().get("data")
-                for org_unit_data in data:
-                    for org_unit in org_unit_data.get("org_entities"):
-                        self.assertNotEqual(org_unit.get("id"), excluded_org_unit)
+        with tenant_context(self.tenant):
+            _params = self.mocked_query_params(url, AWSCostView, "costs")
+            _handler = AWSReportQueryHandler(_params)
+            data = _handler.execute_query().get("data")
+            for org_unit_data in data:
+                for org_unit in org_unit_data.get("org_entities"):
+                    self.assertNotEqual(org_unit.get("id"), excluded_org_unit)
 
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
@@ -2937,8 +2935,7 @@ class AWSReportQueryTest(IamTestCase):
             expected_sub_org_units = self.ou_to_account_subou_map.get(org_unit).get("org_units")
             self.assertEqual(sub_orgs_ids, expected_sub_org_units)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_organizational_unit(self, _):
+    def test_exclude_organizational_unit(self):
         """Test that the exclude feature works for all options."""
         exclude_opt = "org_unit_id"
         parent_org_unit = "R_001"
@@ -3224,8 +3221,7 @@ class AWSQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(AWSExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
@@ -3265,8 +3261,7 @@ class AWSQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -3296,8 +3291,7 @@ class AWSQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(AWSExcludeSerializer._opfields)
         exclude_opts.remove("org_unit_id")
