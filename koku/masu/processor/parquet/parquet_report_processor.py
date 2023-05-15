@@ -34,6 +34,7 @@ from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
+from masu.util.azure.common import check_azure_custom_columns
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
 from masu.util.common import CSV_ALT_COLUMNS
@@ -248,6 +249,8 @@ class ParquetReportProcessor:
         col_checker = None
         if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
             col_checker = check_aws_custom_columns
+        if self.provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+            col_checker = check_azure_custom_columns
         return col_checker
 
     @property

@@ -19,6 +19,7 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.util.common import CSV_ALT_COLUMNS
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
@@ -143,6 +144,14 @@ def azure_json_converter(tag_str):
         pass
 
     return json.dumps(tag_dict)
+
+
+def check_azure_custom_columns(col_names):
+    REQUIRED_COLS = set(CSV_ALT_COLUMNS["Azure"])
+    missing_cols = False
+    if not set(col_names).issuperset(REQUIRED_COLS):
+        missing_cols = True
+    return missing_cols, REQUIRED_COLS
 
 
 def azure_post_processor(data_frame):
