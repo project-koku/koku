@@ -6,7 +6,6 @@ from numpy import nan
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from masu.util.post_processor import PostProcessor
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import TRINO_COLUMNS
 
@@ -42,7 +41,7 @@ def azure_date_converter(date):
         return nan
 
 
-class AzurePostProcessor(PostProcessor):
+class AzurePostProcessor:
 
     INGRESS_REQUIRED_COLUMNS = {
         "SubscriptionGuid",

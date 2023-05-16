@@ -6,7 +6,6 @@ import pandas as pd
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from masu.util.post_processor import PostProcessor
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
@@ -32,7 +31,7 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
     return column_dict.apply(json.dumps), unique_keys
 
 
-class AWSPostProcessor(PostProcessor):
+class AWSPostProcessor:
 
     PRODUCT_SKU_COL = "product/sku"  # removes code smell
     ALL_RESOURCE_TAG_PREFIX = "resourceTags/"

@@ -9,7 +9,6 @@ from dateutil.parser import ParserError
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.ocp.common import OCP_REPORT_TYPES
-from masu.util.post_processor import PostProcessor
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -59,7 +58,7 @@ def process_openshift_labels_to_json(label_val):
     return json.dumps(process_openshift_labels(label_val))
 
 
-class OCPPostProcessor(PostProcessor):
+class OCPPostProcessor:
     def __init__(self, schema, report_type):
         self.schema = schema
         self.enabled_tag_keys = set()

@@ -6,7 +6,6 @@ import pandas as pd
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from masu.util.post_processor import PostProcessor
 from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
@@ -15,7 +14,7 @@ def scrub_resource_col_name(res_col_name):
     return res_col_name.split(".")[-1]
 
 
-class OCIPostProcessor(PostProcessor):
+class OCIPostProcessor:
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()

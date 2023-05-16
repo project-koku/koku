@@ -8,7 +8,6 @@ import pandas as pd
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from masu.util.post_processor import PostProcessor
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ def process_gcp_credits(credit_string):
     return json.dumps(credit_dict)
 
 
-class GCPPostProcessor(PostProcessor):
+class GCPPostProcessor:
 
     INGRESS_REQUIRED_COLUMNS = {
         "billing_account_id",
