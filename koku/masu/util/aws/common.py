@@ -135,21 +135,22 @@ class AwsArn:
     resource_separator = None
     resource = None
 
-    def __init__(self, arn):
+    def __init__(self, credentials):
         """
         Parse ARN string into its component pieces.
 
         Args:
-            arn (str): Amazon Resource Name
+            credential_json (Dict): Amazon Resource Name + External ID in credentials
 
         """
         match = False
-        self.arn = arn
-        if arn:
-            match = self.arn_regex.match(arn)
+        self.arn = credentials.get("role_arn")
+        self.external_id = credentials.get("external_id")
+        if self.arn:
+            match = self.arn_regex.match(self.arn)
 
         if not match:
-            raise SyntaxError(f"Invalid ARN: {arn}")
+            raise SyntaxError(f"Invalid ARN: {self.arn}")
 
         for key, val in match.groupdict().items():
             setattr(self, key, val)
@@ -178,7 +179,10 @@ def get_assume_role_session(
 
     """
     client = boto3.client("sts")
-    response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
+    if arn.external_id:
+        response = client.assume_role(RoleArn=str(arn), RoleSessionName=session, ExternalId=arn.external_id)
+    else:
+        response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
     return boto3.Session(
         aws_access_key_id=response["Credentials"]["AccessKeyId"],
         aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
@@ -314,31 +318,30 @@ def get_local_file_name(cur_key):
 
 def get_provider_uuid_from_arn(role_arn):
     """Returns provider_uuid given the arn."""
-    aws_creds = {"role_arn": f"{role_arn}"}
-    query = Provider.objects.filter(authentication_id__credentials=aws_creds)
+    query = Provider.objects.filter(authentication_id__credentials__role_arn=role_arn)
     if query.first():
         return query.first().uuid
     return None
 
 
-def get_account_alias_from_role_arn(role_arn, session=None):
+def get_account_alias_from_role_arn(arn, session=None):
     """
     Get account ID for given RoleARN.
 
     Args:
-        role_arn     (String) AWS IAM RoleARN
+        arn     (AwsArn) AWS IAM RoleARN object
 
     Returns:
         (String): Account ID
 
     """
-    provider_uuid = get_provider_uuid_from_arn(role_arn)
+    provider_uuid = get_provider_uuid_from_arn(arn.arn)
     context_key = "aws_list_account_aliases"
     if not session:
-        session = get_assume_role_session(role_arn)
+        session = get_assume_role_session(arn)
     iam_client = session.client("iam")
 
-    account_id = role_arn.split(":")[-2]
+    account_id = arn.arn.split(":")[-2]
     alias = account_id
 
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
@@ -361,21 +364,21 @@ def get_account_alias_from_role_arn(role_arn, session=None):
     return (account_id, alias)
 
 
-def get_account_names_by_organization(role_arn, session=None):
+def get_account_names_by_organization(arn, session=None):
     """
     Get account ID for given RoleARN.
 
     Args:
-        role_arn     (String) AWS IAM RoleARN
+        arn     (AwsArn) AWS IAM RoleARN + External ID object
 
     Returns:
         (list): Dictionaries of accounts with id, name keys
 
     """
     context_key = "crawl_hierarchy"
-    provider_uuid = get_provider_uuid_from_arn(role_arn)
+    provider_uuid = get_provider_uuid_from_arn(arn.arn)
     if not session:
-        session = get_assume_role_session(role_arn)
+        session = get_assume_role_session(arn)
     all_accounts = []
 
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
