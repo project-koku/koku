@@ -70,6 +70,42 @@ class AzurePostProcessor:
         "UnitOfMeasure",
     }
 
+    INGRESS_ALT_COLUMNS = {
+        "SubscriptionId",
+        "ResourceGroup",
+        "ResourceLocation",
+        "Date",
+        "MeterCategory",
+        "MeterSubCategory",
+        "MeterId",
+        "MeterName",
+        "MeterRegion",
+        "UnitOfMeasure",
+        "Quantity",
+        "EffectivePrice",
+        "CostInBillingCurrency",
+        "ConsumedService",
+        "ResourceId",
+        "Tags",
+        "OfferId",
+        "AdditionalInfo",
+        "ServiceInfo1",
+        "ServiceInfo2",
+        "ResourceName",
+        "ReservationId",
+        "ReservationName",
+        "UnitPrice",
+        "PublisherType",
+        "PublisherName",
+        "ChargeType",
+        "BillingAccountId",
+        "BillingAccountName",
+        "BillingCurrencyCode",
+        "BillingPeriodStartDate",
+        "BillingPeriodEndDate",
+        "ServiceFamily",
+    }
+
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()
@@ -79,8 +115,9 @@ class AzurePostProcessor:
         Checks the required columns for ingress.
         """
         if not set(col_names).issuperset(self.INGRESS_REQUIRED_COLUMNS):
-            missing_columns = [x for x in self.INGRESS_REQUIRED_COLUMNS if x not in col_names]
-            return missing_columns
+            if not set(col_names).issuperset(self.INGRESS_ALT_COLUMNS):
+                missing_columns = [x for x in self.INGRESS_REQUIRED_COLUMNS if x not in col_names]
+                return missing_columns
         return None
 
     def get_column_converters(self, col_names, panda_kwargs):

@@ -77,7 +77,7 @@ class OCPPostProcessor:
         ].max(axis=1)
         return data_frame
 
-    def check_ingress_required_columns(self, col_names):
+    def check_ingress_required_columns(self, _):
         """
         Checks the required columns for ingress.
         """

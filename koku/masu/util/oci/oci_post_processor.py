@@ -37,7 +37,7 @@ class OCIPostProcessor:
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
         return csv_converters, panda_kwargs
 
-    def check_ingress_required_columns(self, col_names):
+    def check_ingress_required_columns(self, _):
         """
         Checks the required columns for ingress.
         """
