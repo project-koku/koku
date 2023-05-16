@@ -243,6 +243,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             return query_data, {}
 
         cap_key = list(annotations.keys())[0]
+        annotations["cluster"] = Coalesce("cluster_alias", "cluster_id")
         total_capacity = Decimal(0)
         daily_total_capacity = defaultdict(Decimal)
         capacity_by_cluster = defaultdict(Decimal)
@@ -260,7 +261,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
-                cluster_id = entry.get("cluster_id", "")
+                cluster = entry.get("cluster", "")
                 usage_start = entry.get("usage_start", "")
                 month = entry.get("usage_start", "").month
                 if isinstance(usage_start, datetime.date):
@@ -268,35 +269,46 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 cap_value = entry.get(cap_key, 0)
                 if cap_value is None:
                     cap_value = 0
-                capacity_by_cluster[cluster_id] += cap_value
+                capacity_by_cluster[cluster] += cap_value
                 capacity_by_month[month] += cap_value
-                capacity_by_cluster_month[month][cluster_id] += cap_value
-                daily_capacity_by_cluster[usage_start][cluster_id] = cap_value
+                capacity_by_cluster_month[month][cluster] += cap_value
+                daily_capacity_by_cluster[usage_start][cluster] = cap_value
                 daily_total_capacity[usage_start] += cap_value
                 total_capacity += cap_value
 
         if self.resolution == "daily":
             for row in query_data:
-                cluster_id = row.get("cluster")
-                date = row.get("date")
-                if cluster_id:
-                    row[cap_key] = daily_capacity_by_cluster.get(date, {}).get(cluster_id, Decimal(0))
+                cluster_list = row.get("clusters")
+                if cluster_list:
+                    row[cap_key] = sum(
+                        [
+                            daily_capacity_by_cluster.get(row.get("date"), {}).get(cluster_id, Decimal(0))
+                            for cluster_id in cluster_list
+                        ]
+                    )
                 else:
-                    row[cap_key] = daily_total_capacity.get(date, Decimal(0))
+                    row[cap_key] = daily_total_capacity.get(row.get("date"), Decimal(0))
         elif self.resolution == "monthly":
             if not self.parameters.get("start_date"):
                 for row in query_data:
-                    cluster_id = row.get("cluster")
-                    if cluster_id:
-                        row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
+                    cluster_list = row.get("clusters")
+                    if cluster_list:
+                        row[cap_key] = sum(
+                            [capacity_by_cluster.get(cluster_id, Decimal(0)) for cluster_id in cluster_list]
+                        )
                     else:
                         row[cap_key] = total_capacity
             else:
                 for row in query_data:
-                    cluster_id = row.get("cluster")
+                    cluster_list = row.get("clusters")
                     row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
-                    if cluster_id:
-                        row[cap_key] = capacity_by_cluster_month.get(row_date, {}).get(cluster_id, Decimal(0))
+                    if cluster_list:
+                        row[cap_key] = sum(
+                            [
+                                capacity_by_cluster_month.get(row_date, {}).get(cluster_id, Decimal(0))
+                                for cluster_id in cluster_list
+                            ]
+                        )
                     else:
                         row[cap_key] = capacity_by_month.get(row_date, Decimal(0))
 
