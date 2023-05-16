@@ -25,7 +25,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
-from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
@@ -114,32 +113,6 @@ class TestAWSUtils(MasuTestCase):
         expected_string = f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
         self.assertEqual(out, expected_string)
-
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket is successful."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, BUCKET, session)
-        self.assertIn(NAME, report_names)
-
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket_malformed(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket fails for bad bucket name."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, "wrong-bucket", session)
-        self.assertNotIn(NAME, report_names)
-
-    def test_get_cur_report_definitions(self):
-        """Test get_cur_report_definitions is successful."""
-        session = FakeSession()
-        defs = utils.get_cur_report_definitions(self.arn, session)
-        self.assertEqual(len(defs), 1)
-
-    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_get_cur_report_definitions_no_session(self, fake_session):
-        """Test get_cur_report_definitions for no sessions."""
-        defs = utils.get_cur_report_definitions(self.arn)
-        self.assertEqual(len(defs), 1)
 
     def test_get_account_alias_from_role_arn(self):
         """Test get_account_alias_from_role_arn is functional."""
