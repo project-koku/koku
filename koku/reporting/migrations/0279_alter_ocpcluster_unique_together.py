@@ -14,4 +14,12 @@ class Migration(migrations.Migration):
             name="ocpcluster",
             unique_together={("cluster_id", "cluster_alias", "provider")},
         ),
+        migrations.AlterUniqueTogether(
+            name="ocpproject",
+            unique_together={("project", "cluster")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="ocppvc",
+            unique_together={("persistent_volume", "persistent_volume_claim", "cluster")},
+        ),
     ]

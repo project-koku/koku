@@ -285,6 +285,7 @@ class OCPPVC(models.Model):
         """Meta for OCPPVC."""
 
         db_table = "reporting_ocp_pvcs"
+        unique_together = ("persistent_volume", "persistent_volume_claim", "cluster")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     persistent_volume_claim = models.TextField()
@@ -315,6 +316,7 @@ class OCPProject(models.Model):
         """Meta for OCPProject."""
 
         db_table = "reporting_ocp_projects"
+        unique_together = ("project", "cluster")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     project = models.TextField()
