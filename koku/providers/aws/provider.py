@@ -17,22 +17,29 @@ from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
 from masu.processor import ALLOWED_COMPRESSIONS
+from masu.util.aws.common import AwsArn
 
 LOG = logging.getLogger(__name__)
 
 
-def _get_sts_access(role_arn):
+def _get_sts_access(credentials):
     """Get for sts access."""
     # create an STS client
+    arn = AwsArn(credentials)
     sts_client = boto3.client("sts")
 
     credentials = {}
-    error_message = f"Unable to assume role with ARN {role_arn}."
+    error_message = f"Unable to assume role with ARN {arn.arn}."
     try:
         # Call the assume_role method of the STSConnection object and pass the role
         # ARN and a role session name.
-        assumed_role = sts_client.assume_role(RoleArn=role_arn, RoleSessionName="AccountCreationSession")
-        credentials = assumed_role.get("Credentials")
+        if arn.external_id:
+            assumed_role = sts_client.assume_role(
+                RoleArn=arn.arn, RoleSessionName="AccountCreationSession", ExternalId=arn.external_id
+            )
+        else:
+            assumed_role = sts_client.assume_role(RoleArn=arn.arn, RoleSessionName="AccountCreationSession")
+        aws_credentials = assumed_role.get("Credentials")
     except ParamValidationError as param_error:
         LOG.warn(msg=error_message)
         LOG.info(param_error)
@@ -44,9 +51,9 @@ def _get_sts_access(role_arn):
 
     # return a kwargs-friendly format
     return dict(
-        aws_access_key_id=credentials.get("AccessKeyId"),
-        aws_secret_access_key=credentials.get("SecretAccessKey"),
-        aws_session_token=credentials.get("SessionToken"),
+        aws_access_key_id=aws_credentials.get("AccessKeyId"),
+        aws_secret_access_key=aws_credentials.get("SecretAccessKey"),
+        aws_session_token=aws_credentials.get("SessionToken"),
     )
 
 
@@ -112,8 +119,8 @@ class AWSProvider(ProviderInterface):
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """Verify that the S3 bucket exists and is reachable."""
 
-        credential_name = credentials.get("role_arn")
-        if not credential_name or credential_name.isspace():
+        role_arn = credentials.get("role_arn")
+        if not role_arn or role_arn.isspace():
             key = ProviderErrors.AWS_MISSING_ROLE_ARN
             message = ProviderErrors.AWS_MISSING_ROLE_ARN_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
@@ -129,11 +136,11 @@ class AWSProvider(ProviderInterface):
             # Limited bucket access without CUR
             return True
 
-        creds = _get_sts_access(credential_name)
+        creds = _get_sts_access(credentials)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
             key = ProviderErrors.AWS_ROLE_ARN_UNREACHABLE
-            internal_message = f"Unable to access account resources with ARN {credential_name}."
+            internal_message = f"Unable to access account resources with ARN {role_arn}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
         region_kwargs = {}
@@ -143,10 +150,10 @@ class AWSProvider(ProviderInterface):
         s3_exists = _check_s3_access(storage_resource_name, creds, **region_kwargs)
         if not s3_exists:
             key = ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND
-            internal_message = f"Bucket {storage_resource_name} could not be found with {credential_name}."
+            internal_message = f"Bucket {storage_resource_name} could not be found with {role_arn}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        _check_cost_report_access(credential_name, creds, bucket=storage_resource_name, **region_kwargs)
+        _check_cost_report_access(role_arn, creds, bucket=storage_resource_name, **region_kwargs)
 
         return True
 
@@ -160,9 +167,9 @@ class AWSProvider(ProviderInterface):
 
     def is_file_reachable(self, source, reports_list):
         """Verify that report files are accessible in S3."""
-        arn = source.authentication.credentials.get("role_arn")
+        credentials = source.authentication.credentials
         bucket = source.billing_source.data_source.get("bucket")
-        creds = _get_sts_access(arn)
+        creds = _get_sts_access(credentials)
         s3_client = boto3.client("s3", **creds)
         for report in reports_list:
             try:
