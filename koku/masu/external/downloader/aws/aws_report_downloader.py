@@ -81,7 +81,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
                 self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
+                session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
                 self.s3_client = session.client("s3")
                 return
 
@@ -89,7 +89,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._provider_uuid = kwargs.get("provider_uuid")
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
+        session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
 
         # Checking for storage only source
         if self.storage_only:

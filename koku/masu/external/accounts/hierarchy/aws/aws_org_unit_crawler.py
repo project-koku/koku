@@ -34,7 +34,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             account (String): AWS IAM RoleArn
         """
         super().__init__(account)
-        self._auth_cred = self.account.get("credentials", {}).get("role_arn")
+        self._auth_cred = self.account.get("credentials", {})
         self._date_accessor = DateAccessor()
         self._client = None
         self._account_alias_map = None
