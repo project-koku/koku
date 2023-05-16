@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.fields import empty
+from tenant_schemas.utils import schema_context
 
 from api.common import error_obj
 from api.iam.serializers import AdminCustomerSerializer
@@ -21,6 +22,7 @@ from api.provider.models import ProviderBillingSource
 from api.utils import DateHelper
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import ProviderErrors
+from reporting.provider.models import Provider as TenantProvider
 
 LOG = logging.getLogger(__name__)
 
@@ -370,6 +372,13 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         provider.save()
 
+        with schema_context(customer.schema_name):
+            tenant_provider = TenantProvider()
+            tenant_provider.uuid = provider.uuid
+            tenant_provider.name = provider.name
+            tenant_provider.type = provider.type
+            tenant_provider.save()
+
         customer.date_updated = DateHelper().now_utc
         customer.save()
 
@@ -423,6 +432,13 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.active = True
 
             instance.save()
+
+            with schema_context(customer.schema_name):
+                tenant_provider = TenantProvider()
+                tenant_provider.uuid = instance.uuid
+                tenant_provider.name = instance.name
+                tenant_provider.type = instance.type
+                tenant_provider.save()
 
             customer.date_updated = DateHelper().now_utc
             customer.save()
