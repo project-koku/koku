@@ -50,10 +50,23 @@ class SchemaStrategy(Strategy):
         return default_value
 
 
+class SourceStrategy(Strategy):
+    def load_provisioning(self) -> list:
+        return self.parameters["source-uuid"].split(",")
+
+    def apply(self, context) -> bool:
+        default_value = False
+        if source_uuid := context.get("source_uuid"):
+            default_value = source_uuid in self.parsed_provisioning
+        return default_value
+
+
 strategies = {
     # All new strategies should be added here.
-    "schema-strategy": SchemaStrategy
+    "schema-strategy": SchemaStrategy,
+    "source-strategy": SourceStrategy,
 }
+
 headers = {}
 if settings.UNLEASH_TOKEN:
     headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"

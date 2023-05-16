@@ -30,39 +30,12 @@ from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
-from koku.feature_flags import fallback_development_true
-from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
-
-
-def enable_negative_filtering(org_id):
-    """Helper to determine if account is enabled for negative filtering."""
-    # Developing Note: To test this you will have to run gunicorn locally
-    # since the unleash client is initilized in the gunicorn_conf
-    if not org_id:
-        return False
-    if isinstance(org_id, str) and not org_id.startswith("org"):
-        # TODO: So since we only pass in the org_id, the schema is
-        # showing up as acct1234567, but our actual schema is
-        # org1234567. Which may be a little confusing.
-        org_id = f"acct{org_id}"
-    elif not isinstance(org_id, str):
-        org_id = f"acct{org_id}"
-
-    context = {"schema": org_id}
-    LOG.info(f"enable_negative_filtering context: {context}")
-    result = bool(
-        UNLEASH_CLIENT.is_enabled(
-            "cost-management.backend.cost-enable-negative-filtering", context, fallback_development_true
-        )
-    )
-    LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
-    return result
 
 
 class QueryParameters:
@@ -127,15 +100,7 @@ class QueryParameters:
         self._set_aws_category_keys(query_params)
         self._validate(query_params)  # sets self.parameters
 
-        if settings.DEVELOPMENT:
-            parameter_set_list = ["filter", "group_by", "order_by", "access", "exclude"]
-        else:
-            parameter_set_list = ["filter", "group_by", "order_by", "access"]
-            org_id = self.request.user.customer.org_id
-            if enable_negative_filtering(org_id):
-                parameter_set_list.append("exclude")
-            elif self.parameters.get("exclude"):
-                del self.parameters["exclude"]
+        parameter_set_list = ["filter", "group_by", "order_by", "access", "exclude"]
 
         for item in parameter_set_list:
             if item not in self.parameters:
