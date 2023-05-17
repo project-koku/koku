@@ -4,7 +4,6 @@
 #
 """Cache of worker tasks currently running."""
 import logging
-import re
 
 from django.conf import settings
 from django.core.cache import caches
@@ -81,13 +80,9 @@ class WorkerCache:
         if celery_inspect_instance:
             hosts = celery_inspect_instance.keys()
             for host in hosts:
-
                 # Celery returns workers in the form of celery@hostname.
-                hostname_pattern = r"[^@]*$"
-                found = re.search(hostname_pattern, host)
-                if found:
-                    hostname = found.group()
-                    running_workers.append(hostname)
+                hostname = host.split("@", 1)[-1]
+                running_workers.append(hostname)
         else:
             LOG.warning("Unable to get celery inspect instance.")
         return running_workers
