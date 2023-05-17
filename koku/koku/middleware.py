@@ -267,7 +267,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
     def _create_tenant(self):
         """Create tenant"""
 
-        tenant, created = Tenant.objects.get_or_create(schema_name="public")
+        tenant, __ = Tenant.objects.get_or_create(schema_name="public")
         return tenant
 
 
