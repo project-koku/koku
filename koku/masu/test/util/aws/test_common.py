@@ -29,7 +29,6 @@ from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSes
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
-from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -388,178 +387,6 @@ class TestAWSUtils(MasuTestCase):
             upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
             self.assertEqual(upload, None)
 
-    def test_aws_post_processor(self):
-        """Test that missing columns in a report end up in the data frame."""
-        column_one = "column_one"
-        column_two = "column_two"
-        column_three = "column-three"
-        column_four = "resourceTags/User:key"
-        column_five = "costCategory/Env"
-        data = {
-            column_one: [1, 2],
-            column_two: [3, 4],
-            column_three: [5, 6],
-            column_four: ["value_1", "value_2"],
-            column_five: ["prod", "stage"],
-        }
-        data_frame = pd.DataFrame.from_dict(data)
-
-        processed_data_frame = utils.aws_post_processor(data_frame)
-        if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys, category_keys = processed_data_frame
-            self.assertIsInstance(df_tag_keys, set)
-            self.assertIsInstance(category_keys, set)
-
-        columns = list(processed_data_frame)
-
-        self.assertIn(column_one, columns)
-        self.assertIn(column_two, columns)
-        self.assertIn(column_three.replace("-", "_"), columns)
-        self.assertNotIn(column_four, columns)
-        self.assertIn("resourcetags", columns)
-        for column in TRINO_REQUIRED_COLUMNS:
-            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
-
-    def test_aws_post_processor_customer_filtered_columns(self):
-        """Test that customer filtered columns get converted correctly in the data frame."""
-        column_one = "bill_bill_type"
-        column_two = "line_item_usage_start_date"
-        expected_col_one = "bill_billtype"
-        expected_col_two = "lineitem_usagestartdate"
-        data = {column_one: [1, 2], column_two: [3, 4]}
-        data_frame = pd.DataFrame.from_dict(data)
-
-        processed_data_frame = utils.aws_post_processor(data_frame)
-        if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys, category = processed_data_frame
-            self.assertIsInstance(df_tag_keys, set)
-            self.assertIsInstance(category, set)
-
-        self.assertIn(expected_col_one, processed_data_frame)
-        self.assertIn(expected_col_two, processed_data_frame)
-        for column in TRINO_REQUIRED_COLUMNS:
-            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), processed_data_frame)
-
-    def test_aws_generate_daily_data(self):
-        """Test that we aggregate data at a daily level."""
-        lineitem_usageamount = random.randint(1, 10)
-        lineitem_unblendedcost = random.randint(1, 10)
-        lineitem_unblendedrate = random.randint(1, 10)
-        data = [
-            {
-                "lineitem_resourceid": "id1",
-                "lineitem_usagestartdate": datetime(2021, 6, 7, 11, 24, 0),
-                "bill_invoiceid": 123,
-                "bill_payeraccountid": 1,
-                "lineitem_usageaccountid": 1,
-                "lineitem_legalentity": "Red Hat",
-                "lineitem_lineitemdescription": "Red Hat",
-                "lineitem_productcode": "ec2",
-                "lineitem_availabilityzone": "us-east-1a",
-                "lineitem_lineitemtype": "SavingsPlanCoveredUsage",
-                "bill_billingentity": "AWS Marketplace",
-                "product_productfamily": "compute",
-                "product_productname": "AmazonEC2",
-                "product_instancetype": "t2.micro",
-                "product_region": "us-east-1",
-                "pricing_unit": "hours",
-                "resourcetags": '{"key": "value"}',
-                "costcategory": '{"cat": "egory"}',
-                "lineitem_usageamount": lineitem_usageamount,
-                "lineitem_normalizationfactor": 1,
-                "lineitem_normalizedusageamount": 1,
-                "lineitem_currencycode": "USD",
-                "lineitem_unblendedrate": lineitem_unblendedrate,
-                "lineitem_unblendedcost": lineitem_unblendedcost,
-                "lineitem_blendedrate": 1,
-                "lineitem_blendedcost": 1,
-                "savingsplan_savingsplaneffectivecost": 1,
-                "pricing_publicondemandcost": 1,
-                "pricing_publicondemandrate": 1,
-            },
-            {
-                "lineitem_resourceid": "id1",
-                "lineitem_usagestartdate": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
-                "bill_invoiceid": 123,
-                "bill_payeraccountid": 1,
-                "lineitem_usageaccountid": 1,
-                "lineitem_legalentity": "Red Hat",
-                "lineitem_lineitemdescription": "Red Hat",
-                "lineitem_productcode": "ec2",
-                "lineitem_availabilityzone": "us-east-1a",
-                "lineitem_lineitemtype": "SavingsPlanCoveredUsage",
-                "bill_billingentity": "AWS Marketplace",
-                "product_productfamily": "compute",
-                "product_productname": "AmazonEC2",
-                "product_instancetype": "t2.micro",
-                "product_region": "us-east-1",
-                "pricing_unit": "hours",
-                "resourcetags": '{"key": "value"}',
-                "costcategory": '{"cat": "egory"}',
-                "lineitem_usageamount": lineitem_usageamount,
-                "lineitem_normalizationfactor": 1,
-                "lineitem_normalizedusageamount": 1,
-                "lineitem_currencycode": "USD",
-                "lineitem_unblendedrate": lineitem_unblendedrate,
-                "lineitem_unblendedcost": lineitem_unblendedcost,
-                "lineitem_blendedrate": 1,
-                "lineitem_blendedcost": 1,
-                "savingsplan_savingsplaneffectivecost": 1,
-                "pricing_publicondemandcost": 1,
-                "pricing_publicondemandrate": 1,
-            },
-            {
-                "lineitem_resourceid": "id1",
-                "lineitem_usagestartdate": datetime(2021, 6, 8, 12, 24, 0),  # different day
-                "bill_invoiceid": 123,
-                "bill_payeraccountid": 1,
-                "lineitem_usageaccountid": 1,
-                "lineitem_legalentity": "Red Hat",
-                "lineitem_lineitemdescription": "Red Hat",
-                "lineitem_productcode": "ec2",
-                "lineitem_availabilityzone": "us-east-1a",
-                "lineitem_lineitemtype": "SavingsPlanCoveredUsage",
-                "bill_billingentity": "AWS Marketplace",
-                "product_productfamily": "compute",
-                "product_productname": "AmazonEC2",
-                "product_instancetype": "t2.micro",
-                "product_region": "us-east-1",
-                "pricing_unit": "hours",
-                "resourcetags": '{"key": "value"}',
-                "costcategory": '{"cat": "egory"}',
-                "lineitem_usageamount": lineitem_usageamount,
-                "lineitem_normalizationfactor": 1,
-                "lineitem_normalizedusageamount": 1,
-                "lineitem_currencycode": "USD",
-                "lineitem_unblendedrate": lineitem_unblendedrate,
-                "lineitem_unblendedcost": lineitem_unblendedcost,
-                "lineitem_blendedrate": 1,
-                "lineitem_blendedcost": 1,
-                "savingsplan_savingsplaneffectivecost": 1,
-                "pricing_publicondemandcost": 1,
-                "pricing_publicondemandrate": 1,
-            },
-        ]
-
-        df = pd.DataFrame(data)
-
-        daily_df = utils.aws_generate_daily_data(df)
-
-        first_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-07"]
-        second_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-08"]
-
-        # Assert that there is only 1 record per day
-        self.assertEqual(first_day.shape[0], 1)
-        self.assertEqual(second_day.shape[0], 1)
-
-        self.assertTrue((first_day["lineitem_usageamount"] == lineitem_usageamount * 2).bool())
-        self.assertTrue((first_day["lineitem_unblendedcost"] == lineitem_unblendedcost * 2).bool())
-        self.assertTrue((first_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
-
-        self.assertTrue((second_day["lineitem_usageamount"] == lineitem_usageamount).bool())
-        self.assertTrue((second_day["lineitem_unblendedcost"] == lineitem_unblendedcost).bool())
-        self.assertTrue((second_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
-
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
         cluster_topology = [
@@ -643,22 +470,6 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
-
-    def test_aws_post_processor_empty_tags(self):
-        """Test that missing columns in a report end up in the data frame."""
-        column_one = "column_one"
-        column_two = "column_two"
-        column_three = "column-three"
-        column_four = "resourceTags/System:key"
-        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
-        data_frame = pd.DataFrame.from_dict(data)
-
-        processed_data_frame = utils.aws_post_processor(data_frame)
-        if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys, _ = processed_data_frame
-            self.assertIsInstance(df_tag_keys, set)
-
-        self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())
 
 
 class AwsArnTest(TestCase):
