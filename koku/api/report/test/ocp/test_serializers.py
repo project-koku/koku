@@ -247,10 +247,10 @@ class OCPOrderBySerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
-    def test_invalid_data(self):
-        serializer = OCPOrderBySerializer(data="")
+    def test_to_internal_value_invalid_data(self):
+        serializer = OCPOrderBySerializer()
         with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+            serializer.to_internal_value("")
 
 
 class OCPQueryParamSerializerTest(IamTestCase):
