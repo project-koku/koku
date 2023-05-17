@@ -1857,9 +1857,9 @@ class OCPReportViewTest(IamTestCase):
             "order_by": "",
             "end_date": 'zj{{print+"3042"+"4354"}}zj',
         }
-        print(f"{url}?{urlencode(params)}")
-        response = client.get(f"{url}?{urlencode(params)}")
-        print(response.data)
+        url = f"{url}?{urlencode(params)}"
+        response = client.get(url, **self.headers)
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("wrong format", response.data["end_date"][0])
 

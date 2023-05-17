@@ -4,25 +4,19 @@
 #
 """Common util functions."""
 import datetime
-import json
 import logging
 import re
 import uuid
 from enum import Enum
 from itertools import chain
 
-import ciso8601
-import numpy as np
 import pandas as pd
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.util.common import safe_float
-from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
-from reporting.provider.azure.models import TRINO_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
@@ -112,86 +106,6 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.all()
 
     return bills
-
-
-def azure_date_converter(date):
-    """Convert Azure date fields properly."""
-    if date:
-        try:
-            new_date = ciso8601.parse_datetime(date)
-        except ValueError:
-            date_split = date.split("/")
-            new_date_str = date_split[2] + date_split[0] + date_split[1]
-            new_date = ciso8601.parse_datetime(new_date_str)
-        return new_date
-    else:
-        return np.nan
-
-
-def azure_json_converter(tag_str):
-    """Convert either Azure JSON field format to proper JSON."""
-    tag_dict = {}
-    try:
-        if "{" in tag_str:
-            tag_dict = json.loads(tag_str)
-        else:
-            tags = tag_str.split('","')
-            for tag in tags:
-                key, value = tag.split(": ")
-                tag_dict[key.strip('"')] = value.strip('"')
-    except (ValueError, TypeError):
-        pass
-
-    return json.dumps(tag_dict)
-
-
-def azure_post_processor(data_frame):
-    """Guarantee column order for Azure parquet files"""
-    columns = list(data_frame)
-    column_name_map = {}
-
-    for column in columns:
-        new_col_name = strip_characters_from_column_name(column)
-        column_name_map[column] = new_col_name
-
-    data_frame = data_frame.rename(columns=column_name_map)
-
-    columns = set(data_frame)
-    columns = set(TRINO_COLUMNS).union(columns)
-    columns = sorted(columns)
-
-    data_frame = data_frame.reindex(columns=columns)
-
-    unique_tags = set()
-    for tags_json in data_frame["tags"]:
-        unique_tags.update(json.loads(tags_json))
-
-    return (data_frame, unique_tags, None)
-
-
-def get_column_converters():
-    """Return source specific parquet column converters."""
-    return {
-        "usagedatetime": azure_date_converter,
-        "date": azure_date_converter,
-        "billingperiodstartdate": azure_date_converter,
-        "billingperiodenddate": azure_date_converter,
-        "usagequantity": safe_float,
-        "quantity": safe_float,
-        "resourcerate": safe_float,
-        "pretaxcost": safe_float,
-        "costinbillingcurrency": safe_float,
-        "effectiveprice": safe_float,
-        "unitprice": safe_float,
-        "paygprice": safe_float,
-        "tags": azure_json_converter,
-        "additionalinfo": azure_json_converter,
-    }
-
-
-def azure_generate_daily_data(data_frame):
-    """Return the Azure data frame, as it is already daily."""
-    return data_frame
 
 
 def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
