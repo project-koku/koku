@@ -27,6 +27,7 @@ def _get_sts_access(credentials):
     # create an STS client
     arn = AwsArn(credentials)
     sts_client = boto3.client("sts")
+    aws_credentials = {}
 
     credentials = {}
     error_message = f"Unable to assume role with ARN {arn.arn}."

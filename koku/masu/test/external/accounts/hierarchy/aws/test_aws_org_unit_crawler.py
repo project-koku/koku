@@ -95,7 +95,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test AWSOrgUnitCrawler initializer."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         result_auth_cred = unit_crawler._auth_cred
-        expected_auth_cred = self.account.get("credentials", {}).get("role_arn")
+        expected_auth_cred = self.account.get("credentials", {})
         self.assertEqual(result_auth_cred, expected_auth_cred)
         self.assertIsNone(unit_crawler._client)
 

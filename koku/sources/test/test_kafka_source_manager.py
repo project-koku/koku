@@ -15,6 +15,7 @@ from api.models import Provider
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
 from koku.middleware import IdentityHeaderMiddleware
+from masu.test.external.downloader.aws import fake_arn
 from providers.provider_access import ProviderAccessor
 from sources.config import Config
 
@@ -48,7 +49,7 @@ class ProviderBuilderTest(IamTestCase):
         super().setUp()
         self.name = "Test Provider"
         self.provider_type = Provider.PROVIDER_AWS
-        self.authentication = {"credentials": {"role_arn": "testauth"}}
+        self.authentication = {"credentials": {"role_arn": fake_arn()}}
         self.billing_source = {"data_source": {"bucket": "testbillingsource"}}
         self.source_uuid = faker.uuid4()
         self.mock_source = MockSourceObject(
@@ -92,7 +93,13 @@ class ProviderBuilderTest(IamTestCase):
             self.assertEqual(provider.name, self.name)
             self.assertEqual(str(provider.uuid), self.source_uuid)
 
-    def test_create_provider_exceptions(self):
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=faker.md5(), aws_secret_access_key=faker.md5(), aws_session_token=faker.md5()
+        ),
+    )
+    def test_create_provider_exceptions(self, mock_sts):
         """Test to create a provider with a non-recoverable error."""
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         with self.assertRaises(ValidationError):
@@ -151,7 +158,13 @@ class ProviderBuilderTest(IamTestCase):
         with self.assertRaises(Provider.DoesNotExist):
             client.update_provider_from_source(self.mock_source)
 
-    def test_update_provider_error(self):
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=faker.md5(), aws_secret_access_key=faker.md5(), aws_session_token=faker.md5()
+        ),
+    )
+    def test_update_provider_error(self, mock_sts):
         """Test to update a provider with a koku server error."""
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):

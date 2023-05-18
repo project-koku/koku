@@ -17,6 +17,7 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.test.external.downloader.aws import fake_arn
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import ProviderErrors
 from sources.api.source_status import SourceStatus
@@ -498,7 +499,7 @@ class SourcesStatusTest(IamTestCase):
             source_id=1,
             name="New AWS Mock Test Source",
             source_type=Provider.PROVIDER_AWS,
-            authentication={"credentials": {"role_arn": "fake-iam"}},
+            authentication={"credentials": {"role_arn": fake_arn()}},
             billing_source={"data_source": {"bucket": "my-bucket"}},
             koku_uuid=faker.uuid4(),
             offset=1,
