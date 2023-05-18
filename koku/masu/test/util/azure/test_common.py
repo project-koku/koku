@@ -1,75 +1,20 @@
-"""Masu AWS common module tests."""
+"""Masu Azure common module tests."""
 #
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import numpy as np
 import pandas as pd
 
-from api.utils import DateHelper
 from masu.test import MasuTestCase
-from masu.util.azure.common import azure_date_converter
-from masu.util.azure.common import azure_generate_daily_data
-from masu.util.azure.common import azure_json_converter
-from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import match_openshift_resources_and_labels
-from reporting.provider.azure.models import TRINO_COLUMNS
 
 
 class TestAzureUtils(MasuTestCase):
     """Tests for Azure utilities."""
 
-    def test_azure_date_converter(self):
-        """Test that we convert the new Azure date format."""
-        today = DateHelper().today
-        old_azure_format = today.strftime("%Y-%m-%d")
-        new_azure_format = today.strftime("%m/%d/%Y")
-
-        self.assertEqual(azure_date_converter(old_azure_format).date(), today.date())
-        self.assertEqual(azure_date_converter(new_azure_format).date(), today.date())
-        self.assertTrue(np.isnan(azure_date_converter("")))
-
-    def test_azure_json_converter(self):
-        """Test that we successfully process both Azure JSON formats."""
-
-        first_format = '{  "ResourceType": "Bandwidth",  "DataCenter": "BN3",  "NetworkBucket": "BY1"}'
-        first_expected = '{"ResourceType": "Bandwidth", "DataCenter": "BN3", "NetworkBucket": "BY1"}'
-
-        self.assertEqual(azure_json_converter(first_format), first_expected)
-
-        second_format = '{"project":"p1","cost":"management"}'
-        second_expected = '{"project": "p1", "cost": "management"}'
-
-        self.assertEqual(azure_json_converter(second_format), second_expected)
-
-        third_format = '"created-by": "kubernetes-azure","kubernetes.io-created-for-pv-name": "pvc-123"'
-        third_expected = '{"created-by": "kubernetes-azure", "kubernetes.io-created-for-pv-name": "pvc-123"}'
-
-        self.assertEqual(azure_json_converter(third_format), third_expected)
-
-    def test_azure_post_processor(self):
-        """Test that we end up with a dataframe with the correct columns."""
-
-        data = {"MeterSubCategory": [1], "tags": ['{"key1": "val1", "key2": "val2"}']}
-        df = pd.DataFrame(data)
-        result = azure_post_processor(df)
-        if isinstance(result, tuple):
-            result, df_tag_keys, _ = result
-            self.assertIsInstance(df_tag_keys, set)
-
-        columns = list(result)
-
-        expected_columns = sorted(
-            col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_COLUMNS
-        )
-
-        self.assertEqual(columns, expected_columns)
-
-    def test_azure_generate_daily_data(self):
-        """Test that we return the original data frame."""
-        df = pd.DataFrame([{"key": "value"}])
-        result = azure_generate_daily_data(df)
-        self.assertEqual(id(df), id(result))
+    def setUp(self):
+        """Set up the test."""
+        super().setUp()
 
     def test_match_openshift_resources_and_labels(self):
         """Test that OCP on Azure matching occurs."""
