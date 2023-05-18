@@ -140,7 +140,7 @@ class AwsArn:
         Parse ARN string into its component pieces.
 
         Args:
-            credential_json (Dict): Amazon Resource Name + External ID in credentials
+            credentials (Dict): Amazon Resource Name + External ID in credentials
 
         """
         match = False
