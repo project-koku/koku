@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP utility functions."""
-import copy
 import json
 import logging
 import os
@@ -11,7 +10,6 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-import ciso8601
 import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
@@ -21,7 +19,6 @@ from api.utils import DateHelper as dh
 from masu.config import Config
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.util.common import safe_float
 
 LOG = logging.getLogger(__name__)
 
@@ -384,121 +381,6 @@ def detect_type(report_path):
     return None, OCPReportTypes.UNKNOWN
 
 
-def process_openshift_datetime(val):
-    """
-    Convert the date time from the Metering operator reports to a consumable datetime.
-    """
-    result = None
-    try:
-        datetime_str = str(val).replace(" +0000 UTC", "")
-        result = ciso8601.parse_datetime(datetime_str)
-    except parser.ParserError:
-        pass
-    return result
-
-
-def process_openshift_labels(label_string):
-    """Convert the report string to a JSON dictionary.
-
-    Args:
-        label_string (str): The raw report string of pod labels
-
-    Returns:
-        (dict): The JSON dictionary made from the label string
-
-    """
-    labels = label_string.split("|") if label_string else []
-    label_dict = {}
-
-    for label in labels:
-        if ":" not in label:
-            continue
-        try:
-            key, value = label.split(":")
-            key = key.replace("label_", "")
-            label_dict[key] = value
-        except ValueError as err:
-            LOG.warning(err)
-            LOG.warning("%s could not be properly split", label)
-            continue
-
-    return label_dict
-
-
-def process_openshift_labels_to_json(label_val):
-    return json.dumps(process_openshift_labels(label_val))
-
-
-def get_column_converters():
-    """Return source specific parquet column converters."""
-    return {
-        "report_period_start": process_openshift_datetime,
-        "report_period_end": process_openshift_datetime,
-        "interval_start": process_openshift_datetime,
-        "interval_end": process_openshift_datetime,
-        "pod_usage_cpu_core_seconds": safe_float,
-        "pod_request_cpu_core_seconds": safe_float,
-        "pod_limit_cpu_core_seconds": safe_float,
-        "pod_usage_memory_byte_seconds": safe_float,
-        "pod_request_memory_byte_seconds": safe_float,
-        "pod_limit_memory_byte_seconds": safe_float,
-        "node_capacity_cpu_cores": safe_float,
-        "node_capacity_cpu_core_seconds": safe_float,
-        "node_capacity_memory_bytes": safe_float,
-        "node_capacity_memory_byte_seconds": safe_float,
-        "persistentvolumeclaim_capacity_bytes": safe_float,
-        "persistentvolumeclaim_capacity_byte_seconds": safe_float,
-        "volume_request_storage_byte_seconds": safe_float,
-        "persistentvolumeclaim_usage_byte_seconds": safe_float,
-        "pod_labels": process_openshift_labels_to_json,
-        "persistentvolume_labels": process_openshift_labels_to_json,
-        "persistentvolumeclaim_labels": process_openshift_labels_to_json,
-        "node_labels": process_openshift_labels_to_json,
-        "namespace_labels": process_openshift_labels_to_json,
-    }
-
-
-def add_effective_usage_columns(data_frame, report_type):
-    """Add effective usage columns to pod data frame."""
-    if report_type != "pod_usage":
-        return data_frame
-    data_frame["pod_effective_usage_cpu_core_seconds"] = data_frame[
-        ["pod_usage_cpu_core_seconds", "pod_request_cpu_core_seconds"]
-    ].max(axis=1)
-    data_frame["pod_effective_usage_memory_byte_seconds"] = data_frame[
-        ["pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds"]
-    ].max(axis=1)
-    return data_frame
-
-
-def ocp_generate_daily_data(data_frame, report_type):
-    """Given a dataframe, group the data to create daily data."""
-    data_frame = add_effective_usage_columns(data_frame, report_type)
-
-    if data_frame.empty:
-        return data_frame
-
-    report = OCP_REPORT_TYPES.get(report_type, {})
-    group_bys = copy.deepcopy(report.get("group_by", []))
-    group_bys.append(pd.Grouper(key="interval_start", freq="D"))
-    aggs = report.get("agg", {})
-    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(
-        {k: v for k, v in aggs.items() if k in data_frame.columns}
-    )
-
-    columns = daily_data_frame.columns.droplevel(1)
-    daily_data_frame.columns = columns
-
-    daily_data_frame.reset_index(inplace=True)
-
-    new_cols = report.get("new_required_columns")
-    for col in new_cols:
-        if col not in daily_data_frame:
-            daily_data_frame[col] = None
-
-    return daily_data_frame
-
-
 def match_openshift_labels(tag_dict, matched_tags):
     """Match AWS data by OpenShift label associated with OpenShift cluster."""
     tag_dict = json.loads(tag_dict)
@@ -520,19 +402,3 @@ def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
 
     days_in_month = dh().days_in_month(start_date)
     return Decimal(monthly_rate) / days_in_month
-
-
-def ocp_post_processor(data_frame):
-    """
-    Consume the OCP data and get distinc label counts
-    """
-
-    label_columns = {"pod_labels", "volume_labels", "namespace_labels", "node_labels"}
-    df_columns = set(data_frame.columns)
-    columns_to_grab = df_columns.intersection(label_columns)
-    label_key_set = set()
-    for column in columns_to_grab:
-        unique_labels = data_frame[column].unique()
-        for label in unique_labels:
-            label_key_set.update(json.loads(label).keys())
-    return (data_frame, label_key_set, None)
