@@ -454,8 +454,6 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_HEADERS = default_headers + ("x-rh-identity", "HTTP_X_RH_IDENTITY")
 
-APPEND_SLASH = False
-
 DISABLE_LOGGING = ENVIRONMENT.bool("DISABLE_LOGGING", default=False)
 # disable log messages less than CRITICAL when running unit tests.
 if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
