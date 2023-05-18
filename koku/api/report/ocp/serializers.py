@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Serializers."""
+from collections.abc import Mapping
+
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -40,9 +42,11 @@ class OCPOrderBySerializer(OrderSerializer):
 
     def to_internal_value(self, data):
         """Send to internal value."""
-        for serializer_key, internal_key in DISTRIBUTED_COST_INTERNAL.items():
-            if serializer_key in data.keys():
-                data[internal_key] = data.pop(serializer_key)
+        if isinstance(data, Mapping):
+            for serializer_key, internal_key in DISTRIBUTED_COST_INTERNAL.items():
+                if serializer_key in data.keys():
+                    data[internal_key] = data.pop(serializer_key)
+
         return super().to_internal_value(data)
 
 
