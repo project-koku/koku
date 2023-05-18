@@ -113,6 +113,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
     )
     @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_trino"  # noqa: E501
     )
     @patch(
@@ -136,6 +139,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocpall_summ,
         mock_ocpall_persp,
         mock_ocp_on_azure,
+        mock_ui_summary,
         mock_tag_summary,
         mock_map,
         mock_cluster_info,
@@ -181,6 +185,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
     )
     @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_trino"  # noqa: E501
     )
     @patch(
@@ -204,6 +211,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocpall_summ,
         mock_ocpall_persp,
         mock_ocp_on_azure,
+        mock_ui_summary,
         mock_tag_summary,
         mock_map,
         mock_cluster_info,

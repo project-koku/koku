@@ -194,6 +194,21 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_azure_ui_summary_tables_trino(self, mock_trino):
+        """Test that Trino is used to populate UI summary."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_ocp_on_azure_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.azure_provider_uuid,
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_azure_cost_daily_summary_trino(self, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
