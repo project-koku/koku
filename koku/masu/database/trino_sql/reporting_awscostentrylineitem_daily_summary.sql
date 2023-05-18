@@ -76,6 +76,7 @@ SELECT uuid() as uuid,
     cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost,
     cast(blended_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_blended,
     cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan
+    cast(calculated_amortized_cost * {{markup | sqlsafe}} AS decimal(33,9)) as markup_cost_amortized
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
         date(lineitem_usagestartdate) as usage_end,
@@ -100,6 +101,7 @@ FROM (
         max(lineitem_blendedrate) as blended_rate,
         sum(lineitem_blendedcost) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+        sum(calculated_amortized_cost) as calculated_amortized_cost,
         sum(
             CASE
                 WHEN lineitem_lineitemtype='Tax'
