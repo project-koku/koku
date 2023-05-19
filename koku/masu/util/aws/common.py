@@ -6,6 +6,7 @@
 import datetime
 import logging
 import re
+import time
 import uuid
 from itertools import chain
 
@@ -152,9 +153,17 @@ def get_cur_report_definitions(role_arn, session=None):
     if not session:
         session = get_assume_role_session(role_arn)
     cur_client = session.client("cur")
-    defs = cur_client.describe_report_definitions()
-    report_defs = defs.get("ReportDefinitions", [])
-    return report_defs
+    retries = 5
+    for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
+        try:
+            defs = cur_client.describe_report_definitions()
+            report_defs = defs.get("ReportDefinitions", [])
+            return report_defs
+        except ClientError:
+            if i < (retries - 1):
+                LOG.info("AWS client error while describing report definitions; retrying")
+                time.sleep(10)
+                continue
 
 
 def get_cur_report_names_in_bucket(role_arn, s3_bucket, session=None):
