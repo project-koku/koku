@@ -8,12 +8,12 @@ import pkgutil
 
 from django.db import connection
 from django.views.decorators.cache import never_cache
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from reporting.models import AWSEnabledTagKeys
@@ -123,7 +123,7 @@ class EnabledTagView(APIView):
                 params = {"schema": schema_name}
                 sql, params = jinja_sql.prepare_query(sql, params)
                 LOG.info("Removing stale enabled tag keys.")
-                with schema_context(schema_name=schema_name):
+                with schema_context(schema_name):
                     with connection.cursor() as cursor:
                         cursor.execute(sql, params=params)
 

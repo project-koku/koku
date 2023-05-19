@@ -10,7 +10,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.db import connection
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
