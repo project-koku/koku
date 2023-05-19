@@ -265,6 +265,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
     )
     @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables"
     )
     @patch(
@@ -284,6 +287,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_back_populate,
         mock_ocp_on_gcp,
         mock_ui_tables,
+        mock_ui_summary,
         mock_tag_summary,
         mock_map,
         mock_ocpallproj,
@@ -445,6 +449,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
     )
     @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables"
     )
     @patch(
@@ -464,6 +471,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_back_populate,
         mock_ocp_on_gcp,
         mock_ui_tables,
+        mock_ui_summary,
         mock_tag_summary,
         mock_map,
         mock_ocpallproj,

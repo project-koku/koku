@@ -184,6 +184,21 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_gcp_ui_summary_tables_trino(self, mock_trino):
+        """Test that Trino is used to populate UI summary."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.gcp_provider_uuid,
+        )
+        mock_trino.assert_called()
+
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
         dh = DateHelper()
