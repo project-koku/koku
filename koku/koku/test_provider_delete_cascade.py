@@ -7,8 +7,8 @@ from datetime import datetime
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django_tenants.utils import schema_context
 from pytz import UTC
-from tenant_schemas.utils import schema_context
 
 from api.iam.models import Customer
 from api.iam.models import Tenant

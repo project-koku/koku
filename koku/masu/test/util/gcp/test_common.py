@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor

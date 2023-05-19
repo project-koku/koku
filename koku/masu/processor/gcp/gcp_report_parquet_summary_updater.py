@@ -7,7 +7,7 @@ import logging
 
 import ciso8601
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin

@@ -17,11 +17,11 @@ from django.db.models import Value
 from django.http import HttpRequest
 from django.http import QueryDict
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
@@ -1845,6 +1845,23 @@ class OCPReportViewTest(IamTestCase):
             url = baseurl + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_order_by_with_bad_query_value(self):
+        """Given order by and invalid data in one of the query parameters,
+        ensure a 400 status is returned.
+        """
+
+        url = reverse("reports-openshift-volume")
+        client = APIClient()
+        params = {
+            "order_by": "",
+            "end_date": 'zj{{print+"3042"+"4354"}}zj',
+        }
+        url = f"{url}?{urlencode(params)}"
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("wrong format", response.data["end_date"][0])
 
     def test_distributed_cost_requires_group_by_project(self):
         """Test the distributed cost param requires group by project."""

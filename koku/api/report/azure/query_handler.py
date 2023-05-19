@@ -11,7 +11,7 @@ from django.db.models import Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.azure.provider_map import AzureProviderMap
