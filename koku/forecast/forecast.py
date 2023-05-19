@@ -24,9 +24,9 @@ from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
+from django_tenants.utils import tenant_context
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
-from tenant_schemas.utils import tenant_context
 
 from api.currency.models import ExchangeRateDictionary
 from api.models import Provider

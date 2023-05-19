@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider

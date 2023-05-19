@@ -13,9 +13,9 @@ from itertools import product
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from api.currency.utils import exchange_dictionary
 from api.models import Provider

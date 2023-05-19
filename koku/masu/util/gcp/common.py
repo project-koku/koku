@@ -8,7 +8,7 @@ import logging
 import uuid
 
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor

@@ -6,8 +6,8 @@
 import logging
 
 from django.test import RequestFactory
+from django_tenants.utils import schema_context
 from rest_framework.serializers import ValidationError
-from tenant_schemas.utils import schema_context
 
 from api.common import error_obj
 from api.provider.models import Provider

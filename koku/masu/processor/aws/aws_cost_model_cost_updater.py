@@ -6,7 +6,7 @@
 import logging
 from decimal import Decimal
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
