@@ -14,8 +14,8 @@ from django.conf import settings
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 import koku.trino_database as trino_db

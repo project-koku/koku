@@ -7,7 +7,7 @@ import datetime
 import logging
 
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor

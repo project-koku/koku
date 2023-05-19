@@ -22,8 +22,8 @@ from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
+from django_tenants.utils import schema_context
 from psycopg2.errors import DeadlockDetected
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE

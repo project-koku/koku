@@ -8,7 +8,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
-from tenant_schemas.utils import schema_exists
+from django_tenants.utils import schema_exists
 
 from ..models import CloneSchemaFuncMissing
 from ..models import Tenant
@@ -201,6 +201,8 @@ class CloneSchemaTest(IamTestCase):
         """
         Test that creating a tenant with a bad name will throw an exception
         """
-        with self.assertRaises(ValidationError):
-            t = Tenant.objects.create(schema_name="bad schema-name")
-            t.create_schema()
+
+        with patch("api.iam.models.is_valid_schema_name", return_value=False):
+            with self.assertRaises(ValidationError):
+                t = Tenant.objects.create(schema_name="bad schema-name")
+                t.create_schema()

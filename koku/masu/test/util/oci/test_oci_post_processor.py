@@ -7,8 +7,8 @@ import random
 from datetime import datetime
 from unittest.mock import patch
 
+from django_tenants.utils import schema_context
 from pandas import DataFrame
-from tenant_schemas.utils import schema_context
 
 from masu.test import MasuTestCase
 from masu.util.oci.oci_post_processor import OCIPostProcessor

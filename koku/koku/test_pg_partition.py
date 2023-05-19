@@ -7,7 +7,7 @@ import json
 import uuid
 
 from django.db import connection as conn
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from . import pg_partition as ppart
 from api.iam.test.iam_test_case import IamTestCase
