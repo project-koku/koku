@@ -22,8 +22,8 @@ from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
+from django_tenants.utils import schema_context
 from psycopg2.errors import DeadlockDetected
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
@@ -531,10 +531,19 @@ class AWSReportDBAccessorTest(MasuTestCase):
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
 
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
+    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
         """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+            [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+        )
+        mock_trino.assert_not_called()
+
+        mock_schema_exists.return_value = True
+        mock_trino.reset_mock()
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):

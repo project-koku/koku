@@ -5,7 +5,7 @@
 """Test the AWS Report Queries."""
 import datetime
 
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.aws.queries import AWSOrgQueryHandler

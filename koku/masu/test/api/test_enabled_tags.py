@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from django.test.utils import override_settings
 from django.urls import reverse
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.test import MasuTestCase
@@ -16,9 +16,6 @@ from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
 from reporting.models import OCIEnabledTagKeys
 from reporting.models import OCPEnabledTagKeys
-
-
-# from django.test import TestCase
 
 
 @override_settings(ROOT_URLCONF="masu.urls")

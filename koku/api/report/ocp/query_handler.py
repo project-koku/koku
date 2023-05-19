@@ -21,7 +21,7 @@ from django.db.models import F
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap

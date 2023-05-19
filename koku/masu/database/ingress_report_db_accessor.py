@@ -5,7 +5,7 @@
 """Report database accessor for ingress reports."""
 import logging
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor

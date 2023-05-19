@@ -1,8 +1,8 @@
 """Test for the CostModels model."""
 import logging
 
+from django_tenants.utils import tenant_context
 from faker import Faker
-from tenant_schemas.utils import tenant_context
 
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap

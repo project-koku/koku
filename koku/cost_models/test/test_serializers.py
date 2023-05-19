@@ -8,8 +8,8 @@ from decimal import Decimal
 from uuid import uuid4
 
 import faker
+from django_tenants.utils import tenant_context
 from rest_framework import serializers
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants

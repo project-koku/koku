@@ -6,7 +6,6 @@
 from django.conf import settings
 from django.urls import path
 from django.views.decorators.cache import cache_page
-from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
 from api.views import AccountSettings
@@ -341,7 +340,6 @@ urlpatterns = [
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
     path("settings/", SettingsView.as_view(), name="settings"),
-    path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
