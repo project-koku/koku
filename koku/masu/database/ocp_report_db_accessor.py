@@ -342,7 +342,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_hive_partitions_by_source(self, table, partition_column, provider_uuid):
         """Deletes partitions individually for each day in days list."""
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
-        if self.table_exists_trino(table):
+        if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s " "\n\tOCP Source: %s \n\tTable: %s",
                 self.schema,

@@ -816,10 +816,17 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_trino.assert_called()
         self.assertTrue(result)
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist):
+    def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist, mock_schema_exists):
         """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_hive_partitions_by_source("table", "partition_column", self.ocp_provider_uuid)
+        mock_trino.assert_not_called()
+
+        mock_schema_exists.return_value = True
+        mock_trino.reset_mock()
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):
