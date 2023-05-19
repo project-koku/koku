@@ -348,24 +348,25 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for row in query_data:
             cluster_list = row.get("clusters")
             if self.resolution == "monthly" and not self.parameters.get("start_date"):
-                row[_capacity.key] = _capacity.total
                 if cluster_list:
                     row[_capacity.key] = sum(
                         [_capacity.by_level.get(cluster_id, Decimal(0)) for cluster_id in cluster_list]
                     )
+                else:
+                    row[_capacity.key] = _capacity.total
             else:
                 row_date = row.get("date")
                 if self.resolution == "monthly":
                     row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
-                row[_capacity.key] = _capacity.resolution_total(row_date, Decimal(0))
                 if cluster_list:
-
                     row[_capacity.key] = sum(
                         [
                             _capacity.resolution_level_total.get(row_date, {}).get(cluster_id, Decimal(0))
                             for cluster_id in cluster_list
                         ]
                     )
+                else:
+                    row[_capacity.key] = _capacity.resolution_total(row_date, Decimal(0))
         return query_data, {_capacity.key: _capacity.total}
 
     def add_deltas(self, query_data, query_sum):
