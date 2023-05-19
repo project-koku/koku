@@ -154,7 +154,7 @@ def get_cur_report_definitions(role_arn, session=None):
         session = get_assume_role_session(role_arn)
     cur_client = session.client("cur")
     retries = 5
-    for i in range(retries):  # Retry logic added here because AWS seems to be randomly dropping connections
+    for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
         try:
             defs = cur_client.describe_report_definitions()
             report_defs = defs.get("ReportDefinitions", [])
