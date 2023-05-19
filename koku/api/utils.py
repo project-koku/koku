@@ -15,7 +15,7 @@ from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.user_settings.settings import USER_SETTINGS

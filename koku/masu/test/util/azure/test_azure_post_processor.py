@@ -6,9 +6,9 @@
 import copy
 from unittest.mock import patch
 
+from django_tenants.utils import schema_context
 from numpy import isnan
 from pandas import DataFrame
-from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
 from masu.test import MasuTestCase

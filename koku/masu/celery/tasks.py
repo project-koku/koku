@@ -10,7 +10,7 @@ import requests
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
