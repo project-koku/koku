@@ -33,20 +33,6 @@ from cost_models.models import CostModelMap
 LOG = logging.getLogger(__name__)
 
 
-def _populate_unused_request_and_capacity(capacity, row):
-    """Updates the row with the unused portions."""
-    if capacity == 0:
-        capacity = 1  # prevents dividing by zero
-    effective_usage = max(row["usage"], row["request"])
-    unused_capacity = max(capacity - effective_usage, 0)
-    capacity_unused_percent = (unused_capacity / capacity) * 100
-    row["capacity_unused"] = unused_capacity
-    row["capacity_unused_percent"] = capacity_unused_percent
-    unused_request = max(row["request"] - row["usage"], 0)
-    row["request_unused"] = unused_request
-    row["request_unused_percent"] = (unused_request / row["request"]) * 100
-
-
 @dataclass
 class CapacitySubsets:
     key: str
@@ -145,6 +131,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
             else:
                 annotations["project"] = F("namespace")
+
+        if is_grouped_by_node(self.parameters):
+            node_annotations = (
+                self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}).get("capacity")
+            )
+            if node_annotations:
+                self.report_annotations["capacity"] = node_annotations
 
         return annotations
 
@@ -335,32 +328,28 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _get_node_capacity(self, query_data, _capacity):
         """Calculate node capacity for all nodes over the date range."""
-        if self.resolution == "daily":
-            for row in query_data:
-                if node := row.get("node"):
-                    capacity = _capacity.daily_by_level.get(row.get("date"), {}).get(node, Decimal(0))
-                    row[_capacity.key] = capacity
-                    _populate_unused_request_and_capacity(capacity, row)
+        for row in query_data:
+            if row.get("node"):
+                # Populate unused request and capacity
+                capacity = row.get("capacity", Decimal(0))
+                if capacity == 0:
+                    capacity = 1  # prevents dividing by zero
+                effective_usage = max(row["usage"], row["request"])
+                unused_capacity = max(capacity - effective_usage, 0)
+                capacity_unused_percent = (unused_capacity / capacity) * 100
+                row["capacity_unused"] = unused_capacity
+                row["capacity_unused_percent"] = capacity_unused_percent
+                unused_request = max(row["request"] - row["usage"], 0)
+                row["request_unused"] = unused_request
+                row["request_unused_percent"] = (unused_request / row["request"]) * 100
+            elif self.resolution == "daily":
+                row[_capacity.key] = _capacity.daily_total.get(row.get("date"), Decimal(0))
+            elif self.resolution == "monthly":
+                if not self.parameters.get("start_date"):
+                    row[_capacity.key] = _capacity.total
                 else:
-                    row[_capacity.key] = _capacity.daily_total.get(row.get("date"), Decimal(0))
-        elif self.resolution == "monthly":
-            if not self.parameters.get("start_date"):
-                for row in query_data:
-                    if node := row.get("node"):
-                        capacity = _capacity.by_level.get(node, Decimal(0))
-                        row[_capacity.key] = capacity
-                        _populate_unused_request_and_capacity(capacity, row)
-                    else:
-                        row[_capacity.key] = _capacity.total
-            else:
-                for row in query_data:
                     row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
-                    if node := row.get("node"):
-                        capacity = _capacity.by_level_month.get(row_date, {}).get(node, Decimal(0))
-                        row[_capacity.key] = capacity
-                        _populate_unused_request_and_capacity(capacity, row)
-                    else:
-                        row[_capacity.key] = _capacity.by_month.get(row_date, Decimal(0))
+                    row[_capacity.key] = _capacity.by_month.get(row_date, Decimal(0))
         return query_data, {_capacity.key: _capacity.total}
 
     def _get_cluster_capacity(self, query_data, _capacity):
