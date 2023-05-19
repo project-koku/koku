@@ -282,7 +282,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
                 accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start, end)
-                accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
+                accessor.populate_ocp_on_aws_ui_summary_tables_trino(
+                    start, end, openshift_provider_uuid, aws_provider_uuid
+                )
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
