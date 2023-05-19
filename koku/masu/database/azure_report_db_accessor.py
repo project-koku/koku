@@ -12,7 +12,7 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from koku.database import get_model

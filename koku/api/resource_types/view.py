@@ -5,9 +5,9 @@
 """View for Resource Types."""
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+from django_tenants.utils import tenant_context
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from tenant_schemas.utils import tenant_context
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ResourceTypePaginator

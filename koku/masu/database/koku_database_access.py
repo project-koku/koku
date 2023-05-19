@@ -7,7 +7,7 @@ import logging
 
 from django.db import transaction
 from django.db.models import Subquery
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.config import Config
 

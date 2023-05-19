@@ -11,7 +11,7 @@ from enum import Enum
 from itertools import chain
 
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor

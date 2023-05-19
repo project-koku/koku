@@ -5,8 +5,8 @@
 """Test the IngressReportDBAccessor."""
 import uuid
 
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor

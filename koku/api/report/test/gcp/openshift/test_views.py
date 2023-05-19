@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 
-# from tenant_schemas.utils import tenant_context
+# from django_tenants.utils import tenant_context
 # from reporting.models import OCPGCPCostLineItemDailySummaryP
 
 URLS = [

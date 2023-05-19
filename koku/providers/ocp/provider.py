@@ -7,8 +7,8 @@ import logging
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django_tenants.utils import tenant_context
 from rest_framework import serializers
-from tenant_schemas.utils import tenant_context
 
 from ..provider_interface import ProviderInterface
 from api.common import error_obj

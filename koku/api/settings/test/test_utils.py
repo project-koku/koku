@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.settings.utils import get_cost_type_options
 from api.settings.utils import get_selected_cost_type_or_setup
