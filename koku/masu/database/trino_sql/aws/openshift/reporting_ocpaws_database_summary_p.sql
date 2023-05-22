@@ -46,4 +46,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpaws_database_summary
         AND usage_start <= date_add('day', 1, {{end_date}})
         AND product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')
     GROUP BY usage_start, usage_account_id, account_alias_id, product_code
-;

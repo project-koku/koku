@@ -37,4 +37,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_p (
         AND usage_start >= {{start_date}}
         AND usage_start <= date_add('day', 1, {{end_date}})
     GROUP BY usage_start
-;

@@ -48,4 +48,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpaws_compute_summary_
         AND usage_start <= date_add('day', 1, {{end_date}})
         AND instance_type IS NOT NULL
     GROUP BY usage_start, usage_account_id, account_alias_id, instance_type, resource_id
-;

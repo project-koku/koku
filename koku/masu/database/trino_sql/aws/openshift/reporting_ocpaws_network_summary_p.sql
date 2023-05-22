@@ -46,4 +46,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpaws_network_summary_
         AND usage_start <= date_add('day', 1, {{end_date}})
         AND product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')
     GROUP BY usage_start, usage_account_id, account_alias_id, product_code
-;
