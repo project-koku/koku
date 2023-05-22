@@ -27,10 +27,10 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
-        source_uuid,
+        cast({{gcp_source_uuid}} as uuid) as source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
     WHERE gcp_source = {{gcp_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND invoice_month = {{invoice_month}}
@@ -46,5 +46,4 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_
         account_id,
         service_id,
         service_alias,
-        source_uuid,
         invoice_month
