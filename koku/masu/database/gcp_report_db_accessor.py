@@ -522,28 +522,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     table_name, summary_sql, bind_params=list(summary_sql_params), operation="DELETE/INSERT"
                 )
 
-    def populate_ocp_on_gcp_ui_summary_tables_trino(
-        self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES
-    ):
+    def populate_ocp_on_gcp_ui_summary_tables_trino(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
+        invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(
+            sql_params["start_date"], sql_params["end_date"]
+        )
         for invoice_month in invoice_month_list:
             for table_name in tables:
-                summary_sql_params = {
-                    "schema_name": self.schema,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "year": year,
-                    "month": month,
-                    "days": days_tup,
-                    "invoice_month": invoice_month,
-                    "azure_source_uuid": gcp_provider_uuid,
-                    "ocp_source_uuid": openshift_provider_uuid,
-                }
+                sql_params["invoice_month"] = invoice_month
+                summary_sql, summary_sql_params = self.jinja_sql.prepare_query(sql_params, sql_params)
                 summary_sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
                 summary_sql = summary_sql.decode("utf-8")
                 self._execute_trino_raw_sql_query(

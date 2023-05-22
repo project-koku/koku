@@ -65,4 +65,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_
         service_alias,
         source_uuid,
         invoice_month
-;

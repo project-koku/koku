@@ -48,4 +48,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_compute_summary_
         source_uuid,
         instance_type,
         invoice_month
-;

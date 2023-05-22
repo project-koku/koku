@@ -40,4 +40,3 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_p (
         usage_end,
         source_uuid,
         invoice_month
-;

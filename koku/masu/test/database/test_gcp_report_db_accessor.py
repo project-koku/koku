@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportDBAccessor utility object."""
+import datetime
 import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -187,9 +188,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_ocp_on_gcp_ui_summary_tables_trino(self, mock_trino):
         """Test that Trino is used to populate UI summary."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = datetime.datetime.strptime("2023-05-01", "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime("2023-05-31", "%Y-%m-%d").date()
 
         self.accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
             start_date,

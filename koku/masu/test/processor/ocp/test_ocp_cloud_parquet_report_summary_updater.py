@@ -268,9 +268,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables"
-    )
-    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_trino"  # noqa: E501
     )
     @patch(
@@ -286,7 +283,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_delete,
         mock_back_populate,
         mock_ocp_on_gcp,
-        mock_ui_tables,
         mock_ui_summary,
         mock_tag_summary,
         mock_map,
@@ -336,7 +332,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
-        mock_ui_tables.assert_called_with(sql_params)
+        mock_ui_summary.assert_called_with(sql_params)
 
         mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
 
@@ -358,7 +354,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables"
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_trino_by_node"  # noqa: E501
@@ -376,7 +372,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_delete,
         mock_back_populate,
         mock_ocp_on_gcp,
-        mock_ui_tables,
+        mock_ui_summary,
         mock_tag_summary,
         mock_map,
         mock_ocpallproj,
@@ -431,7 +427,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             node_name,
             1,
         )
-        mock_ui_tables.assert_called_with(sql_params)
+        mock_ui_summary.assert_called_with(sql_params)
 
         mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
 
@@ -452,9 +448,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables"
-    )
-    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_trino"  # noqa: E501
     )
     @patch(
@@ -470,7 +463,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_delete,
         mock_back_populate,
         mock_ocp_on_gcp,
-        mock_ui_tables,
         mock_ui_summary,
         mock_tag_summary,
         mock_map,
@@ -522,7 +514,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "cluster_alias": cluster_alias,
             "source_type": "GCP",
         }
-        mock_ui_tables.assert_called_with(sql_params)
+        mock_ui_summary.assert_called_with(sql_params)
 
         mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
 
