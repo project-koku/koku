@@ -30,7 +30,7 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_
         sum(markup_cost_savingsplan),
         max(currency_code),
         cast({{aws_source_uuid}} as uuid) as source_uuid
-    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
     WHERE aws_source = {{aws_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND year = {{year}}
