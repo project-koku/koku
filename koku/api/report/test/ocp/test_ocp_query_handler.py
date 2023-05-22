@@ -144,7 +144,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_daily_resolution_empty_cluster(self):
         query_params = self.mocked_query_params("?", OCPMemoryView)
-        query_data, total_capacity = OCPReportQueryHandler(query_params).get_cluster_capacity([{"row": 1}])
+        query_data, total_capacity = OCPReportQueryHandler(query_params).get_capacity([{"row": 1}])
         self.assertTrue("capacity" in total_capacity)
         self.assertTrue(isinstance(total_capacity["capacity"], Decimal))
         self.assertTrue("capacity" in query_data[0])

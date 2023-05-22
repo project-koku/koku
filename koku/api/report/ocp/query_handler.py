@@ -366,7 +366,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         ]
                     )
                 else:
-                    row[_capacity.key] = _capacity.resolution_total(row_date, Decimal(0))
+                    row[_capacity.key] = _capacity.resolution_total.get(row_date, Decimal(0))
         return query_data, {_capacity.key: _capacity.total}
 
     def add_deltas(self, query_data, query_sum):
