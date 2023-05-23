@@ -39,7 +39,7 @@ class CapacitySubsets:
     key: str
     level_key: str
     resolution: str
-    total: Decimal = field(default_factory=lambda: Decimal(0))
+    total: Decimal = Decimal(0)
     resolution_total: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
     resolution_level_total: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
     by_level: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
