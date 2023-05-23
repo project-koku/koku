@@ -146,7 +146,7 @@ def get_available_regions(service_name: str = "ec2") -> list[str]:
     return session.get_available_regions(service_name)
 
 
-def get_cur_report_definitions(role_arn, session=None):
+def get_cur_report_definitions(cur_client, role_arn=None):
     """
     Get Cost Usage Reports associated with a given RoleARN.
 
@@ -154,39 +154,19 @@ def get_cur_report_definitions(role_arn, session=None):
         role_arn     (String) RoleARN for AWS session
 
     """
-    if not session:
+    if role_arn:
         session = get_assume_role_session(role_arn)
-    cur_client = session.client("cur")
+        cur_client = session.client("cur")
     retries = 5
     for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
         try:
             defs = cur_client.describe_report_definitions()
-            report_defs = defs.get("ReportDefinitions", [])
-            return report_defs
+            return defs
         except ClientError:
             if i < (retries - 1):
                 LOG.info("AWS client error while describing report definitions; retrying")
                 time.sleep(10)
                 continue
-
-
-def get_cur_report_names_in_bucket(role_arn, s3_bucket, session=None):
-    """
-    Get Cost Usage Reports associated with a given RoleARN.
-
-    Args:
-        role_arn     (String) RoleARN for AWS session
-
-    Returns:
-        ([String]): List of Cost Usage Report Names
-
-    """
-    report_defs = get_cur_report_definitions(role_arn, session)
-    report_names = []
-    for report in report_defs:
-        if s3_bucket == report["S3Bucket"]:
-            report_names.append(report["ReportName"])
-    return report_names
 
 
 def month_date_range(for_date_time):

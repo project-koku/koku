@@ -18,6 +18,7 @@ from api.common import error_obj
 from api.models import Provider
 from masu.processor import ALLOWED_COMPRESSIONS
 from masu.util.aws.common import AwsArn
+from masu.util.aws.common import get_cur_report_definitions
 
 LOG = logging.getLogger(__name__)
 
@@ -77,8 +78,8 @@ def _check_cost_report_access(credential_name, credentials, region_name="us-east
     reports = None
 
     try:
-        response = cur_client.describe_report_definitions()
-        reports = response.get("ReportDefinitions")
+        response = get_cur_report_definitions(cur_client)
+        reports = response.get("ReportDefinitions", [])
     except (ClientError, BotoConnectionError) as boto_error:
         key = ProviderErrors.AWS_NO_REPORT_FOUND
         message = f"Unable to obtain cost and usage report definition data with {credential_name}."
