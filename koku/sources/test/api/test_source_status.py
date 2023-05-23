@@ -570,7 +570,6 @@ class SourcesStatusTest(IamTestCase):
         request = self.request_context.get("request")
         source_id = 1
         source_name = "New AWS Mock Test Source"
-
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = Provider.objects.create(
                 name=source_name, created_by=request.user, customer=request.user.customer, active=False

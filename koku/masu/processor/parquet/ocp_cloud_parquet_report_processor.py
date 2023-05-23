@@ -8,7 +8,7 @@ import logging
 from functools import cached_property
 
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.utils import DateHelper

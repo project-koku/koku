@@ -6,6 +6,7 @@
 import datetime
 import logging
 import re
+import time
 import uuid
 from itertools import chain
 
@@ -16,7 +17,7 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -143,6 +144,30 @@ def get_available_regions(service_name: str = "ec2") -> list[str]:
 
     session = boto3.Session()
     return session.get_available_regions(service_name)
+
+
+def get_cur_report_definitions(role_arn, session=None):
+    """
+    Get Cost Usage Reports associated with a given RoleARN.
+
+    Args:
+        role_arn     (String) RoleARN for AWS session
+
+    """
+    if not session:
+        session = get_assume_role_session(role_arn)
+    cur_client = session.client("cur")
+    retries = 5
+    for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
+        try:
+            defs = cur_client.describe_report_definitions()
+            report_defs = defs.get("ReportDefinitions", [])
+            return report_defs
+        except ClientError:
+            if i < (retries - 1):
+                LOG.info("AWS client error while describing report definitions; retrying")
+                time.sleep(10)
+                continue
 
 
 def month_date_range(for_date_time):

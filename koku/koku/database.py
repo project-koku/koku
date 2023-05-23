@@ -86,7 +86,7 @@ class FKViolation:
 
 engines = {
     "sqlite": "django.db.backends.sqlite3",
-    "postgresql": "tenant_schemas.postgresql_backend",
+    "postgresql": "django_tenants.postgresql_backend",
     "mysql": "django.db.backends.mysql",
 }
 

@@ -15,7 +15,7 @@ from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.user_settings.settings import USER_SETTINGS
@@ -489,6 +489,7 @@ def get_months_in_date_range(
             dt_end = dh.today
 
     elif dt_invoice_month:
+        dt_start = dh.today if not dt_start else dt_start
         dt_end = dh.today if not dt_end else dt_end
 
         # For report_data masu API
@@ -513,7 +514,7 @@ def get_months_in_date_range(
             (
                 dt_start.strftime(date_format),
                 dt_end.strftime(date_format),
-                dt_invoice_month.strftime(invoice_date_format),
+                dt_invoice_month.strftime(invoice_date_format) if dt_invoice_month else None,
             )
         ]
 

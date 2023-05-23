@@ -12,9 +12,9 @@ from dateutil import parser
 from django.db import IntegrityError
 from django.http import HttpRequest
 from django.http import QueryDict
+from django_tenants.utils import tenant_context
 from model_bakery import baker
 from rest_framework.request import Request
-from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
 from api.iam.models import User
