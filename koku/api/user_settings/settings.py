@@ -2,10 +2,9 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-# turn off black formatting
-# fmt: off
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
+
 """List of cost_types."""
 COST_TYPES = [
     {
@@ -26,11 +25,12 @@ COST_TYPES = [
 ]
 
 """Default users settings"""
-USER_SETTINGS = {"settings":
-    {
-        'currency': KOKU_DEFAULT_CURRENCY,
-        'cost_type': KOKU_DEFAULT_COST_TYPE
-    }
+# fmt: off
+USER_SETTINGS = {
+    "settings":
+        {
+            "currency": KOKU_DEFAULT_CURRENCY,
+            "cost_type": KOKU_DEFAULT_COST_TYPE,
+        }
 }
-
 # fmt: on
