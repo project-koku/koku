@@ -116,30 +116,17 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(out, expected_string)
 
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket is successful."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, BUCKET, session)
-        self.assertIn(NAME, report_names)
-
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket_malformed(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket fails for bad bucket name."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, "wrong-bucket", session)
-        self.assertNotIn(NAME, report_names)
-
     def test_get_cur_report_definitions(self):
         """Test get_cur_report_definitions is successful."""
         session = FakeSession()
-        defs = utils.get_cur_report_definitions(self.arn, session)
+        cur_client = session.client("cur")
+        defs = utils.get_cur_report_definitions(cur_client)
         self.assertEqual(len(defs), 1)
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_cur_report_definitions_no_session(self, fake_session):
         """Test get_cur_report_definitions for no sessions."""
-        defs = utils.get_cur_report_definitions(self.arn)
+        defs = utils.get_cur_report_definitions(None, role_arn=self.aws_arn)
         self.assertEqual(len(defs), 1)
 
     def test_get_account_alias_from_role_arn(self):
