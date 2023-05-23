@@ -28,7 +28,7 @@ def _mock_boto3_exception():
     raise ClientError(operation_name="", error_response={})
 
 
-def _mock_boto3_kwargs_exception(**kwargs):
+def _mock_boto3_kwargs_exception(*args, **kwargs):
     """Raise boto3 exception for testing."""
     raise ClientError(operation_name="", error_response={})
 
@@ -252,12 +252,13 @@ class AWSProviderTestCase(TestCase):
                 bucket=test_bucket,
             )
 
+    @patch("providers.aws.provider.get_cur_report_definitions")
     @patch("providers.aws.provider.boto3.client")
-    def test_check_cost_report_access_fail(self, mock_boto3_client):
+    def test_check_cost_report_access_fail(self, mock_boto3_client, mock_check):
         """Test _check_cost_report_access fail."""
         s3_client = Mock()
-        s3_client.describe_report_definitions.side_effect = _mock_boto3_kwargs_exception
         mock_boto3_client.return_value = s3_client
+        mock_check.side_effect = _mock_boto3_kwargs_exception
         with self.assertRaises(ValidationError):
             _check_cost_report_access(
                 FAKE.word(),
