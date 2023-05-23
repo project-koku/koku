@@ -96,10 +96,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
             report = [""]
         else:
-            self.cur = session.client("cur")
-
             # fetch details about the report from the cloud provider
-            defs = self.cur.describe_report_definitions()
+            defs = utils.get_cur_report_definitions(session.client("cur"))
             if not report_name:
                 report_names = []
                 for report in defs.get("ReportDefinitions", []):
