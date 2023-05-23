@@ -68,13 +68,17 @@ strategies = {
 }
 
 headers = {}
+environment = ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development")
 if settings.UNLEASH_TOKEN:
-    headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"
+    if environment in ["prod", "stage"]:
+        headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"
+    else:
+        headers["Authorization"] = f"{settings.UNLEASH_TOKEN}"
 
 UNLEASH_CLIENT = KokuUnleashClient(
     url=settings.UNLEASH_URL,
     app_name="Cost Management",
-    environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
+    environment=environment,
     instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
     custom_headers=headers,
     custom_strategies=strategies,
