@@ -1,4 +1,3 @@
--- Clear out old entries first
 -- Populate the daily aggregate line item data
 INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_account_p (
     id,
