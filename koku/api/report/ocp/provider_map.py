@@ -302,7 +302,11 @@ class OCPProviderMap(ProviderMap):
                         },
                         "capacity_aggregate": {
                             "cluster": {"capacity": Max("cluster_capacity_cpu_core_hours")},
-                            "node": {"capacity": Max("node_capacity_cpu_core_hours")},
+                            "node": {
+                                "capacity": Max("node_capacity_cpu_core_hours"),
+                                "capacity_instances": Max("node_capacity_cpu_cores"),
+                                "capacity_instance_type": Value("Core", output_field=CharField()),
+                            },
                         },
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
@@ -386,7 +390,11 @@ class OCPProviderMap(ProviderMap):
                         },
                         "capacity_aggregate": {
                             "cluster": {"capacity": Max("cluster_capacity_memory_gigabyte_hours")},
-                            "node": {"capacity": Max("node_capacity_memory_gigabyte_hours")},
+                            "node": {
+                                "capacity": Max("node_capacity_memory_gigabyte_hours"),
+                                "capacity_instances": Max("node_capacity_memory_gigabytes"),
+                                "capacity_instance_type": Value("GB", output_field=CharField()),
+                            },
                         },
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
@@ -473,7 +481,11 @@ class OCPProviderMap(ProviderMap):
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
-                            "node": {"capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months")},  # We sum
+                            "node": {
+                                "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                                "capacity_instances": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity_instance_type": Value("GB", output_field=CharField()),
+                            },
                         },
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),

@@ -110,11 +110,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 "request_unused_percent": {"key": "unused_percent", "group": "request"},
                 "capacity_unused": {"key": "unused", "group": "capacity"},
                 "capacity_unused_percent": {"key": "unused_percent", "group": "capacity"},
+                "capacity_instances": {"key": "instances", "group": "capacity"},
+                "capacity_instance_type": {"key": "instance_type", "group": "capacity"},
             },
             "units": "usage_units",
         }
-
-        # ocp_pack_definitions["usage"] = ocp_usage_keys
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -147,11 +147,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 annotations["project"] = F("namespace")
 
         if is_grouped_by_node(self.parameters):
-            node_annotations = (
-                self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}).get("capacity")
-            )
-            if node_annotations:
-                self.report_annotations["capacity"] = node_annotations
+            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
+                self.report_annotations.update(
+                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
+                )
 
         return annotations
 
