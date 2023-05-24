@@ -8,7 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import ciso8601
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from reporting.provider.aws.models import AWSAccountAlias

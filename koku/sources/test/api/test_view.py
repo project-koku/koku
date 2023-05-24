@@ -147,6 +147,7 @@ class SourcesViewTests(IamTestCase):
             "us-west-1",
             "us-west-2",
         }
+
         response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
         regions = response.json()["data"]
         count = response.json()["meta"]["count"]
@@ -176,6 +177,7 @@ class SourcesViewTests(IamTestCase):
         customer = self._create_customer_data(account=other_account, org_id=other_org_id)
         IdentityHeaderMiddleware.create_customer(other_account, other_org_id)
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+
         with requests_mock.mock() as m:
             m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
@@ -308,6 +310,7 @@ class SourcesViewTests(IamTestCase):
     def test_source_get_random_uuid(self):
         """Test the GET endpoint with non-existent source uuid."""
         source_id = uuid4()
+
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",

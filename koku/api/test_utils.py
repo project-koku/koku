@@ -14,7 +14,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.user_settings.settings import USER_SETTINGS

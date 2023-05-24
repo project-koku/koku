@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS org unit crawler."""
-# from tenant_schemas.utils import schema_context
+# from django_tenants.utils import schema_context
 import logging
 from datetime import timedelta
 
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 from django.db import transaction
+from django_tenants.utils import schema_context
 from requests.exceptions import ConnectionError as BotoConnectionError
-from tenant_schemas.utils import schema_context
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
@@ -34,7 +34,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             account (String): AWS IAM RoleArn
         """
         super().__init__(account)
-        self._auth_cred = self.account.get("credentials", {}).get("role_arn")
+        self._auth_cred = self.account.get("credentials", {})
         self._date_accessor = DateAccessor()
         self._client = None
         self._account_alias_map = None

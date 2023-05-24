@@ -13,8 +13,8 @@ import boto3
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from masu.config import Config
@@ -71,11 +71,13 @@ class TestAWSUtils(MasuTestCase):
         super().setUp()
         self.account_id = fake_aws_account_id()
         self.arn = fake_arn(account_id=self.account_id, region=REGION, service="iam")
+        self.credentials = {"role_arn": self.arn}
+        self.aws_arn = utils.AwsArn(self.credentials)
 
     @patch("masu.util.aws.common.boto3.client", return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):
         """Test get_assume_role_session is successful."""
-        session = utils.get_assume_role_session(self.arn)
+        session = utils.get_assume_role_session(self.aws_arn)
         self.assertIsInstance(session, boto3.Session)
 
     def test_get_available_regions(self):
@@ -114,43 +116,32 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(out, expected_string)
 
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket is successful."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, BUCKET, session)
-        self.assertIn(NAME, report_names)
-
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket_malformed(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket fails for bad bucket name."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, "wrong-bucket", session)
-        self.assertNotIn(NAME, report_names)
-
     def test_get_cur_report_definitions(self):
         """Test get_cur_report_definitions is successful."""
         session = FakeSession()
-        defs = utils.get_cur_report_definitions(self.arn, session)
+        cur_client = session.client("cur")
+        defs = utils.get_cur_report_definitions(cur_client)
         self.assertEqual(len(defs), 1)
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_cur_report_definitions_no_session(self, fake_session):
         """Test get_cur_report_definitions for no sessions."""
-        defs = utils.get_cur_report_definitions(self.arn)
+        defs = utils.get_cur_report_definitions(None, role_arn=self.aws_arn)
         self.assertEqual(len(defs), 1)
 
     def test_get_account_alias_from_role_arn(self):
         """Test get_account_alias_from_role_arn is functional."""
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
         mock_alias = "test-alias"
 
         session = Mock()
         mock_client = Mock()
         mock_client.list_account_aliases.return_value = {"AccountAliases": [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
@@ -163,8 +154,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, mock_session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, mock_session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -177,8 +170,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -186,6 +181,8 @@ class TestAWSUtils(MasuTestCase):
         """Test get_account_names_by_organization is functional."""
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
         mock_alias = "test-alias"
         expected = [{"id": mock_account_id, "name": mock_alias}]
 
@@ -196,7 +193,7 @@ class TestAWSUtils(MasuTestCase):
         mock_paginator.paginate.return_value = paginated_results
         mock_client.get_paginator.return_value = mock_paginator
         session.client.return_value = mock_client
-        accounts = utils.get_account_names_by_organization(role_arn, session)
+        accounts = utils.get_account_names_by_organization(arn, session)
         self.assertEqual(accounts, expected)
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -208,8 +205,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(role_arn, mock_session)
+        accounts = utils.get_account_names_by_organization(arn, mock_session)
         self.assertEqual(accounts, [])
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -221,8 +220,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(role_arn)
+        accounts = utils.get_account_names_by_organization(arn)
         self.assertEqual(accounts, [])
 
     def test_get_assembly_id_from_cur_key(self):
@@ -481,8 +482,9 @@ class AwsArnTest(TestCase):
         """Assert successful account ID parsing from a well-formed ARN."""
         mock_account_id = fake_aws_account_id()
         mock_arn = fake_arn(account_id=mock_account_id, region="test-region-1")
+        credentials = {"role_arn": mock_arn}
 
-        arn_object = utils.AwsArn(mock_arn)
+        arn_object = utils.AwsArn(credentials)
 
         partition = arn_object.partition
         self.assertIsNotNone(partition)
@@ -526,7 +528,8 @@ class AwsArnTest(TestCase):
     def test_parse_arn_without_region_or_account(self):
         """Assert successful ARN parsing without a region or an account id."""
         mock_arn = fake_arn()
-        arn_object = utils.AwsArn(mock_arn)
+        credentials = {"role_arn": mock_arn}
+        arn_object = utils.AwsArn(credentials)
 
         region = arn_object.region
         self.assertEqual(region, None)
@@ -537,7 +540,8 @@ class AwsArnTest(TestCase):
     def test_parse_arn_with_slash_separator(self):
         """Assert successful ARN parsing with a slash separator."""
         mock_arn = fake_arn(resource_separator="/")
-        arn_object = utils.AwsArn(mock_arn)
+        credentials = {"role_arn": mock_arn}
+        arn_object = utils.AwsArn(credentials)
 
         resource_type = arn_object.resource_type
         self.assertIsNotNone(resource_type)
@@ -551,7 +555,8 @@ class AwsArnTest(TestCase):
     def test_parse_arn_with_custom_resource_type(self):
         """Assert valid ARN when resource type contains extra characters."""
         mock_arn = "arn:aws:fakeserv:test-reg-1:012345678901:test.res type:foo"
-        arn_object = utils.AwsArn(mock_arn)
+        credentials = {"role_arn": mock_arn}
+        arn_object = utils.AwsArn(credentials)
 
         resource_type = arn_object.resource_type
         self.assertIsNotNone(resource_type)
@@ -562,5 +567,18 @@ class AwsArnTest(TestCase):
     def test_error_from_invalid_arn(self):
         """Assert error in account ID parsing from a badly-formed ARN."""
         mock_arn = self.fake.text()
+        credentials = {"role_arn": mock_arn}
         with self.assertRaises(SyntaxError):
-            utils.AwsArn(mock_arn)
+            utils.AwsArn(credentials)
+
+    def test_arn_and_external_id(self):
+        """Assert that the AwsArn processes an ExternalId."""
+        mock_arn = fake_arn()
+        credentials = {"role_arn": mock_arn}
+        arn = utils.AwsArn(credentials)
+        self.assertIsNone(arn.external_id)
+
+        external_id = "1234567"
+        credentials = {"role_arn": mock_arn, "external_id": external_id}
+        arn = utils.AwsArn(credentials)
+        self.assertIsNotNone(arn.external_id)

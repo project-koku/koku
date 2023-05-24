@@ -15,8 +15,8 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from django.db.models import Sum
 from django.db.models.expressions import OrderBy
+from django_tenants.utils import tenant_context
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
@@ -141,6 +141,16 @@ class OCPReportQueryHandlerTest(IamTestCase):
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertAlmostEqual(result_cost_total, expected_cost_total, 6)
+
+    def test_get_cluster_capacity_daily_resolution_empty_cluster(self):
+        query_params = self.mocked_query_params("?", OCPMemoryView)
+        query_data, total_capacity = OCPReportQueryHandler(query_params).get_cluster_capacity([{"row": 1}])
+        self.assertTrue("capacity" in total_capacity)
+        self.assertTrue(isinstance(total_capacity["capacity"], Decimal))
+        self.assertTrue("capacity" in query_data[0])
+        self.assertIsNotNone(query_data[0].get("capacity"))
+        self.assertIsNotNone(total_capacity.get("capacity"))
+        self.assertEqual(query_data[0].get("capacity"), Decimal(0))
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""

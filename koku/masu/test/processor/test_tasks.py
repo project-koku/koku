@@ -28,7 +28,7 @@ from django.conf import settings
 from django.core.cache import caches
 from django.db.utils import IntegrityError
 from django.test.utils import override_settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider
@@ -1637,7 +1637,7 @@ class TestRemoveStaleTenants(MasuTestCase):
         with schema_context("public"):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
-            middleware.get_tenant(Tenant, "localhost", mock_request)
+            middleware._get_or_create_tenant(mock_request)
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)

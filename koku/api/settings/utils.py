@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
