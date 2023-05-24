@@ -52,7 +52,6 @@ requests = ">=2.20"
 sentry-sdk = ">=0.13"
 statsmodels = ">=0.12"
 trino = "*"
-tzlocal = "<5"  # apscheduler 3.x, a dependency of unleash, requires tzlocal <5
 unleashclient = "<5"  # new version breaks for unknown reason
 watchtower = "==1.0.6"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
