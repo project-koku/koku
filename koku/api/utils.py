@@ -25,6 +25,7 @@ from reporting.user_settings.models import UserSettings
 
 
 LOG = logging.getLogger(__name__)
+UTC = ZoneInfo("UTC")
 
 
 def get_cost_type(request):
@@ -85,7 +86,7 @@ class DateHelper:
     def __init__(self, utc=False):
         """Initialize when now is."""
         if utc:
-            self._now = datetime.datetime.now(tz=ZoneInfo("UTC"))
+            self._now = datetime.datetime.now(tz=UTC)
         else:
             self._now = timezone.now()
 
@@ -97,7 +98,7 @@ class DateHelper:
     @property
     def now_utc(self):
         """Return current time at timezone."""
-        return datetime.datetime.now(tz=ZoneInfo("UTC"))
+        return datetime.datetime.now(tz=UTC)
 
     @property
     def midnight(self):
@@ -400,7 +401,7 @@ class DateHelper:
             (datetime.datetime)
         """
         if isinstance(bill_date, str):
-            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=ZoneInfo("UTC"))
+            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=UTC)
         date_obj = bill_date.strftime("%Y%m")
         return date_obj
 
@@ -408,7 +409,7 @@ class DateHelper:
         """Find the year from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=ZoneInfo("UTC"))
+            date = ciso8601.parse_datetime(date).replace(tzinfo=UTC)
         date_obj = date.strftime("%Y")
         return date_obj
 
@@ -416,7 +417,7 @@ class DateHelper:
         """Find the month from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=ZoneInfo("UTC"))
+            date = ciso8601.parse_datetime(date).replace(tzinfo=UTC)
         date_obj = date.strftime("%m")
         return date_obj
 
@@ -459,13 +460,11 @@ def get_months_in_date_range(
     invoice_date_format = "%Y%m"
 
     # Converting inputs to datetime objects
-    dt_start = parser.parse(start).astimezone(tz=ZoneInfo("UTC")) if start else None
-    dt_end = parser.parse(end).astimezone(tz=ZoneInfo("UTC")) if end else None
+    dt_start = parser.parse(start).astimezone(tz=UTC) if start else None
+    dt_end = parser.parse(end).astimezone(tz=UTC) if end else None
     # invoice_date_format not supported by dateutil parser
     dt_invoice_month = (
-        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=ZoneInfo("UTC"))
-        if invoice_month
-        else None
+        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=UTC) if invoice_month else None
     )
 
     if report:
@@ -475,12 +474,12 @@ def get_months_in_date_range(
 
         if manifest_start and manifest_end:
             LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
-            dt_start = parser.parse(manifest_start).astimezone(tz=ZoneInfo("UTC"))
-            dt_end = parser.parse(manifest_end).astimezone(tz=ZoneInfo("UTC"))
+            dt_start = parser.parse(manifest_start).astimezone(tz=UTC)
+            dt_end = parser.parse(manifest_end).astimezone(tz=UTC)
             if manifest_invoice_month:
                 LOG.info(f"using invoice_month: {manifest_invoice_month}")
                 dt_invoice_month = datetime.datetime.strptime(manifest_invoice_month, invoice_date_format).replace(
-                    tzinfo=ZoneInfo("UTC")
+                    tzinfo=UTC
                 )
         else:
             LOG.info("generating start and end dates for manifest")
