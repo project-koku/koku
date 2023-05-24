@@ -6,8 +6,7 @@
 import logging
 from datetime import datetime
 from datetime import timedelta
-
-import pytz
+from zoneinfo import ZoneInfo
 
 from api.models import Provider
 from masu.config import Config
@@ -107,7 +106,10 @@ class ExpiredDataRemover:
         num_of_days_to_expire_date = months * timedelta(days=30)
         middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
         expiration_date = datetime(
-            year=middle_of_expire_date_month.year, month=middle_of_expire_date_month.month, day=1, tzinfo=pytz.UTC
+            year=middle_of_expire_date_month.year,
+            month=middle_of_expire_date_month.month,
+            day=1,
+            tzinfo=ZoneInfo("UTC"),
         )
         msg = expiration_msg.format(expiration_date, months)
         LOG.info(msg)

@@ -5,9 +5,9 @@
 """Test the GCPReportDBCleaner utility object."""
 import datetime
 import uuid
+from zoneinfo import ZoneInfo
 
 import django
-import pytz
 from django.db import transaction
 from django_tenants.utils import schema_context
 
@@ -98,8 +98,8 @@ class GCPReportDBCleanerTest(MasuTestCase):
 
             self.assertTrue(table_exists(self.schema, test_part.table_name))
 
-            report_period_start = datetime.datetime(2015, 1, 1, tzinfo=pytz.UTC)
-            report_period_end = datetime.datetime(2015, 1, 31, tzinfo=pytz.UTC)
+            report_period_start = datetime.datetime(2015, 1, 1, tzinfo=ZoneInfo("UTC"))
+            report_period_end = datetime.datetime(2015, 1, 31, tzinfo=ZoneInfo("UTC"))
             report_period = report_period_model(
                 billing_period_start=report_period_start,
                 billing_period_end=report_period_end,
@@ -119,7 +119,7 @@ class GCPReportDBCleanerTest(MasuTestCase):
             )
             lids_rec.save()
 
-            cutoff_date = datetime.datetime(2015, 12, 31, tzinfo=pytz.UTC)
+            cutoff_date = datetime.datetime(2015, 12, 31, tzinfo=ZoneInfo("UTC"))
             cleaner = GCPReportDBCleaner(self.schema)
             removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 

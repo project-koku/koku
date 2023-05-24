@@ -6,8 +6,9 @@
 import logging
 from datetime import datetime
 from datetime import tzinfo
+from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfoNotFoundError
 
-import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
@@ -24,7 +25,7 @@ class DateAccessor:
     """Accessor to get date time."""
 
     mock_date_time = None
-    date_time_last_accessed = datetime.now(tz=pytz.UTC)
+    date_time_last_accessed = datetime.now(tz=ZoneInfo("UTC"))
 
     def __init__(self):
         """Initializer."""
@@ -33,7 +34,7 @@ class DateAccessor:
             # in Python 3.7 there is datetime.fromisoformat()
             DateAccessor.mock_date_time = parser.parse(Config.MASU_DATE_OVERRIDE)
             if DateAccessor.mock_date_time.tzinfo is None:
-                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=pytz.UTC)
+                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=ZoneInfo("UTC"))
             LOG.info("Initializing masu date/time to %s", str(DateAccessor.mock_date_time))
 
     def today(self):
@@ -52,7 +53,7 @@ class DateAccessor:
             example: 2018-07-24 15:47:33
 
         """
-        current_date = datetime.now(tz=pytz.UTC)
+        current_date = datetime.now(tz=ZoneInfo("UTC"))
         if Config.DEBUG and DateAccessor.mock_date_time:
             seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date
@@ -71,7 +72,7 @@ class DateAccessor:
         Args:
             timezone (str/datetime.tzinfo) Either a valid timezone string
                 or an instance or subclass of datetime.tzinfo.
-            examples: 'US/Eastern', pytz.UTC
+            examples: 'US/Eastern', ZoneInfo('UTC')
 
 
         Returns:
@@ -81,8 +82,8 @@ class DateAccessor:
         """
         if isinstance(timezone, str):
             try:
-                timezone = pytz.timezone(timezone)
-            except pytz.exceptions.UnknownTimeZoneError as err:
+                timezone = ZoneInfo(timezone)
+            except ZoneInfoNotFoundError as err:
                 LOG.error(err)
                 raise DateAccessorError(err)
         elif not isinstance(timezone, tzinfo):

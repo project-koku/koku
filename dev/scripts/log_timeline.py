@@ -10,10 +10,10 @@ import re
 import sys
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from pytz import UTC
 
 
 random.seed(time.time())
@@ -169,7 +169,7 @@ create index log_timeline_ix2 on public._log_timeline (log_level)
             self.create_table()
 
     def parse_ts(self, ts):
-        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S,%f").replace(tzinfo=UTC)
+        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S,%f").replace(tzinfo=ZoneInfo("UTC"))
 
     def parse_json_or_eval(self, txt):
         if not isinstance(txt, str) or not txt:
@@ -304,7 +304,9 @@ select log_ts - %(window)s::interval as start_time,
                     ends.append(rec["end_time"])
             return starts, ends
         else:
-            return [datetime(1900, 1, 1).replace(tzinfo=UTC)], [datetime(1900, 1, 2).replace(tzinfo=UTC)]
+            return [datetime(1900, 1, 1).replace(tzinfo=ZoneInfo("UTC"))], [
+                datetime(1900, 1, 2).replace(tzinfo=ZoneInfo("UTC"))
+            ]
 
     def get_error_window_cte_stmt(self):
         start_times, end_times = self.get_error_log_ts_start_end()

@@ -6,6 +6,7 @@
 import datetime
 import logging
 from functools import cached_property
+from zoneinfo import ZoneInfo
 
 from dateutil import parser
 from dateutil import relativedelta
@@ -16,7 +17,6 @@ from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
-from pytz import UTC
 
 from api.currency.models import ExchangeRateDictionary
 from api.query_filter import QueryFilter
@@ -76,7 +76,11 @@ class QueryHandler:
         for param, attr in [("start_date", "start_datetime"), ("end_date", "end_datetime")]:
             p = self.parameters.get(param)
             if p:
-                setattr(self, attr, datetime.datetime.combine(parser.parse(p).date(), self.dh.midnight, tzinfo=UTC))
+                setattr(
+                    self,
+                    attr,
+                    datetime.datetime.combine(parser.parse(p).date(), self.dh.midnight, tzinfo=ZoneInfo("UTC")),
+                )
             else:
                 setattr(self, attr, None)
 

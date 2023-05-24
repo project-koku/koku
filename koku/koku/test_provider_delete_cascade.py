@@ -6,9 +6,9 @@ import uuid
 from datetime import datetime
 from unittest.mock import Mock
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from django_tenants.utils import schema_context
-from pytz import UTC
 
 from api.iam.models import Customer
 from api.iam.models import Tenant
@@ -26,7 +26,7 @@ class TestProviderDeleteSQL(IamTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        action_ts = datetime.now().replace(tzinfo=UTC)
+        action_ts = datetime.now().replace(tzinfo=ZoneInfo("UTC"))
         # Add a bogus customer
         c = Customer(
             date_created=action_ts,
@@ -56,8 +56,8 @@ class TestProviderDeleteSQL(IamTestCase):
         )
         paws.save()
         # Create billing period stuff for each provider
-        period_start = datetime(2020, 1, 1, tzinfo=UTC)
-        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        period_start = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
+        period_end = datetime(2020, 2, 1, tzinfo=ZoneInfo("UTC"))
         awsceb = AWSCostEntryBill(
             billing_resource="6846351687354184651",
             billing_period_start=period_start,
@@ -94,8 +94,8 @@ class TestProviderDeleteSQL(IamTestCase):
         )
         pazure.save()
         # Create billing period stuff for each provider
-        period_start = datetime(2020, 1, 1, tzinfo=UTC)
-        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        period_start = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
+        period_end = datetime(2020, 2, 1, tzinfo=ZoneInfo("UTC"))
         azureceb = AzureCostEntryBill(
             billing_period_start=period_start, billing_period_end=period_end, provider=pazure
         )
@@ -129,8 +129,8 @@ class TestProviderDeleteSQL(IamTestCase):
         )
         pgcp.save()
         # Create billing period stuff for each provider
-        period_start = datetime(2020, 1, 1, tzinfo=UTC)
-        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        period_start = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
+        period_end = datetime(2020, 2, 1, tzinfo=ZoneInfo("UTC"))
         gcpceb = GCPCostEntryBill(billing_period_start=period_start, billing_period_end=period_end, provider=pgcp)
         with schema_context(c.schema_name):
             gcpceb.save()
@@ -162,8 +162,8 @@ class TestProviderDeleteSQL(IamTestCase):
         )
         pocp.save()
         # Create billing period stuff for each provider
-        period_start = datetime(2020, 1, 1, tzinfo=UTC)
-        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        period_start = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
+        period_end = datetime(2020, 2, 1, tzinfo=ZoneInfo("UTC"))
         ocpurp = OCPUsageReportPeriod(
             cluster_id="584634154687685", report_period_start=period_start, report_period_end=period_end, provider=pocp
         )
@@ -197,8 +197,8 @@ class TestProviderDeleteSQL(IamTestCase):
         )
         poci.save()
         # Create billing period stuff for each provider
-        period_start = datetime(2020, 1, 1, tzinfo=UTC)
-        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        period_start = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
+        period_end = datetime(2020, 2, 1, tzinfo=ZoneInfo("UTC"))
         ociceb = OCICostEntryBill(
             billing_resource="546315338435",
             billing_period_start=period_start,
