@@ -62,7 +62,7 @@ class DateAccessor:
             current_date = DateAccessor.mock_date_time
         return current_date
 
-    def today_with_timezone(self, timezone):
+    def today_with_timezone(self, tz):
         """Return the current datetime at the timezone indictated.
 
         When the environment variable DEVELOPMENT is set to True,
@@ -80,17 +80,17 @@ class DateAccessor:
             example: 2018-07-24 15:47:33
 
         """
-        if isinstance(timezone, str):
+        if isinstance(tz, str):
             try:
-                timezone = ZoneInfo(timezone)
+                tz = ZoneInfo(tz)
             except ZoneInfoNotFoundError as err:
                 LOG.error(err)
                 raise DateAccessorError(err)
-        elif not isinstance(timezone, tzinfo):
+        elif not isinstance(tz, tzinfo):
             err = "timezone must be a valid timezone string or subclass of datetime.tzinfo"
             raise DateAccessorError(err)
 
-        current_date = datetime.now(tz=timezone)
+        current_date = datetime.now(tz=tz)
         if Config.DEBUG and DateAccessor.mock_date_time:
             seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date

@@ -5,8 +5,8 @@
 import json
 from datetime import date
 from datetime import datetime
-from datetime import timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import pandas
 
@@ -32,7 +32,7 @@ class TestJSONTranscode(IamTestCase):
 
     def test_encode_datetime(self):
         """Test that the encoder enocdes datetime.datetime"""
-        dat = {"dat": datetime.now().replace(tzinfo=timezone.utc)}
+        dat = {"dat": datetime.now().replace(tzinfo=ZoneInfo("UTC"))}
         self.assertIn("_py_type", json.dumps(dat, cls=xcode.TypedJSONEncoder))
 
     def test_encode_error(self):
@@ -68,7 +68,7 @@ class TestJSONTranscode(IamTestCase):
 
     def test_decode_datetime(self):
         """Test that datetime.datetime type is returned correctly"""
-        dat = {"id": 1, "dat": datetime.now().replace(tzinfo=timezone.utc)}
+        dat = {"id": 1, "dat": datetime.now().replace(tzinfo=ZoneInfo("UTC"))}
         jsn = json.dumps(dat, cls=xcode.TypedJSONEncoder)
         _decoded_dat = json.loads(jsn)
         self.assertEqual({"_py_type", "value"}, set(_decoded_dat["dat"]))
@@ -77,7 +77,7 @@ class TestJSONTranscode(IamTestCase):
 
     def test_decode_undefined(self):
         """Test that undefined type is returned correctly"""
-        dat = {"id": 1, "dat": datetime.now().replace(tzinfo=timezone.utc)}
+        dat = {"id": 1, "dat": datetime.now().replace(tzinfo=ZoneInfo("UTC"))}
         jsn = json.dumps(dat, cls=xcode.TypedJSONEncoder).replace("datetime", "no_type_here")
         _decoded_dat = json.loads(jsn, cls=xcode.TypedJSONDecoder)
         self.assertEqual(_decoded_dat["dat"]["_py_type"], "no_type_here")
