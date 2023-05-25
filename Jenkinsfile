@@ -9,7 +9,6 @@ pipeline {
             steps {
                 sh "echo 'Jenkinsfile placeholder'"
             }
-    
         }
     }
 }
