@@ -59,6 +59,22 @@ class CapacitySubsets:
             self.resolution_level_total[month][level_value] += cap_value
 
 
+def _calculate_unused(row):
+    """Calculates the unused portions of the capacity & request."""
+    # Populate unused request and capacity
+    capacity = row.get("capacity", Decimal(0))
+    if capacity == 0:
+        capacity = 1  # prevents dividing by zero
+    effective_usage = max(row["usage"], row["request"])
+    unused_capacity = max(capacity - effective_usage, 0)
+    capacity_unused_percent = (unused_capacity / capacity) * 100
+    row["capacity_unused"] = unused_capacity
+    row["capacity_unused_percent"] = capacity_unused_percent
+    unused_request = max(row["request"] - row["usage"], 0)
+    row["request_unused"] = unused_request
+    row["request_unused_percent"] = (unused_request / row["request"]) * 100
+
+
 class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
@@ -110,8 +126,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 "request_unused_percent": {"key": "unused_percent", "group": "request"},
                 "capacity_unused": {"key": "unused", "group": "capacity"},
                 "capacity_unused_percent": {"key": "unused_percent", "group": "capacity"},
-                "capacity_instances": {"key": "instances", "group": "capacity"},
-                "capacity_instance_type": {"key": "instance_type", "group": "capacity"},
+                "capacity_count": {"key": "count", "group": "capacity"},
+                "capacity_count_units": {"key": "count_units", "group": "capacity"},
             },
             "units": "usage_units",
         }
@@ -321,18 +337,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Calculate node capacity for all nodes over the date range."""
         for row in query_data:
             if row.get("node"):
-                # Populate unused request and capacity
-                capacity = row.get("capacity", Decimal(0))
-                if capacity == 0:
-                    capacity = 1  # prevents dividing by zero
-                effective_usage = max(row["usage"], row["request"])
-                unused_capacity = max(capacity - effective_usage, 0)
-                capacity_unused_percent = (unused_capacity / capacity) * 100
-                row["capacity_unused"] = unused_capacity
-                row["capacity_unused_percent"] = capacity_unused_percent
-                unused_request = max(row["request"] - row["usage"], 0)
-                row["request_unused"] = unused_request
-                row["request_unused_percent"] = (unused_request / row["request"]) * 100
+                _calculate_unused(row)
             elif self.resolution == "daily":
                 row[_capacity.key] = _capacity.resolution_total.get(row.get("date"), Decimal(0))
             elif self.resolution == "monthly" and not self.parameters.get("start_date"):
@@ -366,6 +371,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     )
                 else:
                     row[_capacity.key] = _capacity.resolution_total.get(row_date, Decimal(0))
+            _calculate_unused(row)
         return query_data, {_capacity.key: _capacity.total}
 
     def add_deltas(self, query_data, query_sum):
