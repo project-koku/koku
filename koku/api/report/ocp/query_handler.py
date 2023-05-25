@@ -65,14 +65,18 @@ def _calculate_unused(row):
     capacity = row.get("capacity", Decimal(0))
     if capacity == 0:
         capacity = 1  # prevents dividing by zero
-    effective_usage = max(row["usage"], row["request"])
+    usage = row.get("usage", 0)
+    request = row.get("request", 0)
+    effective_usage = max(usage, request)
     unused_capacity = max(capacity - effective_usage, 0)
     capacity_unused_percent = (unused_capacity / capacity) * 100
     row["capacity_unused"] = unused_capacity
     row["capacity_unused_percent"] = capacity_unused_percent
-    unused_request = max(row["request"] - row["usage"], 0)
+    unused_request = max(request - usage, 0)
     row["request_unused"] = unused_request
-    row["request_unused_percent"] = (unused_request / row["request"]) * 100
+    if request == 0:
+        request = 1
+    row["request_unused_percent"] = unused_request / request * 100
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
