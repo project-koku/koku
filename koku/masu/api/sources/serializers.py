@@ -96,7 +96,7 @@ class SourceSerializer(serializers.Serializer):
             err = f"Can only PATCH with keys in: {allowed_keys}"
             raise SourcesException(err)
 
-        if instance.source_type != Provider.PROVIDER_AWS:
+        if instance.source_type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             err = f"Can currently only update credentials for {Provider.PROVIDER_AWS}"
             raise SourcesException(err)
 
