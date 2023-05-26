@@ -19,7 +19,6 @@ from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 import faker
 from cachetools import TTLCache
@@ -352,7 +351,7 @@ class ProcessReportFileTests(MasuTestCase):
             {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
             {"type": Provider.PROVIDER_OCI, "uuid": self.oci_test_provider_uuid},
         ]
-        test_date = datetime.datetime(2023, 3, 3, tzinfo=ZoneInfo("UTC"))
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
 
         for provider_dict in providers:
             invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(
@@ -396,7 +395,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
 
-        test_date = datetime.datetime(2023, 3, 3, tzinfo=ZoneInfo("UTC"))
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
         report_meta = {}
         report_meta["start"] = test_date.strftime("%Y-%m-%d")
         report_meta["end"] = test_date.strftime("%Y-%m-%d")

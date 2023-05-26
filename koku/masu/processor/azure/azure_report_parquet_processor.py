@@ -3,9 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Azure Parquet files."""
-from zoneinfo import ZoneInfo
-
 import ciso8601
+from django.conf import settings
 from django_tenants.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
@@ -61,8 +60,8 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
         report_date_range = utils.month_date_range(bill_date)
         start_date, end_date = report_date_range.split("-")
 
-        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=ZoneInfo("UTC"))
-        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=ZoneInfo("UTC"))
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
 
         provider = self._get_provider()
 

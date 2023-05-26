@@ -7,7 +7,6 @@ import calendar
 import datetime
 import logging
 from datetime import timedelta
-from zoneinfo import ZoneInfo
 
 import ciso8601
 from dateutil import parser
@@ -25,7 +24,7 @@ from reporting.user_settings.models import UserSettings
 
 
 LOG = logging.getLogger(__name__)
-UTC = ZoneInfo("UTC")
+UTC = settings.UTC
 
 
 def get_cost_type(request):

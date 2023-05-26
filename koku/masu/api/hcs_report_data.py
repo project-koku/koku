@@ -6,9 +6,9 @@
 import logging
 import uuid
 from datetime import timedelta
-from zoneinfo import ZoneInfo
 
 import ciso8601
+from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -59,13 +59,11 @@ def hcs_report_data(request):
             provider = provider_type
 
         start_date = (
-            ciso8601.parse_datetime(start_date).replace(tzinfo=ZoneInfo("UTC"))
+            ciso8601.parse_datetime(start_date).replace(tzinfo=settings.UTC)
             if start_date
             else DateHelper().today - timedelta(days=2)
         )
-        end_date = (
-            ciso8601.parse_datetime(end_date).replace(tzinfo=ZoneInfo("UTC")) if end_date else DateHelper().today
-        )
+        end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=settings.UTC) if end_date else DateHelper().today
         months = DateHelper().list_month_tuples(start_date, end_date)
         num_months = len(months)
         first_month = months[0]

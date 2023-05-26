@@ -7,6 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import dateutil
+from django.conf import settings
 from faker import Faker
 
 from api.utils import DateHelper
@@ -38,13 +39,13 @@ class DateAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up the tests."""
         DateAccessor.mock_date_time = None
-        DateAccessor.date_time_last_accessed = datetime.now(tz=ZoneInfo("UTC"))
+        DateAccessor.date_time_last_accessed = datetime.now(tz=settings.UTC)
         Config.DEBUG = False
         Config.MASU_DATE_OVERRIDE = None
 
     def test_today_override(self):
         """Test today() with override."""
-        fake_dt = self.fake.date_time(tzinfo=ZoneInfo("UTC"))
+        fake_dt = self.fake.date_time(tzinfo=settings.UTC)
         Config.DEBUG = True
         Config.MASU_DATE_OVERRIDE = fake_dt.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -54,7 +55,7 @@ class DateAccessorTest(MasuTestCase):
         self.assertEqual(today.year, fake_dt.year)
         self.assertEqual(today.month, fake_dt.month)
         self.assertEqual(today.day, fake_dt.day)
-        self.assertEqual(today.tzinfo.tzname(today), str(ZoneInfo("UTC")))
+        self.assertEqual(today.tzinfo.tzname(today), str(settings.UTC))
 
     def test_today_override_debug_false(self):
         """Test today() with override when debug is false."""
@@ -65,12 +66,12 @@ class DateAccessorTest(MasuTestCase):
 
         accessor = DateAccessor()
         today = accessor.today()
-        expected_date = datetime.now(tz=ZoneInfo("UTC"))
+        expected_date = datetime.now(tz=settings.UTC)
 
         self.assertEqual(today.year, expected_date.year)
         self.assertEqual(today.month, expected_date.month)
         self.assertEqual(today.day, expected_date.day)
-        self.assertEqual(today.tzinfo, ZoneInfo("UTC"))
+        self.assertEqual(today.tzinfo, settings.UTC)
 
     def test_today_override_override_not_set(self):
         """Test today() with override set when debug is true."""
@@ -79,12 +80,12 @@ class DateAccessorTest(MasuTestCase):
 
         accessor = DateAccessor()
         today = accessor.today()
-        expected_date = datetime.now(tz=ZoneInfo("UTC"))
+        expected_date = datetime.now(tz=settings.UTC)
 
         self.assertEqual(today.year, expected_date.year)
         self.assertEqual(today.month, expected_date.month)
         self.assertEqual(today.day, expected_date.day)
-        self.assertEqual(today.tzinfo, ZoneInfo("UTC"))
+        self.assertEqual(today.tzinfo, settings.UTC)
 
     def test_today_override_override_not_set_debug_false(self):
         """Test today() with override not set when debug is false."""
@@ -93,12 +94,12 @@ class DateAccessorTest(MasuTestCase):
 
         accessor = DateAccessor()
         today = accessor.today()
-        expected_date = datetime.now(tz=ZoneInfo("UTC"))
+        expected_date = datetime.now(tz=settings.UTC)
 
         self.assertEqual(today.year, expected_date.year)
         self.assertEqual(today.month, expected_date.month)
         self.assertEqual(today.day, expected_date.day)
-        self.assertEqual(today.tzinfo, ZoneInfo("UTC"))
+        self.assertEqual(today.tzinfo, settings.UTC)
 
     def test_today_override_with_iso8601(self):
         """Test today() with override and using ISO8601 format."""
@@ -128,7 +129,7 @@ class DateAccessorTest(MasuTestCase):
         self.assertEqual(current_utc_time.date(), result_time.date())
         self.assertEqual(current_utc_time.hour, result_time.hour)
         self.assertEqual(current_utc_time.minute, result_time.minute)
-        self.assertEqual(result_time.tzinfo, ZoneInfo("UTC"))
+        self.assertEqual(result_time.tzinfo, settings.UTC)
 
     def test_today_with_timezone_object(self):
         """Test that a timezone string works as expected."""

@@ -11,11 +11,11 @@ from zoneinfo import ZoneInfoNotFoundError
 
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 
 from masu.config import Config
 
 LOG = logging.getLogger(__name__)
-UTC = ZoneInfo("UTC")
 
 
 class DateAccessorError(Exception):
@@ -26,7 +26,7 @@ class DateAccessor:
     """Accessor to get date time."""
 
     mock_date_time = None
-    date_time_last_accessed = datetime.now(tz=UTC)
+    date_time_last_accessed = datetime.now(tz=settings.UTC)
 
     def __init__(self):
         """Initializer."""
@@ -35,7 +35,7 @@ class DateAccessor:
             # in Python 3.7 there is datetime.fromisoformat()
             DateAccessor.mock_date_time = parser.parse(Config.MASU_DATE_OVERRIDE)
             if DateAccessor.mock_date_time.tzinfo is None:
-                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=UTC)
+                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=settings.UTC)
             LOG.info("Initializing masu date/time to %s", str(DateAccessor.mock_date_time))
 
     def today(self):
@@ -54,7 +54,7 @@ class DateAccessor:
             example: 2018-07-24 15:47:33
 
         """
-        current_date = datetime.now(tz=UTC)
+        current_date = datetime.now(tz=settings.UTC)
         if Config.DEBUG and DateAccessor.mock_date_time:
             seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date

@@ -6,10 +6,10 @@
 import datetime
 import logging
 from functools import cached_property
-from zoneinfo import ZoneInfo
 
 from dateutil import parser
 from dateutil import relativedelta
+from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Case
 from django.db.models import DecimalField
@@ -79,7 +79,7 @@ class QueryHandler:
                 setattr(
                     self,
                     attr,
-                    datetime.datetime.combine(parser.parse(p).date(), self.dh.midnight, tzinfo=ZoneInfo("UTC")),
+                    datetime.datetime.combine(parser.parse(p).date(), self.dh.midnight, tzinfo=settings.UTC),
                 )
             else:
                 setattr(self, attr, None)

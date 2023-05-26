@@ -10,7 +10,6 @@ import os
 import uuid
 from functools import cached_property
 from itertools import islice
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -266,7 +265,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=ZoneInfo("UTC"))
+                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
         except GoogleCloudError as err:
             err_msg = "Could not query table for partition date information."
             extra_context = {"customer": self.customer_name, "response": err.message}

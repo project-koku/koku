@@ -6,7 +6,8 @@
 import logging
 from datetime import datetime
 from datetime import timedelta
-from zoneinfo import ZoneInfo
+
+from django.conf import settings
 
 from api.models import Provider
 from masu.config import Config
@@ -109,7 +110,7 @@ class ExpiredDataRemover:
             year=middle_of_expire_date_month.year,
             month=middle_of_expire_date_month.month,
             day=1,
-            tzinfo=ZoneInfo("UTC"),
+            tzinfo=settings.UTC,
         )
         msg = expiration_msg.format(expiration_date, months)
         LOG.info(msg)
