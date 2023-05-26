@@ -29,6 +29,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
@@ -422,6 +423,41 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         LOG.info("Running OCP on GCP SQL with params (BY NODE):")
+        LOG.info(summary_sql_params)
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+
+    def populate_ocp_on_cloud_daily_trino(self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date):
+        """Populate the gcp_openshift_daily trino table for OCP on GCP.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        table = TRINO_OCP_ON_GCP_DAILY_TABLE
+        self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
+
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/reporting_ocpgcp_daily.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": year,
+            "month": month,
+            "days": days_tup,
+            "end_date": end_date,
+            "gcp_source_uuid": gcp_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+        }
+        LOG.info("Running OCP on GCP daily SQL with params:")
         LOG.info(summary_sql_params)
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 

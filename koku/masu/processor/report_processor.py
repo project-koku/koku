@@ -111,7 +111,10 @@ class ReportProcessor:
         try:
             parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:
-                self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
+                if self.provider_type not in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                    self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
+                else:
+                    self.ocp_on_cloud_processor.process_trino()
             if daily_data_frames != []:
                 return True
             else:

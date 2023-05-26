@@ -5,6 +5,7 @@
 """Report Processing Orchestrator."""
 import logging
 
+from celery import chain
 from celery import chord
 from celery import group
 
@@ -264,7 +265,7 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                async_id = chord(report_tasks, group(summary_task, hcs_task))()
+                async_id = chord(chain(report_tasks), group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))

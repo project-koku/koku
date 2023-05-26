@@ -225,3 +225,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     )
                 else:
                     self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, i)
+
+    def process_trino(self):
+        """Populate cloud_openshift_daily trino table via SQL."""
+        for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
+            self.db_accessor.populate_ocp_on_cloud_daily_trino(
+                self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
+            )
