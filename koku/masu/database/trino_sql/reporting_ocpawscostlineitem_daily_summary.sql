@@ -324,7 +324,7 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.lineitem_availabilityzone,
     aws.product_region,
     aws.costcategory,
-    16, -- tags
+    17, -- tags
     aws.matched_tag
 ;
 
