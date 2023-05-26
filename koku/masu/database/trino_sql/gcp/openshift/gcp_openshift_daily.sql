@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.gcp_openshift_daily
     sku_id varchar,
     system_labels varchar,
     labels varchar,
-    cost_Type varchar,
+    cost_type varchar,
     location_region varchar,
     resource_name varchar,
     project_name varchar,
@@ -21,45 +21,125 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.gcp_openshift_daily
     cost double,
     daily_credits double,
     resource_global_name varchar,
-    ocp_source_uuid varchar,
     ocp_matched boolean,
     matched_tag varchar,
     uuid varchar,
     gcp_source varchar,
+    ocp_source varchar,
     year varchar,
     month varchar,
     day varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['gcp_source', 'ocp_source_uuid', 'year', 'month', 'day'])
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['gcp_source', 'ocp_source', 'year', 'month', 'day'])
 ;
+
+-- Direct resource matching
+WITH cte_gcp_resource_names AS (
+    SELECT DISTINCT resource_name
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    WHERE source = {{gcp_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND usage_start_time >= {{start_date}}
+        AND usage_start_time < date_add('day', 1, {{end_date}})
+),
+cte_array_agg_nodes AS (
+    SELECT DISTINCT node
+    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily
+    WHERE source = {{ocp_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND interval_start >= {{start_date}}
+        AND interval_start < date_add('day', 1, {{end_date}})
+),
+cte_array_agg_volumes AS (
+    SELECT DISTINCT persistentvolume
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    WHERE source = {{ocp_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND interval_start >= {{start_date}}
+        AND interval_start < date_add('day', 1, {{end_date}})
+),
+cte_matchable_resource_names AS (
+    SELECT resource_names.resource_name
+    FROM cte_gcp_resource_names AS resource_names
+    JOIN cte_array_agg_nodes AS nodes
+        ON strpos(resource_names.resource_name, nodes.node) != 0
+
+    UNION
+
+    SELECT resource_names.resource_name
+    FROM cte_gcp_resource_names AS resource_names
+    JOIN cte_array_agg_volumes AS volumes
+        ON strpos(resource_names.resource_name, volumes.persistentvolume) != 0
+)
+SELECT gcp.invoice_month,
+    gcp.billing_account_id,
+    gcp.project_id,
+    gcp.usage_start_time,
+    gcp.service_id,
+    gcp.sku_id,
+    gcp.system_labels,
+    gcp.labels,
+    gcp.cost_type,
+    gcp.location_region,
+    gcp.resource_name,
+    gcp.project_name,
+    gcp.service_description,
+    gcp.sku_description,
+    gcp.usage_pricing_unit,
+    gcp.usage_amount_in_pricing_units,
+    gcp.currency,
+    gcp.cost,
+    gcp.daily_credits,
+    gcp.resource_global_name,
+    TRUE as ocp_matched,
+    cast(NULL as varchar) as matched_tag,
+    gcp.source,
+    {{ocp_source_uuid}} as ocp_source,
+    gcp.year,
+    gcp.month,
+    day(gcp.usage_start_time)
+FROM hive.acct6088952.gcp_line_items_daily AS gcp
+JOIN cte_matchable_resource_names AS resource_names
+    ON gcp.resource_name = resource_names.resource_name
+WHERE gcp.source = {{gcp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month= {{month}}
+    AND gcp.usage_start_time >= {{start_date}}
+    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
+
+-- Will need to add in tag matching here as well
+
 
 
 
 
 
 -- Needs insert statement + Andrew magic :)
-WITH cte_openshift_topology AS (
-  SELECT max(cluster.cluster_id) as cluster_id,
-  max(cluster.cluster_alias) as cluster_alias,
-  cluster.provider_id,
-  array_agg(DISTINCT node.node) as nodes,
-  array_agg(DISTINCT node.resource_id) as node_resource_ids,
-  array_agg(DISTINCT pvc.persistent_volume) as pvs
-FROM postgres.{{schema_name | sqlsafe}}.reporting_ocp_clusters AS cluster
-  JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_nodes AS node
-    ON node.cluster_id = cluster.uuid
-  JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_pvcs AS pvc
-    ON pvc.cluster_id = cluster.uuid
-  JOIN postgres.public.api_provider AS provider
-    ON cluster.provider_id = provider.uuid
-  JOIN postgres.public.api_providerinfrastructuremap AS infra
-    ON provider.infrastructure_id = infra.id
-WHERE infra.infrastructure_type LIKE 'GCP%'
-GROUP BY cluster.provider_id
-)
-SELECT gcp.*
-FROM hive.{{schema_name | sqlsafe}}.gcp_line_items_daily AS gcp
-JOIN cte_openshift_topology AS ocp
-  ON any_match(ocp.nodes , x -> lower(gcp.resource_name) LIKE '%' || lower(x))
-    OR any_match(ocp.pvs , x -> lower(gcp.resource_name) LIKE '%' || lower(x))
-    OR gcp.labels LIKE '%kubernetes-io-cluster-' || ocp.cluster_id
-    OR gcp.labels LIKE '%kubernetes-io-cluster-' || ocp.cluster_alias
+-- WITH cte_openshift_topology AS (
+--   SELECT max(cluster.cluster_id) as cluster_id,
+--   max(cluster.cluster_alias) as cluster_alias,
+--   cluster.provider_id,
+--   array_agg(DISTINCT node.node) as nodes,
+--   array_agg(DISTINCT node.resource_id) as node_resource_ids,
+--   array_agg(DISTINCT pvc.persistent_volume) as pvs
+-- FROM postgres.{{schema_name | sqlsafe}}.reporting_ocp_clusters AS cluster
+--   JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_nodes AS node
+--     ON node.cluster_id = cluster.uuid
+--   JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_pvcs AS pvc
+--     ON pvc.cluster_id = cluster.uuid
+--   JOIN postgres.public.api_provider AS provider
+--     ON cluster.provider_id = provider.uuid
+--   JOIN postgres.public.api_providerinfrastructuremap AS infra
+--     ON provider.infrastructure_id = infra.id
+-- WHERE infra.infrastructure_type LIKE 'GCP%'
+-- GROUP BY cluster.provider_id
+-- )
+-- SELECT gcp.*
+-- FROM hive.{{schema_name | sqlsafe}}.gcp_line_items_daily AS gcp
+-- JOIN cte_openshift_topology AS ocp
+--   ON any_match(ocp.nodes , x -> lower(gcp.resource_name) LIKE '%' || lower(x))
+--     OR any_match(ocp.pvs , x -> lower(gcp.resource_name) LIKE '%' || lower(x))
+--     OR gcp.labels LIKE '%kubernetes-io-cluster-' || ocp.cluster_id
+--     OR gcp.labels LIKE '%kubernetes-io-cluster-' || ocp.cluster_alias
