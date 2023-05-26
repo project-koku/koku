@@ -19,8 +19,8 @@ from uuid import uuid4
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
-from django.conf import settings
 from django_tenants.utils import schema_context
+from pytz import UTC
 
 import koku.trino_database as trino_db
 from api.models import Provider
@@ -219,11 +219,11 @@ def date_range_pair(start_date, end_date, step=5):
     if isinstance(start_date, str):
         start_date = parser.parse(start_date)
     elif isinstance(start_date, datetime.date):
-        start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=settings.UTC)
+        start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC)
     if isinstance(end_date, str):
         end_date = parser.parse(end_date)
     elif isinstance(end_date, datetime.date):
-        end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, tzinfo=settings.UTC)
+        end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC)
 
     dates = list(rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step))
     # Special case with only 1 period

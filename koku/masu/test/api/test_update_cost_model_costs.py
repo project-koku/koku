@@ -7,7 +7,7 @@ import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
-from django.conf import settings
+import pytz
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -37,8 +37,8 @@ class UpdateCostModelCostTest(MasuTestCase):
     def test_get_update_cost_model_costs_with_dates(self, mock_update, _):
         """Test the GET report_data endpoint."""
 
-        start_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
-        end_date = datetime.datetime(2023, 4, 4, tzinfo=settings.UTC)
+        start_date = datetime.datetime(2023, 3, 3, tzinfo=pytz.UTC)
+        end_date = datetime.datetime(2023, 4, 4, tzinfo=pytz.UTC)
         params = {
             "schema": self.schema,
             "provider_uuid": self.ocp_provider_uuid,

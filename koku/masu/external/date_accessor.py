@@ -6,12 +6,10 @@
 import logging
 from datetime import datetime
 from datetime import tzinfo
-from zoneinfo import ZoneInfo
-from zoneinfo import ZoneInfoNotFoundError
 
+import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 
 from masu.config import Config
 
@@ -26,7 +24,7 @@ class DateAccessor:
     """Accessor to get date time."""
 
     mock_date_time = None
-    date_time_last_accessed = datetime.now(tz=settings.UTC)
+    date_time_last_accessed = datetime.now(tz=pytz.UTC)
 
     def __init__(self):
         """Initializer."""
@@ -35,7 +33,7 @@ class DateAccessor:
             # in Python 3.7 there is datetime.fromisoformat()
             DateAccessor.mock_date_time = parser.parse(Config.MASU_DATE_OVERRIDE)
             if DateAccessor.mock_date_time.tzinfo is None:
-                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=settings.UTC)
+                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=pytz.UTC)
             LOG.info("Initializing masu date/time to %s", str(DateAccessor.mock_date_time))
 
     def today(self):
@@ -54,7 +52,7 @@ class DateAccessor:
             example: 2018-07-24 15:47:33
 
         """
-        current_date = datetime.now(tz=settings.UTC)
+        current_date = datetime.now(tz=pytz.UTC)
         if Config.DEBUG and DateAccessor.mock_date_time:
             seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date
@@ -63,7 +61,7 @@ class DateAccessor:
             current_date = DateAccessor.mock_date_time
         return current_date
 
-    def today_with_timezone(self, tz):
+    def today_with_timezone(self, timezone):
         """Return the current datetime at the timezone indictated.
 
         When the environment variable DEVELOPMENT is set to True,
@@ -73,7 +71,7 @@ class DateAccessor:
         Args:
             timezone (str/datetime.tzinfo) Either a valid timezone string
                 or an instance or subclass of datetime.tzinfo.
-            examples: 'US/Eastern', ZoneInfo('UTC')
+            examples: 'US/Eastern', pytz.UTC
 
 
         Returns:
@@ -81,17 +79,17 @@ class DateAccessor:
             example: 2018-07-24 15:47:33
 
         """
-        if isinstance(tz, str):
+        if isinstance(timezone, str):
             try:
-                tz = ZoneInfo(tz)
-            except ZoneInfoNotFoundError as err:
+                timezone = pytz.timezone(timezone)
+            except pytz.exceptions.UnknownTimeZoneError as err:
                 LOG.error(err)
                 raise DateAccessorError(err)
-        elif not isinstance(tz, tzinfo):
+        elif not isinstance(timezone, tzinfo):
             err = "timezone must be a valid timezone string or subclass of datetime.tzinfo"
             raise DateAccessorError(err)
 
-        current_date = datetime.now(tz=tz)
+        current_date = datetime.now(tz=timezone)
         if Config.DEBUG and DateAccessor.mock_date_time:
             seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date

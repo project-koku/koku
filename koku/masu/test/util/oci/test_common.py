@@ -73,7 +73,7 @@ class TestOCIUtils(MasuTestCase):
             provider = provider_accessor.get_provider()
         with OCIReportDBAccessor(schema=self.schema) as accessor:
 
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -97,7 +97,7 @@ class TestOCIUtils(MasuTestCase):
             provider = provider_accessor.get_provider()
         with OCIReportDBAccessor(schema=self.schema) as accessor:
 
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -121,7 +121,7 @@ class TestOCIUtils(MasuTestCase):
             provider = provider_accessor.get_provider()
         with OCIReportDBAccessor(schema=self.schema) as accessor:
 
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)

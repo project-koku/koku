@@ -8,9 +8,9 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
+from pytz import timezone
 from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
@@ -306,7 +306,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_bigquery_export_to_partition_mapping_success(self):
         """Test GCP error retrieving partition data."""
         key = datetime.date.today()
-        now_utc = datetime.datetime.now(tz=settings.UTC)
+        now_utc = datetime.datetime.now(timezone("UTC"))
         mocked_result = [[key, now_utc]]
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.bigquery", new_callable=PropertyMock

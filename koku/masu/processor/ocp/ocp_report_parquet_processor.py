@@ -6,7 +6,7 @@
 import datetime
 
 import ciso8601
-from django.conf import settings
+import pytz
 from django_tenants.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
@@ -66,8 +66,8 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         report_date_range = month_date_range(bill_date)
         start_date, end_date = report_date_range.split("-")
 
-        report_period_start = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
-        report_period_end = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
+        report_period_start = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        report_period_end = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
         # Make end date first of next month
         report_period_end = report_period_end + datetime.timedelta(days=1)
 
