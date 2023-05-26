@@ -445,7 +445,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
 
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/reporting_ocpgcp_daily.sql")
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/gcp_openshift_daily.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "schema": self.schema,
