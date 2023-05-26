@@ -1178,6 +1178,26 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return topology_list
 
+    def get_filtered_openshift_topology_for_multiple_providers(self, provider_uuids, start_date, end_date):
+        """Return a dictionary with 1 or more Clusters topology."""
+        topology_list = []
+        for provider_uuid in provider_uuids:
+            cluster = self.get_cluster_for_provider(provider_uuid)
+            nodes_tuple = self.get_nodes_trino(provider_uuid, start_date, end_date)
+            pvc_tuple = self.get_pvcs_trino(provider_uuid, start_date, end_date)
+            topology_list.append(
+                {
+                    "cluster_id": cluster.cluster_id,
+                    "cluster_alias": cluster.cluster_alias,
+                    "provider_uuid": provider_uuid,
+                    "nodes": [node[0] for node in nodes_tuple],
+                    "resource_ids": [node[1] for node in nodes_tuple],
+                    "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
+                }
+            )
+
+        return topology_list
+
     def delete_infrastructure_raw_cost_from_daily_summary(self, provider_uuid, report_period_id, start_date, end_date):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         msg = f"Removing infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
