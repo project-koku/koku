@@ -207,3 +207,13 @@ OK
 ```
 
 Additionally, [here is a small example](https://github.com/project-koku/koku/pull/4105) of how to test Redis cache changes.
+
+
+## Unleash ##
+
+The default credentials for Unleash are:
+
+```
+username: admin
+password: unleash4all
+```
