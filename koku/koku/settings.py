@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 from json import JSONDecodeError
+from zoneinfo import ZoneInfo
 
 from boto3.session import Session
 from botocore.exceptions import ClientError
@@ -292,6 +293,8 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
+
+UTC = ZoneInfo("UTC")
 
 USE_I18N = True
 
