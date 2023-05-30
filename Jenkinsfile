@@ -8,7 +8,7 @@ pipeline {
         APP_NAME="hccm"  // name of app-sre "application" folder this component lives in
         COMPONENT_NAME="koku"  // name of app-sre "resourceTemplate" in deploy.yaml for this component
         IMAGE="quay.io/cloudservices/koku"
-        IMAGE_TAG=$(git rev-parse --short=7 HEAD)
+        IMAGE_TAG=sh(script: "git rev-parse --short=7 HEAD").trim()
         DBM_IMAGE=${IMAGE}
         DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
         COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
