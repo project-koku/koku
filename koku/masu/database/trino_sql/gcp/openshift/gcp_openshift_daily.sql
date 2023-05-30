@@ -124,7 +124,10 @@ SELECT gcp.invoice_month,
     gcp.cost,
     gcp.daily_credits,
     gcp.resource_global_name,
-    TRUE as ocp_matched,
+    CASE WHEN resource_names.resource_name IS NOT NULL
+        THEN TRUE
+        ELSE FALSE
+    END as ocp_matched,
     tag_matches.matched_tag as matched_tag,
     gcp.source,
     {{ocp_source_uuid}} as ocp_source,
