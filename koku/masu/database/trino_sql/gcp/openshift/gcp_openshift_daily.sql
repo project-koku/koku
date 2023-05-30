@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.gcp_openshift_daily
     resource_global_name varchar,
     ocp_matched boolean,
     matched_tag varchar,
-    uuid varchar,
     gcp_source varchar,
     ocp_source varchar,
     year varchar,
@@ -33,6 +32,35 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.gcp_openshift_daily
 ;
 
 -- Direct resource matching
+INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily (
+    invoice_month,
+    billing_account_id,
+    project_id,
+    usage_start_time,
+    service_id,
+    sku_id,
+    system_labels,
+    labels,
+    cost_type,
+    location_region,
+    resource_name,
+    project_name,
+    service_description,
+    sku_description,
+    usage_pricing_unit,
+    usage_amount_in_pricing_units,
+    currency,
+    cost,
+    daily_credits,
+    resource_global_name,
+    ocp_matched,
+    matched_tag,
+    gcp_source,
+    ocp_source,
+    year,
+    month,
+    day
+)
 WITH cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
@@ -99,8 +127,8 @@ SELECT gcp.invoice_month,
     {{ocp_source_uuid}} as ocp_source,
     gcp.year,
     gcp.month,
-    day(gcp.usage_start_time)
-FROM hive.acct6088952.gcp_line_items_daily AS gcp
+    cast(day(gcp.usage_start_time) as varchar) as day
+FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
 WHERE gcp.source = {{gcp_source_uuid}}
