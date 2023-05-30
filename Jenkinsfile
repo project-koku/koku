@@ -42,7 +42,6 @@ pipeline {
                         '''
                     }
                 }
-
                 stage('Check to skip smoke tests') {
                     when {
                         expression {
@@ -83,7 +82,7 @@ pipeline {
         }
     }
 
-    post { 
+    post {
         always {
             archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
             junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
