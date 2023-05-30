@@ -426,7 +426,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(summary_sql_params)
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
-    def populate_ocp_on_cloud_daily_trino(self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date):
+    def populate_ocp_on_cloud_daily_trino(
+        self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tag_strs
+    ):
         """Populate the gcp_openshift_daily trino table for OCP on GCP.
 
         Args:
@@ -456,6 +458,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "gcp_source_uuid": gcp_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
+            "matched_tag_array": matched_tag_strs,
         }
         LOG.info("Running OCP on GCP daily SQL with params:")
         LOG.info(summary_sql_params)

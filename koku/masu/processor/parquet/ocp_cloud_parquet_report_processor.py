@@ -4,6 +4,7 @@
 #
 #
 """Processor to filter cost data for OpenShift and store as parquet."""
+import json
 import logging
 from functools import cached_property
 
@@ -228,7 +229,15 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def process_trino(self):
         """Populate cloud_openshift_daily trino table via SQL."""
+        if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
+            return
+
+        matched_tags = self.get_matched_tags(ocp_provider_uuids)
+        matched_tag_strs = (
+            [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags] if matched_tags else []
+        )
+
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             self.db_accessor.populate_ocp_on_cloud_daily_trino(
-                self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
+                self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date, matched_tag_strs
             )

@@ -100,6 +100,9 @@ cte_matchable_resource_names AS (
     FROM cte_gcp_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON strpos(resource_names.resource_name, volumes.persistentvolume) != 0
+),
+cte_tag_matches AS (
+  SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
 )
 SELECT gcp.invoice_month,
     gcp.billing_account_id,
@@ -122,20 +125,23 @@ SELECT gcp.invoice_month,
     gcp.daily_credits,
     gcp.resource_global_name,
     TRUE as ocp_matched,
-    cast(NULL as varchar) as matched_tag,
+    tag_matches.matched_tag as matched_tag,
     gcp.source,
     {{ocp_source_uuid}} as ocp_source,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
-JOIN cte_matchable_resource_names AS resource_names
+LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
+LEFT JOIN cte_tag_matches AS tag_matches
+    ON strpos(gcp.labels, tag_matches.matched_tag) != 0
 WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month= {{month}}
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
+    AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tag IS NOT NULL)
 
 -- Will need to add in tag matching here as well
 
