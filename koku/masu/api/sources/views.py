@@ -19,8 +19,8 @@ from api.common.filters import CharListFilter
 from api.provider.models import Sources
 from masu.api.sources.serializers import SourceSerializer
 
-MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
-HTTP_METHOD_LIST = ["get", "head"]
+MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
+HTTP_METHOD_LIST = ["get", "patch", "head"]
 
 
 class SourceFilter(FilterSet):
@@ -29,6 +29,9 @@ class SourceFilter(FilterSet):
     name = CharListFilter(field_name="name", lookup_expr="name__icontains")
     type = CharListFilter(field_name="source_type", lookup_expr="source_type__icontains")
     account_id = CharListFilter(field_name="account_id", lookup_expr="account_id__icontains")
+    org_id = CharListFilter(
+        field_name="provider__customer__org_id", lookup_expr="provider__customer__org_id__icontains"
+    )
     schema_name = CharListFilter(
         field_name="provider__customer__schema_name", lookup_expr="provider__customer__schema_name__icontains"
     )
@@ -50,6 +53,7 @@ class SourceFilter(FilterSet):
             "source_type",
             "name",
             "account_id",
+            "org_id",
             "schema_name",
             "ocp_on_cloud",
             "infrastructure_provider_id",
