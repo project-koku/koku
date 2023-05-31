@@ -57,27 +57,27 @@ pipeline {
                     }
                 }
             }
+        }
 
-            stage('Build Image') {
-                when {
-                    expression {
-                        check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
-                    }
+        stage('Build Image') {
+            when {
+                expression {
+                    check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
                 }
-                steps {
-                    run_test_filter_expression
+            }
+            steps {
+                run_test_filter_expression
 
-                    sh '''
-                        # Install bonfire repo/initialize
-                        
-                        echo $IQE_MARKER_EXPRESSION
-                        echo $IQE_FILTER_EXPRESSION
-                        curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
-                        echo "creating PR image"
-                        export DOCKER_BUILDKIT=1
-                        source $CICD_ROOT/build.sh
-                    '''
-                }
+                sh '''
+                    # Install bonfire repo/initialize
+                    
+                    echo $IQE_MARKER_EXPRESSION
+                    echo $IQE_FILTER_EXPRESSION
+                    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
+                    echo "creating PR image"
+                    export DOCKER_BUILDKIT=1
+                    source $CICD_ROOT/build.sh
+                '''
             }
         }
     }
