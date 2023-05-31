@@ -284,6 +284,47 @@ def get_report_files(  # noqa: C901
         WorkerCache().remove_task_from_cache(cache_key)
 
 
+@celery_app.task(
+    name="masu.processor.tasks.populate_ocp_on_cluod_parquet", queue=GET_REPORT_FILES_QUEUE, bind=True
+)  # noqa: C901
+def populate_ocp_on_cluod_parquet(  # noqa: C901
+    self,
+    provider_type,
+    schema_name,
+    provider_uuid,
+    bill_date,
+):
+    """
+    Task to process ocp on cloud parquet files.
+
+    Args:
+        provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
+        schema_name       (String): Name of the DB schema
+
+    Returns:
+        None
+
+    """
+    if provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        stmt = (
+            f"populate_ocp_on_cluod_parquet called with args:\n"
+            f" schema_name: {schema_name},\n"
+            f" provider_type: {provider_type},\n"
+            f" provider_uuid: {provider_uuid},\n",
+        )
+        LOG.info(stmt)
+        invoice_month = bill_date.strftime("%Y%m")
+        processor = OCPCloudParquetReportProcessor(
+            schema_name,
+            "",
+            provider_uuid,
+            provider_type,
+            0,
+            context={"tracing_id": "tracing_id", "start_date": bill_date, "invoice_month": invoice_month},
+        )
+        processor._process_trino()
+
+
 @celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, queue_name=None):
     """

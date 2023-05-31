@@ -21,17 +21,19 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
-from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_cloud_source_processing
 from masu.processor import disable_source
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import populate_ocp_on_cluod_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.worker_cache import WorkerCache
+
+# from masu.external.report_downloader import ReportDownloaderError
 
 LOG = logging.getLogger(__name__)
 
@@ -259,13 +261,16 @@ class Orchestrator:
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
         if report_tasks:
+            ocp_on_cloud_parquet = populate_ocp_on_cluod_parquet.s(
+                provider_type, schema_name, provider_uuid, self.bill_date, tracing_id
+            )
             if self._summarize_reports:
                 reports_tasks_queued = True
                 hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                async_id = chord(chain(report_tasks), group(summary_task, hcs_task))()
+                async_id = chord([chain(report_tasks), chain(ocp_on_cloud_parquet)], group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
@@ -311,30 +316,30 @@ class Orchestrator:
         for month in report_months:
             LOG.info("Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid)
             account["report_month"] = month
-            try:
-                _, reports_tasks_queued = self.start_manifest_processing(**account)
+            # try:
+            _, reports_tasks_queued = self.start_manifest_processing(**account)
 
-                # update labels
-                if reports_tasks_queued and not accounts_labeled:
-                    LOG.info("Running AccountLabel to get account aliases.")
-                    labeler = AccountLabel(
-                        auth=account.get("credentials"),
-                        schema=account.get("schema_name"),
-                        provider_type=account.get("provider_type"),
-                    )
-                    account_number, label = labeler.get_label_details()
-                    accounts_labeled = True
-                    if account_number:
-                        LOG.info("Account: %s Label: %s updated.", account_number, label)
+            # update labels
+            if reports_tasks_queued and not accounts_labeled:
+                LOG.info("Running AccountLabel to get account aliases.")
+                labeler = AccountLabel(
+                    auth=account.get("credentials"),
+                    schema=account.get("schema_name"),
+                    provider_type=account.get("provider_type"),
+                )
+                account_number, label = labeler.get_label_details()
+                accounts_labeled = True
+                if account_number:
+                    LOG.info("Account: %s Label: %s updated.", account_number, label)
 
-            except ReportDownloaderError as err:
-                LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-                continue
-            except Exception as err:
-                # Broad exception catching is important here because any errors thrown can
-                # block all subsequent account processing.
-                LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
-                continue
+            # except ReportDownloaderError as err:
+            #     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+            #     continue
+            # except Exception as err:
+            #     # Broad exception catching is important here because any errors thrown can
+            #     # block all subsequent account processing.
+            #     LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+            #     continue
 
     def prepare_continious_report_sources(self, account, provider_uuid):
         """
@@ -357,15 +362,15 @@ class Orchestrator:
         else:
             start_date = dh.today
         account["report_month"] = start_date
-        try:
-            _, reports_tasks_queued = self.start_manifest_processing(**account)
-            LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
-        except ReportDownloaderError as err:
-            LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-        except Exception as err:
-            # Broad exception catching is important here because any errors thrown can
-            # block all subsequent account processing.
-            LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+        # try:
+        _, reports_tasks_queued = self.start_manifest_processing(**account)
+        LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
+        # except ReportDownloaderError as err:
+        #     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+        # except Exception as err:
+        #     # Broad exception catching is important here because any errors thrown can
+        #     # block all subsequent account processing.
+        #     LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
 
         return
 
