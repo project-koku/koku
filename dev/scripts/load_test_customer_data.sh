@@ -210,7 +210,7 @@ enable_gcp_tags() {
   log-info "Enabling GCP tags..."
   RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
   --request POST \
-  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclasskubernetes-io-cluster-test-ocp-gcp-cluster"], "provider_type": "gcp"}' \
+  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "kubernetes-io-cluster-test-ocp-gcp-cluster"], "provider_type": "gcp"}' \
   ${MASU_URL_PREFIX}/v1/enabled_tags/)
   STATUS_CODE=${RESPONSE: -3}
   DATA=${RESPONSE:: -3}
