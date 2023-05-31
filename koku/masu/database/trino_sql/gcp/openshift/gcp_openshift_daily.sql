@@ -149,38 +149,3 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tag IS NOT NULL)
-
--- Will need to add in tag matching here as well
-
-
-
-
-
-
--- Needs insert statement + Andrew magic :)
--- WITH cte_openshift_topology AS (
---   SELECT max(cluster.cluster_id) as cluster_id,
---   max(cluster.cluster_alias) as cluster_alias,
---   cluster.provider_id,
---   array_agg(DISTINCT node.node) as nodes,
---   array_agg(DISTINCT node.resource_id) as node_resource_ids,
---   array_agg(DISTINCT pvc.persistent_volume) as pvs
--- FROM postgres.{{schema_name | sqlsafe}}.reporting_ocp_clusters AS cluster
---   JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_nodes AS node
---     ON node.cluster_id = cluster.uuid
---   JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_pvcs AS pvc
---     ON pvc.cluster_id = cluster.uuid
---   JOIN postgres.public.api_provider AS provider
---     ON cluster.provider_id = provider.uuid
---   JOIN postgres.public.api_providerinfrastructuremap AS infra
---     ON provider.infrastructure_id = infra.id
--- WHERE infra.infrastructure_type LIKE 'GCP%'
--- GROUP BY cluster.provider_id
--- )
--- SELECT gcp.*
--- FROM hive.{{schema_name | sqlsafe}}.gcp_line_items_daily AS gcp
--- JOIN cte_openshift_topology AS ocp
---   ON any_match(ocp.nodes , x -> lower(gcp.resource_name) LIKE '%' || lower(x))
---     OR any_match(ocp.pvs , x -> lower(gcp.resource_name) LIKE '%' || lower(x))
---     OR gcp.labels LIKE '%kubernetes-io-cluster-' || ocp.cluster_id
---     OR gcp.labels LIKE '%kubernetes-io-cluster-' || ocp.cluster_alias
