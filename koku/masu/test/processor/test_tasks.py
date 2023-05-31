@@ -720,13 +720,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
-        report = {"schema_name": self.schema, "provider_type": provider_type, "provider_uuid": provider_ocp_uuid}
-
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         mock_date_check.return_value = (start_date, end_date)
 
-        update_summary_tables(report, start_date, end_date, synchronous=True)
+        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
         update_cost_model_costs(
             schema_name=self.schema,
             provider_uuid=provider_ocp_uuid,
@@ -784,11 +782,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
-        report = {"schema_name": self.schema, "provider_type": provider_type, "provider_uuid": provider_ocp_uuid}
-
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
-        update_summary_tables(report, start_date, end_date, synchronous=True)
+        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
         mock_chain.return_value.apply_async.assert_not_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -820,12 +816,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
-        report = {"schema_name": self.schema, "provider_type": provider_type, "provider_uuid": provider_ocp_uuid}
-
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         mock_date_check.return_value = (start_date, end_date)
-        update_summary_tables(report, start_date, end_date, synchronous=True)
+        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -846,18 +840,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         tracing_id = "1234"
         mock_date_check.return_value = (start_date, end_date)
 
-        report = {
-            "schema_name": self.schema,
-            "provider_type": provider_type,
-            "provider_uuid": provider_aws_uuid,
-            "manifest_id": manifest_id,
-        }
-
         update_summary_tables(
-            report,
+            self.schema,
+            provider_type,
+            provider_aws_uuid,
             start_date,
             end_date,
             tracing_id=tracing_id,
+            manifest_id=manifest_id,
             synchronous=True,
         )
         mock_chain.assert_called_with(
@@ -882,19 +872,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         manifest_id = 1
         tracing_id = "1234"
 
-        report = {
-            "schema_name": self.schema,
-            "provider_type": provider_type,
-            "provider_uuid": self.gcp_provider_uuid,
-            "manifest_id": manifest_id,
-        }
-
         invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
         update_summary_tables(
-            report,
+            self.schema,
+            provider_type,
+            self.gcp_provider_uuid,
             start_date,
             end_date,
             tracing_id=tracing_id,
+            manifest_id=manifest_id,
             synchronous=True,
             invoice_month=invoice_month,
         )
@@ -925,17 +911,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         manifest_id = 1
         tracing_id = "1234"
 
-        report = {
-            "schema_name": self.schema,
-            "provider_type": self.aws_provider.type,
-            "provider_uuid": self.aws_provider_uuid,
-            "manifest_id": manifest_id,
-        }
-
         update_summary_tables(
-            report,
+            self.schema,
+            self.aws_provider.type,
+            self.aws_provider_uuid,
             start_date,
             end_date,
+            manifest_id=manifest_id,
             tracing_id=tracing_id,
             synchronous=True,
         )
@@ -1220,14 +1202,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         end_date = DateHelper().today.date()
         mock_updater.return_value = (start_date, end_date)
 
-        report = {
-            "schema_name": self.schema,
-            "provider_type": Provider.PROVIDER_AWS,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-
         update_summary_tables(
-            report,
+            self.schema,
+            Provider.PROVIDER_AWS,
+            self.aws_provider_uuid,
             str(start_date),
             end_date,
             synchronous=True,
@@ -1236,7 +1214,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_updater.side_effect = ReportSummaryUpdaterError
         with self.assertRaises(ReportSummaryUpdaterError):
             update_summary_tables(
-                report,
+                self.schema,
+                Provider.PROVIDER_AWS,
+                self.aws_provider_uuid,
                 start_date,
                 end_date,
                 synchronous=True,
@@ -1363,16 +1343,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
         mock_lock.side_effect = self.lock_single_task
 
-        report = {
-            "schema_name": self.schema,
-            "provider_type": Provider.PROVIDER_AWS,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-
         mock_summary.return_value = start_date, end_date
-        update_summary_tables(report, start_date, end_date)
+        update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
         mock_delay.assert_not_called()
-        update_summary_tables(report, start_date, end_date)
+        update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
@@ -1384,12 +1358,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()
-                update_summary_tables(report, start_date, end_date)
+                update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
                 mock_delay.assert_not_called()
 
                 mock_rate_limit.return_value = True
 
-                update_summary_tables(report, start_date, end_date)
+                update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
                 mock_delay.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables.s")
@@ -1415,17 +1389,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
         cache_args = [self.schema]
-        report = {
-            "schema_name": self.schema,
-            "provider_type": Provider.PROVIDER_AWS,
-            "provider_uuid": self.aws_provider_uuid,
-        }
 
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_summary.side_effect = ReportProcessorError
         with self.assertRaises(ReportProcessorError):
-            update_summary_tables(report, start_date, end_date)
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
             mock_delay.assert_not_called()
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
@@ -1452,15 +1421,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
-        report = {
-            "schema_name": self.schema,
-            "provider_type": Provider.PROVIDER_AWS,
-            "provider_uuid": self.aws_provider_uuid,
-        }
         mock_summary.side_effect = ReportSummaryUpdaterCloudError
         expected = "failed to correlate"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            update_summary_tables(report, start_date, end_date)
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
@@ -1487,11 +1451,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
-        report = {"schema_name": self.schema, "provider_type": Provider.PROVIDER_AWS, "provider_uuid": str(uuid4())}
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
         expected = "Processing for this provier will halt."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            update_summary_tables(report, start_date, end_date)
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
@@ -1642,13 +1605,13 @@ class TestWorkerCacheThrottling(MasuTestCase):
         provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
-        report = {"schema_name": self.schema, "provider_type": provider_type, "provider_uuid": provider_ocp_uuid}
-
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         with patch("masu.processor.tasks.disable_source") as disable_source:
             disable_source.return_value = True
-            update_summary_tables(report, start_date, end_date, synchronous=True)
+            update_summary_tables(
+                self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
+            )
             mock_chain.return_value.apply_async.assert_not_called()
 
 

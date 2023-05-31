@@ -370,9 +370,12 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
 
 @celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
 def update_summary_tables(  # noqa: C901
-    report,
+    schema,
+    provider_type,
+    provider_uuid,
     start_date,
     end_date=None,
+    manifest_id=None,
     ingress_report_uuid=None,
     queue_name=None,
     synchronous=False,
@@ -395,10 +398,12 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
-    schema = report.get("schema_name")
-    provider_type = report.get("provider_type")
-    provider_uuid = report.get("provider_uuid")
-    manifest_id = report.get("manifest_id")
+    context = {
+        "schema": schema,
+        "provider_type": provider_type,
+        "provider_uuid": provider_uuid,
+        "manifest_id": manifest_id,
+    }
     if disable_summary_processing(schema):
         LOG.info(f"Summary disabled for {schema}.")
         return
@@ -431,9 +436,12 @@ def update_summary_tables(  # noqa: C901
                 msg = f"Schema {schema} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg))
             update_summary_tables.s(
-                report,
+                schema,
+                provider_type,
+                provider_uuid,
                 start_date,
                 end_date=end_date,
+                manifest_id=manifest_id,
                 ingress_report_uuid=ingress_report_uuid,
                 invoice_month=invoice_month,
                 queue_name=queue_name,
@@ -447,7 +455,7 @@ def update_summary_tables(  # noqa: C901
         log_json(
             tracing_id,
             "starting summary table update",
-            report,
+            context,
             start_date=start_date,
             end_date=end_date,
             invoice_month=invoice_month,
@@ -462,7 +470,7 @@ def update_summary_tables(  # noqa: C901
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
-        LOG.info(log_json(tracing_id, f"failed to correlate OpenShift metrics: error: {ex}", report))
+        LOG.info(log_json(tracing_id, f"failed to correlate OpenShift metrics: error: {ex}", context))
 
     except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
         LOG.warning(
@@ -490,8 +498,9 @@ def update_summary_tables(  # noqa: C901
     ):
         cost_model = None
         LOG.info(
-            log_json(tracing_id, "markup calculated during summarization so not running update_cost_model_costs"),
-            report,
+            log_json(
+                tracing_id, "markup calculated during summarization so not running update_cost_model_costs", context
+            )
         )
     else:
         with CostModelDBAccessor(schema, provider_uuid) as cost_model_accessor:
@@ -536,7 +545,7 @@ def update_summary_tables(  # noqa: C901
 
     # Apply OCP on Cloud tasks
     if signature_list:
-        LOG.info(log_json(tracing_id, "chaining deletes and summaries"), report)
+        LOG.info(log_json(tracing_id, "chaining deletes and summaries", context))
         deletes = group(delete_signature_list)
         summaries = group(signature_list)
         c = chain(deletes, summaries)
@@ -549,7 +558,7 @@ def update_summary_tables(  # noqa: C901
         manifest_list = [manifest_id]
 
     if cost_model is not None:
-        LOG.info(log_json(tracing_id, "updating cost model costs"), report)
+        LOG.info(log_json(tracing_id, "updating cost model costs", context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
@@ -558,7 +567,7 @@ def update_summary_tables(  # noqa: C901
             queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
         )
     else:
-        LOG.info(log_json(tracing_id, "skipping cost model updates"), report)
+        LOG.info(log_json(tracing_id, "skipping cost model updates", context))
         linked_tasks = mark_manifest_complete.s(
             schema,
             provider_type,
