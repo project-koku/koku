@@ -137,29 +137,17 @@ class ReportSummaryUpdater:
 
         """
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.info(
-            log_json(
-                tracing_id,
-                "summary processing starting",
-                provider_uuid=self._provider_uuid,
-                start_date=start_date,
-                end_date=end_date,
-                invoice_month=invoice_month,
-            )
-        )
+        context = {
+            "provider_uuid": self._provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "invoice_month": invoice_month,
+        }
+        LOG.info(log_json(tracing_id, "summary processing starting", context))
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
-        LOG.info(
-            log_json(
-                tracing_id,
-                "summary processing complete",
-                provider_uuid=self._provider_uuid,
-                start_date=start_date,
-                end_date=end_date,
-                invoice_month=invoice_month,
-            )
-        )
+        LOG.info(log_json(tracing_id, "summary processing complete", context))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 
