@@ -245,7 +245,7 @@ class Orchestrator:
 
                 # this is used to create bills for previous months on GCP
                 if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-                    if assembly_id := manifest.get("assembly_id", None):
+                    if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
                 # add the tracing id to the report context
                 # This defaults to the celery queue
