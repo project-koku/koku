@@ -3,11 +3,12 @@ import json
 import ciso8601
 import pandas as pd
 
+from api.models import Provider
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 
@@ -348,5 +349,5 @@ class AWSPostProcessor:
         """
         Uses information gather in the
         """
-        create_enabled_keys(self.schema, AWSEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema, EnabledTagKeys, self.enabled_tag_keys, Provider.PROVIDER_AWS)
         create_enabled_keys(self.schema, AWSEnabledCategoryKeys, self.enabled_categories)

@@ -4,6 +4,7 @@
 #
 """View for GCP tags."""
 from api.common.permissions.gcp_access import GcpAccessPermission
+from api.provider.models import Provider
 from api.tags.gcp.queries import GCPTagQueryHandler
 from api.tags.gcp.serializers import GCPTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -17,4 +18,5 @@ class GCPTagView(TagView):
     serializer = GCPTagsQueryParamSerializer
     query_handler = GCPTagQueryHandler
     tag_handler = [GCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_GCP]
     permission_classes = [GcpAccessPermission]

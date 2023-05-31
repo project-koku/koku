@@ -21,6 +21,7 @@ class OCPAzureView(ReportView):
     serializer = OCPAzureQueryParamSerializer
     query_handler = OCPAzureReportQueryHandler
     tag_handler = [AzureEnabledTagKeys, OCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AZURE, Provider.PROVIDER_OCP]
 
 
 class OCPAzureCostView(OCPAzureView):

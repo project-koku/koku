@@ -19,6 +19,7 @@ class OCIView(ReportView):
     serializer = OCIQueryParamSerializer
     query_handler = OCIReportQueryHandler
     tag_handler = [OCIEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_OCI]
 
 
 class OCICostView(OCIView):

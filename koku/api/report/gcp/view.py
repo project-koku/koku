@@ -19,6 +19,7 @@ class GCPView(ReportView):
     serializer = GCPQueryParamSerializer
     query_handler = GCPReportQueryHandler
     tag_handler = [GCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_GCP]
 
 
 class GCPCostView(GCPView):

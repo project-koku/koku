@@ -13,7 +13,7 @@ from api.report.aws.provider_map import AWSProviderMap
 from api.tags.queries import TagQueryHandler
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from reporting.models import AWSTagsSummary
-from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSTagsValues
 
 
@@ -21,7 +21,7 @@ class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
     provider = Provider.PROVIDER_AWS
-    enabled = AWSEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = EnabledTagKeys.objects.filter(provider_type=provider).filter(key=OuterRef("key")).filter(enabled=True)
     data_sources = [
         {
             "db_table": AWSTagsSummary,

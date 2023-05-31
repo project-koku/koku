@@ -325,7 +325,7 @@ def batch(iterable, start=0, stop=None, _slice=1):
         yield res
 
 
-def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
+def create_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):
     """
     Creates enabled key records.
     """
@@ -340,7 +340,18 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
     changed = False
 
     with schema_context(schema):
-        new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
+        if provider_type:
+            new_keys = list(
+                set(enabled_keys)
+                - {
+                    k
+                    for k in enabled_keys_model.objects.filter(provider_type=provider_type).values_list(
+                        "key", flat=True
+                    )
+                }
+            )
+        else:
+            new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
         if new_keys:
             changed = True
             # Processing in batches for increased efficiency
@@ -350,7 +361,10 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
                     log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
                 )
                 for ix in range(batch_size):
-                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                    if provider_type:
+                        new_batch[ix] = enabled_keys_model(key=new_batch[ix], provider_type=provider_type)
+                    else:
+                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
                 enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
     if not changed:
         LOG.info(log_json(msg="no enabled keys added", context=ctx))

@@ -22,6 +22,7 @@ class OCPGCPView(ReportView):
     serializer = OCPGCPQueryParamSerializer
     query_handler = OCPGCPReportQueryHandler
     tag_handler = [GCPEnabledTagKeys, OCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_GCP, Provider.PROVIDER_OCP]
 
 
 class OCPGCPCostView(OCPGCPView):

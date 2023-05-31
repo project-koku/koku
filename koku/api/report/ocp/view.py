@@ -20,6 +20,7 @@ class OCPView(ReportView):
     serializer = OCPInventoryQueryParamSerializer
     query_handler = OCPReportQueryHandler
     tag_handler = [OCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_OCP]
 
 
 class OCPMemoryView(OCPView):

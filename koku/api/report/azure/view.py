@@ -19,6 +19,7 @@ class AzureView(ReportView):
     serializer = AzureQueryParamSerializer
     query_handler = AzureReportQueryHandler
     tag_handler = [AzureEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AZURE]
 
 
 class AzureCostView(AzureView):

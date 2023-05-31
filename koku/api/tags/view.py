@@ -16,6 +16,7 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.query_params import QueryParameters
 from api.report.view import get_paginator
 from api.report.view import ReportView
+from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -80,7 +81,8 @@ class TagView(ReportView):
 
     def validate_key(self, key):
         """Validate that tag key exists."""
-        for handler in self.tag_handler:
-            if handler.objects.filter(key=key).exists():
-                return True
+        # for handler in self.tag_handler:
+        if EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers, key=key).exists():
+            # if handler.objects.filter(key=key).exists():
+            return True
         return False

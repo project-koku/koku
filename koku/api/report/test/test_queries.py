@@ -230,6 +230,7 @@ class ReportQueryHandlerTest(IamTestCase):
             serializer=Mock,
             query_handler=Mock,
             tag_handler=[tag_mock],
+            tag_providers=[],
         )
 
     def test_init(self):
