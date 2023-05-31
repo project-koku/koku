@@ -357,10 +357,13 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
             months = get_months_in_date_range(report)
             for month in months:
                 update_summary_tables.s(
-                    report,
+                    report.get("schema_name"),
+                    report.get("provider_type"),
+                    report.get("provider_uuid"),
                     start_date=month[0],
                     end_date=month[1],
                     ingress_report_uuid=ingress_report_uuid,
+                    manifest_id=report.get("manifest_id"),
                     queue_name=queue_name,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
