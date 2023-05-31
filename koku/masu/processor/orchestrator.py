@@ -93,14 +93,23 @@ class Orchestrator:
                     all_accounts = [account]
 
         for account in all_accounts:
-            if disable_cloud_source_processing(account.get("schema_name")) and not provider_uuid:
-                LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
+            schema_name = account.get("schema_name")
+            if disable_cloud_source_processing(schema_name) and not provider_uuid:
+                LOG.info(log_json("get_accounts", "processing disabled for schema", schema=schema_name))
                 continue
             if disable_source(provider_uuid):
+                LOG.info(
+                    log_json(
+                        "get_accounts",
+                        "processing disabled for source",
+                        schema=schema_name,
+                        provider_uuid=provider_uuid,
+                    )
+                )
                 continue
-            else:
-                if AccountsAccessor().is_polling_account(account):
-                    polling_accounts.append(account)
+
+            if AccountsAccessor().is_polling_account(account):
+                polling_accounts.append(account)
 
         return all_accounts, polling_accounts
 
@@ -120,7 +129,7 @@ class Orchestrator:
 
         if self.bill_date:
             if self.ingress_reports:
-                bill_date = self.bill_date + "01"
+                bill_date = f"{self.bill_date}01"
                 return [DateAccessor().get_billing_month_start(bill_date)]
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
@@ -177,11 +186,11 @@ class Orchestrator:
         report_tasks = []
         for manifest in manifest_list:
             tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
-            files = manifest.get("files", [])
-            filenames = []
-            for file in files:
-                filenames.append(file.get("local_file"))
-            LOG.info(log_json(tracing_id, f"Report with manifest {tracing_id} contains the files: {filenames}"))
+            report_files = manifest.get("files", [])
+            filenames = [file.get("local_file") for file in report_files]
+            LOG.info(
+                log_json(tracing_id, f"manifest {tracing_id} contains the files: {filenames}", schema=schema_name)
+            )
 
             if manifest:
                 LOG.debug("Saving all manifest file names.")
@@ -191,9 +200,7 @@ class Orchestrator:
                     tracing_id,
                 )
 
-            LOG.info(log_json(tracing_id, f"Found Manifests: {str(manifest)}"))
-
-            report_files = manifest.get("files", [])
+            LOG.info(log_json(tracing_id, "found manifests", context=manifest, schema=schema_name))
 
             last_report_index = len(report_files) - 1
             for i, report_file_dict in enumerate(report_files):
@@ -202,12 +209,16 @@ class Orchestrator:
 
                 # Check if report file is complete or in progress.
                 if record_report_status(manifest["manifest_id"], local_file, "no_request"):
-                    LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
+                    LOG.info(
+                        log_json(tracing_id, "file was already processed", filename=local_file, schema=schema_name)
+                    )
                     continue
 
                 cache_key = f"{provider_uuid}:{report_file}"
                 if self.worker_cache.task_is_running(cache_key):
-                    LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
+                    LOG.info(
+                        log_json(tracing_id, "file processing is in progress", filename=local_file, schema=schema_name)
+                    )
                     continue
 
                 report_context = manifest.copy()
@@ -234,11 +245,11 @@ class Orchestrator:
 
                 # this is used to create bills for previous months on GCP
                 if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-                    assembly_id = manifest.get("assembly_id", None)
-                    if assembly_id:
+                    if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
                 # add the tracing id to the report context
                 # This defaults to the celery queue
+                LOG.info(log_json(tracing_id, "queueing download", schema=schema_name))
                 report_tasks.append(
                     get_report_files.s(
                         customer_name,
@@ -254,7 +265,7 @@ class Orchestrator:
                         ingress_reports_uuid=self.ingress_report_uuid,
                     ).set(queue=REPORT_QUEUE)
                 )
-                LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
+                LOG.info(log_json(tracing_id, "download queued", schema=schema_name))
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
         if report_tasks:
@@ -267,7 +278,7 @@ class Orchestrator:
                 async_id = chord(report_tasks, group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
-            LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+            LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}", schema=schema_name))
 
         return manifest_list, reports_tasks_queued
 
@@ -287,7 +298,7 @@ class Orchestrator:
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
-                self.prepare_continious_report_sources(account, provider_uuid)
+                self.prepare_continuous_report_sources(account, provider_uuid)
             else:
                 self.prepare_monthly_report_sources(account, provider_uuid)
 
@@ -298,24 +309,45 @@ class Orchestrator:
         Scans the database for providers that have reports that need to be processed.
         Any report it finds are queued to the appropriate celery task to download
         and process those reports.
-
-        Args:
-            None
-
-        Returns:
-            (celery.result.AsyncResult) Async result for download request.
         """
+        tracing_id = provider_uuid
+        schema = account.get("schema_name")
         accounts_labeled = False
         report_months = self.get_reports(provider_uuid)
         for month in report_months:
-            LOG.info("Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid)
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    f"getting {month.strftime('%B %Y')} report files",
+                    schema=schema,
+                    provider_uuid=provider_uuid,
+                )
+            )
             account["report_month"] = month
             try:
+                LOG.info(
+                    log_json(tracing_id, "starting manifest processing", schema=schema, provider_uuid=provider_uuid)
+                )
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
+                LOG.info(
+                    log_json(
+                        tracing_id,
+                        f"manifest processing tasks queued: {reports_tasks_queued}",
+                        schema=schema,
+                        provider_uuid=provider_uuid,
+                    )
+                )
 
                 # update labels
                 if reports_tasks_queued and not accounts_labeled:
-                    LOG.info("Running AccountLabel to get account aliases.")
+                    LOG.info(
+                        log_json(
+                            tracing_id,
+                            "running AccountLabel to get account aliases",
+                            schema=schema,
+                            provider_uuid=provider_uuid,
+                        )
+                    )
                     labeler = AccountLabel(
                         auth=account.get("credentials"),
                         schema=account.get("schema_name"),
@@ -324,7 +356,16 @@ class Orchestrator:
                     account_number, label = labeler.get_label_details()
                     accounts_labeled = True
                     if account_number:
-                        LOG.info("Account: %s Label: %s updated.", account_number, label)
+                        LOG.info(
+                            log_json(
+                                tracing_id,
+                                "account labels updated",
+                                schema=schema,
+                                provider_uuid=provider_uuid,
+                                account=account_number,
+                                label=label,
+                            )
+                        )
 
             except ReportDownloaderError as err:
                 LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
@@ -335,38 +376,40 @@ class Orchestrator:
                 LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
                 continue
 
-    def prepare_continious_report_sources(self, account, provider_uuid):
+    def prepare_continuous_report_sources(self, account, provider_uuid):
         """
         Prepare processing for source types that have continious reports GCP/OCI.
 
         Scans the database for providers that have reports that need to be processed.
         Any report it finds are queued to the appropriate celery task to download
         and process those reports.
-
-        Args:
-            None
-
-        Returns:
-            (celery.result.AsyncResult) Async result for download request.
         """
-        LOG.info("Getting latest report files for account (provider uuid): %s", provider_uuid)
+        tracing_id = provider_uuid
+        schema = account.get("schema_name")
+        LOG.info(log_json(tracing_id, "getting latest report files", schema=schema, provider_uuid=provider_uuid))
         dh = DateHelper()
         if self.ingress_reports:
-            start_date = DateAccessor().get_billing_month_start(self.bill_date + "01")
+            start_date = DateAccessor().get_billing_month_start(f"{self.bill_date}01")
         else:
             start_date = dh.today
         account["report_month"] = start_date
         try:
+            LOG.info(log_json(tracing_id, "starting manifest processing", schema=schema, provider_uuid=provider_uuid))
             _, reports_tasks_queued = self.start_manifest_processing(**account)
-            LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    f"manifest processing tasks queued: {reports_tasks_queued}",
+                    schema=schema,
+                    provider_uuid=provider_uuid,
+                )
+            )
         except ReportDownloaderError as err:
             LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
             # block all subsequent account processing.
             LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
-
-        return
 
     def remove_expired_report_data(self, simulate=False):
         """
