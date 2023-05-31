@@ -206,6 +206,23 @@ enable_ocp_tags() {
   fi
 }
 
+enable_gcp_tags() {
+  log-info "Enabling GCP tags..."
+  RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclasskubernetes-io-cluster-test-ocp-gcp-cluster"], "provider_type": "gcp"}' \
+  ${MASU_URL_PREFIX}/v1/enabled_tags/)
+  STATUS_CODE=${RESPONSE: -3}
+  DATA=${RESPONSE:: -3}
+
+  log-debug "status: $STATUS_CODE"
+  log-debug "body: $DATA"
+
+  if [[ $STATUS_CODE != 200 ]];then
+    log-err $DATA
+  fi
+}
+
 nise_report(){
   # wrapper function to run nise cli
   log-debug "RUNNING - $NISE report $@"
@@ -376,6 +393,7 @@ case ${provider_arg} in
    "GCP")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
+      enable_gcp_tags
       build_gcp_data
       enable_ocp_tags ;;
    "OCI")
@@ -391,8 +409,9 @@ case ${provider_arg} in
    "ALL")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
-      build_all
-      enable_ocp_tags ;;
+      enable_gcp_tags
+      enable_ocp_tags
+      build_all ;;
    "HELP") usage;;
    *) usage;;
 esac
