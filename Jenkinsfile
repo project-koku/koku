@@ -45,7 +45,7 @@ pipeline {
                 stage('Check to skip smoke tests') {
                     when {
                         expression {
-                            return check_for_labels('ok-to-skip-smokes', LABELS_DIR) == true
+                            check_for_labels('ok-to-skip-smokes', LABELS_DIR) == true
                         }
                     }
 
