@@ -265,7 +265,6 @@ class Orchestrator:
                 provider_type=provider_type,
                 schema_name=schema_name,
                 provider_uuid=provider_uuid,
-                bill_date=self.bill_date,
                 tracing_id=tracing_id,
             )
             if self._summarize_reports:
