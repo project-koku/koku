@@ -136,17 +136,30 @@ class ReportSummaryUpdater:
             None
 
         """
-        msg = f"Summary processing starting for source {self._provider_uuid}"
-        LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.info(log_json(tracing_id, f"Using start date: {start_date}"))
-        LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
-        LOG.info(log_json(tracing_id, f"Using invoice month: {invoice_month}"))
+        LOG.info(
+            log_json(
+                tracing_id,
+                "summary processing starting",
+                provider_uuid=self._provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+                invoice_month=invoice_month,
+            )
+        )
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
-        msg = f"Summary processing completed for source {self._provider_uuid} start: {start_date} - end: {end_date}"
-        LOG.info(log_json(self._tracing_id, msg))
+        LOG.info(
+            log_json(
+                tracing_id,
+                "summary processing complete",
+                provider_uuid=self._provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+                invoice_month=invoice_month,
+            )
+        )
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 
