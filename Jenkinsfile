@@ -92,7 +92,6 @@ pipeline {
 
 
 def check_for_labels(String label, String LABELS_DIR) {
-    //File labelFile = new File("${LABELS_DIR}/github_labels.txt")
     def exists = fileExists '${LABELS_DIR}/github_labels.txt'
     def grepLabels = "egrep label $LABELS_DIR/github_labels.txt &>/dev/null"
     def hasLabels = false
@@ -101,7 +100,7 @@ def check_for_labels(String label, String LABELS_DIR) {
         hasLabels = grepLabels.execute();
     }
 
-    return labelFile.exists();
+    return exists;
 }
 
 def run_test_filter_expression() {
