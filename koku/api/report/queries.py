@@ -1138,7 +1138,7 @@ class ReportQueryHandler(QueryHandler):
         data_frame = pd.DataFrame(data_list)
 
         rank_data_frame = pd.DataFrame(ranks)
-        rank_data_frame.drop(columns=["cost_total", "usage"], inplace=True, errors="ignore")
+        rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
