@@ -629,6 +629,15 @@
             }
           },
           {
+            "name": "org_id",
+            "in": "query",
+            "description": "The org id to filter on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "schema_name",
             "in": "query",
             "description": "The account id to filter on.",
@@ -735,10 +744,60 @@
           "required": true,
           "schema": {
             "type": "integer",
-            "format": "int64",
+            "format": "uuid",
             "example": 1
           }
         }],
+        "responses": {
+          "200": {
+            "description": "A Source object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Sources"
+        ],
+        "summary": "PATCH an AWS source's credentials",
+        "operationId": "patchSource",
+        "parameters": [{
+          "name": "source_id",
+          "in": "path",
+          "description": "ID of source to patch",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "uuid",
+            "example": 1
+          }
+        }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourcesPatch"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "A Source object",
@@ -2397,6 +2456,15 @@
           }
         }
       },
+      "SourcesPatch":{
+        "type": "object",
+        "properties": {
+          "authentication": {
+            "type": "object",
+            "example": {"credentials": {"role_arn": "arn:aws:iam::012345678910:role/CostWithExternalID", "external_id": "1234567890"}}
+          }
+        }
+      },
       "CrawlAccountHierarchyPostResponse":{
         "type": "object",
         "properties": {
@@ -2961,7 +3029,8 @@
             "type": "object",
             "description": "Dictionary containing resource name.",
             "example": {
-              "role_arn": "arn"
+              "role_arn": "arn",
+              "external_id": "1234567890"
             }
           },
           "billing_source": {

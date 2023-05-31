@@ -35,6 +35,7 @@ LABEL summary="$SUMMARY" \
 # libpq-devel needed for building psycopg2
 RUN INSTALL_PKGS="python39 python39-devel glibc-langpack-en gcc shadow-utils libpq-devel" && \
     microdnf --nodocs -y upgrade && \
+    microdnf reinstall tzdata && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
