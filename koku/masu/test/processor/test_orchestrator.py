@@ -151,7 +151,7 @@ class OrchestratorTest(MasuTestCase):
     )
     def test_unleash_disable_cloud_source_processing(self, mock_processing, mock_inspect):
         """Test the disable_cloud_source_processing."""
-        expected_result = "Cloud source processing disabled for "
+        expected_result = "processing disabled"
         orchestrator = Orchestrator()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
             orchestrator.get_accounts()
