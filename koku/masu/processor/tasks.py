@@ -209,7 +209,7 @@ def get_report_files(  # noqa: C901
 
         if report_dict:
             context["file"] = report_dict["file"]
-            context["invoice_month"] = report_dict["invoice_month"]
+            context["invoice_month"] = report_dict.get("invoice_month")
             LOG.info(log_json(tracing_id, "reports to be processed", context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
