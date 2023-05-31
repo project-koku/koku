@@ -25,7 +25,7 @@ from masu.processor import disable_cloud_source_processing
 from masu.processor import disable_source
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import populate_ocp_on_cluod_parquet
+from masu.processor.tasks import populate_ocp_on_cloud_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
@@ -261,8 +261,12 @@ class Orchestrator:
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
         if report_tasks:
-            ocp_on_cloud_parquet = populate_ocp_on_cluod_parquet.s(
-                provider_type, schema_name, provider_uuid, self.bill_date, tracing_id
+            ocp_on_cloud_parquet = populate_ocp_on_cloud_parquet.s(
+                provider_type=provider_type,
+                schema_name=schema_name,
+                provider_uuid=provider_uuid,
+                bill_date=self.bill_date,
+                tracing_id=tracing_id,
             )
             if self._summarize_reports:
                 reports_tasks_queued = True
@@ -270,7 +274,8 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                async_id = chord([chain(report_tasks), chain(ocp_on_cloud_parquet)], group(summary_task, hcs_task))()
+                async_id = chord(report_tasks, chain(ocp_on_cloud_parquet, group(summary_task, hcs_task)))()
+                # async_id = chord(chain(group(report_tasks), ocp_on_cloud_parquet), group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
