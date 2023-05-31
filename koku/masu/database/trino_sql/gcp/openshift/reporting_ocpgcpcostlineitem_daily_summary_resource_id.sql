@@ -219,10 +219,10 @@ SELECT cast(uuid() as varchar),
     max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 WHERE gcp.gcp_source = {{gcp_source_uuid}}
+    AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
     AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
-    AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.ocp_matched = TRUE
 GROUP BY gcp.usage_start_time,
     gcp.project_id,
@@ -302,6 +302,7 @@ SELECT cast(uuid() as varchar),
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE gcp.gcp_source = {{gcp_source_uuid}}
+    AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
     AND TRIM(LEADING '0' FROM gcp.day) IN {{days | inclause}} -- external partitions have a leading zero
