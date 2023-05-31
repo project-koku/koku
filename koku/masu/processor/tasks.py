@@ -431,13 +431,10 @@ def update_summary_tables(  # noqa: C901
                 msg = f"Schema {schema} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg))
             update_summary_tables.s(
-                schema,
-                provider_type,
-                provider_uuid,
+                report,
                 start_date,
                 end_date=end_date,
                 ingress_report_uuid=ingress_report_uuid,
-                manifest_id=manifest_id,
                 invoice_month=invoice_month,
                 queue_name=queue_name,
                 tracing_id=tracing_id,
@@ -514,8 +511,6 @@ def update_summary_tables(  # noqa: C901
                     table_name,
                     operation,
                     manifest_id=manifest_id,
-                    queue_name=queue_name,
-                    synchronous=synchronous,
                     tracing_id=tracing_id,
                 ).set(queue=queue_name or DELETE_TRUNCATE_QUEUE)
             )
@@ -588,8 +583,6 @@ def delete_openshift_on_cloud_data(
     table_name,
     operation,
     manifest_id=None,
-    queue_name=None,
-    synchronous=False,
     tracing_id=None,
 ):
     """Clear existing data from tables for date range."""
