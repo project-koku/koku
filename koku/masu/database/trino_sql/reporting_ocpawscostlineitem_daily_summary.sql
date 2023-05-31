@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_resource_mat
     unblended_cost double,
     blended_cost double,
     savingsplan_effective_cost double,
+    calculated_amortized_cost double,
     tags varchar,
     aws_cost_category varchar,
     resource_id_matched boolean,
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_tag_matched_
     unblended_cost double,
     blended_cost double,
     savingsplan_effective_cost double,
+    calculated_amortized_cost double,
     tags varchar,
     aws_cost_category varchar,
     matched_tag varchar,
@@ -80,6 +82,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     markup_cost_blended double,
     savingsplan_effective_cost double,
     markup_cost_savingsplan double,
+    calculated_amortized_cost double,
+    markup_cost_amortized double,
     pod_cost double,
     project_markup_cost double,
     pod_usage_cpu_core_hours double,
@@ -138,6 +142,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     markup_cost_blended double,
     savingsplan_effective_cost double,
     markup_cost_savingsplan double,
+    calculated_amortized_cost double,
+    markup_cost_amortized double,
     pod_cost double,
     project_markup_cost double,
     pod_labels varchar,
@@ -170,6 +176,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp 
     unblended_cost,
     blended_cost,
     savingsplan_effective_cost,
+    calculated_amortized_cost,
     tags,
     aws_cost_category,
     resource_id_matched,
@@ -195,6 +202,14 @@ SELECT cast(uuid() as varchar) as uuid,
     sum(aws.lineitem_unblendedcost) as unblended_cost,
     sum(aws.lineitem_blendedcost) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='Tax'
+            OR   aws.lineitem_lineitemtype='Usage'
+            THEN aws.lineitem_unblendedcost
+            ELSE aws.savingsplan_savingsplaneffectivecost
+        END
+    ) as calculated_amortized_cost,
     aws.resourcetags as tags,
     aws.costcategory as aws_cost_category,
     max(aws.resource_id_matched) as resource_id_matched,
@@ -236,6 +251,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
     unblended_cost,
     blended_cost,
     savingsplan_effective_cost,
+    calculated_amortized_cost,
     tags,
     aws_cost_category,
     matched_tag,
@@ -270,6 +286,14 @@ SELECT cast(uuid() as varchar) as uuid,
     sum(aws.lineitem_unblendedcost) as unblended_cost,
     sum(aws.lineitem_blendedcost) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='Tax'
+            OR   aws.lineitem_lineitemtype='Usage'
+            THEN aws.lineitem_unblendedcost
+            ELSE aws.savingsplan_savingsplaneffectivecost
+        END
+    ) as calculated_amortized_cost,
     json_format(
         cast(
             map_filter(
@@ -300,7 +324,7 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.lineitem_availabilityzone,
     aws.product_region,
     aws.costcategory,
-    16, -- tags
+    17, -- tags
     aws.matched_tag
 ;
 
@@ -333,6 +357,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     markup_cost_blended,
     savingsplan_effective_cost,
     markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
     pod_cost,
     project_markup_cost,
     pod_usage_cpu_core_hours,
@@ -383,6 +409,8 @@ SELECT aws.uuid as aws_uuid,
         max(aws.blended_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
         max(aws.savingsplan_effective_cost) as savingsplan_effective_cost,
         max(aws.savingsplan_effective_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
+        max(aws.calculated_amortized_cost) as calculated_amortized_cost,
+        max(aws.calculated_amortized_cost) * cast({{markup}} as decimal(33,9)) as markup_cost_amortized,
         cast(NULL as double) as pod_cost,
         cast(NULL as double) as project_markup_cost,
         sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
@@ -449,6 +477,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     markup_cost_blended,
     savingsplan_effective_cost,
     markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
     pod_cost,
     project_markup_cost,
     pod_usage_cpu_core_hours,
@@ -499,6 +529,8 @@ SELECT aws.uuid as aws_uuid,
         max(aws.blended_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_blended,
         max(aws.savingsplan_effective_cost) as savingsplan_effective_cost,
         max(aws.savingsplan_effective_cost) * cast({{markup}} as decimal(33,15)) as markup_cost_savingsplan,
+        max(aws.calculated_amortized_cost) as calculated_amortized_cost,
+        max(aws.calculated_amortized_cost) * cast({{markup}} as decimal(33,9)) as markup_cost_amortized,
         cast(NULL as double) as pod_cost,
         cast(NULL as double) as project_markup_cost,
         cast(NULL as double) as pod_usage_cpu_core_hours,
@@ -575,6 +607,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     markup_cost_blended,
     savingsplan_effective_cost,
     markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
     pod_cost,
     project_markup_cost,
     pod_labels,
@@ -639,6 +673,14 @@ SELECT pds.aws_uuid,
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * savingsplan_effective_cost * cast({{markup}} as decimal(24,9))
         ELSE savingsplan_effective_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost_savingsplan,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * calculated_amortized_cost
+        ELSE calculated_amortized_cost / aws_uuid_count
+    END as calculated_amortized_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * calculated_amortized_cost * cast({{markup}} as decimal(33,9))
+        ELSE calculated_amortized_cost / aws_uuid_count * cast({{markup}} as decimal(33,9))
+    END as markup_cost_amortized,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / aws_uuid_count
@@ -706,6 +748,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     markup_cost_blended,
     savingsplan_effective_cost,
     markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
     pod_cost,
     project_markup_cost,
     pod_labels,
@@ -744,6 +788,8 @@ SELECT uuid(),
     markup_cost_blended,
     savingsplan_effective_cost,
     markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
     pod_cost,
     project_markup_cost,
     json_parse(pod_labels),
