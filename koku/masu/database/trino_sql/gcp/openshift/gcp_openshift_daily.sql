@@ -103,6 +103,10 @@ cte_matchable_resource_names AS (
 ),
 cte_tag_matches AS (
   SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+
+  UNION
+
+  SELECT * FROM unnest(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']) as t(matched_tag)
 )
 SELECT gcp.invoice_month,
     gcp.billing_account_id,
