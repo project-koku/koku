@@ -285,14 +285,10 @@ def get_report_files(  # noqa: C901
 
 
 @celery_app.task(
-    name="masu.processor.tasks.populate_ocp_on_cluod_parquet", queue=GET_REPORT_FILES_QUEUE, bind=True
+    name="masu.processor.tasks.populate_ocp_on_cloud_parquet", queue=GET_REPORT_FILES_QUEUE, bind=True
 )  # noqa: C901
-def populate_ocp_on_cluod_parquet(  # noqa: C901
-    self,
-    provider_type,
-    schema_name,
-    provider_uuid,
-    bill_date,
+def populate_ocp_on_cloud_parquet(  # noqa: C901
+    self, report_meta, provider_type, schema_name, provider_uuid, bill_date, tracing_id
 ):
     """
     Task to process ocp on cloud parquet files.
@@ -323,6 +319,7 @@ def populate_ocp_on_cluod_parquet(  # noqa: C901
             context={"tracing_id": "tracing_id", "start_date": bill_date, "invoice_month": invoice_month},
         )
         processor._process_trino()
+    return report_meta
 
 
 @celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
