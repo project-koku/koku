@@ -21,7 +21,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor import summarize_ocp_on_gcp_by_node
+from masu.processor import should_summarize_ocp_on_gcp_by_node
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
@@ -99,7 +99,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             # We do not want to TRUNCATE this table when multiple cloud sources contribute to the data
             infra_source_count = (
                 Provider.objects.filter(
-                    customer__schema_name=self._schema, infrastructure__infrastructure_type=self.provider_type
+                    customer__schema_name=self._schema_name, infrastructure__infrastructure_type=self.provider_type
                 )
                 .values_list("infrastructure_id")
                 .distinct()
@@ -141,9 +141,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         filters = {"source_uuid": str(self._provider.uuid)}
         dh = DateHelper()
         month_start = dh.month_start(start_date)
-        with self.db_accessor(self._schema) as accessor:
+        with self.db_accessor(self._schema_name) as accessor:
             if table == self.daily_summary_table._meta.db_table:
-                with schema_context(self._schema):
+                with schema_context(self._schema_name):
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date=month_start)
                     current_bill_id = bills.first().id if bills else None
                 filters = {
@@ -155,7 +155,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
     def truncate_summary_table_data(self, partition_name):
         """Clear out existing data in summary tables by TRUNCATE."""
-        with self.db_accessor(self._schema) as accessor:
+        with self.db_accessor(self._schema_name) as accessor:
             accessor.truncate_partition(partition_name)
 
     def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
@@ -180,10 +180,12 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # Update markup for OpenShift tables
         with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
-            OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(start_date, end_date)
+            OCPCostModelCostUpdater(self._schema_name, provider_accessor.provider)._update_markup_cost(
+                start_date, end_date
+            )
 
         # Update the UI tables for the OpenShift provider
-        with OCPReportDBAccessor(self._schema) as ocp_accessor:
+        with OCPReportDBAccessor(self._schema_name) as ocp_accessor:
             ocp_accessor.populate_ui_summary_tables(start_date, end_date, ocp_provider_uuid)
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
@@ -196,7 +198,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     f"No cluster information available for OCP Provider: {openshift_provider_uuid}, "
@@ -211,10 +213,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
-        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
-        with schema_context(self._schema):
+        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema_name, start_date, end_date)
+        with schema_context(self._schema_name):
             self._handle_partitions(
-                self._schema,
+                self._schema_name,
                 (
                     "reporting_ocpawscostlineitem_daily_summary_p",
                     "reporting_ocpawscostlineitem_project_daily_summary_p",
@@ -239,29 +241,29 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             current_aws_bill_id = aws_bills.first().id if aws_bills else None
             current_ocp_report_period_id = report_period.id
 
-        with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, aws_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, openshift_provider_uuid) as cost_model_accessor:
             distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on AWS
         sql_params = {
-            "schema_name": self._schema,
+            "schema_name": self._schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": aws_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with self.db_accessor(self._schema) as accessor:
+        with self.db_accessor(self._schema_name) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on AWS summary table for "
                     "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
                     "\n\tCluster ID: %s, AWS Bill ID: %s",
-                    self._schema,
+                    self._schema_name,
                     self._provider.uuid,
                     start,
                     end,
@@ -286,7 +288,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     start, end, openshift_provider_uuid, aws_provider_uuid
                 )
 
-            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            with OCPReportDBAccessor(self._schema_name) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
                 LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start_date} e={end_date})")
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -297,7 +299,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()
 
@@ -311,7 +313,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     f"No cluster information available for OCP Provider: {openshift_provider_uuid}, "
@@ -325,10 +327,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
-        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
-        with schema_context(self._schema):
+        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema_name, start_date, end_date)
+        with schema_context(self._schema_name):
             self._handle_partitions(
-                self._schema,
+                self._schema_name,
                 (
                     "reporting_ocpazurecostlineitem_daily_summary_p",
                     "reporting_ocpazurecostlineitem_project_daily_summary_p",
@@ -353,29 +355,29 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             current_azure_bill_id = azure_bills.first().id if azure_bills else None
             current_ocp_report_period_id = report_period.id
 
-        with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, openshift_provider_uuid) as cost_model_accessor:
             distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on Azure
         sql_params = {
-            "schema_name": self._schema,
+            "schema_name": self._schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": azure_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with self.db_accessor(self._schema) as accessor:
+        with self.db_accessor(self._schema_name) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on Azure summary table for "
                     "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
                     "\n\tCluster ID: %s, Azure Bill ID: %s",
-                    self._schema,
+                    self._schema_name,
                     self._provider.uuid,
                     start,
                     end,
@@ -400,7 +402,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     start, end, openshift_provider_uuid, azure_provider_uuid
                 )
 
-            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            with OCPReportDBAccessor(self._schema_name) as ocp_accessor:
                 sql_params["source_type"] = "Azure"
                 LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -411,7 +413,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()
 
@@ -425,7 +427,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             if not report_period:
                 LOG.info(f"No report period for GCP provider {openshift_provider_uuid} with start date {start_date}")
@@ -434,8 +436,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
 
-            if summarize_ocp_on_gcp_by_node(self._schema):
-                msg = f"Summarizing OCP on GCP by node enabled for {self._schema}."
+            if should_summarize_ocp_on_gcp_by_node(self._schema_name):
+                msg = f"Summarizing OCP on GCP by node enabled for {self._schema_name}."
                 LOG.info(msg)
                 # vars that are only needed if processing by node instead of cluster
                 cluster_uuid = accessor.get_cluster_for_provider(openshift_provider_uuid)
@@ -443,10 +445,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 nodes = [node[0] for node in nodes]
                 node_count = len(nodes)
 
-        gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
-        with schema_context(self._schema):
+        gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema_name, start_date, end_date)
+        with schema_context(self._schema_name):
             self._handle_partitions(
-                self._schema,
+                self._schema_name,
                 (
                     (
                         "reporting_ocpgcpcostlineitem_daily_summary_p",
@@ -466,36 +468,36 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             current_gcp_bill_id = gcp_bills.first().id if gcp_bills else None
             current_ocp_report_period_id = report_period.id
 
-        with CostModelDBAccessor(self._schema, gcp_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, gcp_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, openshift_provider_uuid) as cost_model_accessor:
             distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
 
         # OpenShift on GCP
         sql_params = {
-            "schema_name": self._schema,
+            "schema_name": self._schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": gcp_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with self.db_accessor(self._schema) as accessor:
+        with self.db_accessor(self._schema_name) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on GCP summary table for "
                     "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
                     "\n\tCluster ID: %s, GCP Bill ID: %s",
-                    self._schema,
+                    self._schema_name,
                     self._provider.uuid,
                     start,
                     end,
                     cluster_id,
                     current_gcp_bill_id,
                 )
-                if summarize_ocp_on_gcp_by_node(self._schema):
+                if should_summarize_ocp_on_gcp_by_node(self._schema_name):
                     for node in nodes:
                         LOG.info(f"Summarizing ocp on gcp daily for node: {node}")
                         accessor.populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
@@ -532,7 +534,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 )
                 accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start, end)
 
-            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            with OCPReportDBAccessor(self._schema_name) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
                 LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -543,6 +545,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info("Updating ocp_on_cloud_updated_datetime on OpenShift report periods")
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()

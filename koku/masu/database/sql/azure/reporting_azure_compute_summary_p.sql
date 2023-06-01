@@ -1,10 +1,10 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_azure_compute_summary_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_azure_compute_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_azure_compute_summary_p (
     id,
     usage_start,
     usage_end,
@@ -42,7 +42,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
             SUM(pretax_cost) AS pretax_cost,
             SUM(markup_cost) AS markup_cost,
             MAX(currency) AS currency
-        FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
+        FROM {{schema_name | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
             AND usage_start <= {{end_date}}::date
             AND source_uuid = {{source_uuid}}
@@ -61,7 +61,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
                 subscription_guid,
                 instance_type,
                 UNNEST(instance_ids) AS instance_id
-            FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
+            FROM {{schema_name | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
             WHERE usage_start >= {{start_date}}::date
                 AND usage_start <= {{end_date}}::date
                 AND source_uuid = {{source_uuid}}

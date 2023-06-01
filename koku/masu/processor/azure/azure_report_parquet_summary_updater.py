@@ -19,16 +19,16 @@ LOG = logging.getLogger(__name__)
 class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update Azure report parquet summary data."""
 
-    def __init__(self, schema, provider, manifest):
+    def __init__(self, schema_name, provider, manifest):
         """Establish parquet summary processor."""
-        self._schema = schema
+        self._schema_name = schema_name
         self._provider = provider
         self._manifest = manifest
         self._date_accessor = DateAccessor()
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with AzureReportDBAccessor(self._schema_name) as accessor:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
@@ -37,7 +37,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bills = bills.filter(billing_period_start=bill_date).all()
                 first_bill = bills.filter(billing_period_start=bill_date).first()
                 do_month_update = False
-                with schema_context(self._schema):
+                with schema_context(self._schema_name):
                     if first_bill:
                         do_month_update = determine_if_full_summary_update_needed(first_bill)
                 if do_month_update:
@@ -66,16 +66,16 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        with schema_context(self._schema):
-            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+        with schema_context(self._schema_name):
+            self._handle_partitions(self._schema_name, UI_SUMMARY_TABLES, start_date, end_date)
 
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with AzureReportDBAccessor(self._schema_name) as accessor:
             # Need these bills on the session to update dates after processing
-            with schema_context(self._schema):
+            with schema_context(self._schema_name):
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
@@ -89,7 +89,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     "Updating Azure report summary tables via Trino: \n\tSchema: %s"
                     "\n\tProvider: %s \n\tDates: %s - %s",
-                    self._schema,
+                    self._schema_name,
                     self._provider.uuid,
                     start,
                     end,

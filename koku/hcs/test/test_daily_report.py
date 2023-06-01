@@ -24,8 +24,8 @@ class TestReportHCS(HCSTestCase):
 
     def test_init(self):
         """Test the initializer."""
-        dr = ReportHCS(self.schema, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id)
-        self.assertEqual(dr._schema_name, self.schema)
+        dr = ReportHCS(self.schema_name, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id)
+        self.assertEqual(dr._schema_name, self.schema_name)
         # the local is stripped off the provider so we are left with the AWS provider
         self.assertEqual(dr._provider, Provider.PROVIDER_AWS)
         self.assertEqual(dr._provider_uuid, self.aws_provider_uuid)

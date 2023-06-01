@@ -1,4 +1,4 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
@@ -6,7 +6,7 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.monthly_cost_type IS NULL
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -96,7 +96,7 @@ SELECT uuid_generate_v4(),
         as cost_model_volume_cost,
     NULL as monthly_cost_type,
     cost_category_id
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}

@@ -98,7 +98,7 @@ class TestOCPPostProcessor(MasuTestCase):
             for entry in data_list:
                 entry.update(data)
             df = pd.DataFrame(data_list)
-            post_processor = OCPPostProcessor(self.schema, report_type)
+            post_processor = OCPPostProcessor(self.schema_name, report_type)
             daily_df = post_processor._generate_daily_data(df)
 
             first_day = daily_df[daily_df["interval_start"] == str(interval_start.date())]
@@ -161,7 +161,7 @@ class TestOCPPostProcessor(MasuTestCase):
                 expected_keys = ["application", "environment", "fun_times"]
                 df = pd.DataFrame(data)
                 with patch("masu.util.ocp.ocp_post_processor.OCPPostProcessor._generate_daily_data"):
-                    post_processor = OCPPostProcessor(self.schema, "pod_usage")
+                    post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
                     processed_df, _ = post_processor.process_dataframe(df)
                 pd.testing.assert_frame_equal(df, processed_df)
                 self.assertEqual(sorted(post_processor.enabled_tag_keys), sorted(expected_keys))
@@ -183,7 +183,7 @@ class TestOCPPostProcessor(MasuTestCase):
         ]
         expected_keys = ["application", "environment", "fun_times"]
         df = pd.DataFrame(data)
-        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
         with patch("masu.util.ocp.ocp_post_processor.OCPPostProcessor._generate_daily_data"):
             processed_df, _ = post_processor.process_dataframe(df)
             pd.testing.assert_frame_equal(df, processed_df)
@@ -191,7 +191,7 @@ class TestOCPPostProcessor(MasuTestCase):
 
     def test_process_openshift_datetime(self):
         """Test process_openshift_datetime method with good and bad values."""
-        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
         csv_converters, panda_kwargs = post_processor.get_column_converters(["report_period_start"], {})
         self.assertEqual({}, panda_kwargs)
         datetime_converter = csv_converters.get("report_period_start")
@@ -202,7 +202,7 @@ class TestOCPPostProcessor(MasuTestCase):
 
     def test_process_openshift_datetime_parse_error(self):
         """Test process_openshift_datetime method with good and bad values."""
-        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
         csv_converters, panda_kwargs = post_processor.get_column_converters(["report_period_start"], {})
         self.assertEqual({}, panda_kwargs)
         datetime_converter = csv_converters.get("report_period_start")
@@ -213,13 +213,13 @@ class TestOCPPostProcessor(MasuTestCase):
 
     def test_check_ingress_required_columns(self):
         """Test that None is returned."""
-        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
         self.assertIsNone(post_processor.check_ingress_required_columns([]))
 
     def test_process_openshift_labels(self):
         """Test that labels are correctly processed."""
         converter_column = "pod_labels"
-        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
         csv_converters, panda_kwargs = post_processor.get_column_converters([converter_column], {})
         self.assertEqual({}, panda_kwargs)
         label_converter = csv_converters.get(converter_column)
@@ -234,7 +234,7 @@ class TestOCPPostProcessor(MasuTestCase):
     def test_process_openshift_labels_unexpected_strings(self):
         """Test that unexpected labels return str of empty dict."""
         converter_column = "pod_labels"
-        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "pod_usage")
         csv_converters, panda_kwargs = post_processor.get_column_converters([converter_column], {})
         self.assertEqual({}, panda_kwargs)
         label_converter = csv_converters.get(converter_column)
@@ -250,6 +250,6 @@ class TestOCPPostProcessor(MasuTestCase):
     def test_gernerate_daily_data_empty_dataframe(self):
         """Test if we pass in an empty dataframe, we get one back."""
         df = pd.DataFrame()
-        post_processor = OCPPostProcessor(self.schema, "storage_usage")
+        post_processor = OCPPostProcessor(self.schema_name, "storage_usage")
         processed_df = post_processor._generate_daily_data(df)
         self.assertTrue(processed_df.empty)

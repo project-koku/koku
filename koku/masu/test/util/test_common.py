@@ -287,7 +287,7 @@ class CommonUtilTests(MasuTestCase):
         """Test that we process full month under the correct conditions."""
         dh = DateHelper()
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bills = AWSCostEntryBill.objects.all()
             current_month_bill = bills.filter(billing_period_start=dh.this_month_start).first()
             last_month_bill = bills.filter(billing_period_start=dh.last_month_start).first()
@@ -386,7 +386,7 @@ class CommonUtilTests(MasuTestCase):
             _ = list(common_utils.batch(vals, start="eek"))
 
     def test_create_enabled_keys_aws(self):
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AWSEnabledTagKeys.objects.all()]
             AWSEnabledTagKeys.objects.all().delete()
             for key in ("masu", "database", "processor", "common"):
@@ -397,8 +397,8 @@ class CommonUtilTests(MasuTestCase):
         orig_enabled = {e.key for e in all_keys if e.enabled}
         enabled = orig_enabled.union({"ek_test1", "ek_test2"})
 
-        common_utils.create_enabled_keys(self.schema, AWSEnabledTagKeys, enabled)
-        with schema_context(self.schema):
+        common_utils.create_enabled_keys(self.schema_name, AWSEnabledTagKeys, enabled)
+        with schema_context(self.schema_name):
             all_keys = list(AWSEnabledTagKeys.objects.all())
             AWSEnabledTagKeys.objects.all().delete()
             AWSEnabledTagKeys.objects.bulk_create([AWSEnabledTagKeys(**rec) for rec in orig_keys])
@@ -410,7 +410,7 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual(orig_disabled, check_disabled)
 
     def test_create_enabled_keys_azure(self):
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AzureEnabledTagKeys.objects.all()]
             AzureEnabledTagKeys.objects.all().delete()
             for key in ("masu", "database", "processor", "common"):
@@ -421,8 +421,8 @@ class CommonUtilTests(MasuTestCase):
         orig_enabled = {e.key for e in all_keys if e.enabled}
         enabled = orig_enabled.union({"ek_test1", "ek_test2"})
 
-        common_utils.create_enabled_keys(self.schema, AzureEnabledTagKeys, enabled)
-        with schema_context(self.schema):
+        common_utils.create_enabled_keys(self.schema_name, AzureEnabledTagKeys, enabled)
+        with schema_context(self.schema_name):
             all_keys = list(AzureEnabledTagKeys.objects.all())
             AzureEnabledTagKeys.objects.all().delete()
             AzureEnabledTagKeys.objects.bulk_create([AzureEnabledTagKeys(**rec) for rec in orig_keys])
@@ -434,7 +434,7 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual(orig_disabled, check_disabled)
 
     def test_update_enabled_keys_aws(self):
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AWSEnabledTagKeys.objects.all()]
             AWSEnabledTagKeys.objects.all().delete()
             for key in ("masu", "database", "processor", "common"):
@@ -453,8 +453,8 @@ class CommonUtilTests(MasuTestCase):
         new_keys = {"ek_test1", "ek_test2"}
         enabled.update(new_keys)
 
-        common_utils.update_enabled_keys(self.schema, AWSEnabledTagKeys, enabled)
-        with schema_context(self.schema):
+        common_utils.update_enabled_keys(self.schema_name, AWSEnabledTagKeys, enabled)
+        with schema_context(self.schema_name):
             all_keys = list(AWSEnabledTagKeys.objects.all())
             AWSEnabledTagKeys.objects.all().delete()
             AWSEnabledTagKeys.objects.bulk_create([AWSEnabledTagKeys(**rec) for rec in orig_keys])
@@ -472,7 +472,7 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual((enabled - new_keys), check_enabled)
 
     def test_update_enabled_keys_azure(self):
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AzureEnabledTagKeys.objects.all()]
             AzureEnabledTagKeys.objects.all().delete()
             for key in ("masu", "database", "processor", "common"):
@@ -491,8 +491,8 @@ class CommonUtilTests(MasuTestCase):
         new_keys = {"ek_test1", "ek_test2"}
         enabled.update(new_keys)
 
-        common_utils.update_enabled_keys(self.schema, AzureEnabledTagKeys, enabled)
-        with schema_context(self.schema):
+        common_utils.update_enabled_keys(self.schema_name, AzureEnabledTagKeys, enabled)
+        with schema_context(self.schema_name):
             all_keys = list(AzureEnabledTagKeys.objects.all())
             AzureEnabledTagKeys.objects.all().delete()
             AzureEnabledTagKeys.objects.bulk_create([AzureEnabledTagKeys(**rec) for rec in orig_keys])
@@ -532,33 +532,33 @@ class CommonUtilTests(MasuTestCase):
 
         mock_connect.return_value = FakeConn()
 
-        result, _ = common_utils.execute_trino_query(self.schema, "SELECT 'one', 'two', 'three';")
+        result, _ = common_utils.execute_trino_query(self.schema_name, "SELECT 'one', 'two', 'three';")
         self.assertEqual(result, expected)
 
     @patch("masu.util.common.execute_trino_query")
     def test_trino_table_exists(self, mock_query):
         """Test that the trino query util executes."""
         mock_query.return_value = (["true"], "")
-        result = common_utils.trino_table_exists(self.schema, "table_name")
+        result = common_utils.trino_table_exists(self.schema_name, "table_name")
         self.assertTrue(result)
 
         mock_query.reset_mock()
         mock_query.return_value = ([], "")
-        result = common_utils.trino_table_exists(self.schema, "table_name")
+        result = common_utils.trino_table_exists(self.schema_name, "table_name")
         self.assertFalse(result)
 
     def test_convert_account(self):
         """Test that the correct account string is returned."""
         account_str = "1234567"
-        account = common_utils.convert_account(account_str)
+        account = common_utils.convert_schema_name(account_str)
         self.assertIn("acct", account)
 
         account_str = "acct1234567"
-        account = common_utils.convert_account(account_str)
+        account = common_utils.convert_schema_name(account_str)
         self.assertEqual(account_str, account)
 
         account_str = "org1234567"
-        account = common_utils.convert_account(account_str)
+        account = common_utils.convert_schema_name(account_str)
         self.assertEqual(account_str, account)
 
     def test_filter_dictionary(self):

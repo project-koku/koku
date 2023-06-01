@@ -18,15 +18,15 @@ LOG = logging.getLogger(__name__)
 class CostModelDBAccessor(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, provider_uuid):
+    def __init__(self, schema_name, provider_uuid):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
             provider_uuid (str): Provider uuid
 
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self.provider_uuid = provider_uuid
         self._cost_model = None
 
@@ -34,7 +34,7 @@ class CostModelDBAccessor(KokuDBAccess):
     def cost_model(self):
         """Return the cost model database object."""
         if self._cost_model is None:
-            with schema_context(self.schema):
+            with schema_context(self.schema_name):
                 self._cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
         return self._cost_model
 

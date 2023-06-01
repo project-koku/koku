@@ -20,19 +20,19 @@ class TestUserSettingCommon(MasuTestCase):
 
     def setUp(self):
         """Set up test suite."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             UserSettings.objects.all().delete()
 
     """Tests for cost_type utils."""
 
     def test_get_selected_currency_or_setup(self):
         """Test currency initialization."""
-        currency = get_selected_currency_or_setup(self.schema)
+        currency = get_selected_currency_or_setup(self.schema_name)
         self.assertEqual(currency, KOKU_DEFAULT_CURRENCY)
 
         new_currency = "JPY"
-        set_currency(self.schema, currency_code=new_currency)
-        currency = get_selected_currency_or_setup(self.schema)
+        set_currency(self.schema_name, currency_code=new_currency)
+        currency = get_selected_currency_or_setup(self.schema_name)
         self.assertEqual(currency, new_currency)
 
     def test_get_currency_options(self):
@@ -43,18 +43,18 @@ class TestUserSettingCommon(MasuTestCase):
     def test_set_currency_negative(self):
         """Test cost_type raises exception when providing a non-supported cost_type"""
         with self.assertRaises(ValueError):
-            set_currency(self.schema, currency_code="BOGUS")
+            set_currency(self.schema_name, currency_code="BOGUS")
 
     """Tests for cost_type utils."""
 
     def test_get_selected_cost_type_or_setup(self):
         """Test cost_type initialization."""
-        cost_type = get_selected_cost_type_or_setup(self.schema)
+        cost_type = get_selected_cost_type_or_setup(self.schema_name)
         self.assertEqual(cost_type, KOKU_DEFAULT_COST_TYPE)
 
         new_cost_type = "savingsplan_effective_cost"
-        set_cost_type(self.schema, cost_type_code=new_cost_type)
-        cost_type = get_selected_cost_type_or_setup(self.schema)
+        set_cost_type(self.schema_name, cost_type_code=new_cost_type)
+        cost_type = get_selected_cost_type_or_setup(self.schema_name)
         self.assertEqual(cost_type, new_cost_type)
 
     def test_get_cost_type_options(self):
@@ -65,4 +65,4 @@ class TestUserSettingCommon(MasuTestCase):
     def test_set_cost_type_negative(self):
         """Test cost_type raises exception when providing a non-supported cost_type"""
         with self.assertRaises(ValueError):
-            set_cost_type(self.schema, cost_type_code="BOGUS")
+            set_cost_type(self.schema_name, cost_type_code="BOGUS")

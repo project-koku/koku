@@ -33,13 +33,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.test_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.test_etag = "fake_etag"
         self.request_id = 1
-        self.account_id = self.schema[4:]
+        self.account_id = self.schema_name[4:]
         self.manifest_id = 1
         self.report_name = "koku-1.csv.gz"
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
         self.start_date = DateHelper().today
         self.report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -60,7 +60,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.assertEqual(self.report_processor.ocp_on_cloud_data_processor, match_openshift_resources_and_labels)
 
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
@@ -83,7 +83,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         ) as mock_trino_get:
             mock_get_infra.return_value = ([], [])
             report_processor = OCPCloudParquetReportProcessor(
-                schema_name=self.schema,
+                schema_name=self.schema_name,
                 report_path=self.report_path,
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -99,7 +99,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.assertIsInstance(self.report_processor.db_accessor, AWSReportDBAccessor)
 
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.azure_provider_uuid,
             provider_type=Provider.PROVIDER_AZURE,
@@ -109,7 +109,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.assertIsInstance(report_processor.db_accessor, AzureReportDBAccessor)
 
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,
@@ -119,7 +119,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.assertIsInstance(report_processor.db_accessor, GCPReportDBAccessor)
 
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
@@ -178,7 +178,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         test_date = "2023_01_01"
         base_file_name = f"{self.gcp_provider_uuid}_{test_date}"
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP_LOCAL,
@@ -202,7 +202,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         """Test that we write partitioned OCP on Cloud data and create a table."""
         base_file_name = f"{self.gcp_provider_uuid}"
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP_LOCAL,
@@ -250,7 +250,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_cluster_info.return_value = True
         mock_topology.return_value = [{"cluster_id": self.ocpgcp_ocp_cluster_id}]
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,
@@ -266,7 +266,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_ocp_on_gcp_data_processor(self):
         """Test that the processor is properly set."""
         report_processor = OCPCloudParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,

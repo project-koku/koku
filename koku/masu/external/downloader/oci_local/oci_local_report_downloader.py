@@ -42,19 +42,19 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://docs.oracle.com/en-us/iaas/Content/Billing/Tasks/accessingusagereports.htm
     """
 
-    def __init__(self, customer_name, data_source, **kwargs):
+    def __init__(self, schema_name, data_source, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name  (str): Name of the customer
+            schema_name  (str): Name of the customer
             data_source    (dict): dict containing name of OCI storage bucket
 
         """
         super().__init__(**kwargs)
         self.data_source = data_source
         self.storage_location = self.data_source.get("bucket")
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid", "")
 
@@ -207,7 +207,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and OCI's etag.
 
         """
-        directory_path = f"{DATA_DIR}/{self.customer_name}/oci-local{self.storage_location}"
+        directory_path = f"{DATA_DIR}/{self.schema_name}/oci-local{self.storage_location}"
         full_file_path = f"{directory_path}/{key}"
         etag = key
         base_path = f"{self.storage_location}/{key}"

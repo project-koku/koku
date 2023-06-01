@@ -27,13 +27,13 @@ LOG = logging.getLogger(__name__)
 class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._datetime_format = Config.OCI_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
@@ -46,7 +46,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = OCICostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
@@ -62,7 +62,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = OCICostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             base_query = self._get_db_obj_query(table_name)
             if provider_uuid:
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
@@ -78,7 +78,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
-                "schema": self.schema,
+                "schema_name": self.schema_name,
                 "source_uuid": source_uuid,
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -109,7 +109,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
@@ -124,7 +124,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
         table_name = OCICostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill = self._get_db_obj_query(table_name).get(id=bill_id)
 
             if bill.finalized_datetime is None:
@@ -137,13 +137,18 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocitags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if bill_ids and start_date and end_date:
                 date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
             else:
@@ -172,7 +177,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -199,7 +204,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(

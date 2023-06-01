@@ -22,7 +22,7 @@ class IngressReportDBAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up the test class."""
         super().setUp()
-        self.schema = self.schema_name
+        self.schema_name = self.schema_name
         self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
         self.ingress_report_dict = {
@@ -32,24 +32,24 @@ class IngressReportDBAccessorTest(MasuTestCase):
             "reports_list": ["test"],
             "source": self.aws_provider,
         }
-        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
+        self.ingress_report_accessor = IngressReportDBAccessor(self.schema_name)
 
     def tearDown(self):
         """Tear down the test class."""
         super().tearDown()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             reports = self.ingress_report_accessor._get_db_obj_query().all()
             for report in reports:
                 self.ingress_report_accessor.delete(report)
 
     def test_initializer(self):
         """Test the initializer."""
-        accessor = IngressReportDBAccessor(self.schema)
+        accessor = IngressReportDBAccessor(self.schema_name)
         self.assertIsNotNone(accessor._table)
 
     def test_get_ingress_reports_by_source(self):
         """Test that the right ingress reports are returned."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
 
             ingress_report_uuid = self.ingress_report_dict.get("uuid")
@@ -64,7 +64,7 @@ class IngressReportDBAccessorTest(MasuTestCase):
 
     def test_get_ingress_report_by_uuid(self):
         """Test that the right ingress report is returned by id."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
             ingress_report = self.ingress_report_accessor.get_ingress_report_by_uuid(
                 self.ingress_report_dict.get("uuid")

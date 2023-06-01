@@ -2,7 +2,7 @@
 WITH cte_aws_resource_ids AS (
     SELECT DISTINCT lineitem_resourceid,
         aws.source
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
+    FROM hive.{{schema_name | sqlsafe}}.aws_line_items_daily AS aws
     WHERE aws.lineitem_usagestartdate >= {{start_date}}
         AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
         AND aws.lineitem_resourceid IS NOT NULL
@@ -16,7 +16,7 @@ WITH cte_aws_resource_ids AS (
 cte_ocp_resource_ids AS (
     SELECT DISTINCT resource_id,
         ocp.source
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
+    FROM hive.{{schema_name | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
     WHERE ocp.interval_start >= {{start_date}}
     AND ocp.interval_start < date_add('day', 1, {{end_date}})
     AND ocp.resource_id IS NOT NULL

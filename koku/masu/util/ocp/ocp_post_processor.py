@@ -59,8 +59,8 @@ def process_openshift_labels_to_json(label_val):
 
 
 class OCPPostProcessor:
-    def __init__(self, schema, report_type):
-        self.schema = schema
+    def __init__(self, schema_name, report_type):
+        self.schema_name = schema_name
         self.enabled_tag_keys = set()
         self.report_type = report_type
         self.ocp_report_types = OCP_REPORT_TYPES
@@ -162,4 +162,4 @@ class OCPPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, OCPEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema_name, OCPEnabledTagKeys, self.enabled_tag_keys)

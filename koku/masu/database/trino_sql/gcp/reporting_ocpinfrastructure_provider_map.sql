@@ -3,12 +3,12 @@
     SELECT DISTINCT cluster_id,
         cluster_alias,
         cast(provider_id as varchar) as provider_id
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocp_clusters
+    FROM postgres.{{schema_name | sqlsafe}}.reporting_ocp_clusters
     ),
     cte_distinct_gcp_labels AS (
     SELECT DISTINCT labels,
         source
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    FROM hive.{{schema_name | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -32,7 +32,7 @@
     WITH cte_gcp_resource_name AS (
         SELECT DISTINCT gcp.resource_name,
             gcp.source
-        FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+        FROM hive.{{schema_name | sqlsafe}}.gcp_line_items_daily AS gcp
         WHERE gcp.usage_start_time >= {{start_date}}
             AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
             {% if gcp_provider_uuid %}
@@ -44,7 +44,7 @@
     cte_ocp_nodes AS (
         SELECT DISTINCT ocp.node,
             ocp.source
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
+        FROM hive.{{schema_name | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         WHERE ocp.interval_start >= {{start_date}}
             AND ocp.interval_start < date_add('day', 1, {{end_date}})
             AND ocp.node IS NOT NULL

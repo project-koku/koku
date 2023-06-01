@@ -26,7 +26,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.aws_category_tuple = AWS_CONSTANTS["cost_category"]
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             enabled_keys = AWSEnabledCategoryKeys.objects.filter(enabled=True).values_list("key", flat=True)
             self.enabled_keys = list(enabled_keys)
             row = AWSCategorySummary.objects.filter(account_alias__isnull=False).first()

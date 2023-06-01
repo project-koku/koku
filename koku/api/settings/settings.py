@@ -26,7 +26,7 @@ from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from masu.processor import enable_aws_category_settings
+from masu.processor import is_aws_category_settings_enabled
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import AWSEnabledTagKeys
@@ -119,7 +119,7 @@ class Settings:
         """Initialize settings object with incoming request."""
         self.request = request
         self.factory = RequestFactory()
-        self.schema = request.user.customer.schema_name
+        self.schema_name = request.user.customer.schema_name
 
     def _get_tag_management_prefix(self, providerName):
         return f"{SETTINGS_PREFIX}.tag-management.{providerName}"
@@ -134,7 +134,7 @@ class Settings:
         """
         enabled = set()
         all_keys_set = set()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for key in keys_class.objects.all():
                 all_keys_set.add(key.key)
                 if key.enabled:
@@ -197,7 +197,7 @@ class Settings:
         currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
         currency_options = {
             "options": get_currency_options(),
-            "initialValue": get_selected_currency_or_setup(self.schema),
+            "initialValue": get_selected_currency_or_setup(self.schema_name),
             "FormGroupProps": {"style": {"width": "400px"}},
         }
         currency = create_select(currency_select_name, **currency_options)
@@ -218,12 +218,12 @@ class Settings:
             cost_type_select_text = create_plain_text(cost_type_select_name, cost_type_text_context, "p")
             cost_type_options = {
                 "options": get_cost_type_options(),
-                "initialValue": get_selected_cost_type_or_setup(self.schema),
+                "initialValue": get_selected_cost_type_or_setup(self.schema_name),
                 "FormGroupProps": {"style": {"width": "400px"}},
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
             sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
-            if enable_aws_category_settings(self.schema):
+            if is_aws_category_settings_enabled(self.schema_name):
                 sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
@@ -234,7 +234,7 @@ class Settings:
         enabled_delimiter = "-"
         updated = [False] * len(params)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for ix, provider_name in enumerate(params):
                 enabled_keys_no_abbr = set()
                 enabled_keys_class = params[provider_name]["enabled_model"]
@@ -254,10 +254,10 @@ class Settings:
                     raise ValidationError(error_obj(key, message))
 
                 if enabled_keys_no_abbr != enabled:
-                    updated[ix] = update_enabled_keys(self.schema, enabled_keys_class, enabled_keys_no_abbr)
+                    updated[ix] = update_enabled_keys(self.schema_name, enabled_keys_class, enabled_keys_no_abbr)
 
                 if updated[ix]:
-                    invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
+                    invalidate_view_cache_for_tenant_and_source_type(self.schema_name, provider)
 
         return any(updated)
 
@@ -268,9 +268,9 @@ class Settings:
             currency = settings
 
         try:
-            stored_currency = get_selected_currency_or_setup(self.schema)
+            stored_currency = get_selected_currency_or_setup(self.schema_name)
         except Exception as exp:
-            LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
+            LOG.warning(f"Failed to retrieve currency for schema_name {self.schema_name}. Reason: {exp}")
             return False
 
         if stored_currency == currency:
@@ -278,12 +278,12 @@ class Settings:
 
         try:
             LOG.info(f"Updating currency to: " + settings)
-            set_currency(self.schema, settings)
+            set_currency(self.schema_name, settings)
         except Exception as exp:
-            LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
+            LOG.warning(f"Failed to store new currency settings for schema_name {self.schema_name}. Reason: {exp}")
             return False
 
-        invalidate_view_cache_for_tenant_and_all_source_types(self.schema)
+        invalidate_view_cache_for_tenant_and_all_source_types(self.schema_name)
         return True
 
     def _cost_type_handler(self, settings):
@@ -293,9 +293,9 @@ class Settings:
             cost_type = settings
 
         try:
-            stored_cost_type = get_selected_cost_type_or_setup(self.schema)
+            stored_cost_type = get_selected_cost_type_or_setup(self.schema_name)
         except Exception as exp:
-            LOG.warning(f"Failed to retrieve cost_type for schema {self.schema}. Reason: {exp}")
+            LOG.warning(f"Failed to retrieve cost_type for schema_name {self.schema_name}. Reason: {exp}")
             return False
 
         if stored_cost_type == cost_type:
@@ -303,12 +303,12 @@ class Settings:
 
         try:
             LOG.info(f"Updating cost_type to: " + settings)
-            set_cost_type(self.schema, settings)
+            set_cost_type(self.schema_name, settings)
         except Exception as exp:
-            LOG.warning(f"Failed to store new cost_type settings for schema {self.schema}. Reason: {exp}")
+            LOG.warning(f"Failed to store new cost_type settings for schema_name {self.schema_name}. Reason: {exp}")
             return False
 
-        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_AWS)
+        invalidate_view_cache_for_tenant_and_source_type(self.schema_name, Provider.PROVIDER_AWS)
         return True
 
     def build_settings(self):

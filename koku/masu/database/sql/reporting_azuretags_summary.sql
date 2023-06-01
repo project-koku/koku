@@ -4,11 +4,11 @@ WITH cte_tag_value AS (
         value,
         li.cost_entry_bill_id,
         li.subscription_guid
-    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary AS li,
+    FROM {{schema_name | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
-        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys WHERE enabled=true)
+        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema_name | sqlsafe}}.reporting_azureenabledtagkeys WHERE enabled=true)
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -24,7 +24,7 @@ cte_values_agg AS (
         cost_entry_bill_id,
         subscription_guid
     FROM cte_tag_value AS tv
-    JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
+    JOIN {{schema_name | sqlsafe}}.reporting_azureenabledtagkeys AS etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
     GROUP BY tv.key, cost_entry_bill_id, subscription_guid
@@ -40,7 +40,7 @@ cte_distinct_values_agg AS (
             va.cost_entry_bill_id,
             va.subscription_guid
         FROM cte_values_agg AS va
-        LEFT JOIN {{schema | sqlsafe}}.reporting_azuretags_summary AS ls
+        LEFT JOIN {{schema_name | sqlsafe}}.reporting_azuretags_summary AS ls
             ON va.key = ls.key
                 AND va.cost_entry_bill_id = ls.cost_entry_bill_id
                 AND va.subscription_guid = ls.subscription_guid
@@ -48,7 +48,7 @@ cte_distinct_values_agg AS (
     GROUP BY key, cost_entry_bill_id, subscription_guid
 ),
 ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (uuid, key, cost_entry_bill_id, subscription_guid, values)
+    INSERT INTO {{schema_name | sqlsafe}}.reporting_azuretags_summary (uuid, key, cost_entry_bill_id, subscription_guid, values)
     SELECT uuid_generate_v4() as uuid,
         key,
         cost_entry_bill_id,
@@ -57,7 +57,7 @@ ins1 AS (
     FROM cte_distinct_values_agg
     ON CONFLICT (key, cost_entry_bill_id, subscription_guid) DO UPDATE SET values=EXCLUDED."values"
 )
-INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_values (uuid, key, value, subscription_guids)
+INSERT INTO {{schema_name | sqlsafe}}.reporting_azuretags_values (uuid, key, value, subscription_guids)
 SELECT uuid_generate_v4() as uuid,
     tv.key,
     tv.value,
@@ -67,10 +67,10 @@ GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET subscription_guids=EXCLUDED.subscription_guids
 ;
 
-DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
+DELETE FROM {{schema_name | sqlsafe}}.reporting_azuretags_summary AS ts
 WHERE EXISTS (
     SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
+    FROM {{schema_name | sqlsafe}}.reporting_azureenabledtagkeys AS etk
     WHERE etk.enabled = false
         AND ts.key = etk.key
 )
@@ -78,13 +78,13 @@ WHERE EXISTS (
 
 WITH cte_expired_tag_keys AS (
     SELECT DISTINCT tv.key
-    FROM {{schema | sqlsafe}}.reporting_azuretags_values AS tv
-    LEFT JOIN {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
+    FROM {{schema_name | sqlsafe}}.reporting_azuretags_values AS tv
+    LEFT JOIN {{schema_name | sqlsafe}}.reporting_azuretags_summary AS ts
         ON tv.key = ts.key
     WHERE ts.key IS NULL
 
 )
-DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_values tv
+DELETE FROM {{schema_name | sqlsafe}}.reporting_azuretags_values tv
     USING cte_expired_tag_keys etk
     WHERE tv.key = etk.key
 ;

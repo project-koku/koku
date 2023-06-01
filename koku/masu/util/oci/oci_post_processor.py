@@ -15,8 +15,8 @@ def scrub_resource_col_name(res_col_name):
 
 
 class OCIPostProcessor:
-    def __init__(self, schema):
-        self.schema = schema
+    def __init__(self, schema_name):
+        self.schema_name = schema_name
         self.enabled_tag_keys = set()
 
     def get_column_converters(self, col_names, panda_kwargs):
@@ -114,4 +114,4 @@ class OCIPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, OCIEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema_name, OCIEnabledTagKeys, self.enabled_tag_keys)

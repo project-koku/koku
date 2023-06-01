@@ -40,10 +40,10 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
-from masu.processor import disable_ocp_on_cloud_summary
-from masu.processor import disable_source
-from masu.processor import disable_summary_processing
 from masu.processor import is_large_customer
+from masu.processor import is_ocp_on_cloud_summary_disabled
+from masu.processor import is_source_disabled
+from masu.processor import is_summary_processing_disabled
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -140,11 +140,10 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
 @celery_app.task(name="masu.processor.tasks.get_report_files", queue=GET_REPORT_FILES_QUEUE, bind=True)  # noqa: C901
 def get_report_files(  # noqa: C901
     self,
-    customer_name,
+    schema_name,
     authentication,
     billing_source,
     provider_type,
-    schema_name,
     provider_uuid,
     report_month,
     report_context,
@@ -160,7 +159,7 @@ def get_report_files(  # noqa: C901
     this value can be adjusted or made configurable.
 
     Args:
-        customer_name     (String): Name of the customer owning the cost usage report.
+        schema_name       (String): Name of the customer owning the cost usage report.
         authentication    (String): Credential needed to access cost usage report
                                     in the backend provider.
         billing_source    (String): Location of the cost usage report in the backend provider.
@@ -173,11 +172,11 @@ def get_report_files(  # noqa: C901
     """
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
-    context = {"schema": customer_name}
-    if customer_name.startswith("acct"):
-        context["account"] = customer_name[4:]
+    context = {"schema_name": schema_name}
+    if schema_name.startswith("acct"):
+        context["account"] = schema_name[4:]
     else:
-        context["org_id"] = customer_name[3:]
+        context["org_id"] = schema_name[3:]
     context["provider_uuid"] = provider_uuid
     context["provider_type"] = provider_type
     try:
@@ -192,7 +191,7 @@ def get_report_files(  # noqa: C901
         try:
             report_dict = _get_report_files(
                 tracing_id,
-                customer_name,
+                schema_name,
                 authentication,
                 billing_source,
                 provider_type,
@@ -277,7 +276,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
     """
     context = {
-        "schema": schema_name,
+        "schema_name": schema_name,
         "provider_type": provider,
         "provider_uuid": provider_uuid,
     }
@@ -373,7 +372,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
 
 @celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
 def update_summary_tables(  # noqa: C901
-    schema,
+    schema_name,
     provider_type,
     provider_uuid,
     start_date,
@@ -402,18 +401,18 @@ def update_summary_tables(  # noqa: C901
 
     """
     context = {
-        "schema": schema,
+        "schema_name": schema_name,
         "provider_type": provider_type,
         "provider_uuid": provider_uuid,
         "manifest_id": manifest_id,
     }
-    if disable_summary_processing(schema):
-        LOG.info(f"Summary disabled for {schema}.")
+    if is_summary_processing_disabled(schema_name):
+        LOG.info(f"Summary disabled for {schema_name}.")
         return
-    if disable_source(provider_uuid):
+    if is_source_disabled(provider_uuid):
         return
-    if disable_ocp_on_cloud_summary(schema):
-        LOG.info(f"OCP on Cloud summary disabled for {schema}.")
+    if is_ocp_on_cloud_summary_disabled(schema_name):
+        LOG.info(f"OCP on Cloud summary disabled for {schema_name}.")
         ocp_on_cloud = False
 
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
@@ -422,24 +421,24 @@ def update_summary_tables(  # noqa: C901
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
-    cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
+    cache_args = [schema_name, provider_type, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
 
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        if is_large_customer(schema):
-            rate_limited = rate_limit_tasks(task_name, schema)
+        if is_large_customer(schema_name):
+            rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
-                msg = f"Schema {schema} is currently rate limited. Requeuing."
+                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg))
             update_summary_tables.s(
-                schema,
+                schema_name,
                 provider_type,
                 provider_uuid,
                 start_date,
@@ -466,7 +465,7 @@ def update_summary_tables(  # noqa: C901
     )
 
     try:
-        updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
+        updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_summary_tables(
             start_date, end_date, tracing_id, invoice_month=invoice_month
         )
@@ -506,7 +505,7 @@ def update_summary_tables(  # noqa: C901
             )
         )
     else:
-        with CostModelDBAccessor(schema, provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
             cost_model = cost_model_accessor.cost_model
 
     # Create queued tasks for each OpenShift on Cloud cluster
@@ -516,7 +515,7 @@ def update_summary_tables(  # noqa: C901
         for table_name, operation in trunc_delete_map.items():
             delete_signature_list.append(
                 delete_openshift_on_cloud_data.si(
-                    schema,
+                    schema_name,
                     provider_uuid,
                     start_date,
                     end_date,
@@ -533,7 +532,7 @@ def update_summary_tables(  # noqa: C901
         infra_provider_type = infrastructure_tuple[1]
         signature_list.append(
             update_openshift_on_cloud.si(
-                schema,
+                schema_name,
                 openshift_provider_uuid,
                 infra_provider_uuid,
                 infra_provider_type,
@@ -563,16 +562,16 @@ def update_summary_tables(  # noqa: C901
     if cost_model is not None:
         LOG.info(log_json(tracing_id, "updating cost model costs", context))
         linked_tasks = update_cost_model_costs.s(
-            schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
+            schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
-            schema, provider_type, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+            schema_name, provider_type, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(
             queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
         )
     else:
         LOG.info(log_json(tracing_id, "skipping cost model updates", context))
         linked_tasks = mark_manifest_complete.s(
-            schema,
+            schema_name,
             provider_type,
             provider_uuid=provider_uuid,
             manifest_list=manifest_list,
@@ -628,7 +627,7 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
-    if disable_ocp_on_cloud_summary(schema_name):
+    if is_ocp_on_cloud_summary_disabled(schema_name):
         msg = f"OCP on Cloud summary disabled for {schema_name}."
         LOG.info(msg)
         return
@@ -784,7 +783,7 @@ def update_cost_model_costs(
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
     context = {
-        "schema": schema_name,
+        "schema_name": schema_name,
         "provider_uuid": provider_uuid,
         "start_date": start_date,
         "end_date": end_date,
@@ -807,7 +806,7 @@ def update_cost_model_costs(
 
 @celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=MARK_MANIFEST_COMPLETE_QUEUE)
 def mark_manifest_complete(  # noqa: C901
-    schema,
+    schema_name,
     provider_type,
     provider_uuid="",
     ingress_report_uuid=None,
@@ -816,7 +815,7 @@ def mark_manifest_complete(  # noqa: C901
 ):
     """Mark a manifest and provider as complete"""
     context = {
-        "schema": schema,
+        "schema_name": schema_name,
         "provider_type": provider_type,
         "provider_uuid": provider_uuid,
         "ingress_report_uuid": ingress_report_uuid,
@@ -829,7 +828,7 @@ def mark_manifest_complete(  # noqa: C901
         manifest_accessor.mark_manifests_as_completed(manifest_list)
     if ingress_report_uuid:
         LOG.info(log_json(tracing_id, "marking ingress report complete", context))
-        with IngressReportDBAccessor(schema) as ingressreport_accessor:
+        with IngressReportDBAccessor(schema_name) as ingressreport_accessor:
             ingressreport_accessor.mark_ingress_report_as_completed(ingress_report_uuid)
 
 

@@ -3,7 +3,7 @@
  * This SQL will utilize Trino for the raw line-item data aggregating
  * and store the results into the koku database summary tables.
  */
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+CREATE TABLE IF NOT EXISTS hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid varchar,
     report_period_id int,
     cluster_id varchar,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])
 ;
 
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -94,7 +94,7 @@ WITH cte_ocp_node_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.node,
         nli.node_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
+    FROM hive.{{schema_name | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
@@ -109,7 +109,7 @@ cte_ocp_namespace_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.namespace,
         nli.namespace_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
+    FROM hive.{{schema_name | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
@@ -130,7 +130,7 @@ cte_ocp_node_capacity AS (
             li.node,
             max(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
             max(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
+        FROM hive.{{schema_name | sqlsafe}}.openshift_pod_usage_line_items AS li
         WHERE li.source = {{source}}
             AND li.year = {{year}}
             AND li.month = {{month}}
@@ -160,8 +160,8 @@ cte_volume_nodes AS (
         sli.namespace,
         uli.node,
         uli.resource_id
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as sli
-    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily as uli
+    FROM hive.{{schema_name | sqlsafe}}.openshift_storage_usage_line_items_daily as sli
+    JOIN hive.{{schema_name | sqlsafe}}.openshift_pod_usage_line_items_daily as uli
         ON uli.source = sli.source
             AND uli.namespace = sli.namespace
             AND uli.pod = sli.pod
@@ -262,7 +262,7 @@ FROM (
         max(nc.node_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as node_capacity_memory_gigabyte_hours,
         max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as cluster_capacity_cpu_core_hours,
         max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as cluster_capacity_memory_gigabyte_hours
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily as li
+    FROM hive.{{schema_name | sqlsafe}}.openshift_pod_usage_line_items_daily as li
     LEFT JOIN cte_ocp_node_label_line_item_daily as nli
         ON nli.node = li.node
             AND nli.usage_start = date(li.interval_start)
@@ -274,7 +274,7 @@ FROM (
             AND nc.node = li.node
     LEFT JOIN cte_ocp_cluster_capacity as cc
         ON cc.usage_start = date(li.interval_start)
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category as cat
+    LEFT JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_cost_category as cat
         ON any_match(cat.namespace, x -> li.namespace LIKE x)
     WHERE li.source = {{source}}
         AND li.year = {{year}}
@@ -375,7 +375,7 @@ FROM (
         -- Divide volume usage and requests by the number of nodes that volume is mounted on
         sum(sli.volume_request_storage_byte_seconds) / max(nc.node_count) as volume_request_storage_byte_seconds,
         sum(sli.persistentvolumeclaim_usage_byte_seconds) / max(nc.node_count) as persistentvolumeclaim_usage_byte_seconds
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily sli
+    FROM hive.{{schema_name | sqlsafe}}.openshift_storage_usage_line_items_daily sli
     LEFT JOIN cte_volume_nodes as vn
         ON vn.usage_start = date(sli.interval_start)
             AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
@@ -390,7 +390,7 @@ FROM (
     LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = sli.namespace
             AND nsli.usage_start = date(sli.interval_start)
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category as cat
+    LEFT JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_cost_category as cat
         ON any_match(cat.namespace, x -> sli.namespace LIKE x)
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
@@ -422,7 +422,7 @@ What was selected from unallocated capacity.
 AND lids.namespace != 'Platform unallocated'
 AND lids.namespace != 'Worker unallocated'
  */
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -457,7 +457,7 @@ WITH cte_node_role AS (
         max(node_role) AS node_role,
         node,
         resource_id
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocp_nodes
+    FROM postgres.{{schema_name | sqlsafe}}.reporting_ocp_nodes
     GROUP BY node, resource_id
 ),
 cte_unallocated_capacity AS (
@@ -493,7 +493,7 @@ cte_unallocated_capacity AS (
         cast(year(lids.usage_start) as varchar) as year,
         cast(month(lids.usage_start) as varchar) as month,
         cast(day(lids.usage_start) as varchar) as day
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     LEFT JOIN cte_node_role AS nodes
         ON lids.node = nodes.node
         AND lids.resource_id = nodes.resource_id
@@ -538,11 +538,11 @@ SELECT
     month,
     day
 FROM cte_unallocated_capacity AS uc
-LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+LEFT JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocp_cost_category AS cat
     ON any_match(cat.namespace, x -> uc.namespace LIKE x)
 ;
 
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -616,7 +616,7 @@ SELECT uuid(),
     cast(source_uuid as UUID),
     json_parse(infrastructure_usage_cost),
     cost_category_id
-FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+FROM hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lpad(lids.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters

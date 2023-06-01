@@ -86,19 +86,19 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://cloud.google.com/billing/docs/how-to/export-data-bigquery
     """
 
-    def __init__(self, customer_name, data_source, **kwargs):
+    def __init__(self, schema_name, data_source, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name  (str): Name of the customer
+            schema_name  (str): Name of the customer
             data_source    (dict): dict containing name of GCP storage bucket
 
         """
         super().__init__(**kwargs)
         self.data_source = data_source
         self.storage_location = self.data_source.get("local_dir")
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid")
         self.file_mapping = self._extract_names()

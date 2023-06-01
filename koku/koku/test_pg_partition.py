@@ -22,7 +22,7 @@ def _execute(sql, params=None):
     return cur
 
 
-def _get_table_partition_info(schema, table):
+def _get_table_partition_info(schema_name, table):
     sql = """
 select c.relkind,
        c.relispartition
@@ -33,7 +33,7 @@ select c.relkind,
    and c.relname = %s ;
 """
     with conn.cursor() as cur:
-        cur.execute(sql, (schema, table))
+        cur.execute(sql, (schema_name, table))
         res = cur.fetchone()
 
     return dict(zip(("relkind", "relispartition"), res)) if res else res
@@ -702,15 +702,15 @@ select count(*) from {self.schema_name}.{table} ;
         """
         Test resolving current_schema
         """
-        schema = ppart.resolve_schema(ppart.CURRENT_SCHEMA)
-        self.assertNotEqual(schema, ppart.CURRENT_SCHEMA)
+        schema_name = ppart.resolve_schema(ppart.CURRENT_SCHEMA)
+        self.assertNotEqual(schema_name, ppart.CURRENT_SCHEMA)
 
     def test_resolve_schema_with_schema(self):
         """
         Test resolving specified schema
         """
-        schema = ppart.resolve_schema("public")
-        self.assertEqual(schema, "public")
+        schema_name = ppart.resolve_schema("public")
+        self.assertEqual(schema_name, "public")
 
     def test_partition_table_base(self):
         """
@@ -724,16 +724,16 @@ select count(*) from {self.schema_name}.{table} ;
         self.assertEqual(len(self._get_views()), 0)
         self.assertEqual(len(self._get_table_constraints()), 1)  # PK
 
-        schema = self.schema_name
+        schema_name = self.schema_name
         source_table = "__pg_partition_test"
         target_table = "__p_pg_partition_test"
         pk_seq = ppart.SequenceDefinition(
-            schema,
+            schema_name,
             "__p_pg_part_table_test_id_seq",
-            copy_sequence={"schema_name": schema, "table_name": "__pg_partition_test", "column_name": "id"},
+            copy_sequence={"schema_name": schema_name, "table_name": "__pg_partition_test", "column_name": "id"},
         )
         pk_coldef = ppart.ColumnDefinition(
-            schema, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
+            schema_name, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
         )
         pk_def = ppart.PKDefinition("__p_pg_partition_test_pkey", ["utilization_date", "id"])
         converter = ppart.ConvertToPartition(
@@ -742,8 +742,8 @@ select count(*) from {self.schema_name}.{table} ;
             target_table_name=target_table,
             pk_def=pk_def,
             col_def=[pk_coldef],
-            target_schema=schema,
-            source_schema=schema,
+            target_schema=schema_name,
+            source_schema=schema_name,
         )
         converter.convert_to_partition()
         tables = self._get_test_tables()
@@ -772,16 +772,16 @@ select count(*) from {self.schema_name}.{table} ;
         self.assertEqual(len(self._get_table_constraints()), 2)  # PK + FK
         self.assertEqual(self._count_data("__pg_partition_test"), 3)
 
-        schema = self.schema_name
+        schema_name = self.schema_name
         source_table = "__pg_partition_test"
         target_table = "__p_pg_partition_test"
         pk_seq = ppart.SequenceDefinition(
-            schema,
+            schema_name,
             "__p_pg_parttition_test_id_seq",
-            copy_sequence={"schema_name": schema, "table_name": "__pg_partition_test", "column_name": "id"},
+            copy_sequence={"schema_name": schema_name, "table_name": "__pg_partition_test", "column_name": "id"},
         )
         pk_coldef = ppart.ColumnDefinition(
-            schema, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
+            schema_name, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
         )
         pk_def = ppart.PKDefinition("__p_pg_partition_test_pkey", ["utilization_date", "id"])
         converter = ppart.ConvertToPartition(
@@ -790,8 +790,8 @@ select count(*) from {self.schema_name}.{table} ;
             target_table_name=target_table,
             pk_def=pk_def,
             col_def=[pk_coldef],
-            target_schema=schema,
-            source_schema=schema,
+            target_schema=schema_name,
+            source_schema=schema_name,
         )
         converter.convert_to_partition()
         tables = self._get_test_tables()
@@ -824,16 +824,16 @@ select count(*) from {self.schema_name}.{table} ;
         self._setup_test()
 
         self.assertFalse(self._is_partitioned())
-        schema = self.schema_name
+        schema_name = self.schema_name
         source_table = "__pg_partition_test"
         target_table = "__p_pg_partition_test"
         pk_seq = ppart.SequenceDefinition(
-            schema,
+            schema_name,
             "__p_pg_part_table_test_id_seq",
-            copy_sequence={"schema_name": schema, "table_name": "__pg_partition_test", "column_name": "id"},
+            copy_sequence={"schema_name": schema_name, "table_name": "__pg_partition_test", "column_name": "id"},
         )
         pk_coldef = ppart.ColumnDefinition(
-            schema, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
+            schema_name, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
         )
         pk_def = ppart.PKDefinition("__p_pg_partition_test_pkey", ["utilization_date", "id"])
         converter = ppart.ConvertToPartition(
@@ -842,8 +842,8 @@ select count(*) from {self.schema_name}.{table} ;
             target_table_name=target_table,
             pk_def=pk_def,
             col_def=[pk_coldef],
-            target_schema=schema,
-            source_schema=schema,
+            target_schema=schema_name,
+            source_schema=schema_name,
         )
         converter.convert_to_partition()
         tables = self._get_test_tables()
@@ -861,7 +861,7 @@ select count(*) from {self.schema_name}.{table} ;
 
     def test_repartition_crawler_query_all(self):
         """
-        Test that the schema crawler will return all schemata and all partitioned tables
+        Test that the schema_name crawler will return all schemata and all partitioned tables
         """
         res = ppart.get_partitioned_tables_with_default()
         schemata = set()
@@ -875,7 +875,7 @@ select count(*) from {self.schema_name}.{table} ;
 
     def test_repartition_crawler_query_one_schema(self):
         """
-        Test that the schema crawler will return all schemata and all partitioned tables
+        Test that the schema_name crawler will return all schemata and all partitioned tables
         """
         res = ppart.get_partitioned_tables_with_default(schema_name=self.schema_name)
         schemata = set()
@@ -889,7 +889,7 @@ select count(*) from {self.schema_name}.{table} ;
 
     def test_repartition_crawler_query_one_table(self):
         """
-        Test that the schema crawler will return all schemata and all partitioned tables
+        Test that the schema_name crawler will return all schemata and all partitioned tables
         """
         res = ppart.get_partitioned_tables_with_default(
             partitioned_table_name="reporting_ocpusagelineitem_daily_summary"

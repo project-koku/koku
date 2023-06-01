@@ -1,7 +1,7 @@
 WITH cte_unnested_gcp_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+    FROM hive.{{schema_name | sqlsafe}}.gcp_line_items_daily AS gcp
     CROSS JOIN UNNEST(cast(json_parse(labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = {{gcp_source_uuid}}
         AND year = {{year}}
@@ -14,7 +14,7 @@ cte_unnested_ocp_tags AS (
         pod_value,
         volume_key,
         volume_value
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
     CROSS JOIN UNNEST(
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))
@@ -38,8 +38,8 @@ FROM (
             lower(gcp.key) = lower(ocp.volume_key)
                 AND lower(gcp.value) = lower(ocp.volume_value)
         )
-    JOIN postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS gtk
+    JOIN postgres.{{schema_name | sqlsafe}}.reporting_gcpenabledtagkeys AS gtk
         ON gcp.key = gtk.key
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
+    JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
         ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
 ) AS matches

@@ -74,28 +74,27 @@ class ReportParquetProcessorBase:
         return Provider.objects.get(uuid=self._provider_uuid)
 
     def schema_exists(self):
-        """Check if schema exists."""
+        """Check if schema_name exists."""
+        LOG.info("Checking for schema_name")
         schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
-        schema = self._execute_sql(schema_check_sql, "default")
-        LOG.info("Checking for schema")
-        if schema:
-            return True
-        return False
+        result = bool(self._execute_sql(schema_check_sql, "default"))
+        LOG.info(f"schema_name found: {result}")
+        return result
 
     def table_exists(self):
         """Check if table exists."""
-        table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
-        table = self._execute_sql(table_check_sql, self._schema_name)
         LOG.info("Checking for table")
-        if table:
-            return True
-        return False
+        table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
+        result = bool(self._execute_sql(table_check_sql, self._schema_name))
+        LOG.info(f"table found: {result}")
+        return result
 
     def create_schema(self):
         """Create Trino schema."""
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
+        LOG.info(f"Creating Trino/Hive schema SQL: {schema_create_sql}")
         self._execute_sql(schema_create_sql, "default")
-        LOG.info(f"Create Trino/Hive schema SQL: {schema_create_sql}")
+        LOG.info(f"Created Trino/Hive schema SQL: {schema_create_sql}")
         return self._schema_name
 
     def _generate_column_list(self):

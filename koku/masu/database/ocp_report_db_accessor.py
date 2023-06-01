@@ -67,13 +67,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     #  Empty string will put a path seperator on the end
     OCP_ON_ALL_SQL_PATH = os.path.join("sql", "openshift", "all", "")
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.jinja_sql = JinjaSql()
         self.date_helper = DateHelper()
@@ -86,7 +86,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_current_usage_period(self, provider_uuid):
         """Get the most recent usage report period object."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return (
                 OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid).order_by("-report_period_start").first()
             )
@@ -94,7 +94,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_usage_period_by_dates_and_cluster(self, start_date, end_date, cluster_id):
         """Return all report period entries for the specified start date."""
         table_name = self._table_map["report_period"]
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return (
                 self._get_db_obj_query(table_name)
                 .filter(report_period_start=start_date, report_period_end=end_date, cluster_id=cluster_id)
@@ -104,13 +104,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_usage_period_query_by_provider(self, provider_uuid):
         """Return all report periods for the specified provider."""
         table_name = self._table_map["report_period"]
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
     def report_periods_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all report periods for provider_uuid on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if start_date:
                 if isinstance(start_date, str):
                     start_date = parse(start_date)
@@ -127,7 +127,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
-                "schema": self.schema,
+                "schema_name": self.schema_name,
                 "source_uuid": source_uuid,
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -158,7 +158,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "report_period_ids": report_period_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -192,14 +192,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "aws_provider_uuid": aws_provider_uuid,
             "ocp_provider_uuid": ocp_provider_uuid,
             "azure_provider_uuid": azure_provider_uuid,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(infra_sql, list(infra_sql_params))
             results = cursor.fetchall()
 
@@ -278,7 +278,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "end_date": end_date,
                     "year": start_date.strftime("%Y"),
                     "month": start_date.strftime("%m"),
-                    "schema": self.schema,
+                    "schema_name": self.schema_name,
                     "aws_provider_uuid": aws_provider_uuid,
                     "ocp_provider_uuid": ocp_provider_uuid,
                     "azure_provider_uuid": azure_provider_uuid,
@@ -310,7 +310,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
+                self.schema_name,
                 source,
                 table,
                 year,
@@ -321,7 +321,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for i in range(retries):
                     try:
                         sql = f"""
-                        DELETE FROM hive.{self.schema}.{table}
+                        DELETE FROM hive.{self.schema_name}.{table}
                         WHERE source = '{source}'
                         AND year = '{year}'
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
@@ -345,14 +345,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s " "\n\tOCP Source: %s \n\tTable: %s",
-                self.schema,
+                self.schema_name,
                 provider_uuid,
                 table,
             )
             for i in range(retries):
                 try:
                     sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
+                    DELETE FROM hive.{self.schema_name}.{table}
                     WHERE {partition_column} = '{provider_uuid}'
                     """
                     self._execute_trino_raw_sql_query(
@@ -369,7 +369,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info(
                 "Successfully deleted Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tTable: %s",
-                self.schema,
+                self.schema_name,
                 provider_uuid,
                 table,
             )
@@ -401,7 +401,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
-        storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+        storage_exists = trino_table_exists(self.schema_name, "openshift_storage_usage_line_items_daily")
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
@@ -418,7 +418,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "source": str(source),
             "year": year,
             "month": month,
@@ -434,7 +434,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "report_period_ids": report_period_ids,
             "start_date": start_date,
             "end_date": end_date,
@@ -453,7 +453,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "report_period_ids": report_period_ids,
             "start_date": start_date,
             "end_date": end_date,
@@ -470,7 +470,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
             ).update(
@@ -484,7 +484,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_distinct_nodes(self, start_date, end_date, cluster_id):
         """Return a list of nodes for a cluster between given dates."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             unique_nodes = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id, node__isnull=False
@@ -496,7 +496,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_distinct_pvcs(self, start_date, end_date, cluster_id):
         """Return a list of tuples of (PVC, node) for a cluster between given dates."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             unique_pvcs = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     usage_start__gte=start_date,
@@ -534,7 +534,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # provider_uuid
             LOG.info(log_json(provider_uuid, msg, context))
             return
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
 
         distribute_mapping = {
@@ -560,7 +560,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
-                "schema": self.schema,
+                "schema_name": self.schema_name,
                 "report_period_id": report_period_id,
                 "distribution": distribution,
                 "source_uuid": provider_uuid,
@@ -610,7 +610,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 " skipping populate_monthly_cost_sql update."
             )
             return
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
 
         if not rate:
@@ -640,7 +640,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
             "rate": rate,
@@ -676,7 +676,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 " skipping populate_monthly_tag_cost_sql update."
             )
             return
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
 
         cpu_case, memory_case, volume_case = case_dict.get("cost")
@@ -693,7 +693,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
             "cost_model_cpu_cost": cpu_case,
@@ -751,7 +751,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "cluster_id": cluster_id,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
@@ -766,7 +766,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 " skipping populate_usage_costs_new_columns update."
             )
             return
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
 
         if not rates:
@@ -789,7 +789,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         usage_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
             "cpu_usage_rate": rates.get("cpu_core_usage_per_hour", 0),
@@ -885,7 +885,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             "end_date": end_date,
                             "rate": rate_value,
                             "cluster_id": cluster_id,
-                            "schema": self.schema,
+                            "schema_name": self.schema_name,
                             "usage_type": usage_type,
                             "metric": metric,
                             "k_v_pair": key_value_pair,
@@ -979,7 +979,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         "end_date": end_date,
                         "rate": rate_value,
                         "cluster_id": cluster_id,
-                        "schema": self.schema,
+                        "schema_name": self.schema_name,
                         "usage_type": usage_type,
                         "metric": metric,
                         "tag_key": tag_key,
@@ -1001,7 +1001,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         nodes = self.get_nodes_trino(str(provider.uuid), start_date, end_date)
         pvcs = []
-        if trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
+        if trino_table_exists(self.schema_name, "openshift_storage_usage_line_items_daily"):
             pvcs = self.get_pvcs_trino(str(provider.uuid), start_date, end_date)
         projects = self.get_projects_trino(str(provider.uuid), start_date, end_date)
 
@@ -1013,7 +1013,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cluster, created = OCPCluster.objects.get_or_create(
                 cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider
             )
@@ -1027,7 +1027,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_node_table(self, cluster, nodes):
         """Get or create an entry in the OCP node table."""
         LOG.info("Populating reporting_ocp_nodes table.")
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for node in nodes:
                 tmp_node = OCPNode.objects.filter(
                     node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
@@ -1048,14 +1048,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
         LOG.info("Populating reporting_ocp_pvcs table.")
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for pvc in pvcs:
                 OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
         LOG.info("Populating reporting_ocp_projects table.")
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for project in projects:
                 OCPProject.objects.get_or_create(project=project, cluster=cluster)
 
@@ -1070,8 +1070,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
                 END) as node_role
-            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
-            LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
+            FROM hive.{self.schema_name}.openshift_pod_usage_line_items_daily as ocp
+            LEFT JOIN hive.{self.schema_name}.openshift_node_labels_line_items_daily as nl
                 ON ocp.node = nl.node
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
@@ -1094,7 +1094,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = f"""
             SELECT distinct persistentvolume,
                 persistentvolumeclaim
-            FROM hive.{self.schema}.openshift_storage_usage_line_items_daily as ocp
+            FROM hive.{self.schema_name}.openshift_storage_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
@@ -1108,7 +1108,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT distinct namespace
-            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            FROM hive.{self.schema_name}.openshift_pod_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
@@ -1122,13 +1122,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_cluster_for_provider(self, provider_uuid):
         """Return the cluster entry for a provider UUID."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cluster = OCPCluster.objects.filter(provider_id=provider_uuid).first()
         return cluster
 
     def get_nodes_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             nodes = (
                 OCPNode.objects.filter(cluster_id=cluster_id)
                 .exclude(node__exact="")
@@ -1139,7 +1139,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_pvcs_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             pvcs = (
                 OCPPVC.objects.filter(cluster_id=cluster_id)
                 .exclude(persistent_volume__exact="")
@@ -1150,7 +1150,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_projects_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
             projects = [project[0] for project in projects]
         return projects
@@ -1183,7 +1183,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         msg = f"Removing infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
         LOG.info(msg)
         sql = f"""
-            DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
+            DELETE FROM {self.schema_name}.reporting_ocpusagelineitem_daily_summary
             WHERE usage_start >= '{start_date}'::date
                 AND usage_start <= '{end_date}'::date
                 AND report_period_id = {report_period_id}
@@ -1202,7 +1202,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(msg)
         sql = f"""
-            DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
+            DELETE FROM {self.schema_name}.reporting_ocpusagelineitem_daily_summary
             WHERE usage_start >= '{start_date}'::date
                 AND usage_start <= '{end_date}'::date
                 AND report_period_id = {report_period_id}
@@ -1234,7 +1234,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = f"""
             SELECT min(interval_start) as min_timestamp,
                 max(interval_start) as max_timestamp
-            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            FROM hive.{self.schema_name}.openshift_pod_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'

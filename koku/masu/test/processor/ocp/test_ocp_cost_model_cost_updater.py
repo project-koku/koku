@@ -29,7 +29,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.accessor = OCPReportDBAccessor(schema=cls.schema)
+        cls.accessor = OCPReportDBAccessor(schema_name=cls.schema_name)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.dh = DateHelper()
 
@@ -39,7 +39,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self.provider = self.ocp_provider
         self.cluster_id = self.ocp_cluster_id
         self.provider_uuid = self.ocp_provider_uuid
-        self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        self.updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         self.distribution_info = {"distribution_type": "cpu", "platform_cost": False, "worker_cost": False}
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -54,10 +54,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
 
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._update_markup_cost(start_date, end_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             line_items = OCPUsageLineItemDailySummary.objects.filter(
                 usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=self.cluster_id
             ).all()
@@ -96,7 +96,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
 
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._update_markup_cost(start_date, end_date)
 
         mock_markup.assert_not_called()
@@ -121,10 +121,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
 
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._update_usage_costs(start_date, end_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             pod_line_items = OCPUsageLineItemDailySummary.objects.filter(
                 usage_start__gte=start_date,
                 data_source="Pod",
@@ -163,9 +163,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date()
         end_date = usage_period.report_period_end.date() - relativedelta(days=1)
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._update_monthly_cost(start_date, end_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             monthly_costs = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     cost_model_rate_type="Infrastructure",
@@ -203,9 +203,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._update_monthly_cost(start_date, end_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 cost_model_rate_type="Supplementary",
                 monthly_cost_type__isnull=False,
@@ -239,10 +239,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
 
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater.update_summary_cost_model_costs(start_date, end_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             # Monthly cost
             expected_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
@@ -312,7 +312,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._update_tag_usage_costs(start_date, end_date)
         # assert that populate_tag_usage_costs was called with the correct info
         mock_update_usage.assert_called_once_with(
@@ -323,7 +323,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         """Test that a delete without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater._delete_tag_usage_costs(start_date, end_date, "")
         self.assertLogs("masu.processor.ocp", level="WARNING")
 
@@ -448,7 +448,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         node_tag_rate_dict = {node_tag_key: {"banking": rate_one, "weather": rate_two}}
         pvc_tag_rate_dict = {pvc_tag_key: {"Pearl": rate_one, "Diamond": rate_two}}
 
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater = OCPCostModelCostUpdater(schema_name=self.schema_name, provider=self.provider)
         updater.is_amortized = True
         updater._tag_supplementary_rates = {"node_cost_per_month": node_tag_rate_dict}
         updater._tag_infra_rates = {"pvc_cost_per_month": pvc_tag_rate_dict}
@@ -462,7 +462,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             column = distribution_choice.get("column")
             with self.subTest(distribution=distribution, column=column):
                 updater._distribution = distribution
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     OCPUsageLineItemDailySummary.objects.filter(monthly_cost_type__isnull=False).delete()
                     node_line_item_count = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node"
@@ -478,7 +478,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                 updater._update_monthly_tag_based_cost(start_date, end_date)
 
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     node_line_items = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node"
                     ).all()

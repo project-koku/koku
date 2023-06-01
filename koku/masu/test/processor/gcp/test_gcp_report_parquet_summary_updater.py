@@ -85,13 +85,13 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
             expected_start, expected_end = s, e
 
-        with GCPReportDBAccessor(self.schema) as accessor:
-            with schema_context(self.schema):
+        with GCPReportDBAccessor(self.schema_name) as accessor:
+            with schema_context(self.schema_name):
                 bills = accessor.bills_for_provider_uuid(self.gcp_provider.uuid, start)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.gcp_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
@@ -148,8 +148,8 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.gcp_provider_uuid, start)
         updater = GCPReportParquetSummaryUpdater(self.schema_name, self.gcp_provider, manifests.first())
-        with GCPReportDBAccessor(self.schema) as accessor:
-            with schema_context(self.schema):
+        with GCPReportDBAccessor(self.schema_name) as accessor:
+            with schema_context(self.schema_name):
                 existing_bills = accessor.bills_for_provider_uuid(self.gcp_provider.uuid, start)
                 existing_bill = existing_bills.first()
                 # the summary_data_creation_datetime is how we decide if it is a new bill or not.

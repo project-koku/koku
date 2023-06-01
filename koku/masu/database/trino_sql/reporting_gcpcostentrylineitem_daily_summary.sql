@@ -1,4 +1,4 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
+INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     uuid,
     cost_entry_bill_id,
     account_id,
@@ -46,7 +46,7 @@ SELECT uuid() as uuid,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     invoice_month,
     sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount
-FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+FROM hive.{{schema_name | sqlsafe}}.{{table | sqlsafe}}
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'

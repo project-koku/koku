@@ -52,7 +52,7 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         self.processor.create_bill(bill_date.date())
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill = AzureCostEntryBill.objects.filter(
                 billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
             )
@@ -66,7 +66,7 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         self.processor.create_bill(str(bill_date.date()))
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill = AzureCostEntryBill.objects.filter(
                 billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
             )

@@ -97,20 +97,20 @@ def fetchone(cursor):
 
 
 # Resolve "current_schema" to an actual schema name
-def resolve_schema(schema):
+def resolve_schema(schema_name):
     """
-    Resolve CURRENT_SCHEMA to an actual schema name
+    Resolve CURRENT_SCHEMA to an actual schema_name
     Params:
-        schema (str) : schema name or CURRENT_SCHEMA
+        schema_name (str) : schema_name name or CURRENT_SCHEMA
     Returns:
-        str : Actual schema for CURRENT_SCHEMA or the input schema parameter
+        str : Actual schema_name for CURRENT_SCHEMA or the input schema_name parameter
     """
-    if schema == CURRENT_SCHEMA:
+    if schema_name == CURRENT_SCHEMA:
         cur = conn_execute('select current_schema as "current_schema";')
-        schema = cur.fetchone()[0]
+        schema_name = cur.fetchone()[0]
 
-    LOG.info(f"Resolve schema is {schema}")
-    return schema
+    LOG.info(f"Resolve schema_name is {schema_name}")
+    return schema_name
 
 
 # Wrapper for a default value for a column to be used in the column definition

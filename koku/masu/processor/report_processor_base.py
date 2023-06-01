@@ -44,7 +44,7 @@ class ReportProcessorBase:
             err_msg = f"Compression {compression} is not supported."
             raise MasuProcessingError(err_msg)
 
-        self._schema = schema_name
+        self._schema_name = schema_name
         self._report_path = report_path
         self._compression = compression.upper()
         self._provider_uuid = provider_uuid
@@ -137,7 +137,7 @@ class ReportProcessorBase:
             log_statement = (
                 f"No manifest provided, processing as a new billing period.\n"
                 f" Processing entire month.\n"
-                f" schema_name: {self._schema},\n"
+                f" schema_name: {self._schema_name},\n"
                 f" provider_uuid: {self._provider_uuid},\n"
                 f" manifest_id: {self._manifest_id}"
             )
@@ -152,7 +152,7 @@ class ReportProcessorBase:
         log_statement = (
             f"Processing bill starting on {bill_date}.\n"
             f" Processing entire month.\n"
-            f" schema_name: {self._schema},\n"
+            f" schema_name: {self._schema_name},\n"
             f" provider_uuid: {self._provider_uuid},\n"
             f" manifest_id: {self._manifest_id}"
         )
@@ -177,7 +177,7 @@ class ReportProcessorBase:
                     log_statement = (
                         f"Processing bill starting on {bill_date}.\n"
                         f" Processing data on or after {self.data_cutoff_date}.\n"
-                        f" schema_name: {self._schema},\n"
+                        f" schema_name: {self._schema_name},\n"
                         f" provider_uuid: {self._provider_uuid},\n"
                         f" manifest_id: {self._manifest_id}"
                     )

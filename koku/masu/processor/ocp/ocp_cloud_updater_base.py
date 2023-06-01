@@ -18,11 +18,11 @@ LOG = logging.getLogger(__name__)
 class OCPCloudUpdaterBase:
     """Base class for OpenShift on cloud infrastructure operations."""
 
-    def __init__(self, schema, provider, manifest):
+    def __init__(self, schema_name, provider, manifest):
         """Initialize the class.
 
         Args:
-            schema   (str) The customer schema to associate with.
+            schema_name   (str) The customer schema to associate with.
             provider (Provider db object) Database object for Provider.
             manifest (str) The manifest to work with.
 
@@ -30,7 +30,7 @@ class OCPCloudUpdaterBase:
             None
 
         """
-        self._schema = schema
+        self._schema_name = schema_name
         self._provider = provider
         self._provider_uuid = str(self._provider.uuid)
         self._manifest = manifest
@@ -72,17 +72,17 @@ class OCPCloudUpdaterBase:
         """
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, ocp_provider_uuid=self._provider_uuid
                 )
         elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, aws_provider_uuid=self._provider_uuid
                 )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, azure_provider_uuid=self._provider_uuid
                 )
@@ -103,28 +103,28 @@ class OCPCloudUpdaterBase:
             infra_map (dict) The OCP infrastructure map.
 
         """
-        cache_infra_map = get_cached_infra_map(self._schema, self._provider.type, self._provider_uuid)
+        cache_infra_map = get_cached_infra_map(self._schema_name, self._provider.type, self._provider_uuid)
         if cache_infra_map:
             LOG.info("Retrieved matching infra map from cache.")
             return cache_infra_map
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, ocp_provider_uuid=self._provider_uuid, provider_type=self._provider.type
                 )
         elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, aws_provider_uuid=self._provider_uuid, provider_type=self._provider.type
                 )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, azure_provider_uuid=self._provider_uuid, provider_type=self._provider.type
                 )
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
+            with OCPReportDBAccessor(self._schema_name) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, gcp_provider_uuid=self._provider_uuid, provider_type=self._provider.type
                 )
@@ -132,7 +132,7 @@ class OCPCloudUpdaterBase:
         # Save to DB
         self.set_provider_infra_map(infra_map)
 
-        set_cached_infra_map(self._schema, self._provider.type, self._provider_uuid, infra_map)
+        set_cached_infra_map(self._schema_name, self._provider.type, self._provider_uuid, infra_map)
         return infra_map
 
     def set_provider_infra_map(self, infra_map):

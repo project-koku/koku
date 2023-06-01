@@ -120,7 +120,7 @@ class EnabledTagView(APIView):
                     f"sql/{PROVIDER_TYPE_TO_FILE_PATH.get(provider_type)}/remove_stale_enabled_tags.sql",
                 )
                 sql = sql.decode("utf-8")
-                params = {"schema": schema_name}
+                params = {"schema_name": schema_name}
                 sql, params = jinja_sql.prepare_query(sql, params)
                 LOG.info("Removing stale enabled tag keys.")
                 with schema_context(schema_name):

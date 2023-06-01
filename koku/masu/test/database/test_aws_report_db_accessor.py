@@ -52,7 +52,7 @@ class ReportSchemaTest(MasuTestCase):
     def setUp(self):
         """Set up the test class with required objects."""
         super().setUp()
-        self.accessor = AWSReportDBAccessor(schema=self.schema)
+        self.accessor = AWSReportDBAccessor(schema_name=self.schema_name)
         self.all_tables = list(AWS_CUR_TABLE_MAP.values())
         self.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
@@ -149,9 +149,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.accessor = AWSReportDBAccessor(schema=cls.schema)
+        cls.accessor = AWSReportDBAccessor(schema_name=cls.schema_name)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
+        cls.creator = ReportObjectCreator(cls.schema_name)
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
@@ -194,7 +194,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             missing_columns = set(columns).difference(selected_columns)
 
             query = self.accessor._get_db_obj_query(table_name, columns=selected_columns)
-            with schema_context(self.schema):
+            with schema_context(self.schema_name):
                 self.assertIsInstance(query, QuerySet)
                 result = query.first()
                 if result:
@@ -222,7 +222,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             table_name = AWS_CUR_TABLE_MAP["bill"]
             query = self.accessor._get_db_obj_query(table_name)
             first_entry = query.first()
@@ -257,14 +257,14 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(
             self.aws_provider.uuid, start_date=bill2_date.strftime("%Y-%m-%d")
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(len(bills), 1)
             self.assertEqual(bills[0].id, bill2.id)
 
     def test_mark_bill_as_finalized(self):
         """Test that test_mark_bill_as_finalized sets finalized_datetime field."""
         bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertIsNone(bill.finalized_datetime)
             self.accessor.mark_bill_as_finalized(bill.id)
             bill.refresh_from_db()
@@ -276,7 +276,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
             summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
@@ -284,7 +284,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             end_date = summary_entry["usage_start__max"]
 
         query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
                 markup=Sum(F("unblended_cost") * decimal.Decimal(0.1))
             )
@@ -293,7 +293,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_markup_cost(
             self.aws_provider.uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__in=bill_ids)
@@ -310,10 +310,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
@@ -346,10 +346,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
             distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
@@ -378,10 +378,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
             distribution = "memory"
@@ -405,7 +405,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AWSTagsSummary.objects.all().delete()
             AWSEnabledTagKeys.objects.all().delete()
             bill_ids = [bill.id for bill in bills]
@@ -420,7 +420,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AWSTagsSummary.objects.all().delete()
             key_to_keep = AWSEnabledTagKeys.objects.filter(key="app").first()
             AWSEnabledTagKeys.objects.all().update(enabled=False)
@@ -445,21 +445,21 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_delete_line_item_daily_summary_entries_for_date_range(self):
         """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             start_date = AWSCostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
             end_date = start_date
 
         table_query = AWSCostEntryLineItemDailySummary.objects.filter(
             source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertNotEqual(table_query.count(), 0)
 
         self.accessor.delete_line_item_daily_summary_entries_for_date_range(
             self.aws_provider_uuid, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(table_query.count(), 0)
 
     def test_delete_line_item_daily_summary_entries_for_date_range_with_filter(self):
@@ -469,7 +469,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
         new_cluster_id = "new_cluster_id"
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cluster_ids = OCPAWSCostLineItemProjectDailySummaryP.objects.values_list("cluster_id").distinct()
             cluster_ids = [cluster_id[0] for cluster_id in cluster_ids]
 
@@ -492,7 +492,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             filters={"cluster_id": cluster_ids[0]},
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             # Make sure we didn't delete everything
             table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
@@ -572,7 +572,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AWSEnabledTagKeys.objects.all().delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
@@ -598,7 +598,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -608,7 +608,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_jinja = Mock()
 
         mock_jinja.prepare_query.return_value = sql, sql_params
-        accessor = AWSReportDBAccessor(schema=self.schema)
+        accessor = AWSReportDBAccessor(schema_name=self.schema_name)
         accessor.jinja_sql = mock_jinja
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
         accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
@@ -622,7 +622,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
 
         sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,

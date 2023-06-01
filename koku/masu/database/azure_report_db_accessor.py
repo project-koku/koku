@@ -39,13 +39,13 @@ LOG = logging.getLogger(__name__)
 class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with Azure Report reporting tables."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self._table_map = AZURE_REPORT_TABLE_MAP
 
@@ -64,7 +64,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = AzureCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
@@ -95,7 +95,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
@@ -114,13 +114,18 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if bill_ids and start_date and end_date:
                 date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
             else:
@@ -152,7 +157,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = AzureCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             base_query = self._get_db_obj_query(table_name)
             if provider_uuid:
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
@@ -180,7 +185,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "bill_ids": bill_ids,
             "cluster_id": cluster_id,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "markup": markup_value or 0,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -195,7 +200,12 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -207,7 +217,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
-                "schema": self.schema,
+                "schema_name": self.schema_name,
                 "source_uuid": source_uuid,
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -239,7 +249,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         for table_name in tables:
             summary_sql_params = {
-                "schema_name": self.schema,
+                "schema_name": self.schema_name,
                 "start_date": start_date,
                 "end_date": end_date,
                 "year": year,
@@ -260,7 +270,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tAzure Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
+                self.schema_name,
                 ocp_source,
                 az_source,
                 table,
@@ -272,7 +282,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for i in range(retries):
                     try:
                         sql = f"""
-                            DELETE FROM hive.{self.schema}.{table}
+                            DELETE FROM hive.{self.schema_name}.{table}
                                 WHERE azure_source = '{az_source}'
                                 AND ocp_source = '{ocp_source}'
                                 AND year = '{year}'
@@ -328,7 +338,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(openshift_provider_uuid).replace("-", "_"),
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "year": year,
@@ -362,7 +372,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -387,7 +397,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -398,10 +408,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
-        sql_params = {"bill_id": azure_bill_id, "schema": self.schema}
+        sql_params = {"bill_id": azure_bill_id, "schema_name": self.schema_name}
         sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(sql, params=bind_params)
             results = cursor.fetchall()
 
@@ -419,7 +429,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "azure_source_uuid": azure_source_uuid,
             "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
@@ -440,7 +450,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -453,15 +463,15 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_azureenabledtagkeys as azure
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key
+            SELECT COUNT(*) FROM {self.schema_name}.reporting_azureenabledtagkeys as azure
+                INNER JOIN {self.schema_name}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key
                 WHERE azure.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on Azure {self.schema}")
+                LOG.info(f"No matching enabled keys for OCP on Azure {self.schema_name}")
                 return False
         return True

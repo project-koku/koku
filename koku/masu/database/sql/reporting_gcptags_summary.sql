@@ -5,12 +5,12 @@ WITH cte_tag_value AS (
         li.account_id,
         li.project_id,
         li.project_name
-    FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary AS li,
+    FROM {{schema_name | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
-        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys WHERE enabled=true)
+        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema_name | sqlsafe}}.reporting_gcpenabledtagkeys WHERE enabled=true)
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -28,7 +28,7 @@ cte_values_agg AS (
         project_id,
         project_name
     FROM cte_tag_value AS tv
-    JOIN {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
+    JOIN {{schema_name | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
     GROUP BY tv.key, cost_entry_bill_id, account_id, project_id, project_name
@@ -48,7 +48,7 @@ cte_distinct_values_agg AS (
             va.project_id,
             va.project_name
         FROM cte_values_agg AS va
-        LEFT JOIN {{schema | sqlsafe}}.reporting_gcptags_summary AS ls
+        LEFT JOIN {{schema_name | sqlsafe}}.reporting_gcptags_summary AS ls
             ON va.key = ls.key
                 AND va.cost_entry_bill_id = ls.cost_entry_bill_id
                 AND va.account_id = ls.account_id
@@ -58,7 +58,7 @@ cte_distinct_values_agg AS (
     GROUP BY key, cost_entry_bill_id, account_id, project_id, project_name
 ),
 ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_summary (uuid, key, cost_entry_bill_id, account_id, project_id, project_name, values)
+    INSERT INTO {{schema_name | sqlsafe}}.reporting_gcptags_summary (uuid, key, cost_entry_bill_id, account_id, project_id, project_name, values)
     SELECT uuid_generate_v4() as uuid,
         key,
         cost_entry_bill_id,
@@ -69,7 +69,7 @@ ins1 AS (
     FROM cte_distinct_values_agg
     ON CONFLICT (key, cost_entry_bill_id, account_id, project_id, project_name) DO UPDATE SET values=EXCLUDED."values"
 )
-INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_values (uuid, key, value, account_ids, project_ids, project_names)
+INSERT INTO {{schema_name | sqlsafe}}.reporting_gcptags_values (uuid, key, value, account_ids, project_ids, project_names)
 SELECT uuid_generate_v4() as uuid,
     tv.key,
     tv.value,
@@ -81,10 +81,10 @@ GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids, project_ids=EXCLUDED.project_ids, project_names=EXCLUDED.project_names
 ;
 
-DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
+DELETE FROM {{schema_name | sqlsafe}}.reporting_gcptags_summary AS ts
 WHERE EXISTS (
     SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
+    FROM {{schema_name | sqlsafe}}.reporting_gcpenabledtagkeys AS etk
     WHERE etk.enabled = false
         AND ts.key = etk.key
 )
@@ -92,13 +92,13 @@ WHERE EXISTS (
 
 WITH cte_expired_tag_keys AS (
     SELECT DISTINCT tv.key
-    FROM {{schema | sqlsafe}}.reporting_gcptags_values AS tv
-    LEFT JOIN {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
+    FROM {{schema_name | sqlsafe}}.reporting_gcptags_values AS tv
+    LEFT JOIN {{schema_name | sqlsafe}}.reporting_gcptags_summary AS ts
         ON tv.key = ts.key
     WHERE ts.key IS NULL
 
 )
-DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_values tv
+DELETE FROM {{schema_name | sqlsafe}}.reporting_gcptags_values tv
     USING cte_expired_tag_keys etk
     WHERE tv.key = etk.key
 ;

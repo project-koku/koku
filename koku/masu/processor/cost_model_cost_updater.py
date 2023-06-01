@@ -24,16 +24,16 @@ class CostModelCostUpdaterError(Exception):
 class CostModelCostUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider_uuid, tracing_id=None):
+    def __init__(self, schema_name, provider_uuid, tracing_id=None):
         """
         Initializer.
 
         Args:
-            customer_schema (str): Schema name for given customer.
+            schema_name   (str): Schema name for given customer.
             provider_uuid (str): The provider uuid.
 
         """
-        self._schema = customer_schema
+        self._schema_name = schema_name
         self.tracing_id = tracing_id
 
         with ProviderDBAccessor(provider_uuid) as provider_accessor:
@@ -60,15 +60,15 @@ class CostModelCostUpdater:
             return None
 
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return AWSCostModelCostUpdater(self._schema, self._provider)
+            return AWSCostModelCostUpdater(self._schema_name, self._provider)
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return AzureCostModelCostUpdater(self._schema, self._provider)
+            return AzureCostModelCostUpdater(self._schema_name, self._provider)
         if self._provider.type in (Provider.PROVIDER_OCP,):
-            return OCPCostModelCostUpdater(self._schema, self._provider)
+            return OCPCostModelCostUpdater(self._schema_name, self._provider)
         if self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            return GCPCostModelCostUpdater(self._schema, self._provider)
+            return GCPCostModelCostUpdater(self._schema_name, self._provider)
         if self._provider.type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-            return OCICostModelCostUpdater(self._schema, self._provider)
+            return OCICostModelCostUpdater(self._schema_name, self._provider)
 
         return None
 
@@ -100,4 +100,4 @@ class CostModelCostUpdater:
 
         if self._updater:
             self._updater.update_summary_cost_model_costs(start_date, end_date)
-            invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+            invalidate_view_cache_for_tenant_and_source_type(self._schema_name, self._provider.type)

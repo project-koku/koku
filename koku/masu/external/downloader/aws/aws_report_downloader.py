@@ -47,12 +47,12 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
+    def __init__(self, schema_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name    (String) Name of the customer
+            schema_name    (String) Name of the customer
             credentials   (Dict) credentials credential for S3 bucket (RoleARN)
             data_source (Dict) Billing source data like bucket
             report_name      (String) Name of the Cost Usage Report to download (optional)
@@ -68,16 +68,16 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.ingress_reports = ingress_reports
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
-        if customer_name.startswith("acct"):
-            demo_check = customer_name[4:]
+        if schema_name.startswith("acct"):
+            demo_check = schema_name[4:]
         else:
-            demo_check = customer_name
+            demo_check = schema_name
         if demo_check in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(demo_check)
             LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
             if arn in demo_account:
                 demo_info = demo_account.get(arn)
-                self.customer_name = customer_name.replace(" ", "_")
+                self.schema_name = schema_name.replace(" ", "_")
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
                 self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
@@ -85,7 +85,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.s3_client = session.client("s3")
                 return
 
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self._provider_uuid = kwargs.get("provider_uuid")
 
         LOG.debug("Connecting to AWS...")
@@ -240,7 +240,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             key = key.split(f"{self.bucket}/")[-1]
 
         s3_filename = key.split("/")[-1]
-        directory_path = f"{DATA_DIR}/{self.customer_name}/aws/{self.bucket}"
+        directory_path = f"{DATA_DIR}/{self.schema_name}/aws/{self.bucket}"
 
         local_s3_filename = utils.get_local_file_name(key)
         msg = f"Local S3 filename: {local_s3_filename}"

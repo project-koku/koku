@@ -31,13 +31,13 @@ HCS_TABLE_MAP = {
 class HCSReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
-        :param schema (str): The customer schema to associate with
+        :param schema_name (str): The customer schema_name to associate with
         """
-        super().__init__(schema)
-        hcs_cust = Customer.objects.filter(schema_name=schema).first()
+        super().__init__(schema_name)
+        hcs_cust = Customer.objects.filter(schema_name=schema_name).first()
         self._ebs_acct_num = hcs_cust.account_id
         self._org_id = hcs_cust.org_id
         self.date_accessor = DateAccessor()
@@ -58,7 +58,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         LOG.info(
             log_json(
                 tracing_id,
-                f"schema: {self.schema}, provider: {provider}, "
+                f"schema_name: {self.schema_name}, provider: {provider}, "
                 + f"date: {date}, org_id: {self._org_id}, ebs_num: {self._ebs_acct_num}",
             )
         )
@@ -76,7 +76,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "year": date.year,
                 "month": date.strftime("%m"),
                 "date": date,
-                "schema": self.schema,
+                "schema_name": self.schema_name,
                 "ebs_acct_num": self._ebs_acct_num,
                 "org_id": self._org_id,
                 "table": table,
@@ -98,7 +98,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
 
             if len(data) > 0:
                 LOG.info(log_json(tracing_id, f"data found for date: {date}"))
-                csv_handler = CSVFileHandler(self.schema, provider, provider_uuid)
+                csv_handler = CSVFileHandler(self.schema_name, provider, provider_uuid)
                 csv_handler.write_csv_to_s3(date, data, cols, finalize, tracing_id)
             else:
                 LOG.info(

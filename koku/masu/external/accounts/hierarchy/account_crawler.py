@@ -21,7 +21,7 @@ class AccountCrawler(ABC):
             role_arn (String): AWS IAM RoleArn
         """
         self.account = account
-        self.schema = account.get("schema_name")
+        self.schema_name = account.get("schema_name")
 
     @abstractmethod
     def crawl_account_hierarchy(self):

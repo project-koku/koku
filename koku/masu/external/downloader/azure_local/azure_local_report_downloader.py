@@ -29,22 +29,22 @@ LOG = logging.getLogger(__name__)
 class AzureLocalReportDownloader(AzureReportDownloader):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, schema_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name    (String) Name of the customer
+            schema_name    (String) Name of the customer
             credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Dictionary containing Azure Storage blob details.
 
         """
         kwargs["is_local"] = True
-        super().__init__(customer_name, credentials, data_source, report_name, **kwargs)
+        super().__init__(schema_name, credentials, data_source, report_name, **kwargs)
 
         self._provider_uuid = kwargs.get("provider_uuid")
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.export_name = data_source.get("resource_group").get("export_name")
         self.directory = data_source.get("resource_group").get("directory")
         self.container_name = data_source.get("storage_account").get("container")

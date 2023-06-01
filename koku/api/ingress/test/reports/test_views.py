@@ -26,7 +26,7 @@ class ReportsViewTest(MasuTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.schema = self.schema_name
+        self.schema_name = self.schema_name
         self.dh = DateHelper()
         self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
@@ -39,7 +39,7 @@ class ReportsViewTest(MasuTestCase):
             "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
         }
-        ingress_report_accessor = IngressReportDBAccessor(self.schema)
+        ingress_report_accessor = IngressReportDBAccessor(self.schema_name)
         self.added_ingress_report = ingress_report_accessor.add(**self.ingress_report_dict)
 
     def test_get_view(self):

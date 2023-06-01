@@ -196,8 +196,8 @@ class AWSPostProcessor:
         PRODUCT_SKU_COL,
     )
 
-    def __init__(self, schema):
-        self.schema = schema
+    def __init__(self, schema_name):
+        self.schema_name = schema_name
         self.enabled_tag_keys = set()
         self.enabled_categories = set()
 
@@ -341,5 +341,5 @@ class AWSPostProcessor:
         """
         Uses information gather in the
         """
-        create_enabled_keys(self.schema, AWSEnabledTagKeys, self.enabled_tag_keys)
-        create_enabled_keys(self.schema, AWSEnabledCategoryKeys, self.enabled_categories)
+        create_enabled_keys(self.schema_name, AWSEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema_name, AWSEnabledCategoryKeys, self.enabled_categories)

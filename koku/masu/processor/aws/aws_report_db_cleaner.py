@@ -25,14 +25,14 @@ class AWSReportDBCleanerError(Exception):
 class AWSReportDBCleaner:
     """Class to remove report data."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
 
         """
-        self._schema = schema
+        self._schema_name = schema_name
 
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove report data with a billing start period before specified date.
@@ -52,7 +52,7 @@ class AWSReportDBCleaner:
         all_account_ids = set()
         all_period_start = set()
 
-        with AWSReportDBAccessor(self._schema) as accessor:
+        with AWSReportDBAccessor(self._schema_name) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):
@@ -64,7 +64,7 @@ class AWSReportDBCleaner:
 
             bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
 
-            with schema_context(self._schema):
+            with schema_context(self._schema_name):
                 for bill in bill_objects:
                     removed_items.append(
                         {
@@ -90,7 +90,7 @@ class AWSReportDBCleaner:
         all_account_ids = set()
         all_period_start = set()
 
-        with AWSReportDBAccessor(self._schema) as accessor:
+        with AWSReportDBAccessor(self._schema_name) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             for bill in all_bill_objects:
                 removed_items.append(
@@ -108,7 +108,7 @@ class AWSReportDBCleaner:
             ]
             table_names.extend(UI_SUMMARY_TABLES)
 
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
@@ -117,7 +117,7 @@ class AWSReportDBCleaner:
                 )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
-                        schema_name=self._schema,
+                        schema_name=self._schema_name,
                         partition_of_table_name__in=table_names,
                         partition_parameters__default=False,
                         partition_parameters__from__lte=partition_from,

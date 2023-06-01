@@ -1,10 +1,10 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_oci_compute_summary_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_oci_compute_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_oci_compute_summary_p (
     id,
     usage_start,
     usage_end,
@@ -40,7 +40,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
             MAX(currency) AS currency,
             instance_type,
             {{source_uuid}}::uuid as source_uuid
-        FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
+        FROM {{schema_name | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
             AND usage_start <= {{end_date}}::date
             AND source_uuid = {{source_uuid}}
@@ -53,7 +53,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
         FROM (
             SELECT usage_start,
                 UNNEST(resource_ids) AS resource_id
-            FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
+            FROM {{schema_name | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
             WHERE usage_start >= {{start_date}}::date
                 AND usage_start <= {{end_date}}::date
                 AND source_uuid = {{source_uuid}}

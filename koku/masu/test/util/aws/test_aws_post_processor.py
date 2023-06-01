@@ -23,7 +23,7 @@ class TestAWSPostProcessor(MasuTestCase):
     def setUp(self):
         """Set up the test."""
         super().setUp()
-        self.post_processor = AWSPostProcessor(self.schema)
+        self.post_processor = AWSPostProcessor(self.schema_name)
 
     def test_aws_generate_daily_data(self):
         """Test that we aggregate data at a daily level."""
@@ -237,7 +237,7 @@ class TestAWSPostProcessor(MasuTestCase):
         self.assertEqual(set(expected_cat_keys), self.post_processor.enabled_categories)
         self.post_processor.finalize_post_processing()
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cat_key_count = AWSEnabledCategoryKeys.objects.filter(key__in=expected_cat_keys).count()
             self.assertEqual(cat_key_count, len(expected_cat_keys))
             tag_key_count = AWSEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()

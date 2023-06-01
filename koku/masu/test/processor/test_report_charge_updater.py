@@ -21,7 +21,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.OCPCostModelCostUpdater.update_summary_cost_model_costs")
     def test_ocp_route(self, mock_update):
         """Test that OCP charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.ocp_test_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.ocp_test_provider_uuid)
         self.assertIsInstance(updater._updater, OCPCostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -29,7 +29,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_cost_model_costs")
     def test_azure_local_route(self, mock_update):
         """Test that AZURE-local charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.azure_test_provider_uuid)
         self.assertIsInstance(updater._updater, AzureCostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -37,7 +37,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.OCICostModelCostUpdater.update_summary_cost_model_costs")
     def test_oci_local_route(self, mock_update):
         """Test that OCI-local charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.oci_test_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.oci_test_provider_uuid)
         self.assertIsInstance(updater._updater, OCICostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -45,7 +45,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.AWSCostModelCostUpdater.update_summary_cost_model_costs")
     def test_aws_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.aws_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.aws_provider_uuid)
         self.assertIsInstance(updater._updater, AWSCostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -53,7 +53,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.GCPCostModelCostUpdater.update_summary_cost_model_costs")
     def test_gcp_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.gcp_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.gcp_provider_uuid)
         self.assertIsInstance(updater._updater, GCPCostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -61,7 +61,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_cost_model_costs")
     def test_azure_route(self, mock_update):
         """Test that Azure charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.azure_test_provider_uuid)
         self.assertIsInstance(updater._updater, AzureCostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -69,7 +69,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.cost_model_cost_updater.OCICostModelCostUpdater.update_summary_cost_model_costs")
     def test_oci_route(self, mock_update):
         """Test that OCI charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.oci_test_provider_uuid)
+        updater = CostModelCostUpdater(self.schema_name, self.oci_test_provider_uuid)
         self.assertIsInstance(updater._updater, OCICostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
@@ -80,12 +80,12 @@ class CostModelCostUpdaterTest(MasuTestCase):
         mock_updater.side_effect = Exception("general error")
 
         with self.assertRaises(CostModelCostUpdaterError):
-            CostModelCostUpdater(self.schema, self.ocp_test_provider_uuid)
+            CostModelCostUpdater(self.schema_name, self.ocp_test_provider_uuid)
 
     @patch("masu.processor.cost_model_cost_updater.ProviderDBAccessor.get_provider", return_value=None)
     def test_unknown_provider(self, mock_accessor):
         """Test no exception when initializing unknown provider."""
         try:
-            CostModelCostUpdater(self.schema, self.unkown_test_provider_uuid)
+            CostModelCostUpdater(self.schema_name, self.unkown_test_provider_uuid)
         except Exception as err:
             self.fail(f"Failed with exception: {err}")

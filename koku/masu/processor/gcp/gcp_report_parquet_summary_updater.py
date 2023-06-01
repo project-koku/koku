@@ -24,9 +24,9 @@ LOG = logging.getLogger(__name__)
 class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update GCP report parquet summary data."""
 
-    def __init__(self, schema, provider, manifest):
+    def __init__(self, schema_name, provider, manifest):
         """Establish parquet summary processor."""
-        self._schema = schema
+        self._schema_name = schema_name
         self._provider = provider
         self._manifest = manifest
         self._date_accessor = DateAccessor()
@@ -55,16 +55,16 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         invoice_month = kwargs.get("invoice_month")
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        with schema_context(self._schema):
-            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+        with schema_context(self._schema_name):
+            self._handle_partitions(self._schema_name, UI_SUMMARY_TABLES, start_date, end_date)
 
-        with GCPReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema_name) as accessor:
             # Need these bills on the session to update dates after processing
-            with schema_context(self._schema):
+            with schema_context(self._schema_name):
                 if invoice_month:
                     invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
@@ -84,7 +84,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     "Updating GCP report summary tables from parquet: \n\tSchema: %s"
                     "\n\tProvider: %s \n\tDates: %s - %s \n\tInvoice Month: %s",
-                    self._schema,
+                    self._schema_name,
                     self._provider.uuid,
                     start,
                     end,

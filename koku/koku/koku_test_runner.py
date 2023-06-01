@@ -35,7 +35,7 @@ class KokuTestRunner(DiscoverRunner):
 
     account = "10001"
     org_id = "1234567"
-    schema = f"org{org_id}"
+    schema_name = f"org{org_id}"
     settings.HOSTNAME = "koku-worker-10-abcdef"
 
     def setup_databases(self, **kwargs):
@@ -75,21 +75,21 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     if created:
                         tenant.save()
                         tenant.create_schema()
-                    tenant, created = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)
+                    tenant, created = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema_name)
                     if created:
                         tenant.save()
                         tenant.create_schema()
                         customer, __ = Customer.objects.get_or_create(
                             account_id=KokuTestRunner.account,
                             org_id=KokuTestRunner.org_id,
-                            schema_name=KokuTestRunner.schema,
+                            schema_name=KokuTestRunner.schema_name,
                         )
                         ##############################################################
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
                         tree_yaml = read_yaml.import_yaml(yaml_file_path="dev/scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
-                        bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
+                        bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema_name, customer)
                         ocp_on_aws_cluster_id = "OCP-on-AWS"
                         ocp_on_azure_cluster_id = "OCP-on-Azure"
                         ocp_on_gcp_cluster_id = "OCP-on-GCP"

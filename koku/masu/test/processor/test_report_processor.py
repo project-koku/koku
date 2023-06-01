@@ -20,7 +20,7 @@ class ReportProcessorTest(MasuTestCase):
     def test_aws_process(self, mock_ocp_cloud_process, mock_parquet_process):
         """Test to process for AWS."""
         processor = ReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path="/my/report/file",
             compression="GZIP",
             provider=Provider.PROVIDER_AWS,
@@ -37,7 +37,7 @@ class ReportProcessorTest(MasuTestCase):
     def test_aws_process_returns_false(self, mock_ocp_cloud_process, mock_parquet_process):
         """Test to check no data frames returned from process."""
         processor = ReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path="/my/report/file",
             compression="GZIP",
             provider=Provider.PROVIDER_AWS,
@@ -51,7 +51,7 @@ class ReportProcessorTest(MasuTestCase):
     def test_set_processor_parquet(self):
         """Test that the Parquet class is returned."""
         processor = ReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path="/my/report/file",
             compression="GZIP",
             provider=Provider.PROVIDER_AWS,
@@ -65,7 +65,7 @@ class ReportProcessorTest(MasuTestCase):
         """Test that we return the right class."""
 
         processor = ReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path="/my/report/file",
             compression="GZIP",
             provider=Provider.PROVIDER_AWS,
@@ -76,7 +76,7 @@ class ReportProcessorTest(MasuTestCase):
         self.assertIsInstance(processor.ocp_on_cloud_processor, OCPCloudParquetReportProcessor)
 
         processor = ReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path="/my/report/file",
             compression="GZIP",
             provider=Provider.PROVIDER_OCP,

@@ -119,7 +119,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://cloud.google.com/billing/docs/how-to/export-data-bigquery
     """
 
-    def __init__(self, customer_name, data_source, ingress_reports=None, **kwargs):
+    def __init__(self, schema_name, data_source, ingress_reports=None, **kwargs):
         """
         Constructor.
 
@@ -130,7 +130,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        self.customer_name = customer_name.replace(" ", "_")
+        self.customer_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")

@@ -73,13 +73,13 @@ class OCIReportParquetSummaryUpdaterTest(MasuTestCase):
         for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
             expected_start, expected_end = s, e
 
-        with OCIReportDBAccessor(self.schema) as accessor:
-            with schema_context(self.schema):
+        with OCIReportDBAccessor(self.schema_name) as accessor:
+            with schema_context(self.schema_name):
                 bills = accessor.bills_for_provider_uuid(self.oci_provider.uuid, start)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.oci_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.oci_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 

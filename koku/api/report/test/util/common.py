@@ -12,9 +12,9 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
-def populate_ocp_topology(schema, provider, cluster_id):
+def populate_ocp_topology(schema_name, provider, cluster_id):
     """Populate essential OCP topology tables."""
-    with schema_context(schema):
+    with schema_context(schema_name):
         nodes = (
             OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id)
             .values_list("node", "resource_id")
@@ -28,9 +28,9 @@ def populate_ocp_topology(schema, provider, cluster_id):
                 n.save()
 
 
-def update_cost_category(schema):
+def update_cost_category(schema_name):
     """Update the daily summary rows to to have a cost category."""
-    with schema_context(schema):
+    with schema_context(schema_name):
         cost_category_value = OpenshiftCostCategory.objects.first()
         rows = OCPUsageLineItemDailySummary.objects.filter(
             namespace=OCP_PLATFORM_NAMESPACE, cost_category_id__isnull=True

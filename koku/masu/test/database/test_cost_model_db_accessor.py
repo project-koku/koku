@@ -73,18 +73,18 @@ class CostModelDBAccessorTest(MasuTestCase):
 
         self.rates, self.expected_value_rate_mapping = build_rates()
         self.markup = {"value": 10, "unit": "percent"}
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.cost_model = CostModel.objects.first()
         self.expected = parse_expected()
 
     def test_initializer(self):
         """Test initializer."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
 
     def test_get_rates(self):
         """Test get rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             cpu_usage_rate = cost_model_accessor.get_rates("cpu_core_usage_per_hour")
             self.assertEqual(type(cpu_usage_rate), dict)
 
@@ -111,7 +111,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_get_cpu_core_usage_per_hour_rates(self):
         """Test get cpu usage rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             cpu_rates = cost_model_accessor.get_cpu_core_usage_per_hour_rates()
             self.assertEqual(type(cpu_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -121,7 +121,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_get_memory_gb_usage_per_hour_rates(self):
         """Test get memory usage rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             mem_rates = cost_model_accessor.get_memory_gb_usage_per_hour_rates()
             self.assertEqual(type(mem_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -131,7 +131,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_get_cpu_core_request_per_hour_rates(self):
         """Test get cpu request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             cpu_rates = cost_model_accessor.get_cpu_core_request_per_hour_rates()
             self.assertEqual(type(cpu_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -141,7 +141,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_get_memory_gb_request_per_hour_rates(self):
         """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             mem_rates = cost_model_accessor.get_memory_gb_request_per_hour_rates()
             self.assertEqual(type(mem_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -151,7 +151,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_get_storage_gb_usage_per_month_rates(self):
         """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             storage_rates = cost_model_accessor.get_storage_gb_usage_per_month_rates()
             self.assertEqual(type(storage_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -161,7 +161,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_get_storage_gb_request_per_month_rates(self):
         """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             storage_rates = cost_model_accessor.get_storage_gb_request_per_month_rates()
             self.assertEqual(type(storage_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -171,22 +171,22 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_markup(self):
         """Test to make sure markup dictionary is returned."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             self.assertEqual(markup, self.markup)
 
     def test_get_cost_model(self):
         """Test to make sure cost_model is gotten."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
             uuid = model.uuid
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             self.assertEqual(cost_model_accessor.cost_model, model)
             self.assertEqual(cost_model_accessor.cost_model.uuid, uuid)
 
     def test_get_node_cost_per_month(self):
         """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             node_cost = cost_model_accessor.get_node_per_month_rates()
             self.assertEqual(type(node_cost), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
@@ -197,7 +197,7 @@ class CostModelDBAccessorTest(MasuTestCase):
     def test_infrastructure_rates(self):
         """Test infrastructure rates property."""
         cost_type = "Infrastructure"
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_infra_rates = cost_model_accessor.infrastructure_rates
             for metric_name in result_infra_rates.keys():
                 expected_value = self.expected[cost_type][metric_name]
@@ -206,7 +206,7 @@ class CostModelDBAccessorTest(MasuTestCase):
     def test_supplementary_rates(self):
         """Test supplementary rates property."""
         cost_type = "Supplementary"
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_sup_rates = cost_model_accessor.supplementary_rates
             for metric_name in result_sup_rates.keys():
                 expected_value = self.expected[cost_type][metric_name]
@@ -221,17 +221,17 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         super().setUp()
         # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
         self.provider_uuid = self.ocpaws_provider_uuid
-        self.creator = ReportObjectCreator(self.schema)
+        self.creator = ReportObjectCreator(self.schema_name)
         self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP)
 
     def test_initializer_no_rate_no_markup(self):
         """Test initializer."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
 
     def test_get_rates(self):
         """Test get rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             cpu_usage_rate = cost_model_accessor.get_rates("cpu_core_usage_per_hour")
             self.assertIsNone(cpu_usage_rate)
 
@@ -246,13 +246,13 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
 
     def test_get_rates_no_cost_model(self):
         """Test that get_rates returns empty dict when cost model does not exist."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             cpu_usage_rate = cost_model_accessor.get_rates("cpu_core_usage_per_hour")
             self.assertFalse(cpu_usage_rate)
 
     def test_markup_no_cost_model(self):
         """Test that markup returns empty dict when cost model does not exist."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             self.assertFalse(markup)
 
@@ -334,20 +334,20 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
         super().setUp()
         # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
         self.provider_uuid = self.ocpaws_provider_uuid
-        self.creator = ReportObjectCreator(self.schema)
+        self.creator = ReportObjectCreator(self.schema_name)
         self.rates, self.mapping = self.build_tag_rates()
         self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP, self.rates)
 
     def test_initializer(self):
         """Test initializer."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
 
     def test_infrastructure_tag_rates(self):
         """Test infrastructure rates property."""
         cost_type = "Infrastructure"
 
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_infra_rates = cost_model_accessor.tag_infrastructure_rates
             for metric_name in result_infra_rates.keys():
                 metric_rates = self.mapping.get(metric_name).get("Infrastructure")
@@ -362,7 +362,7 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
         """Test supplementary rates property."""
         cost_type = "Supplementary"
 
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_suppla_rates = cost_model_accessor.tag_supplementary_rates
             for metric_name in result_suppla_rates.keys():
                 metric_rates = self.mapping.get(metric_name).get("Supplementary")
@@ -377,7 +377,7 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
         """Tests that the proper keys and values are added for the default rates"""
         cost_type = "Infrastructure"
 
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
             for metric_name in result_infra_rates.keys():
                 metric_rates = self.mapping.get(metric_name).get("Infrastructure")
@@ -395,7 +395,7 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
         """Tests that the proper keys and values are added for the default rates"""
         cost_type = "Supplementary"
 
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_suppla_rates = cost_model_accessor.tag_default_supplementary_rates
             for metric_name in result_suppla_rates.keys():
                 metric_rates = self.mapping.get(metric_name).get("Supplementary")
@@ -418,7 +418,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
         super().setUp()
         # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
         self.provider_uuid = self.ocpaws_provider_uuid
-        self.creator = ReportObjectCreator(self.schema)
+        self.creator = ReportObjectCreator(self.schema_name)
 
         self.rates = [
             {
@@ -472,7 +472,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
 
     def test_initializer(self):
         """Test initializer."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
 
     def test_price_list_existing_metric_different_key(self):
@@ -481,6 +481,6 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
         different keys are used for the same metric
         """
         expected = {"app": {"smoke": 123}, "web": {"smoker": 456}}
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.provider_uuid) as cost_model_accessor:
             result_infra_rates = cost_model_accessor.tag_infrastructure_rates.get("node_cost_per_month")
             self.assertEqual(result_infra_rates, expected)

@@ -22,7 +22,7 @@ class TestOCIPostProcessor(MasuTestCase):
     def setUp(self):
         """Set up the test."""
         super().setUp()
-        self.post_processor = OCIPostProcessor(self.schema)
+        self.post_processor = OCIPostProcessor(self.schema_name)
 
     def test_oci_generate_daily_data_cost(self):
         """Test that we aggregate data at a daily level."""
@@ -288,7 +288,7 @@ class TestOCIPostProcessor(MasuTestCase):
         self.assertEqual(set(expected_tag_keys), self.post_processor.enabled_tag_keys)
         self.post_processor.finalize_post_processing()
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             tag_key_count = OCIEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
             self.assertEqual(tag_key_count, len(expected_tag_keys))
 

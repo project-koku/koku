@@ -36,16 +36,16 @@ class ExpiredDataRemover:
 
     """
 
-    def __init__(self, customer_schema, provider, num_of_months_to_keep=None, line_items_month_to_keep=None):
+    def __init__(self, schema_name, provider, num_of_months_to_keep=None, line_items_month_to_keep=None):
         """
         Initializer.
 
         Args:
-            customer_schema (String): Schema name for given customer.
+            schema_name (String): Schema name for given customer.
             num_of_months_to_keep (Int): Number of months to retain in database.
 
         """
-        self._schema = customer_schema
+        self._schema_name = schema_name
         self._provider = provider
         self._months_to_keep = num_of_months_to_keep
         if self._months_to_keep is None:
@@ -75,15 +75,15 @@ class ExpiredDataRemover:
 
         """
         if self._provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return AWSReportDBCleaner(self._schema)
+            return AWSReportDBCleaner(self._schema_name)
         if self._provider in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return AzureReportDBCleaner(self._schema)
+            return AzureReportDBCleaner(self._schema_name)
         if self._provider in (Provider.PROVIDER_OCP,):
-            return OCPReportDBCleaner(self._schema)
+            return OCPReportDBCleaner(self._schema_name)
         if self._provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            return GCPReportDBCleaner(self._schema)
+            return GCPReportDBCleaner(self._schema_name)
         if self._provider in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-            return OCIReportDBCleaner(self._schema)
+            return OCIReportDBCleaner(self._schema_name)
 
         return None
 

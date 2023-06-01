@@ -1,10 +1,10 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_aws_compute_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_aws_compute_summary_p (
     id,
     usage_start,
     usage_end,
@@ -58,7 +58,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             SUM(coalesce(markup_cost_amortized, 0.0::numeric(33,9))) AS markup_cost_amortized,
             MAX(currency_code) AS currency_code,
             {{source_uuid}}::uuid as source_uuid
-        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+        FROM {{schema_name | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
             AND usage_start <= {{end_date}}::date
             AND instance_type IS NOT NULL
@@ -74,7 +74,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             SELECT usage_start,
                 instance_type,
                 UNNEST(resource_ids) AS resource_id
-            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+            FROM {{schema_name | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
             WHERE usage_start >= {{start_date}}::date
                 AND usage_start <= {{end_date}}::date
                 AND instance_type IS NOT NULL

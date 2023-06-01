@@ -37,7 +37,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.accessor = AzureReportDBAccessor(schema=cls.schema)
+        cls.accessor = AzureReportDBAccessor(schema_name=cls.schema_name)
         cls.report_schema = cls.accessor.report_schema
         cls.dh = DateHelper()
 
@@ -64,7 +64,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date=self.dh.this_month_start)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(len(bills), 1)
 
     def test_populate_markup_cost(self):
@@ -73,14 +73,14 @@ class AzureReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in bills.all()]
             summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
             start_date = summary_entry["usage_start__min"]
             end_date = summary_entry["usage_start__max"]
 
         query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
                 markup=Sum(F("pretax_cost") * decimal.Decimal(0.1))
             )
@@ -91,7 +91,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_markup_cost(
             self.azure_provider_uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__in=bill_ids)
@@ -112,19 +112,19 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         today = DateHelper().today
         last_month = DateHelper().last_month_start
-        azure_bills = get_bills_from_provider(self.azure_provider_uuid, self.schema, last_month, today)
-        with schema_context(self.schema):
+        azure_bills = get_bills_from_provider(self.azure_provider_uuid, self.schema_name, last_month, today)
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in azure_bills]
         cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
 
         self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
 
         li_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             li_table = getattr(self.accessor.report_schema, li_table_name)
             sum_azure_cost = li_table.objects.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             # These names are defined in the `azure_static_data.yml` used by Nise to populate the Azure data
             namespaces = ["kube-system", "openshift", "banking", "mobile", "news-site", "weather"]
             for namespace in namespaces:
@@ -148,7 +148,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                     self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
                     self.assertLessEqual(sum_cost, sum_azure_cost)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
                 "pretax_cost__sum"
             ]
@@ -181,10 +181,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.azure_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.azure_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
@@ -217,10 +217,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
             distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
@@ -247,10 +247,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
             distribution = "memory"
@@ -275,7 +275,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AzureTagsSummary.objects.all().delete()
             AzureEnabledTagKeys.objects.all().delete()
             bill_ids = [bill.id for bill in bills]
@@ -290,7 +290,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AzureTagsSummary.objects.all().delete()
             key_to_keep = AzureEnabledTagKeys.objects.filter(key="app").first()
             AzureEnabledTagKeys.objects.all().update(enabled=False)
@@ -315,7 +315,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     def test_delete_line_item_daily_summary_entries_for_date_range(self):
         """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             start_date = AzureCostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get(
                 "usage_start__max"
             )
@@ -324,14 +324,14 @@ class AzureReportDBAccessorTest(MasuTestCase):
         table_query = AzureCostEntryLineItemDailySummary.objects.filter(
             source_uuid=self.azure_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertNotEqual(table_query.count(), 0)
 
         self.accessor.delete_line_item_daily_summary_entries_for_date_range(
             self.azure_provider_uuid, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(table_query.count(), 0)
 
     def test_table_properties(self):
@@ -396,7 +396,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AzureEnabledTagKeys.objects.all().delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)

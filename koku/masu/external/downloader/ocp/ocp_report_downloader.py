@@ -155,12 +155,12 @@ def process_cr(report_meta):
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, schema_name, credentials, data_source, report_name=None, **kwargs):
         """
         Initializer.
 
         Args:
-            customer_name    (String) Name of the customer
+            schema_name      (String) Name of the customer
             credentials      (Dict) Credentials containing OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Not used for OCP
@@ -170,7 +170,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         LOG.debug("Connecting to OCP service provider...")
 
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.report_name = report_name
         self.temp_dir = None
         self.data_source = data_source
@@ -289,7 +289,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.context["version"] = self.manifest.operator_version
         local_filename = utils.get_local_file_name(key)
 
-        directory_path = f"{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}"
+        directory_path = f"{DATA_DIR}/{self.schema_name}/ocp/{self.cluster_id}"
         full_file_path = f"{directory_path}/{local_filename}"
 
         # Make sure the data directory exists

@@ -22,14 +22,13 @@ from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 FAKE = Faker()
-CUSTOMER_NAME = FAKE.word()
 BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
 P_TYPE = Provider.PROVIDER_AWS
 GEN_NUM_ACT_DEFAULT = 2
 
 
-def _generate_act_for_parent_side_effect(schema, parent_id, num_of_accounts=GEN_NUM_ACT_DEFAULT):
+def _generate_act_for_parent_side_effect(schema_name, parent_id, num_of_accounts=GEN_NUM_ACT_DEFAULT):
     """generates the account for parent side effect list, and saves result in AWSAccountAlias"""
     side_effect_list = []
     for idx in range(num_of_accounts):
@@ -39,7 +38,7 @@ def _generate_act_for_parent_side_effect(schema, parent_id, num_of_accounts=GEN_
         if (idx + 1) == num_of_accounts:
             del act_dict["NextToken"]
         side_effect_list.append(act_dict)
-        with schema_context(schema):
+        with schema_context(schema_name):
             AWSAccountAlias.objects.create(account_id=act_id, account_alias=act_name)
     return side_effect_list
 
@@ -68,7 +67,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def setUp(self):
         """Set up test case."""
         super().setUp()
-        self.schema = "org3333333"
+        self.schema_name = "org3333333"
         self.paginator_dict = {
             "r-0": {
                 "OrganizationalUnits": [
@@ -84,10 +83,9 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         }
         self.account = {
             "credentials": {"role_arn": fake_arn(service="iam", generate_account_id=True)},
-            "customer_name": CUSTOMER_NAME,
             "billing_source": BUCKET,
             "provider_type": P_TYPE,
-            "schema_name": self.schema,
+            "schema_name": self.schema_name,
             "provider_uuid": P_UUID,
         }
 
@@ -113,7 +111,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         parent_id = "TestDepaginate"
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
-        side_effect_list = _generate_act_for_parent_side_effect(self.schema, parent_id, 3)
+        side_effect_list = _generate_act_for_parent_side_effect(self.schema_name, parent_id, 3)
         unit_crawler._build_accout_alias_map()
         unit_crawler._client.list_accounts_for_parent.side_effect = side_effect_list
         accounts = unit_crawler._depaginate_account_list(
@@ -132,7 +130,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         parent_id = "big_sub_org"
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
-        side_effect_list = _generate_act_for_parent_side_effect(self.schema, parent_id, 3)
+        side_effect_list = _generate_act_for_parent_side_effect(self.schema_name, parent_id, 3)
         unit_crawler._build_accout_alias_map()
         unit_crawler._client.list_accounts_for_parent.side_effect = side_effect_list
         unit_crawler._structure_yesterday = {}
@@ -141,7 +139,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         ou = {"Id": parent_id, "Name": "Big Org Unit"}
         unit_crawler._crawl_accounts_per_id(ou, prefix, level=1)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             acts_in_db = AWSOrganizationalUnit.objects.filter(account_alias__isnull=False)
             self.assertIsNotNone(acts_in_db)
             self.assertEqual(acts_in_db.count(), 3)
@@ -157,7 +155,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         paginator_side_effect = []
         ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
         for ou_id in ou_ids:
-            parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
+            parent_acts = _generate_act_for_parent_side_effect(self.schema_name, ou_id)
             account_side_effect.extend(parent_acts)
             paginator = MagicMock()
             paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
@@ -168,7 +166,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
         unit_crawler._client.get_paginator.side_effect = paginator_side_effect
         unit_crawler.crawl_account_hierarchy()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             total_entries = (len(ou_ids) * GEN_NUM_ACT_DEFAULT) + len(ou_ids)
             self.assertEqual(cur_count, total_entries)
@@ -227,7 +225,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         paginator_side_effect = []
         ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
         for ou_id in ou_ids:
-            parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
+            parent_acts = _generate_act_for_parent_side_effect(self.schema_name, ou_id)
             account_side_effect.extend(parent_acts)
             paginator = MagicMock()
             paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
@@ -238,7 +236,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
         unit_crawler._client.get_paginator.side_effect = paginator_side_effect
         unit_crawler.crawl_account_hierarchy()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             total_entries = (len(ou_ids) * GEN_NUM_ACT_DEFAULT) + len(ou_ids)
             self.assertEqual(cur_count, total_entries)
@@ -246,7 +244,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def test_save_aws_org_method(self):
         """Test that saving to the database works."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)
             AWSAccountAlias.objects.create(account_id="A_001", account_alias="Root Account")
@@ -257,25 +255,25 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         root_account = {"Id": "A_001", "Name": "Root Account"}
         unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
         unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 1)
         # simulate an account being moved into a big org
         big_ou = {"Id": "R_001", "Name": "Big0"}
         unit_crawler._save_aws_org_method(big_ou, "unit_path&big_org", 1, root_account)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 2)
         # simulate a leaf node being added without an account_id
         unit_crawler._save_aws_org_method(root_ou, "unit_path", 0)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 3)
 
     def test_org_unit_deleted_state(self):
         """Test that an org unit that is in a deleted state is fixed when it is found again."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AWSAccountAlias.objects.create(account_id="A_001", account_alias="Root Account")
         unit_crawler._build_accout_alias_map()
         unit_crawler._structure_yesterday = {}
@@ -284,11 +282,11 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
         # simulate an org unit getting into a deleted state and ensure that the crawler
         # nullifies the deleted_timestamp
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             ou_to_update = AWSOrganizationalUnit.objects.filter(org_unit_id="R_001")
             ou_to_update.update(deleted_timestamp=unit_crawler._date_accessor.today())
         updated_ou = unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 1)
         self.assertEqual(updated_ou.deleted_timestamp, None)
@@ -296,7 +294,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def test_build_account_alias_map(self):
         """Test function that builds account alias map."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             account_1 = AWSAccountAlias.objects.create(account_id="12345", account_alias="a1")
             account_2 = AWSAccountAlias.objects.create(account_id="67890", account_alias="a2")
             unit_crawler._build_accout_alias_map()
@@ -312,7 +310,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test function that computes org structure for an interval."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._build_accout_alias_map()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)
         unit_crawler._structure_yesterday = {}
@@ -338,7 +336,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         )
 
         # Change created date to two_days_ago
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             two_days_ago = (unit_crawler._date_accessor.today() - timedelta(2)).strftime("%Y-%m-%d")
             for node in created_nodes:
                 node.created_timestamp = two_days_ago
@@ -366,7 +364,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         # Test fake node delete
         unit_crawler._delete_aws_org_unit("sub_org_unit_1_Fake")
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             yesterday = (unit_crawler._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
             for node in created_nodes:
                 node.created_timestamp = yesterday
@@ -384,7 +382,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         sub_org_unit_2 = {"Id": "OU_3000", "Name": "sub_org_unit_3"}
         unit_crawler._save_aws_org_method(sub_org_unit_2, "R_001&OU_3000", 1, None)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
             curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=today).count()
             deleted_count = AWSOrganizationalUnit.objects.filter(deleted_timestamp__lte=today).count()
@@ -411,7 +409,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         paginator_side_effect = []
         ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
         for ou_id in ou_ids:
-            parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
+            parent_acts = _generate_act_for_parent_side_effect(self.schema_name, ou_id)
             account_side_effect.extend(parent_acts)
             paginator = MagicMock()
             paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]

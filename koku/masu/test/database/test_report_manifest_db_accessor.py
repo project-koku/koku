@@ -26,7 +26,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def setUp(self):
         """Set up the test class."""
         super().setUp()
-        self.schema = self.schema_name
+        self.schema_name = self.schema_name
         self.billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.manifest_dict = {
             "assembly_id": "1234",
@@ -39,7 +39,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def tearDown(self):
         """Tear down the test class."""
         super().tearDown()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             manifests = self.manifest_accessor._get_db_obj_query().all()
             for manifest in manifests:
                 self.manifest_accessor.delete(manifest)
@@ -51,7 +51,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_manifest(self):
         """Test that the right manifest is returned."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             added_manifest = self.manifest_accessor.add(**self.manifest_dict)
 
             assembly_id = self.manifest_dict.get("assembly_id")
@@ -66,7 +66,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_manifest_by_id(self):
         """Test that the right manifest is returned by id."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             added_manifest = self.manifest_accessor.add(**self.manifest_dict)
             manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
         self.assertIsNotNone(manifest)
@@ -91,7 +91,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             manifest = self.manifest_accessor.add(**self.manifest_dict)
             now = DateAccessor().today_with_timezone("UTC")
             self.manifest_accessor.mark_manifest_as_updated(manifest)
@@ -188,7 +188,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_s3_csv_cleared(self):
         """Test that s3 CSV clear status is reported."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             manifest = self.manifest_accessor.add(**self.manifest_dict)
             status = self.manifest_accessor.get_s3_csv_cleared(manifest)
             self.assertFalse(status)
@@ -200,7 +200,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_s3_parquet_cleared(self):
         """Test that s3 CSV clear status is reported."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             manifest = self.manifest_accessor.add(**self.manifest_dict)
             status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
             self.assertFalse(status)
@@ -212,7 +212,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_bulk_delete_manifests(self):
         """Test bulk delete of manifests."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             manifest_list = []
             for fake_assembly_id in ["1234", "12345", "123456"]:
                 self.manifest_dict["assembly_id"] = fake_assembly_id
@@ -228,7 +228,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_bulk_delete_manifests_empty_list(self):
         """Test bulk delete with an empty manifest list."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             manifest_list = []
             value = self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
             self.assertIsNone(value)

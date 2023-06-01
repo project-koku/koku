@@ -3,7 +3,7 @@
 WITH cte_unnested_azure_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
+    FROM hive.{{schema_name | sqlsafe}}.azure_line_items AS azure
     CROSS JOIN UNNEST(cast(json_parse(tags) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = {{azure_source_uuid}}
         AND year = {{year}}
@@ -16,7 +16,7 @@ cte_unnested_ocp_tags AS (
         pod_value,
         volume_key,
         volume_value
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
     CROSS JOIN UNNEST(
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))
@@ -40,9 +40,9 @@ FROM (
             lower(azure.key) = lower(ocp.volume_key)
                 AND lower(azure.value) = lower(ocp.volume_value)
         )
-    JOIN postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys AS atk
+    JOIN postgres.{{schema_name | sqlsafe}}.reporting_azureenabledtagkeys AS atk
         ON azure.key = atk.key
        AND atk.enabled = true
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
+    JOIN postgres.{{schema_name | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
         ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
 ) AS matches

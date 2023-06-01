@@ -23,7 +23,6 @@ from masu.test import MasuTestCase
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
-CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
 PREFIX = FAKE.word()
 REGION = "us-central1"
@@ -38,7 +37,6 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
     def setUpClass(cls):
         """Set up class variables."""
         super().setUpClass()
-        cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = "koku-local"
 
         cls.fake_bucket_prefix = PREFIX
@@ -65,7 +63,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         self.data_source = {"table_id": "test-id", "dataset": "test-database", "local_dir": local_dir}
 
         self.report_downloader = ReportDownloader(
-            customer_name=self.fake_customer_name,
+            schema_name=self.schema_name,
             credentials=self.credentials,
             data_source=self.data_source,
             provider_type=Provider.PROVIDER_GCP_LOCAL,
@@ -74,7 +72,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
 
         self.gcp_local_report_downloader = GCPLocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": self.data_source,
                 "provider_uuid": self.gcp_provider_uuid,

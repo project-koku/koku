@@ -63,7 +63,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         mock_execute_sql.return_value = [[account_id]]
 
         self.processor.create_bill(bill_date.date())
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill = GCPCostEntryBill.objects.filter(
                 billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider
             )
@@ -79,7 +79,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         mock_execute_sql.return_value = [[account_id]]
 
         self.processor.create_bill(str(bill_date.date()))
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill = GCPCostEntryBill.objects.filter(
                 billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider
             )
@@ -99,5 +99,5 @@ class GCPReportProcessorParquetTest(MasuTestCase):
             self.processor.get_or_create_postgres_partition(bill_date)
             self.assertIn(expected_log, logger.output)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)

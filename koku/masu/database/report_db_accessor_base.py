@@ -66,13 +66,13 @@ class ReportSchema:
 class ReportDBAccessorBase(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self.report_schema = ReportSchema(django.apps.apps.get_models())
         self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
 
@@ -105,7 +105,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         if isinstance(table, str):
             table = getattr(self.report_schema, table)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if columns:
                 query = table.objects.values(*columns)
             else:
@@ -120,7 +120,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             LOG.info("Triggering %s %s", operation, table)
 
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             try:
                 t1 = time.time()
                 cursor.execute(sql, params=bind_params)
@@ -149,7 +149,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             conn_params = {}
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
-        trino_conn = trino_db.connect(schema=self.schema, **conn_params)
+        trino_conn = trino_db.connect(schema_name=self.schema_name, **conn_params)
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
@@ -161,12 +161,12 @@ class ReportDBAccessorBase(KokuDBAccess):
                 LOG.error(msg)
             raise ex
         t2 = time.time()
-        LOG.info(f"{log_ref} for {self.schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds.")
+        LOG.info(f"{log_ref} for {self.schema_name} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds.")
         return results, description
 
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""
-        trino_conn = trino_db.connect(schema=self.schema)
+        trino_conn = trino_db.connect(schema_name=self.schema_name)
         return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 
     def get_existing_partitions(self, table):
@@ -177,9 +177,9 @@ class ReportDBAccessorBase(KokuDBAccess):
             table_name = table._meta.db_table
 
         with transaction.atomic():  # Make sure this does *not* open a lingering transaction at the driver
-            connection.set_schema(self.schema)
+            connection.set_schema(self.schema_name)
             existing_partitions = PartitionedTable.objects.filter(
-                schema_name=self.schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
+                schema_name=self.schema_name, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
             ).all()
 
         return existing_partitions
@@ -218,7 +218,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def add_partition(self, **partition_record):
         with transaction.atomic():
-            with schema_context(self.schema):
+            with schema_context(self.schema_name):
                 newpart, created = PartitionedTable.objects.get_or_create(
                     defaults=partition_record,
                     schema_name=partition_record["schema_name"],
@@ -239,7 +239,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         )
         if filters:
             select_query = select_query.filter(**filters)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
@@ -256,7 +256,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
         sql = f"""
-            DELETE FROM {self.schema}.{table}
+            DELETE FROM {self.schema_name}.{table}
             WHERE usage_start >= %(start_date)s::date
                 AND usage_start <= %(end_date)s::date
         """
@@ -291,11 +291,11 @@ class ReportDBAccessorBase(KokuDBAccess):
             IF exists(
                 SELECT 1
                 FROM information_schema.tables
-                WHERE table_schema = '{self.schema}'
+                WHERE table_schema = '{self.schema_name}'
                     AND table_name='{partition_name}'
             )
             THEN
-                TRUNCATE {self.schema}.{partition_name};
+                TRUNCATE {self.schema_name}.{partition_name};
             END IF;
             END $$;
         """
@@ -311,7 +311,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def schema_exists_trino(self):
         """Check if table exists."""
-        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        check_sql = f"SHOW SCHEMAS LIKE '{self.schema_name}'"
         schema_exists = self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino")
         if schema_exists:
             return True
@@ -333,7 +333,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tTable: %s \n\tYear: %s \n\tMonths: %s",
-                self.schema,
+                self.schema_name,
                 source,
                 table,
                 year,
@@ -342,7 +342,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             for i in range(retries):
                 try:
                     sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
+                    DELETE FROM hive.{self.schema_name}.{table}
                     WHERE ocp_source = '{source}'
                     AND year = '{year}'
                     AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')

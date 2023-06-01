@@ -24,7 +24,7 @@ class TestAzurePostProcessor(MasuTestCase):
     def setUp(self):
         """Set up the test."""
         super().setUp()
-        self.post_processor = AzurePostProcessor(self.schema)
+        self.post_processor = AzurePostProcessor(self.schema_name)
 
     def test_azure_generate_daily_data(self):
         """Test that we return the original data frame."""
@@ -98,7 +98,7 @@ class TestAzurePostProcessor(MasuTestCase):
         self.assertEqual(set(expected_tag_keys), self.post_processor.enabled_tag_keys)
         self.post_processor.finalize_post_processing()
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             tag_key_count = AzureEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
             self.assertEqual(tag_key_count, len(expected_tag_keys))
 
@@ -112,7 +112,7 @@ class TestAzurePostProcessor(MasuTestCase):
 
     def test_process_json_converter_expected_errors(self):
         """Test process_openshift_datetime method with good and bad values."""
-        post_processor = AzurePostProcessor(self.schema)
+        post_processor = AzurePostProcessor(self.schema_name)
         csv_converters, panda_kwargs = post_processor.get_column_converters(["tags"], {})
         self.assertEqual({}, panda_kwargs)
         json_converter = csv_converters.get("tags")

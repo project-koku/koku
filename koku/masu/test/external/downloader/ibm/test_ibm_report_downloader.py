@@ -156,7 +156,7 @@ class IBMReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.ibm.ibm_report_downloader.IBMProvider")
     def create_ibm_downloader(self, ibm_provider_mock):
         return IBMReportDownloader(
-            customer_name=FAKE.name(),
+            schema_name=FAKE.name(),
             data_source=dict(enterprise_id=FAKE.uuid4()),
             provider_uuid=FAKE.uuid4(),
             credentials=dict(iam_token=FAKE.sha1()),
@@ -189,14 +189,12 @@ class IBMReportDownloaderTest(MasuTestCase):
         expected_etag = "etag"
         key = f"uuid_date_{expected_etag}.csv"
         downloader = self.create_ibm_downloader()
-        expected_filenames = [f"{DATA_DIR}/{downloader.customer_name}/ibm/file_1.csv"]
+        expected_filenames = [f"{DATA_DIR}/{downloader.schema_name}/ibm/file_1.csv"]
         create_daily_archives_mock.return_value = expected_filenames
 
         full_local_path, etag, _, file_names = downloader.download_file(key, None, None, None)
-        os_mock.makedirs.assert_called_once_with(
-            f"{DATA_DIR}/{downloader.customer_name}/ibm/{timestamp}", exist_ok=True
-        )
-        self.assertEqual(full_local_path, f"{DATA_DIR}/{downloader.customer_name}/ibm/{timestamp}/{key}")
+        os_mock.makedirs.assert_called_once_with(f"{DATA_DIR}/{downloader.schema_name}/ibm/{timestamp}", exist_ok=True)
+        self.assertEqual(full_local_path, f"{DATA_DIR}/{downloader.schema_name}/ibm/{timestamp}/{key}")
         self.assertEqual(etag, expected_etag)
         self.assertEqual(len(file_names), 1)
 

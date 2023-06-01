@@ -83,7 +83,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
     def _mark_nodes_deleted(self):
         today = self._date_accessor.today()
         # Mark everything that is dict as deleted
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for _, org_unit in self._structure_yesterday.items():
                 org_unit.deleted_timestamp = today
                 org_unit.save()
@@ -119,9 +119,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
         except Exception:
             self.errors_raised = True
             LOG.exception(
-                "Failure processing org_unit_id: {} for account with account schema: {},"
+                "Failure processing org_unit_id: {} for account with account schema_name: {},"
                 " provider_uuid: {}, and account_id: {}".format(
-                    ou.get("Id"), self.schema, self.account.get("provider_uuid"), self.account_id
+                    ou.get("Id"), self.schema_name, self.account.get("provider_uuid"), self.account_id
                 )
             )
 
@@ -229,7 +229,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         account_alias = None
         account_id = None
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             # This is a leaf node
             if account:
                 # Look for an existing alias
@@ -304,7 +304,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             QuerySet(AWSOrganizationalUnit): That were marked deleted
         """
         LOG.info("Marking account deleted: account_id=%s" % (account_id))
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             account_alias = AWSAccountAlias.objects.filter(account_id=account_id).first()
             accounts = AWSOrganizationalUnit.objects.filter(account_alias=account_alias)
             # The can be multiple records for a single accounts due to changes in org structure
@@ -326,7 +326,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             "Marking org unit deleted for provider_uuid=%s: org_unit_id=%s"
             % (self.account.get("provider_uuid"), org_unit_id)
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             accounts = AWSOrganizationalUnit.objects.filter(org_unit_id=org_unit_id)
             # The can be multiple records for a single accounts due to changes in org structure
             for account in accounts:
@@ -342,7 +342,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             dict: account_id to AWSAccountAlias
         """
         self._account_alias_map = {}
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for alias in AWSAccountAlias.objects.all():
                 self._account_alias_map[alias.account_id] = alias
 
@@ -371,7 +371,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
         if not end_date:
             end_date = start_date
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             LOG.info(
                 "Obtaining tree from {} to {} for account with provider_uuid: {} and account_id: {}".format(
                     start_date, end_date, self.account.get("provider_uuid"), self.account_id

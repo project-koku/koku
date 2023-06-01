@@ -27,14 +27,14 @@ LOG = logging.getLogger(__name__)
 class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update OCP report summary data from Trino/Parquet data."""
 
-    def __init__(self, schema, provider, manifest):
+    def __init__(self, schema_name, provider, manifest):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema_name to associate with
 
         """
-        self._schema = schema
+        self._schema_name = schema_name
         self._provider = provider
         self._manifest = manifest
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
@@ -43,7 +43,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
@@ -52,7 +52,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 report_periods = report_periods.filter(report_period_start=bill_date).all()
                 first_period = report_periods.first()
                 do_month_update = False
-                with schema_context(self._schema):
+                with schema_context(self._schema_name):
                     if first_period:
                         do_month_update = determine_if_full_summary_update_needed(first_period)
                 if do_month_update:
@@ -76,7 +76,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     def _check_parquet_date_range(self, start_date, end_date):
         """Make sure we don't summarize for a date range we don't have data for."""
         start_datetime = datetime(start_date.year, start_date.month, start_date.day)
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             min_timestamp, __ = accessor.get_max_min_timestamp_from_parquet(self._provider.uuid, start_date, end_date)
             if min_timestamp > start_datetime:
                 start_date = min_timestamp.date()
@@ -96,11 +96,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         start_date, end_date = self._check_parquet_date_range(start_date, end_date)
 
-        with schema_context(self._schema):
-            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+        with schema_context(self._schema_name):
+            self._handle_partitions(self._schema_name, UI_SUMMARY_TABLES, start_date, end_date)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
-            with schema_context(self._schema):
+        with OCPReportDBAccessor(self._schema_name) as accessor:
+            with schema_context(self._schema_name):
                 report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 if not report_period:
                     LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
@@ -115,7 +115,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     "Updating OpenShift report summary tables for \n\tSchema: %s "
                     "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
-                    self._schema,
+                    self._schema_name,
                     self._provider.uuid,
                     self._cluster_id,
                     report_period_id,
@@ -136,7 +136,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # This will process POD and STORAGE together
             LOG.info(
                 "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
-                self._schema,
+                self._schema_name,
                 [report_period_id],
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
@@ -155,7 +155,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def check_cluster_infrastructure(self, start_date, end_date):
         LOG.info("Checking if OpenShift cluster %s is running on cloud infrastructure.", self._provider.uuid)
-        updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
+        updater_base = OCPCloudUpdaterBase(self._schema_name, self._provider, self._manifest)
         infra_map = updater_base.get_infra_map_from_providers()
         if not infra_map:
             # Check the cluster to see if it is running on cloud infrastructure

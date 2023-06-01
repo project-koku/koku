@@ -26,11 +26,11 @@ def connect(**connect_args):
     """
     Establish a trino connection.
     Keyword Params:
-        schema (str) : trino schema (required)
-        host (str) : trino hostname (can set from environment)
-        port (int) : trino port (can set from environment)
-        user (str) : trino user (can set from environment)
-        catalog (str) : trino catalog (can set from enviromment)
+        schema_name (str) : trino schema (required)
+        host (str)        : trino hostname (can set from environment)
+        port (int)        : trino port (can set from environment)
+        user (str)        : trino user (can set from environment)
+        catalog (str)     : trino catalog (can set from enviromment)
     Returns:
         trino.dbapi.Connection : connection to trino if successful
     """
@@ -44,7 +44,7 @@ def connect(**connect_args):
             or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
             or IsolationLevel.AUTOCOMMIT
         ),
-        "schema": connect_args["schema"],
+        "schema": connect_args["schema_name"],
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
     }
     return trino.dbapi.connect(**trino_connect_args)

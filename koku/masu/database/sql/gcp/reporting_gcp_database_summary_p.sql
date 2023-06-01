@@ -1,11 +1,11 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_gcp_database_summary_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_gcp_database_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
     AND invoice_month = {{invoice_month}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_gcp_database_summary_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_gcp_database_summary_p (
     id,
     usage_start,
     usage_end,
@@ -35,7 +35,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcp_database_summary_p (
         service_alias,
         invoice_month,
         SUM(credit_amount) AS credit_amount
-    FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary
+    FROM {{schema_name | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary
     WHERE (service_alias LIKE '%%SQL%%'
         OR service_alias LIKE '%%Spanner%%'
         OR service_alias LIKE '%%Bigtable%%'

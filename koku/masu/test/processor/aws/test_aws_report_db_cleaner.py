@@ -43,7 +43,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.accessor = AWSReportDBAccessor(schema=cls.schema)
+        cls.accessor = AWSReportDBAccessor(schema_name=cls.schema_name)
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
@@ -56,14 +56,14 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
-        cleaner = AWSReportDBCleaner(self.schema)
+        cleaner = AWSReportDBCleaner(self.schema_name)
         with self.assertRaises(AWSReportDBCleanerError):
             cleaner.purge_expired_report_data()
 
     def test_purge_expired_report_data_both_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
         now = datetime.datetime.utcnow()
-        cleaner = AWSReportDBCleaner(self.schema)
+        cleaner = AWSReportDBCleaner(self.schema_name)
         with self.assertRaises(AWSReportDBCleanerError):
             cleaner.purge_expired_report_data(expired_date=now, provider_uuid=self.aws_provider_uuid)
 
@@ -87,9 +87,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
         self.assertIsNotNone(partitioned_table_model)
         self.assertIsNotNone(report_period_model)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             test_part = PartitionedTable(
-                schema_name=self.schema,
+                schema_name=self.schema_name,
                 table_name=f"{partitioned_table_name}_2017_01",
                 partition_of_table_name=partitioned_table_name,
                 partition_type=PartitionedTable.RANGE,
@@ -99,7 +99,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
             )
             test_part.save()
 
-            self.assertTrue(table_exists(self.schema, test_part.table_name))
+            self.assertTrue(table_exists(self.schema_name, test_part.table_name))
 
             report_period_start = datetime.datetime(2017, 1, 1, tzinfo=settings.UTC)
             report_period_end = datetime.datetime(2017, 1, 31, tzinfo=settings.UTC)
@@ -119,8 +119,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
             lids_rec.save()
 
             cutoff_date = datetime.datetime(2017, 12, 31, tzinfo=settings.UTC)
-            cleaner = AWSReportDBCleaner(self.schema)
+            cleaner = AWSReportDBCleaner(self.schema_name)
             removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 
             self.assertEqual(len(removed_data), 1)
-            self.assertFalse(table_exists(self.schema, test_part.table_name))
+            self.assertFalse(table_exists(self.schema_name, test_part.table_name))

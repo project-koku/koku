@@ -45,7 +45,6 @@ class OCIReportDownloaderTest(MasuTestCase):
 
     def create_oci_downloader_with_mocked_values(
         self,
-        customer_name=FAKE.name(),
         bucket=FAKE.slug(),
         provider_uuid=uuid4(),
         namespace=FAKE.slug(),
@@ -59,7 +58,6 @@ class OCIReportDownloaderTest(MasuTestCase):
         inside other test functions.
 
         Args:
-            customer_name (str): optional customer name; will be randomly generated if None
             bucket (str): optional bucket name; will be randomly generated if None
             provider_uuid (uuid): optional provider UUID; will be randomly generated if None
 
@@ -74,7 +72,7 @@ class OCIReportDownloaderTest(MasuTestCase):
             return_value=report_file,
         ):
             downloader = OCIReportDownloader(
-                customer_name=customer_name,
+                schema_name=self.schema_name,
                 data_source=billing_source,
                 provider_uuid=provider_uuid,
             )
@@ -267,9 +265,8 @@ class OCIReportDownloaderTest(MasuTestCase):
         """Assert download_file successful scenario"""
         key = self.test_cost_report_name
         start_date = self.dh.today
-        mock_name = "mock-test-customer-success"
-        expected_full_path = f"{DATA_DIR}/{mock_name}/oci/{key}"
-        downloader = self.create_oci_downloader_with_mocked_values(customer_name=mock_name, report=key)
+        expected_full_path = f"{DATA_DIR}/{self.schema_name}/oci/{key}"
+        downloader = self.create_oci_downloader_with_mocked_values(report=key)
         with patch("masu.external.downloader.oci.oci_report_downloader.open"):
             with patch("masu.external.downloader.oci.oci_report_downloader.os.path.getmtime"):
                 with patch(

@@ -25,14 +25,14 @@ class GCPReportDBCleanerError(Exception):
 class GCPReportDBCleaner:
     """Class to remove report data."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
 
         """
-        self._schema = schema
+        self._schema_name = schema_name
 
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove report data with a billing start period before specified date.
@@ -48,7 +48,7 @@ class GCPReportDBCleaner:
         """
         LOG.info("Calling purge_expired_report_data for gcp")
 
-        with GCPReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema_name) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):
@@ -63,7 +63,7 @@ class GCPReportDBCleaner:
 
             bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
 
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             for bill in bill_objects.all():
                 removed_items.append(
                     {"removed_provider_uuid": bill.provider_id, "billing_period_start": str(bill.billing_period_start)}
@@ -80,7 +80,7 @@ class GCPReportDBCleaner:
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
         partition_from = str(date(expired_date.year, expired_date.month, 1))
-        with GCPReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema_name) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
                 accessor._table_map["ocp_on_gcp_daily_summary"],
@@ -89,7 +89,7 @@ class GCPReportDBCleaner:
             ]
             table_names.extend(UI_SUMMARY_TABLES)
 
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             removed_items = []
             all_providers = set()
             all_period_starts = set()
@@ -102,7 +102,7 @@ class GCPReportDBCleaner:
                 )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
-                        schema_name=self._schema,
+                        schema_name=self._schema_name,
                         partition_of_table_name__in=table_names,
                         partition_parameters__default=False,
                         partition_parameters__from__lte=partition_from,

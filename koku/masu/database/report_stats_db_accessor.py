@@ -11,17 +11,17 @@ from reporting_common.models import CostUsageReportStatus
 class ReportStatsDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for CUR processing statistics."""
 
-    def __init__(self, report_name, manifest_id, schema="public"):
+    def __init__(self, report_name, manifest_id, schema_name="public"):
         """
         Establish CUR statistics database connection.
 
         Args:
-            report_name    (String) CUR report file name
+            report_name      (String) CUR report file name
             provider_uuid    (String) the database id of the provider
-            schema         (String) database schema (i.e. public or customer tenant value)
+            schema_name      (String) database schema (i.e. public or customer tenant value)
 
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._manifest_id = manifest_id
         self._report_name = report_name
         self._table = CostUsageReportStatus

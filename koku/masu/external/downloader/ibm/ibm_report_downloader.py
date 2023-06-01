@@ -122,25 +122,25 @@ class IBMReportDownloaderError(Exception):
 class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """IBM Cloud Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, data_source, **kwargs):
+    def __init__(self, schema_name, data_source, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name  (Strring) Name of the customer
+            schema_name  (Strring) Name of the customer
             data_source    (Dict) dict containing IBM Enterprise ID
 
         """
         super().__init__(**kwargs)
 
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")
         try:
             IBMProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
-            msg = f"IBM source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
+            msg = f"IBM source ({self._provider_uuid}) for {schema_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.request_id, msg, self.context))
             raise IBMReportDownloaderError(str(ex))
 
@@ -196,7 +196,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         dh = DateHelper()
         download_timestamp = dh._now.strftime("%Y-%m-%d-%H-%M-%S")
-        directory_path = f"{DATA_DIR}/{self.customer_name}/ibm/{download_timestamp}"
+        directory_path = f"{DATA_DIR}/{self.schema_name}/ibm/{download_timestamp}"
         full_local_path = f"{directory_path}/{key}"
 
         os.makedirs(directory_path, exist_ok=True)

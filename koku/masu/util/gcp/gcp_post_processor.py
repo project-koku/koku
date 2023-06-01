@@ -81,8 +81,8 @@ class GCPPostProcessor:
         "partition_date",
     }
 
-    def __init__(self, schema):
-        self.schema = schema
+    def __init__(self, schema_name):
+        self.schema_name = schema_name
         self.enabled_tag_keys = set()
 
     def check_ingress_required_columns(self, col_names):
@@ -195,4 +195,4 @@ class GCPPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, GCPEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema_name, GCPEnabledTagKeys, self.enabled_tag_keys)

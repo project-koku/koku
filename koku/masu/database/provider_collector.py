@@ -10,15 +10,15 @@ from masu.database.koku_database_access import KokuDBAccess
 class ProviderCollector(KokuDBAccess):
     """Class to interact with the koku database for Provider Data."""
 
-    def __init__(self, schema="public"):
+    def __init__(self, schema_name="public"):
         """
         Establish ProviderQuerier database connection.
 
         Args:
-            schema         (String) database schema (i.e. public or customer tenant value)
+            schema_name    (String) database schema (i.e. public or customer tenant value)
 
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._table = Provider
 
     def _get_db_obj_query(self):

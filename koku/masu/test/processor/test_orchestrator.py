@@ -63,14 +63,12 @@ class OrchestratorTest(MasuTestCase):
             {
                 "credentials": {"role_arn": fake_arn(service="iam", generate_account_id=True)},
                 "data_source": {"bucket": self.fake.word()},
-                "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_AWS,
                 "schema_name": self.fake.word(),
             },
             {
                 "credentials": {},
                 "data_source": {},
-                "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_GCP,
                 "schema_name": self.fake.word(),
             },
@@ -89,22 +87,22 @@ class OrchestratorTest(MasuTestCase):
                 if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                     self.assertEqual(account.get("credentials"), self.aws_credentials)
                     self.assertEqual(account.get("data_source"), self.aws_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") == Provider.PROVIDER_OCP:
                     self.assertIn(account.get("credentials"), self.ocp_credentials)
                     self.assertEqual(account.get("data_source"), self.ocp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                     self.assertEqual(account.get("credentials"), self.azure_credentials)
                     self.assertEqual(account.get("data_source"), self.azure_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                     self.assertEqual(account.get("credentials"), self.gcp_credentials)
                     self.assertEqual(account.get("data_source"), self.gcp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
                     self.assertEqual(account.get("data_source"), self.oci_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 else:
                     self.fail("Unexpected provider")
 
@@ -117,18 +115,18 @@ class OrchestratorTest(MasuTestCase):
                 if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                     self.assertEqual(account.get("credentials"), self.aws_credentials)
                     self.assertEqual(account.get("data_source"), self.aws_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                     self.assertEqual(account.get("credentials"), self.azure_credentials)
                     self.assertEqual(account.get("data_source"), self.azure_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                     self.assertEqual(account.get("credentials"), self.gcp_credentials)
                     self.assertEqual(account.get("data_source"), self.gcp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
                     self.assertEqual(account.get("data_source"), self.oci_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
+                    self.assertEqual(account.get("schema_name"), self.schema_name)
                 else:
                     self.fail("Unexpected provider")
 
@@ -296,11 +294,10 @@ class OrchestratorTest(MasuTestCase):
         account = self.mock_accounts[0]
 
         orchestrator.start_manifest_processing(
-            account.get("customer_name"),
+            account.get("schema_name"),
             account.get("credentials"),
             account.get("data_source"),
             "AWS-local",
-            account.get("schema_name"),
             account.get("provider_uuid"),
             DateAccessor().get_billing_months(1)[0],
         )
@@ -326,11 +323,10 @@ class OrchestratorTest(MasuTestCase):
         account = self.mock_accounts[0]
 
         orchestrator.start_manifest_processing(
-            account.get("customer_name"),
+            account.get("schema_name"),
             account.get("credentials"),
             account.get("data_source"),
             "AWS-local",
-            account.get("schema_name"),
             account.get("provider_uuid"),
             DateAccessor().get_billing_months(1)[0],
         )
@@ -348,11 +344,10 @@ class OrchestratorTest(MasuTestCase):
         account = self.mock_accounts[0]
 
         orchestrator.start_manifest_processing(
-            account.get("customer_name"),
+            account.get("schema_name"),
             account.get("credentials"),
             account.get("data_source"),
             "AWS-local",
-            account.get("schema_name"),
             account.get("provider_uuid"),
             DateAccessor().get_billing_months(1)[0],
         )
@@ -380,11 +375,10 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             account = self.mock_accounts[0]
             orchestrator.start_manifest_processing(
-                account.get("customer_name"),
+                account.get("schema_name"),
                 account.get("credentials"),
                 account.get("data_source"),
                 "AWS-local",
-                account.get("schema_name"),
                 account.get("provider_uuid"),
                 DateAccessor().get_billing_months(1)[0],
             )
@@ -442,11 +436,10 @@ class OrchestratorTest(MasuTestCase):
                 orchestrator = Orchestrator(provider_uuid=test.get("provider_uuid"), queue_name=test.get("queue-name"))
                 account = self.mock_accounts[0]
                 orchestrator.start_manifest_processing(
-                    account.get("customer_name"),
+                    account.get("schema_name"),
                     account.get("credentials"),
                     account.get("data_source"),
                     "AWS-local",
-                    account.get("schema_name"),
                     account.get("provider_uuid"),
                     DateAccessor().get_billing_months(1)[0],
                 )
@@ -482,11 +475,10 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator(summarize_reports=False)
             account = self.mock_accounts[0]
             orchestrator.start_manifest_processing(
-                account.get("customer_name"),
+                account.get("schema_name"),
                 account.get("credentials"),
                 account.get("data_source"),
                 "AWS-local",
-                account.get("schema_name"),
                 account.get("provider_uuid"),
                 DateAccessor().get_billing_months(1)[0],
             )

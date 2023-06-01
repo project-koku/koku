@@ -1,4 +1,4 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary (
+INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary (
     uuid,
     cost_entry_bill_id,
     usage_start,
@@ -19,7 +19,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
 )
 with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_ocienabledtagkeys
+      from postgres.{{schema_name | sqlsafe}}.reporting_ocienabledtagkeys
      where enabled = true
 )
 SELECT uuid() as uuid,
@@ -83,8 +83,8 @@ FROM (
         max(c.cost_currencycode) as currency,
         sum(c.cost_mycost) as cost,
         c.tags as tags
-    FROM hive.{{schema | sqlsafe}}.oci_cost_line_items as c
-    JOIN hive.{{schema | sqlsafe}}.oci_usage_line_items as u
+    FROM hive.{{schema_name | sqlsafe}}.oci_cost_line_items as c
+    JOIN hive.{{schema_name | sqlsafe}}.oci_usage_line_items as u
         ON c.lineItem_intervalUsageStart = u.lineItem_intervalUsageStart
         AND c.product_resourceId = u.product_resourceId
     WHERE c.source = '{{source_uuid | sqlsafe}}'

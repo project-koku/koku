@@ -1,4 +1,4 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
@@ -47,7 +47,7 @@ CREATE TEMPORARY TABLE label_filtered_daily_summary AS (
     {{cost_model_volume_cost | sqlsafe}},
     {{cost_type}} as monthly_cost_type,
     lids.cost_category_id
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
@@ -64,7 +64,7 @@ GROUP BY usage_start, source_uuid, cluster_id, node, lids.namespace, lids.pod_la
 ;
 
 -- This block is for allocated node usage
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -151,7 +151,7 @@ FROM label_filtered_daily_summary AS lids
 
 -- This block is for UNALLOCATED node capacity
 -- This is required to get to the full node monthly cost
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -238,7 +238,7 @@ WITH cte_unallocated AS (
         {{unallocated_cost_model_volume_cost | sqlsafe}},
         {{cost_type}} as monthly_cost_type
     FROM label_filtered_daily_summary AS lids
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_nodes as nodes
+    LEFT JOIN {{schema_name | sqlsafe}}.reporting_ocp_nodes as nodes
         ON lids.node = nodes.node
         AND lids.resource_id = nodes.resource_id
     GROUP BY usage_start, source_uuid, lids.cluster_id, lids.node, lids.pod_labels
@@ -284,7 +284,7 @@ SELECT uuid,
     monthly_cost_type,
     cat.id as cost_category_id
 FROM cte_unallocated AS uc
-LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+LEFT JOIN {{schema_name | sqlsafe}}.reporting_ocp_cost_category AS cat
     ON uc.namespace LIKE ANY(cat.namespace)
 ;
 

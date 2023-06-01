@@ -1,10 +1,10 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_aws_cost_summary_by_region_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_aws_cost_summary_by_region_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_aws_cost_summary_by_region_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_aws_cost_summary_by_region_p (
     id,
     usage_start,
     usage_end,
@@ -42,7 +42,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_cost_summary_by_region_p (
         sum(coalesce(markup_cost_amortized, 0.0::numeric(33,9))) AS markup_cost_amortized,
         max(currency_code) as currency_code,
         {{source_uuid}}::uuid as source_uuid
-    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+    FROM {{schema_name | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}

@@ -14,7 +14,7 @@ class TestTrinoDatabaseUtils(IamTestCase):
         """
         Test connection to trino returns trino.dbapi.Connection instance
         """
-        conn = trino_db.connect(schema=self.schema_name, catalog="hive")
+        conn = trino_db.connect(schema_name=self.schema_name, catalog="hive")
         self.assertTrue(isinstance(conn, Connection))
         self.assertEqual(conn.schema, self.schema_name)
         self.assertEqual(conn.catalog, "hive")
@@ -24,28 +24,28 @@ class TestTrinoDatabaseUtils(IamTestCase):
         Test execution of a buffer containing multiple statements
         """
         sqlscript = """
-drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
-create table hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}}
+drop table if exists hive.{{schema_name | sqlsafe}}.__test_{{uuid | sqlsafe}};
+create table hive.{{schema_name | sqlsafe}}.__test_{{uuid | sqlsafe}}
 (
     id varchar,
     i_data integer,
     t_data varchar
 );
 
-insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
+insert into hive.{{schema_name | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
 values (cast(uuid() as varchar), 10, 'default');
 
-insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
+insert into hive.{{schema_name | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
 values (cast(uuid() as varchar), {{int_data}}, {{txt_data}});
 
-select t_data from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_data = {{int_data}};
+select t_data from hive.{{schema_name | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_data = {{int_data}};
 
-drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
+drop table if exists hive.{{schema_name | sqlsafe}}.__test_{{uuid | sqlsafe}};
 """
         conn = FakeTrinoConn()
         params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "schema": self.schema_name,
+            "schema_name": self.schema_name,
             "int_data": 255,
             "txt_data": "This is a test",
         }

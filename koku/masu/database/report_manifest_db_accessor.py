@@ -29,8 +29,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def __init__(self):
         """Access the AWS report manifest database table."""
-        self._schema = "public"
-        super().__init__(self._schema)
+        self._schema_name = "public"
+        super().__init__(self._schema_name)
         self._table = CostUsageReportManifest
         self.date_accessor = DateAccessor()
 
@@ -41,7 +41,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             query = self._get_db_obj_query()
             return query.filter(id=manifest_id).first()
 

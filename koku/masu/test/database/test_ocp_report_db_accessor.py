@@ -49,9 +49,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.accessor = OCPReportDBAccessor(schema=cls.schema)
+        cls.accessor = OCPReportDBAccessor(schema_name=cls.schema_name)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
+        cls.creator = ReportObjectCreator(cls.schema_name)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def setUp(self):
@@ -96,7 +96,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         prev_reporting_period = self.creator.create_ocp_report_period(
             self.ocp_provider_uuid, period_date=prev_period_start, cluster_id="0002"
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             periods = self.accessor.get_usage_period_by_dates_and_cluster(
                 period_start.date(), period_end.date(), "0001"
             )
@@ -111,7 +111,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         provider_uuid = self.ocp_provider_uuid
 
         period_query = self.accessor.get_usage_period_query_by_provider(provider_uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             periods = period_query.all()
 
             self.assertGreater(len(periods), 0)
@@ -126,7 +126,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date = str(self.reporting_period.report_period_start)
 
         period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(period.provider_id, provider_uuid)
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
@@ -196,7 +196,7 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start
         end_date = dh.this_month_end
         self.cluster_id = "OCP-on-AWS"
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             # define the two usage types to test
             usage_types = ("Infrastructure", "Supplementary")
             for usage_type in usage_types:
@@ -360,7 +360,7 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start
         end_date = dh.this_month_end
         self.cluster_id = "OCP-on-AWS"
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             # define the two usage types to test
             usage_types = ("Infrastructure", "Supplementary")
             for usage_type in usage_types:
@@ -517,7 +517,7 @@ select * from eek where val1 in {{report_period_id}} ;
 
         report_period = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
             key_to_keep = OCPEnabledTagKeys.objects.filter(key="app").first()
@@ -559,21 +559,21 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_delete_line_item_daily_summary_entries_for_date_range(self):
         """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             start_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
             end_date = start_date
 
         table_query = OCPUsageLineItemDailySummary.objects.filter(
             source_uuid=self.ocp_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertNotEqual(table_query.count(), 0)
 
         self.accessor.delete_line_item_daily_summary_entries_for_date_range(
             self.ocp_provider_uuid, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(table_query.count(), 0)
 
     def test_table_properties(self):
@@ -617,7 +617,7 @@ select * from eek where val1 in {{report_period_id}} ;
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
-        expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
+        expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema_name}"
         with patch("masu.util.gcp.common.disable_gcp_resource_matching", return_value=True):
             with self.assertLogs("masu", level="INFO") as logger:
                 self.accessor.get_ocp_infrastructure_map_trino(
@@ -655,7 +655,7 @@ select * from eek where val1 in {{report_period_id}} ;
             self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertIsNotNone(OCPCluster.objects.filter(cluster_id=cluster_id).first())
             for node in nodes:
                 db_node = OCPNode.objects.filter(node=node).first()
@@ -710,7 +710,7 @@ select * from eek where val1 in {{report_period_id}} ;
             self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
@@ -734,7 +734,7 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
         cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             node = OCPNode.objects.create(
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
@@ -751,7 +751,7 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
         cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.accessor.populate_node_table(cluster, [node_info])
             node_count = OCPNode.objects.filter(
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
@@ -769,7 +769,7 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
         report_period = self.accessor.report_periods_for_provider_uuid(self.ocpaws_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
             count = OCPUsageLineItemDailySummary.objects.filter(
                 report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
@@ -780,7 +780,7 @@ select * from eek where val1 in {{report_period_id}} ;
             self.ocpaws_provider_uuid, report_period_id, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             count = OCPUsageLineItemDailySummary.objects.filter(
                 report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
             ).count()
@@ -876,7 +876,7 @@ select * from eek where val1 in {{report_period_id}} ;
         provider_uuid = self.ocp_on_aws_ocp_provider.uuid
         report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
             initial_non_raw_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
@@ -896,7 +896,7 @@ select * from eek where val1 in {{report_period_id}} ;
             provider_uuid, report_period_id, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -914,7 +914,7 @@ select * from eek where val1 in {{report_period_id}} ;
         provider_uuid = self.ocp_provider.uuid
         report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period_id = report_period.id
             initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
@@ -929,7 +929,7 @@ select * from eek where val1 in {{report_period_id}} ;
             provider_uuid, report_period_id, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -1002,11 +1002,11 @@ select * from eek where val1 in {{report_period_id}} ;
         masu_database = "masu.database"
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
-        accessor = OCPReportDBAccessor(schema=self.schema)
+        accessor = OCPReportDBAccessor(schema_name=self.schema_name)
         default_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "report_period_id": 1,
             "distribution": "cpu",
             "source_uuid": self.ocp_test_provider_uuid,

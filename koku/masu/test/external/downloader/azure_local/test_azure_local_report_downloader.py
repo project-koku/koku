@@ -31,7 +31,6 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.customer_name = "testcustomer"
         self.local_storage = tempfile.mkdtemp()
         self.container_name = "my_container"
         self.directory = "dir"
@@ -61,7 +60,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         os.makedirs(DATA_DIR, exist_ok=True)
 
         self.report_downloader = ReportDownloader(
-            customer_name=self.customer_name,
+            schema_name=self.schema_name,
             credentials=self.fake_auth_credential,
             data_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AZURE_LOCAL,
@@ -70,7 +69,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
 
         self.azure_local_report_downloader = AzureLocalReportDownloader(
             **{
-                "customer_name": self.customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.fake_auth_credential,
                 "data_source": self.fake_bucket_name,
                 "bucket": self.fake_bucket_name,  # TODO: bucket?
@@ -90,7 +89,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
     def test_download_file(self):
         """Test Azure-Local report download."""
         expected_full_path = "{}/{}/azure/{}/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.container_name, self.csv_file_name
+            Config.TMP_DIR, self.schema_name.replace(" ", "_"), self.container_name, self.csv_file_name
         )
         full_file_path, etag, _, __, ___ = self.azure_local_report_downloader.download_file(self.csv_key)
         self.assertEqual(full_file_path, expected_full_path)
@@ -114,7 +113,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
                 "current_file": "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv",
             }
             self.report_downloader.download_report(report_context)
-            expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
+            expected_path = "{}/{}/{}".format(DATA_DIR, self.schema_name, "azure")
             self.assertTrue(os.path.isdir(expected_path))
 
     def test_get_manifest(self):

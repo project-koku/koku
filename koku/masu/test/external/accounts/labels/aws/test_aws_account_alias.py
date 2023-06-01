@@ -24,10 +24,10 @@ class AWSAccountAliasTest(MasuTestCase):
 
     def test_initializer(self):
         """Test AWSAccountAlias initializer."""
-        schema = "org1234567"
-        accessor = AWSAccountAlias(self.credentials, schema)
+        schema_name = "org1234567"
+        accessor = AWSAccountAlias(self.credentials, schema_name)
         self.assertEqual(accessor._arn.arn, self.arn.arn)
-        self.assertEqual(accessor._schema, schema)
+        self.assertEqual(accessor._schema_name, schema_name)
 
     @patch("masu.external.accounts.labels.aws.aws_account_alias.get_account_names_by_organization", return_value=[])
     @patch("masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn")

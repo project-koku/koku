@@ -1,4 +1,4 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_gcpenabledtagkeys (key)
+INSERT INTO {{schema_name | sqlsafe}}.reporting_gcpenabledtagkeys (key)
 SELECT DISTINCT(key)
   FROM reporting_gcpcostentrylineitem_daily_summary as lids,
        jsonb_each_text(lids.tags) labels
@@ -13,11 +13,11 @@ SELECT DISTINCT(key)
    {% endif %}
    AND NOT EXISTS (
          SELECT key
-           FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+           FROM {{schema_name | sqlsafe}}.reporting_gcpenabledtagkeys
           WHERE key = labels.key
        )
    AND NOT key = ANY(
          SELECT DISTINCT(key)
-           FROM {{schema | sqlsafe}}.reporting_gcptags_summary
+           FROM {{schema_name | sqlsafe}}.reporting_gcptags_summary
        )
     ON CONFLICT (key) DO NOTHING;

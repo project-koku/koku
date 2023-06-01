@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 # pylint: disable=too-many-arguments,too-many-locals
 def _get_report_files(
     tracing_id,
-    customer_name,
+    schema_name,
     authentication,
     billing_source,
     provider_type,
@@ -32,7 +32,7 @@ def _get_report_files(
 
     Args:
         tracing_id        (String): Tracing ID for file processing.
-        customer_name     (String): Name of the customer owning the cost usage report.
+        schema_name       (String): Name of the customer owning the cost usage report.
         access_credential (String): Credential needed to access cost usage report
                                     in the backend provider.
         report_source     (String): Location of the cost usage report in the backend provider.
@@ -49,13 +49,13 @@ def _get_report_files(
     """
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
-    context = {}
-    if customer_name.startswith("acct"):
-        context["account"] = customer_name[4:]
-        download_acct = customer_name[4:]
+    context = {"schema_name": schema_name}
+    if schema_name.startswith("acct"):
+        context["account"] = schema_name[4:]
+        download_acct = schema_name[4:]
     else:
-        context["org_id"] = customer_name[3:]
-        download_acct = customer_name
+        context["org_id"] = schema_name[3:]
+        download_acct = schema_name
     context["provider_uuid"] = provider_uuid
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
@@ -63,7 +63,7 @@ def _get_report_files(
     log_statement = (
         f"{function_name}: "
         f"Downloading report for: "
-        f" schema_name: {customer_name} "
+        f" schema_name: {schema_name} "
         f" provider: {provider_type} "
         f" account (provider uuid): {provider_uuid} "
         f" report_month: {month_string} "
@@ -77,7 +77,7 @@ def _get_report_files(
     LOG.info(log_json(tracing_id, disk_msg, context))
 
     downloader = ReportDownloader(
-        customer_name=customer_name,
+        schema_name=schema_name,
         credentials=authentication,
         data_source=billing_source,
         provider_type=provider_type,

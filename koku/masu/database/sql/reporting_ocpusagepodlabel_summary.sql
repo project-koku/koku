@@ -1,10 +1,10 @@
-create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS
+create table {{schema_name | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS
     SELECT key,
         value,
         li.report_period_id,
         li.namespace,
         li.node
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS li,
+    FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS li,
         jsonb_each_text(li.pod_labels) labels
     WHERE li.data_source = 'Pod'
     {% if report_period_ids %}
@@ -17,36 +17,36 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS
         AND li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
-        AND li.pod_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys WHERE enabled=true)
+        AND li.pod_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema_name | sqlsafe}}.reporting_ocpenabledtagkeys WHERE enabled=true)
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ;
 
 create index ix_cte_tag_value_{{uuid | sqlsafe}}
-    on {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}}
+    on {{schema_name | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}}
        (key, report_period_id, namespace, node)
 ;
 
 
-create table {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} AS
+create table {{schema_name | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} AS
     SELECT tv.key,
         array_agg(DISTINCT value)::text[] as "values",
         report_period_id,
         namespace,
         node
-    FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} tv
-    JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys etk
+    FROM {{schema_name | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} tv
+    JOIN {{schema_name | sqlsafe}}.reporting_ocpenabledtagkeys etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
     GROUP BY tv.key, report_period_id, namespace, node
 ;
 
 create unique index ix_cte_values_agg_{{uuid | sqlsafe}}
-    on {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}}
+    on {{schema_name | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}}
        (key, report_period_id, namespace, node)
 ;
 
 
-create table {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS
+create table {{schema_name | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS
     SELECT v.key,
         array_agg(DISTINCT v."values")::text[] as "values",
         v.report_period_id,
@@ -58,8 +58,8 @@ create table {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS
             va.report_period_id,
             va.namespace,
             va.node
-        FROM {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} AS va
-        LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
+        FROM {{schema_name | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} AS va
+        LEFT JOIN {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
             ON va.key = ls.key
                 AND va.report_period_id = ls.report_period_id
                 AND va.namespace = ls.namespace
@@ -69,12 +69,12 @@ create table {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS
 ;
 
 create unique index ix_cte_distinct_values_agg_{{uuid | sqlsafe}}
-    on {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}}
+    on {{schema_name | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}}
        (key, report_period_id, namespace, node)
 ;
 
 
-create table {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} as
+create table {{schema_name | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} as
 SELECT uuid_generate_v4() as uuid,
     tv.key,
     tv.value,
@@ -82,24 +82,24 @@ SELECT uuid_generate_v4() as uuid,
     array_agg(DISTINCT rp.cluster_alias)::text[] as cluster_aliases,
     array_agg(DISTINCT tv.namespace)::text[] as namespaces,
     array_agg(DISTINCT tv.node)::text[] as nodes
-FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS tv
-JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+FROM {{schema_name | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS tv
+JOIN {{schema_name | sqlsafe}}.reporting_ocpusagereportperiod AS rp
     ON tv.report_period_id = rp.id
 GROUP BY tv.key, tv.value
 ;
 
 create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
-    on {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}}
+    on {{schema_name | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}}
        (key, value)
 ;
 
 
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
 WHERE uuid IN (
-    SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
+    SELECT uuid FROM {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
     WHERE EXISTS (
         SELECT 1
-        FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+        FROM {{schema_name | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
         WHERE etk.enabled = false
             AND ls.key = etk.key
     )
@@ -109,11 +109,11 @@ WHERE uuid IN (
 ;
 
 
-UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x
+UPDATE {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x
 SET values = upd.values
 FROM (
     SELECT x.uuid, y.values
-    FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x, {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS y
+    FROM {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x, {{schema_name | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS y
     WHERE y.key = x.key
         AND y.report_period_id = x.report_period_id
         AND y.namespace = x.namespace
@@ -126,17 +126,17 @@ WHERE x.uuid = upd.uuid
 ;
 
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (uuid, key, report_period_id, namespace, node, values)
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary (uuid, key, report_period_id, namespace, node, values)
 SELECT uuid_generate_v4() as uuid,
     key,
     report_period_id,
     namespace,
     node,
     "values"
-FROM {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} x
+FROM {{schema_name | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} x
 WHERE NOT EXISTS (
           SELECT 1
-            FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary y
+            FROM {{schema_name | sqlsafe}}.reporting_ocpusagepodlabel_summary y
            WHERE y.key = x.key
              AND y.report_period_id = x.report_period_id
              AND y.namespace = x.namespace
@@ -146,14 +146,14 @@ ON CONFLICT DO NOTHING
 ;
 
 
-UPDATE {{schema | sqlsafe}}.reporting_ocptags_values AS ov
+UPDATE {{schema_name | sqlsafe}}.reporting_ocptags_values AS ov
    SET cluster_ids = upd.cluster_ids,
        cluster_aliases = upd.cluster_aliases,
        namespaces = upd.namespaces,
        nodes = upd.nodes
 FROM (
     SELECT ov.uuid, ca.cluster_ids, ca.cluster_aliases, ca.namespaces, ca.nodes
-    FROM {{schema | sqlsafe}}.reporting_ocptags_values AS ov, {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} AS ca
+    FROM {{schema_name | sqlsafe}}.reporting_ocptags_values AS ov, {{schema_name | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} AS ca
     WHERE ca.key = ov.key
     AND ca.value = ov.value
     AND (
@@ -169,7 +169,7 @@ WHERE ov. uuid = upd.uuid
 ;
 
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (uuid, key, value, cluster_ids, cluster_aliases, namespaces, nodes)
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocptags_values (uuid, key, value, cluster_ids, cluster_aliases, namespaces, nodes)
 SELECT uuid_generate_v4() as uuid,
     tv.key,
     tv.value,
@@ -177,10 +177,10 @@ SELECT uuid_generate_v4() as uuid,
     tv.cluster_aliases,
     tv.namespaces,
     tv.nodes
-FROM {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} AS tv
+FROM {{schema_name | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} AS tv
 WHERE not exists (
     SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_ocptags_values AS rp
+    FROM {{schema_name | sqlsafe}}.reporting_ocptags_values AS rp
     WHERE rp.key = tv.key
         AND rp.value = tv.value
 )
@@ -188,11 +188,11 @@ ON CONFLICT DO NOTHING
 ;
 
 
-TRUNCATE TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
-DROP TABLE {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
-TRUNCATE TABLE {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}};
-DROP TABLE {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}};
-TRUNCATE TABLE {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}};
-DROP TABLE {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}};
-TRUNCATE TABLE {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}};
-DROP TABLE {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}};
+TRUNCATE TABLE {{schema_name | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
+DROP TABLE {{schema_name | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}};
+TRUNCATE TABLE {{schema_name | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}};
+DROP TABLE {{schema_name | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}};
+TRUNCATE TABLE {{schema_name | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}};
+DROP TABLE {{schema_name | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}};
+TRUNCATE TABLE {{schema_name | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}};
+DROP TABLE {{schema_name | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}};

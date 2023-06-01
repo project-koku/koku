@@ -3,10 +3,10 @@
     SELECT c.provider_id as ocp_uuid,
         p.uuid as infra_uuid,
         p.type
-    FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_p as aws
-    JOIN {{schema | sqlsafe}}.reporting_ocp_nodes as ocp
+    FROM {{schema_name | sqlsafe}}.reporting_aws_compute_summary_p as aws
+    JOIN {{schema_name | sqlsafe}}.reporting_ocp_nodes as ocp
         ON ocp.resource_id = ANY(aws.resource_ids)
-    JOIN {{schema | sqlsafe}}.reporting_ocp_clusters as c
+    JOIN {{schema_name | sqlsafe}}.reporting_ocp_clusters as c
         ON ocp.cluster_id = c.uuid
     JOIN public.api_provider as p
         ON aws.source_uuid = p.uuid
@@ -34,7 +34,7 @@
     FROM (
         SELECT azure.source_uuid,
             instance_id
-        FROM {{schema | sqlsafe}}.reporting_azure_compute_summary_p as azure,
+        FROM {{schema_name | sqlsafe}}.reporting_azure_compute_summary_p as azure,
             unnest(instance_ids) as instance_ids(instance_id)
         WHERE azure.usage_start >= {{start_date}}::date
             AND azure.usage_start <= {{end_date}}::date
@@ -42,9 +42,9 @@
             AND azure.source_uuid = {{azure_provider_uuid}}
             {% endif %}
     ) as azure
-    JOIN {{schema | sqlsafe}}.reporting_ocp_nodes as ocp
+    JOIN {{schema_name | sqlsafe}}.reporting_ocp_nodes as ocp
         ON split_part(azure.instance_id, '/', 9) = ocp.node
-    JOIN {{schema | sqlsafe}}.reporting_ocp_clusters as c
+    JOIN {{schema_name | sqlsafe}}.reporting_ocp_clusters as c
         ON ocp.cluster_id = c.uuid
     JOIN public.api_provider as p
         ON azure.source_uuid = p.uuid

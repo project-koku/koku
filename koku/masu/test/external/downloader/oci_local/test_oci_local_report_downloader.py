@@ -22,7 +22,6 @@ from masu.test import MasuTestCase
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
-CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
 REGION = "uk-london-1"
 
@@ -36,7 +35,6 @@ class OCILocalReportDownloaderTest(MasuTestCase):
     def setUpClass(cls):
         """Set up class variables."""
         super().setUpClass()
-        cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = "koku-local"
         cls.selected_region = REGION
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -51,14 +49,14 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         local_dir = f"{self.local_storage}"
         self.csv_file_name = test_report.split("/")[-1]
         self.csv_file_path = f"{local_dir}/{self.csv_file_name}"
-        self.testing_dir = f"{DATA_DIR}/{CUSTOMER_NAME}/oci-local{self.local_storage}/{self.etag}"
+        self.testing_dir = f"{DATA_DIR}/{self.schema_name}/oci-local{self.local_storage}/{self.etag}"
         shutil.copy2(test_report, self.csv_file_path)
 
         self.credentials = {"tenant": "test-tenant"}
         self.data_source = {"bucket": local_dir, "bucket_namespace": "test-namespace", "region": "my-region"}
 
         self.report_downloader = ReportDownloader(
-            customer_name=self.fake_customer_name,
+            schema_name=self.schema_name,
             credentials=self.credentials,
             data_source=self.data_source,
             provider_type=Provider.PROVIDER_OCI_LOCAL,
@@ -67,7 +65,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
 
         self.oci_local_report_downloader = OCILocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": self.data_source,
                 "provider_uuid": self.oci_provider_uuid,
@@ -205,7 +203,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         err_msg = "The required bucket parameter was not provided in the data_source json."
         self.oci_local_report_downloader = OCILocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "data_source": {},
             }
         )

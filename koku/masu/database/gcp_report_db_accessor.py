@@ -39,13 +39,13 @@ LOG = logging.getLogger(__name__)
 class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with GCP Report reporting tables."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._table_map = GCP_REPORT_TABLE_MAP
 
     @property
@@ -65,7 +65,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 summary_sql_params = {
                     "start_date": start_date,
                     "end_date": extended_end_date,
-                    "schema": self.schema,
+                    "schema_name": self.schema_name,
                     "source_uuid": source_uuid,
                     "invoice_month": invoice_month,
                 }
@@ -82,7 +82,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = GCPCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
@@ -98,7 +98,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = GCPCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             base_query = self._get_db_obj_query(table_name)
             if provider_uuid:
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
@@ -136,7 +136,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
             "year": invoice_month_date.strftime("%Y"),
@@ -155,13 +155,18 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_gcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if bill_ids and start_date and end_date:
                 for bill_id in bill_ids:
                     GCPCostEntryLineItemDailySummary.objects.filter(
@@ -229,7 +234,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -256,7 +261,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -269,7 +274,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(msg)
         topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date, invoice_month_date)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             for record in topology:
                 gcp_top = GCPTopology.objects.filter(
                     source_uuid=record[0],
@@ -302,7 +307,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 service_id,
                 service_description,
                 location_region
-            FROM hive.{self.schema}.gcp_line_items as gcp
+            FROM hive.{self.schema_name}.gcp_line_items as gcp
             WHERE gcp.source = '{source_uuid}'
                 AND gcp.year = '{invoice_month_date.strftime("%Y")}'
                 AND gcp.month = '{invoice_month_date.strftime("%m")}'
@@ -342,7 +347,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             usage_start__lte=end_date,
             invoice_month=invoice_month,
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
@@ -402,7 +407,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "year": year,
             "month": month,
@@ -485,7 +490,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "year": year,
             "month": month,
@@ -534,7 +539,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for invoice_month in invoice_month_list:
             for table_name in tables:
                 summary_sql_params = {
-                    "schema_name": self.schema,
+                    "schema_name": self.schema_name,
                     "start_date": start_date,
                     "end_date": end_date,
                     "year": year,
@@ -558,7 +563,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tGCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
+                self.schema_name,
                 ocp_source,
                 gcp_source,
                 table,
@@ -570,7 +575,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for i in range(retries):
                     try:
                         sql = f"""
-                            DELETE FROM hive.{self.schema}.{table}
+                            DELETE FROM hive.{self.schema_name}.{table}
                                 WHERE gcp_source = '{gcp_source}'
                                 AND ocp_source = '{ocp_source}'
                                 AND year = '{year}'
@@ -591,10 +596,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
-        sql_params = {"bill_id": gcp_bill_id, "schema": self.schema}
+        sql_params = {"bill_id": gcp_bill_id, "schema_name": self.schema_name}
         sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(sql, params=bind_params)
             results = cursor.fetchall()
 
@@ -613,7 +618,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "gcp_source_uuid": gcp_source_uuid,
             "ocp_source_uuids": ocp_source_uuids,
             "year": invoice_month_date.strftime("%Y"),
@@ -633,7 +638,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         agg_sql = pkgutil.get_data("masu.database", "sql/gcp/openshift/reporting_ocpgcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "gcp_bill_ids": gcp_bill_ids,
             "start_date": start_date,
             "end_date": end_date,
@@ -651,7 +656,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         sql = sql.decode("utf-8")
         sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -664,15 +669,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key
+            SELECT COUNT(*) FROM {self.schema_name}.reporting_gcpenabledtagkeys as gcp
+                INNER JOIN {self.schema_name}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key
                 WHERE gcp.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
+                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema_name}")
                 return False
         return True

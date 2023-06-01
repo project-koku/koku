@@ -26,9 +26,7 @@ from masu.test import MasuTestCase
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
-
 FAKE = Faker()
-CUSTOMER_NAME = FAKE.word()
 
 
 class OCPReportDownloaderTest(MasuTestCase):
@@ -39,7 +37,6 @@ class OCPReportDownloaderTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.fake_customer_name = CUSTOMER_NAME
         self.fake_report_name = "ocp-report"
         self.cluster_id = "my-ocp-cluster-1"
         self.credentials = {"cluster_id": self.cluster_id}
@@ -62,7 +59,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         shutil.copyfile(test_manifest_path, os.path.join(report_path, self.test_manifest_path))
 
         self.report_downloader = ReportDownloader(
-            customer_name=self.fake_customer_name,
+            schema_name=self.schema_name,
             credentials=self.credentials,
             data_source={},
             provider_type=Provider.PROVIDER_OCP,
@@ -71,7 +68,7 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         self.ocp_report_downloader = OCPReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": {},
                 "provider_uuid": self.ocp_provider_uuid,
@@ -95,7 +92,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                 "current_file": self.test_file_path,
             }
             self.report_downloader.download_report(report_context)
-        expected_path = "{}/{}/{}".format(Config.TMP_DIR, self.fake_customer_name, "ocp")
+        expected_path = "{}/{}/{}".format(Config.TMP_DIR, self.schema_name, "ocp")
         self.assertTrue(os.path.isdir(expected_path))
 
     def test_download_bucket_no_csv_found(self):

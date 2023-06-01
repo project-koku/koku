@@ -17,10 +17,10 @@ LOG = logging.getLogger(__name__)
 class IngressReportDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for ingrss report processing statistics."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Access the ingress report database table."""
-        self._schema = schema
-        super().__init__(self._schema)
+        self._schema_name = schema_name
+        super().__init__(self._schema_name)
         self._table = IngressReports
         self.date_accessor = DateAccessor()
 
@@ -31,7 +31,7 @@ class IngressReportDBAccessor(KokuDBAccess):
 
     def get_ingress_report_by_uuid(self, ingress_report_uuid):
         """Get the ingress report by id."""
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             query = self._get_db_obj_query()
             return query.filter(uuid=ingress_report_uuid).first()
 

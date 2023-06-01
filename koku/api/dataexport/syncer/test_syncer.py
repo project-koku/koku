@@ -118,7 +118,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
         """
         source_bucket_name = fake.slug()
         destination_bucket_name = fake.slug()
-        schema_name = self.schema
+        schema_name = self.schema_name
 
         start_date = date(2019, 1, 1)
         end_date = date(2019, 3, 1)
@@ -162,7 +162,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
         """Test syncing a file from one S3 bucket to another fails due to no matching files."""
         source_bucket_name = fake.slug()
         destination_bucket_name = fake.slug()
-        schema_name = self.schema
+        schema_name = self.schema_name
 
         start_date = date(2019, 1, 1)
         end_date = date(2019, 3, 1)
@@ -203,7 +203,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
         )
         source_bucket_name = fake.slug()
         destination_bucket_name = fake.slug()
-        schema_name = self.schema
+        schema_name = self.schema_name
 
         start_date = date(2019, 1, 1)
         end_date = date(2019, 3, 1)
@@ -236,7 +236,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
         )
         source_bucket_name = fake.slug()
         destination_bucket_name = fake.slug()
-        schema_name = self.schema
+        schema_name = self.schema_name
 
         start_date = date(2019, 1, 1)
         end_date = date(2019, 3, 1)
@@ -268,7 +268,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
         client_error = ClientError(error_response={"Error": {"Code": fake.word()}}, operation_name=Mock())
         source_bucket_name = fake.slug()
         destination_bucket_name = fake.slug()
-        schema_name = self.schema
+        schema_name = self.schema_name
 
         start_date = date(2019, 1, 1)
         end_date = date(2019, 3, 1)

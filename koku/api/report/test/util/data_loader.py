@@ -14,10 +14,10 @@ from api.utils import DateHelper
 class DataLoader(ABC):
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, customer, num_days=40):
+    def __init__(self, schema_name, customer, num_days=40):
         """Initialize the data loader."""
         self.dh = DateHelper()
-        self.schema = schema
+        self.schema_name = schema_name
         self.customer = customer
         self.dates = self.get_test_data_dates(num_days)
         self.first_start_date = self.dates[0][0]

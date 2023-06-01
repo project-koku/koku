@@ -22,20 +22,20 @@ class KokuDBAccess:
     with a schema/tenant context.
     """
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """
         Establish database connection.
 
         Args:
-            schema       (String) database schema (i.e. public or customer tenant value)
+            schema_name   (String) database schema (i.e. public or customer tenant value)
 
         """
-        self.schema = schema
+        self.schema_name = schema_name
 
     def __enter__(self):
         """Enter context manager."""
         connection = transaction.get_connection()
-        connection.set_schema(self.schema)
+        connection.set_schema(self.schema_name)
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -53,7 +53,7 @@ class KokuDBAccess:
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
 
         """
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             queryset = self._table.objects.all()
             if filter_args:
                 queryset = queryset.filter(**filter_args)
@@ -69,7 +69,7 @@ class KokuDBAccess:
             (Boolean): "True/False",
 
         """
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return self._get_db_obj_query().exists()
 
     def add(self, **kwargs):
@@ -83,7 +83,7 @@ class KokuDBAccess:
             (Object): new model object
 
         """
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             new_entry, _ = self._table.objects.get_or_create(**kwargs)
             new_entry.save()
             return new_entry
@@ -102,7 +102,7 @@ class KokuDBAccess:
             deleteme = obj
         else:
             deleteme = self._obj
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             deleteme.delete()
 
 

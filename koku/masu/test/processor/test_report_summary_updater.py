@@ -58,12 +58,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         self.unknown_provider.save()
 
         with self.assertRaises(ReportSummaryUpdaterError):
-            _ = ReportSummaryUpdater(self.schema, self.unkown_test_provider_uuid)
+            _ = ReportSummaryUpdater(self.schema_name, self.unkown_test_provider_uuid)
 
     def test_bad_provider(self):
         """Test that an unknown provider uuid throws an error."""
         with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
-            _ = ReportSummaryUpdater(self.schema, uuid4())
+            _ = ReportSummaryUpdater(self.schema_name, uuid4())
 
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
@@ -79,22 +79,22 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             manifest = accessor.add(**manifest_dict)
         manifest_id = manifest.id
         with self.assertRaises(ReportSummaryUpdaterError):
-            ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)
+            ReportSummaryUpdater(self.schema_name, no_provider_uuid, manifest_id)
 
     def test_aws_parquet_summary_updater(self):
         """Test that the AWSReportParquetSummaryUpdater is returned."""
-        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema_name, self.aws_provider_uuid)
 
         self.assertIsInstance(updater._updater, AWSReportParquetSummaryUpdater)
 
     def test_azure_parquet_summary_updater(self):
         """Test that the AzureReportParquetSummaryUpdater is returned."""
-        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema_name, self.azure_provider_uuid)
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
 
     def test_oci_parquet_summary_updater(self):
         """Test that the OCIReportParquetSummaryUpdater is returned."""
-        updater = ReportSummaryUpdater(self.schema, self.oci_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema_name, self.oci_provider_uuid)
         self.assertIsInstance(updater._updater, OCIReportParquetSummaryUpdater)
 
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
@@ -103,7 +103,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         start_date = DateHelper().this_month_start.date()
         end_date = DateHelper().today.date()
 
-        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema_name, self.azure_provider_uuid)
         updater.update_openshift_on_cloud_summary_tables(
             start_date,
             end_date,
@@ -117,7 +117,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.reset_mock()
 
         # Only run for cloud sources that support OCP on Cloud
-        updater = ReportSummaryUpdater(self.schema, self.ocp_on_azure_ocp_provider.uuid)
+        updater = ReportSummaryUpdater(self.schema_name, self.ocp_on_azure_ocp_provider.uuid)
         updater.update_openshift_on_cloud_summary_tables(
             start_date,
             end_date,
@@ -130,7 +130,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         mock_update.reset_mock()
 
-        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema_name, self.azure_provider_uuid)
         mock_update.side_effect = Exception
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             updater.update_openshift_on_cloud_summary_tables(

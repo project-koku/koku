@@ -1,4 +1,4 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -79,7 +79,7 @@ FROM (
             WHEN {{metric}}='storage_gb_request_per_month' THEN sum(lids.volume_request_storage_gigabyte_months)
         END as usage,
         lids.cost_category_id
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     WHERE lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
         AND lids.usage_start <= {{end_date}}

@@ -13,7 +13,7 @@ from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.test import HCSTestCase
 
 
-def mock_sql_query(self, schema, sql, bind_params=None):
+def mock_sql_query(self, schema_name, sql, bind_params=None):
     return "12345"
 
 
@@ -32,14 +32,14 @@ class TestHCSReportDBAccessor(HCSTestCase):
     def test_init(self):
         """Test the initializer."""
         dba = HCSReportDBAccessor("org1234567")
-        self.assertEqual(dba.schema, "org1234567")
+        self.assertEqual(dba.schema_name, "org1234567")
         self.assertNotEqual(dba.jinja_sql, None)
         self.assertNotEqual(dba.date_accessor, None)
 
     def test_no_sql_file(self):
         """Test with start and end dates provided"""
         with self.assertLogs("hcs.database", "ERROR") as _logs:
-            hcs_accessor = HCSReportDBAccessor(self.schema)
+            hcs_accessor = HCSReportDBAccessor(self.schema_name)
             hcs_accessor.get_hcs_daily_summary(
                 self.today,
                 self.provider,
@@ -57,7 +57,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
         mock_dba_query.return_value = (MagicMock(), MagicMock())
 
         with self.assertLogs("hcs.database", "INFO") as _logs:
-            hcs_accessor = HCSReportDBAccessor(self.schema)
+            hcs_accessor = HCSReportDBAccessor(self.schema_name)
             hcs_accessor.get_hcs_daily_summary(
                 self.today,
                 self.provider,
@@ -66,7 +66,9 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 "1234-1234-1234",
             )
             self.assertIn("acquiring marketplace data...", _logs.output[0])
-            self.assertIn(f"schema: {self.schema}, provider: {self.provider}, date: {self.today}", _logs.output[1])
+            self.assertIn(
+                f"schema_name: {self.schema_name}, provider: {self.provider}, date: {self.today}", _logs.output[1]
+            )
             self.assertIn("no data found for date", _logs.output[2])
 
     @patch("hcs.csv_file_handler.CSVFileHandler")
@@ -77,7 +79,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
         mock_dba_query.return_value = (MagicMock(), MagicMock())
 
         with self.assertLogs("hcs.database", "INFO") as _logs:
-            hcs_accessor = HCSReportDBAccessor(self.schema)
+            hcs_accessor = HCSReportDBAccessor(self.schema_name)
             hcs_accessor.get_hcs_daily_summary(
                 self.today,
                 self.provider,
@@ -86,5 +88,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 "1234-1234-1234",
             )
             self.assertIn("acquiring marketplace data...", _logs.output[0])
-            self.assertIn(f"schema: {self.schema}, provider: {self.provider}, date: {self.today}", _logs.output[1])
+            self.assertIn(
+                f"schema_name: {self.schema_name}, provider: {self.provider}, date: {self.today}", _logs.output[1]
+            )
             self.assertIn("data found for date", _logs.output[2])

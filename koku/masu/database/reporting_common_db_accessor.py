@@ -14,9 +14,9 @@ class ReportingCommonDBAccessor(KokuDBAccess):
     class ReportingCommonSchema:
         """A container for the shared reporting table objects."""
 
-    def __init__(self, schema="public"):
+    def __init__(self, schema_name="public"):
         """Establish the database connection."""
-        super().__init__(schema)
+        super().__init__(schema_name)
         self.report_common_schema = self.ReportingCommonSchema()
         self._get_reporting_tables()
 

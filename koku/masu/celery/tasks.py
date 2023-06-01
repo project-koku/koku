@@ -31,7 +31,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor import enable_purge_trino_files
+from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -74,7 +74,7 @@ def remove_expired_data(simulate=False):
 def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
     """Remove files in a particular path prefix."""
     LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
-    if not enable_purge_trino_files(schema_name):
+    if not is_purge_trino_files_enabled(schema_name):
         msg = f"Schema {schema_name} not enabled in unleash."
         LOG.info(msg)
         return msg
@@ -114,7 +114,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
 def purge_manifest_records(schema_name, provider_uuid, dates):
     """Remove files in a particular path prefix."""
     LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
-    if not enable_purge_trino_files(schema_name):
+    if not is_purge_trino_files_enabled(schema_name):
         msg = f"Schema {schema_name} not enabled in unleash."
         LOG.info(msg)
         return msg

@@ -102,7 +102,7 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service="iam", generate_account_id=True)
         report = _get_report_files(
             Mock(),
-            customer_name=self.fake.word(),
+            schema_name=self.fake.word(),
             authentication=account,
             provider_type=Provider.PROVIDER_AWS,
             report_month=DateHelper().today,
@@ -125,7 +125,7 @@ class GetReportFileTests(MasuTestCase):
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
-                customer_name=self.fake.word(),
+                schema_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
                 report_month=DateHelper().today,
@@ -150,7 +150,7 @@ class GetReportFileTests(MasuTestCase):
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
-                customer_name=self.fake.word(),
+                schema_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
                 report_month=DateHelper().today,
@@ -170,7 +170,7 @@ class GetReportFileTests(MasuTestCase):
         with self.assertRaises(Exception):
             _get_report_files(
                 Mock(),
-                customer_name=self.fake.word(),
+                schema_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
                 report_month=DateHelper().today,
@@ -193,7 +193,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test the process_report_file functionality on initial ingest."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
-        schema_name = self.schema
+        schema_name = self.schema_name
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
@@ -228,7 +228,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test the process_report_file functionality on non-initial ingest."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
-        schema_name = self.schema
+        schema_name = self.schema_name
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
@@ -259,7 +259,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test the process_report_file functionality when exception is thrown."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
-        schema_name = self.schema
+        schema_name = self.schema_name
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
@@ -285,7 +285,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test the process_report_file functionality when exception is thrown."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
-        schema_name = self.schema
+        schema_name = self.schema_name
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
@@ -313,7 +313,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_manifest_accessor.get_manifest_by_id.return_value = None
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
-        schema_name = self.schema
+        schema_name = self.schema_name
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
@@ -364,7 +364,7 @@ class ProcessReportFileTests(MasuTestCase):
                 mock_update_summary.s = Mock()
                 report_meta = {}
                 report_meta["start_date"] = test_date.strftime("%Y-%m-%d")
-                report_meta["schema_name"] = self.schema
+                report_meta["schema_name"] = self.schema_name
                 report_meta["provider_type"] = provider_type
                 report_meta["provider_uuid"] = provider_uuid
                 report_meta["manifest_id"] = 1
@@ -376,7 +376,7 @@ class ProcessReportFileTests(MasuTestCase):
                 # add a report with start/end dates specified
                 report2_meta = {}
                 report2_meta["start_date"] = test_date.strftime("%Y-%m-%d")
-                report2_meta["schema_name"] = self.schema
+                report2_meta["schema_name"] = self.schema_name
                 report2_meta["provider_type"] = provider_type
                 report2_meta["provider_uuid"] = provider_uuid
                 report2_meta["manifest_id"] = 2
@@ -399,7 +399,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta = {}
         report_meta["start"] = test_date.strftime("%Y-%m-%d")
         report_meta["end"] = test_date.strftime("%Y-%m-%d")
-        report_meta["schema_name"] = self.schema
+        report_meta["schema_name"] = self.schema_name
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
@@ -443,10 +443,9 @@ class TestProcessorTasks(MasuTestCase):
         self.test_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.test_etag = "fake_etag"
         self.get_report_args = {
-            "customer_name": self.schema,
+            "schema_name": self.schema_name,
             "authentication": self.aws_provider.authentication.credentials,
             "provider_type": Provider.PROVIDER_AWS_LOCAL,
-            "schema_name": self.schema,
             "billing_source": self.aws_provider.billing_source.data_source,
             "provider_uuid": self.aws_provider_uuid,
             "report_month": DateHelper().today,
@@ -454,10 +453,9 @@ class TestProcessorTasks(MasuTestCase):
             "tracing_id": "my-totally-made-up-id",
         }
         self.get_report_args_gcp = {
-            "customer_name": self.schema,
+            "schema_name": self.schema_name,
             "authentication": self.gcp_provider.authentication.credentials,
             "provider_type": Provider.PROVIDER_GCP_LOCAL,
-            "schema_name": self.schema,
             "billing_source": self.gcp_provider.billing_source.data_source,
             "provider_uuid": self.gcp_provider_uuid,
             "report_month": DateHelper().today,
@@ -575,7 +573,7 @@ class TestProcessorTasks(MasuTestCase):
         year = month_start.strftime("%Y")
         month = month_start.strftime("%m")
         mock_trino.return_value = ([[1000]], ["column_name"])
-        process_openshift_on_cloud(self.schema, self.aws_provider_uuid, month_start, tracing_id=tracing_id)
+        process_openshift_on_cloud(self.schema_name, self.aws_provider_uuid, month_start, tracing_id=tracing_id)
 
         expected_count_sql = (
             "SELECT count(*) FROM aws_line_items_daily "
@@ -589,8 +587,8 @@ class TestProcessorTasks(MasuTestCase):
             f" AND month='{month}' OFFSET 0 LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
         )
         expected_calls = [
-            call(self.schema, expected_count_sql),
-            call(self.schema, expected_fetch_sql),
+            call(self.schema_name, expected_count_sql),
+            call(self.schema_name, expected_fetch_sql),
         ]
         mock_trino.assert_has_calls(expected_calls, any_order=True)
         mock_s3_delete.assert_called()
@@ -608,7 +606,7 @@ class TestProcessorTasks(MasuTestCase):
         month = month_start.strftime("%m")
         mock_trino.return_value = ([[1000]], ["column_name"])
         process_daily_openshift_on_cloud(
-            self.schema, self.gcp_provider_uuid, month_start, month_start, end_date, tracing_id=tracing_id
+            self.schema_name, self.gcp_provider_uuid, month_start, month_start, end_date, tracing_id=tracing_id
         )
         day_where_clause = (
             "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, TIMESTAMP '{0}')"
@@ -631,8 +629,8 @@ class TestProcessorTasks(MasuTestCase):
             )
             expected_calls.extend(
                 [
-                    call(self.schema, expected_count_sql),
-                    call(self.schema, expected_fetch_sql),
+                    call(self.schema_name, expected_count_sql),
+                    call(self.schema_name, expected_fetch_sql),
                 ]
             )
         mock_trino.assert_has_calls(expected_calls, any_order=True)
@@ -654,7 +652,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
-            remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
+            remove_expired_data(schema_name=self.schema_name, provider=Provider.PROVIDER_AWS, simulate=True)
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
 
@@ -672,8 +670,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.aws_accessor = AWSReportDBAccessor(schema=self.schema)
-        self.ocp_accessor = OCPReportDBAccessor(schema=self.schema)
+        self.aws_accessor = AWSReportDBAccessor(schema_name=self.schema_name)
+        self.ocp_accessor = OCPReportDBAccessor(schema_name=self.schema_name)
 
         # Populate some line item data so that the summary tables
         # have something to pull from
@@ -724,9 +722,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         end_date = DateHelper().last_month_end
         mock_date_check.return_value = (start_date, end_date)
 
-        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        update_summary_tables(
+            self.schema_name, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
+        )
         update_cost_model_costs(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             provider_uuid=provider_ocp_uuid,
             start_date=start_date,
             end_date=end_date,
@@ -738,7 +738,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             provider_obj = provider_accessor.get_provider()
 
         usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(provider_obj.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cluster_id = usage_period_qry.first().cluster_id
 
             items = self.ocp_accessor._get_db_obj_query(table_name).filter(
@@ -784,7 +784,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
-        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        update_summary_tables(
+            self.schema_name, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
+        )
         mock_chain.return_value.apply_async.assert_not_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -819,7 +821,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         mock_date_check.return_value = (start_date, end_date)
-        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        update_summary_tables(
+            self.schema_name, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
+        )
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -841,7 +845,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_date_check.return_value = (start_date, end_date)
 
         update_summary_tables(
-            self.schema,
+            self.schema_name,
             provider_type,
             provider_aws_uuid,
             start_date,
@@ -852,7 +856,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         )
         mock_chain.assert_called_with(
             mark_manifest_complete.s(
-                self.schema,
+                self.schema_name,
                 provider_type,
                 provider_uuid=provider_aws_uuid,
                 manifest_list=[manifest_id],
@@ -874,7 +878,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
         update_summary_tables(
-            self.schema,
+            self.schema_name,
             provider_type,
             self.gcp_provider_uuid,
             start_date,
@@ -885,11 +889,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             invoice_month=invoice_month,
         )
         mock_chain.assert_called_with(
-            update_cost_model_costs.s(self.schema, self.gcp_provider_uuid, ANY, ANY, tracing_id=tracing_id).set(
+            update_cost_model_costs.s(self.schema_name, self.gcp_provider_uuid, ANY, ANY, tracing_id=tracing_id).set(
                 queue=UPDATE_COST_MODEL_COSTS_QUEUE
             )
             | mark_manifest_complete.si(
-                self.schema,
+                self.schema_name,
                 provider_type,
                 provider_uuid=self.gcp_provider_uuid,
                 manifest_list=[manifest_id],
@@ -912,7 +916,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         tracing_id = "1234"
 
         update_summary_tables(
-            self.schema,
+            self.schema_name,
             self.aws_provider.type,
             self.aws_provider_uuid,
             start_date,
@@ -940,7 +944,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table",)]
         expected = "INFO:masu.processor.tasks:VACUUM ANALYZE org1234567.table"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            vacuum_schema(self.schema)
+            vacuum_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
     @patch("masu.processor.tasks.connection")
@@ -957,7 +961,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
@@ -965,7 +969,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.02);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
@@ -973,7 +977,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
@@ -981,7 +985,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ]
         expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
@@ -991,7 +995,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
     @patch("masu.processor.tasks.connection")
@@ -1007,7 +1011,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "set (autovacuum_vacuum_scale_factor = 0.0001);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
@@ -1015,7 +1019,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.004);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
@@ -1023,7 +1027,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.011);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
@@ -1031,7 +1035,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ]
         expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
@@ -1041,7 +1045,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         del os.environ["AUTOVACUUM_TUNING"]
@@ -1060,7 +1064,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ]
         expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
@@ -1070,7 +1074,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
     @patch("masu.processor.tasks.connection")
@@ -1090,7 +1094,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            autovacuum_tune_schema(self.schema)
+            autovacuum_tune_schema(self.schema_name)
             self.assertIn(expected, logger.output)
 
     def test_autovacuum_tune_schema_normalize(self):
@@ -1146,7 +1150,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         end_date = DateHelper().today.date()
 
         update_openshift_on_cloud(
-            self.schema,
+            self.schema_name,
             self.ocp_on_aws_ocp_provider.uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
@@ -1158,7 +1162,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_updater.side_effect = ReportSummaryUpdaterCloudError
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             update_openshift_on_cloud(
-                self.schema,
+                self.schema_name,
                 self.ocp_on_aws_ocp_provider.uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
@@ -1176,10 +1180,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = DateHelper().this_month_start.date()
         end_date = DateHelper().today.date()
 
-        expecte_msg = f"OCP on Cloud summary disabled for {self.schema}."
+        expecte_msg = f"OCP on Cloud summary disabled for {self.schema_name}."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_openshift_on_cloud(
-                self.schema,
+                self.schema_name,
                 self.ocp_on_aws_ocp_provider.uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
@@ -1203,7 +1207,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_updater.return_value = (start_date, end_date)
 
         update_summary_tables(
-            self.schema,
+            self.schema_name,
             Provider.PROVIDER_AWS,
             self.aws_provider_uuid,
             str(start_date),
@@ -1214,7 +1218,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_updater.side_effect = ReportSummaryUpdaterError
         with self.assertRaises(ReportSummaryUpdaterError):
             update_summary_tables(
-                self.schema,
+                self.schema_name,
                 Provider.PROVIDER_AWS,
                 self.aws_provider_uuid,
                 start_date,
@@ -1241,7 +1245,11 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         )
         manifest.save()
         mark_manifest_complete(
-            self.schema, provider.type, manifest_list=[manifest.id], provider_uuid=str(provider.uuid), tracing_id=1
+            self.schema_name,
+            provider.type,
+            manifest_list=[manifest.id],
+            provider_uuid=str(provider.uuid),
+            tracing_id=1,
         )
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
@@ -1254,7 +1262,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         provider = self.ocp_provider
         initial_update_time = provider.data_updated_timestamp
         mark_manifest_complete(
-            self.schema, provider.type, manifest_list=None, provider_uuid=str(provider.uuid), tracing_id=1
+            self.schema_name, provider.type, manifest_list=None, provider_uuid=str(provider.uuid), tracing_id=1
         )
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
@@ -1273,7 +1281,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
             }
         )
         manifest.save()
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             ingress_report = IngressReports(
                 **{
                     "uuid": str(uuid4()),
@@ -1285,7 +1293,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
             )
             ingress_report.save()
         mark_manifest_complete(
-            self.schema,
+            self.schema_name,
             provider.type,
             manifest_list=[manifest.id],
             provider_uuid=str(provider.uuid),
@@ -1293,7 +1301,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
             tracing_id=1,
         )
 
-        ingress_report_accessor = IngressReportDBAccessor(self.schema)
+        ingress_report_accessor = IngressReportDBAccessor(self.schema_name)
         ingress_report = ingress_report_accessor.get_ingress_report_by_uuid(ingress_report_uuid=ingress_report.uuid)
         self.assertIsNotNone(ingress_report.completed_timestamp)
 
@@ -1340,13 +1348,18 @@ class TestWorkerCacheThrottling(MasuTestCase):
         task_name = "masu.processor.tasks.update_summary_tables"
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
-        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
+        cache_args = [
+            self.schema_name,
+            Provider.PROVIDER_AWS,
+            self.aws_provider_uuid,
+            str(start_date.strftime("%Y-%m")),
+        ]
         mock_lock.side_effect = self.lock_single_task
 
         mock_summary.return_value = start_date, end_date
-        update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+        update_summary_tables(self.schema_name, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
         mock_delay.assert_not_called()
-        update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+        update_summary_tables(self.schema_name, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
@@ -1358,12 +1371,16 @@ class TestWorkerCacheThrottling(MasuTestCase):
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()
-                update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+                update_summary_tables(
+                    self.schema_name, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date
+                )
                 mock_delay.assert_not_called()
 
                 mock_rate_limit.return_value = True
 
-                update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+                update_summary_tables(
+                    self.schema_name, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date
+                )
                 mock_delay.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables.s")
@@ -1388,13 +1405,15 @@ class TestWorkerCacheThrottling(MasuTestCase):
         """Test that the worker cache is used."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema]
+        cache_args = [self.schema_name]
 
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_summary.side_effect = ReportProcessorError
         with self.assertRaises(ReportProcessorError):
-            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+            update_summary_tables(
+                self.schema_name, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date
+            )
             mock_delay.assert_not_called()
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
@@ -1424,7 +1443,9 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_summary.side_effect = ReportSummaryUpdaterCloudError
         expected = "failed to correlate"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+            update_summary_tables(
+                self.schema_name, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date
+            )
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
@@ -1454,7 +1475,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
         expected = "Processing for this provier will halt."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
+            update_summary_tables(self.schema_name, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
@@ -1473,7 +1494,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         expected_start_date = start_date.strftime("%Y-%m-%d")
         expected_end_date = end_date.strftime("%Y-%m-%d")
         task_name = "masu.processor.tasks.update_cost_model_costs"
-        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
+        cache_args = [self.schema_name, self.aws_provider_uuid, expected_start_date, expected_end_date]
 
         manifest_dict = {
             "assembly_id": "12345",
@@ -1486,9 +1507,9 @@ class TestWorkerCacheThrottling(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+        update_cost_model_costs(self.schema_name, self.aws_provider_uuid, expected_start_date, expected_end_date)
         mock_delay.assert_not_called()
-        update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+        update_cost_model_costs(self.schema_name, self.aws_provider_uuid, expected_start_date, expected_end_date)
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
@@ -1507,11 +1528,11 @@ class TestWorkerCacheThrottling(MasuTestCase):
         expected_start_date = start_date.strftime("%Y-%m-%d")
         expected_end_date = end_date.strftime("%Y-%m-%d")
         task_name = "masu.processor.tasks.update_cost_model_costs"
-        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
+        cache_args = [self.schema_name, self.aws_provider_uuid, expected_start_date, expected_end_date]
 
         mock_updater.side_effect = ReportProcessorError
         with self.assertRaises(ReportProcessorError):
-            update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+            update_cost_model_costs(self.schema_name, self.aws_provider_uuid, expected_start_date, expected_end_date)
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
@@ -1528,7 +1549,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
         task_name = "masu.processor.tasks.update_openshift_on_cloud"
-        cache_args = [self.schema, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
+        cache_args = [self.schema_name, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
 
         manifest_dict = {
             "assembly_id": "12345",
@@ -1542,7 +1563,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
             manifest.save()
 
         update_openshift_on_cloud(
-            self.schema,
+            self.schema_name,
             self.ocp_on_aws_ocp_provider.uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
@@ -1551,7 +1572,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         )
         mock_delay.assert_not_called()
         update_openshift_on_cloud(
-            self.schema,
+            self.schema_name,
             self.ocp_on_aws_ocp_provider.uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
@@ -1559,7 +1580,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
             end_date,
         )
         update_openshift_on_cloud(
-            self.schema,
+            self.schema_name,
             self.ocp_on_aws_ocp_provider.uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
@@ -1578,7 +1599,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()
                 update_openshift_on_cloud(
-                    self.schema,
+                    self.schema_name,
                     self.ocp_on_aws_ocp_provider.uuid,
                     self.aws_provider_uuid,
                     Provider.PROVIDER_AWS,
@@ -1590,7 +1611,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
                 mock_rate_limit.return_value = True
 
                 update_openshift_on_cloud(
-                    self.schema,
+                    self.schema_name,
                     self.ocp_on_aws_ocp_provider.uuid,
                     self.aws_provider_uuid,
                     Provider.PROVIDER_AWS,
@@ -1610,7 +1631,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         with patch("masu.processor.tasks.disable_source") as disable_source:
             disable_source.return_value = True
             update_summary_tables(
-                self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
+                self.schema_name, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
             )
             mock_chain.return_value.apply_async.assert_not_called()
 

@@ -26,7 +26,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         start_date = str(dh.this_month_start.date())
         end_date = str(dh.this_month_end.date())
         params = {
-            "schema": self.schema,
+            "schema": self.schema_name,
             "provider_uuid": self.ocpaws_provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
@@ -63,7 +63,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
     def test_get_update_openshift_on_cloud_invalid_queue(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for invalid queue."""
         params = {
-            "schema": self.schema,
+            "schema": self.schema_name,
             "provider_uuid": self.ocpaws_provider_uuid,
             "start_date": "2022-01-01",
             "queue": "This-aint-a-real-queue",
@@ -83,7 +83,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
     def test_get_update_openshift_on_cloud_provider_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {
-            "schema": self.schema,
+            "schema": self.schema_name,
             "start_date": "2022-01-01",
             "end_date": "2022-01-30",
         }
@@ -103,7 +103,7 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         """Test the GET report_data endpoint."""
         bad_uuid = uuid4()
         params = {
-            "schema": self.schema,
+            "schema": self.schema_name,
             "provider_uuid": bad_uuid,
             "start_date": "2022-01-01",
             "end_date": "2022-01-30",

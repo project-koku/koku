@@ -51,16 +51,16 @@ class ReportSummaryUpdaterProviderNotFoundError(ReportSummaryUpdaterError):
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider_uuid, manifest_id=None, tracing_id=None):
+    def __init__(self, schema_name, provider_uuid, manifest_id=None, tracing_id=None):
         """
         Initializer.
 
         Args:
-            customer_schema (str): Schema name for given customer.
+            schema_name (str): Schema name for given customer.
             provider (str): The provider type.
 
         """
-        self._schema = customer_schema
+        self._schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._manifest = None
         self._tracing_id = tracing_id
@@ -105,8 +105,8 @@ class ReportSummaryUpdater:
         ocp_cloud_updater = OCPCloudParquetReportSummaryUpdater
 
         return (
-            report_summary_updater(self._schema, self._provider, self._manifest),
-            ocp_cloud_updater(self._schema, self._provider, self._manifest),
+            report_summary_updater(self._schema_name, self._provider, self._manifest),
+            ocp_cloud_updater(self._schema_name, self._provider, self._manifest),
         )
 
     def _format_dates(self, start_date, end_date):
@@ -136,7 +136,7 @@ class ReportSummaryUpdater:
         """
         start_date, end_date = self._format_dates(start_date, end_date)
         context = {
-            "schema": self._schema,
+            "schema_name": self._schema_name,
             "provider_uuid": self._provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
@@ -148,7 +148,7 @@ class ReportSummaryUpdater:
 
         LOG.info(log_json(tracing_id, "summary processing complete", context))
 
-        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+        invalidate_view_cache_for_tenant_and_source_type(self._schema_name, self._provider.type)
 
         return start_date, end_date
 
@@ -160,7 +160,7 @@ class ReportSummaryUpdater:
         try:
             start_date, end_date = self._format_dates(start_date, end_date)
             context = {
-                "schema": self._schema,
+                "schema_name": self._schema_name,
                 "provider_uuid": self._provider_uuid,
                 "start_date": start_date,
                 "end_date": end_date,
@@ -195,7 +195,7 @@ class ReportSummaryUpdater:
 
         start_date, end_date = self._format_dates(start_date, end_date)
         context = {
-            "schema": self._schema,
+            "schema_name": self._schema_name,
             "provider_uuid": self._provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
@@ -208,6 +208,6 @@ class ReportSummaryUpdater:
                 start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type
             )
             LOG.info(log_json(tracing_id, f"OpenShift on {infra_provider_type} summary processing complete", context))
-            invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+            invalidate_view_cache_for_tenant_and_source_type(self._schema_name, self._provider.type)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex

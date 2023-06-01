@@ -324,13 +324,13 @@ def get_account_names_by_organization(arn, session=None):
     return all_accounts
 
 
-def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+def get_bills_from_provider(provider_uuid, schema_name, start_date=None, end_date=None):
     """
     Return the AWS bill IDs given a provider UUID.
 
     Args:
         provider_uuid (str): Provider UUID.
-        schema (str): Tenant schema
+        schema_name (str): Tenant schema
         start_date (datetime, str): Start date for bill IDs.
         end_date (datetime, str) End date for bill IDs.
 
@@ -358,8 +358,8 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         LOG.warning(err_msg)
         return []
 
-    with AWSReportDBAccessor(schema) as report_accessor:
-        with schema_context(schema):
+    with AWSReportDBAccessor(schema_name) as report_accessor:
+        with schema_context(schema_name):
             bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             if start_date:
                 bills = bills.filter(billing_period_start__gte=start_date)

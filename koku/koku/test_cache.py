@@ -245,10 +245,10 @@ class KokuCacheTest(IamTestCase):
     def test_infra_map_cache(self):
         """Test that getting/setting infra_map works."""
         provider_type = Provider.PROVIDER_AWS
-        schema = "org1234567"
+        schema_name = "org1234567"
         p_uuid = "1234"
         infra_map = {}
-        initial = set_cached_infra_map(schema, provider_type, p_uuid, infra_map)
+        initial = set_cached_infra_map(schema_name, provider_type, p_uuid, infra_map)
         self.assertIsNone(initial)
-        cached = get_cached_infra_map(schema, provider_type, p_uuid)
+        cached = get_cached_infra_map(schema_name, provider_type, p_uuid)
         self.assertEqual(cached, infra_map)

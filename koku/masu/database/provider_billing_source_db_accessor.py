@@ -10,16 +10,16 @@ from masu.database.koku_database_access import KokuDBAccess
 class ProviderBillingSourceDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for Provider Billing Source Data."""
 
-    def __init__(self, billing_source_id, schema="public"):
+    def __init__(self, billing_source_id, schema_name="public"):
         """
         Establish Provider Billing Source database connection.
 
         Args:
             billing_source_id  (String) the billing source unique database id
-            schema             (String) database schema (i.e. public or customer tenant value)
+            schema_name        (String) database schema (i.e. public or customer tenant value)
 
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._billing_source_id = billing_source_id
         self._table = ProviderBillingSource
 

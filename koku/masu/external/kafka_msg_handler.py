@@ -108,11 +108,10 @@ def get_account_from_cluster_id(cluster_id, manifest_uuid, context={}):
 
     Returns:
         (dict) - keys: value
+                 schema_name: String,
                  authentication: String,
-                 customer_name: String,
                  billing_source: String,
                  provider_type: String,
-                 schema_name: String,
                  provider_uuid: String
 
     """
@@ -303,7 +302,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
     context["provider_type"] = provider_type
-    context["schema"] = schema_name
+    context["schema_name"] = schema_name
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
@@ -465,10 +464,9 @@ def get_account(provider_uuid, manifest_uuid, context={}):
     Returns:
         (dict) - keys: value
                  authentication: String,
-                 customer_name: String,
+                 schema_name: String,
                  billing_source: String,
                  provider_type: String,
-                 schema_name: String,
                  provider_uuid: String
 
     """
@@ -507,12 +505,11 @@ def summarize_manifest(report_meta, manifest_uuid):
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
-    context = {"account": schema_name, "provider_uuid": str(provider_uuid), "schema": schema_name}
+    context = {"account": schema_name, "provider_uuid": str(provider_uuid), "schema_name": schema_name}
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
             new_report_meta = {
-                "schema": schema_name,
                 "schema_name": schema_name,
                 "provider_type": provider_type,
                 "provider_uuid": provider_uuid,

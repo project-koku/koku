@@ -24,7 +24,7 @@ class CURAccountsDBTest(MasuTestCase):
             exc = e
 
         self.assertIsNone(exc)
-        self.assertIsNone(info["customer_name"])
+        self.assertIsNone(info["schema_name"])
         self.assertIsNone(info["credentials"])
         self.assertIsNone(info["data_source"])
         self.assertIsNone(info["schema_name"])
@@ -39,7 +39,7 @@ class CURAccountsDBTest(MasuTestCase):
             if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                 self.assertEqual(account.get("credentials"), self.aws_provider.authentication.credentials)
                 self.assertEqual(account.get("data_source"), self.aws_provider.billing_source.data_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
+                self.assertEqual(account.get("schema_name"), self.schema_name)
             elif account.get("provider_type") == Provider.PROVIDER_OCP:
                 self.assertIn(
                     account.get("credentials"),
@@ -54,18 +54,18 @@ class CURAccountsDBTest(MasuTestCase):
                     (account.get("data_source") == self.ocp_provider.billing_source.data_source)
                     or account.get("data_source") is None
                 )
-                self.assertEqual(account.get("customer_name"), self.schema)
+                self.assertEqual(account.get("schema_name"), self.schema_name)
             elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.assertEqual(account.get("credentials"), self.azure_provider.authentication.credentials)
                 self.assertEqual(account.get("data_source"), self.azure_provider.billing_source.data_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
+                self.assertEqual(account.get("schema_name"), self.schema_name)
             elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 self.assertEqual(account.get("credentials"), self.gcp_provider.authentication.credentials)
                 self.assertEqual(account.get("data_source"), self.gcp_provider.billing_source.data_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
+                self.assertEqual(account.get("schema_name"), self.schema_name)
             elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
                 self.assertEqual(account.get("data_source"), self.oci_provider.billing_source.data_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
+                self.assertEqual(account.get("schema_name"), self.schema_name)
             else:
                 self.fail("Unexpected provider")
 

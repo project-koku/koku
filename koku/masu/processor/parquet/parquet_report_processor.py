@@ -254,15 +254,15 @@ class ParquetReportProcessor:
         """Post processor based on provider type."""
         post_processor = None
         if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-            post_processor = AWSPostProcessor(schema=self._schema_name)
+            post_processor = AWSPostProcessor(schema_name=self._schema_name)
         elif self.provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
-            post_processor = AzurePostProcessor(schema=self.schema_name)
+            post_processor = AzurePostProcessor(schema_name=self.schema_name)
         elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            post_processor = GCPPostProcessor(schema=self._schema_name)
+            post_processor = GCPPostProcessor(schema_name=self._schema_name)
         elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
-            post_processor = OCIPostProcessor(schema=self._schema_name)
+            post_processor = OCIPostProcessor(schema_name=self._schema_name)
         elif self.provider_type == Provider.PROVIDER_OCP:
-            post_processor = OCPPostProcessor(schema=self._schema_name, report_type=self.report_type)
+            post_processor = OCPPostProcessor(schema_name=self._schema_name, report_type=self.report_type)
         return post_processor
 
     def _set_report_processor(self, parquet_file, daily=False):
@@ -384,7 +384,7 @@ class ParquetReportProcessor:
         if not post_processor:
             msg = "Unrecongized provider type can't convert csv."
             context = {
-                "schema": self._schema_name,
+                "schema_name": self._schema_name,
                 "provider_type": self.provider_type,
                 "provider_uuid": self.provider_uuid,
             }

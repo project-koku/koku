@@ -26,7 +26,6 @@ from masu.test.external.downloader.aws import fake_arn
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
-CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
 PREFIX = FAKE.word()
 
@@ -44,7 +43,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def setUpClass(cls):
         """Set up class variables."""
         super().setUpClass()
-        cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = "koku-local"
 
         cls.fake_bucket_prefix = PREFIX
@@ -65,7 +63,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         self.data_source = {"bucket": self.fake_bucket_name}
 
         self.report_downloader = ReportDownloader(
-            customer_name=self.fake_customer_name,
+            schema_name=self.schema_name,
             credentials=self.credentials,
             data_source=self.data_source,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -74,7 +72,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": self.data_source,
                 "provider_uuid": self.aws_provider_uuid,
@@ -106,14 +104,14 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                                     "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
                                 }
                                 self.report_downloader.download_report(report_context)
-                            expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
+                            expected_path = "{}/{}/{}".format(DATA_DIR, self.schema_name, "aws-local")
                             self.assertTrue(os.path.isdir(expected_path))
 
     def test_report_name_provided(self):
         """Test initializer when report_name is  provided."""
         report_downloader = AWSLocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": self.data_source,
                 "report_name": "awesome-report",
@@ -133,7 +131,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                         ):
                             report_downloader = AWSLocalReportDownloader(
                                 **{
-                                    "customer_name": self.fake_customer_name,
+                                    "schema_name": self.schema_name,
                                     "credentials": self.credentials,
                                     "data_source": self.data_source,
                                 }
@@ -152,7 +150,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         fake_data_source = {"bucket": fake_bucket}
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             report_downloader = ReportDownloader(
-                self.fake_customer_name,
+                self.schema_name,
                 self.credentials,
                 fake_data_source,
                 Provider.PROVIDER_AWS_LOCAL,
@@ -166,7 +164,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
             }
             report_downloader.download_report(report_context)
-        expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
+        expected_path = "{}/{}/{}".format(DATA_DIR, self.schema_name, "aws-local")
         self.assertTrue(os.path.isdir(expected_path))
 
         shutil.rmtree(fake_bucket)
@@ -180,7 +178,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         os.makedirs(full_path)
         report_downloader = AWSLocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": {"bucket": bucket},
             }
@@ -199,7 +197,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
         report_downloader = AWSLocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": {"bucket": bucket},
             }
@@ -214,7 +212,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_downloader = AWSLocalReportDownloader(
             **{
-                "customer_name": self.fake_customer_name,
+                "schema_name": self.schema_name,
                 "credentials": self.credentials,
                 "data_source": {"bucket": bucket},
             }
@@ -253,7 +251,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         downloader = AWSLocalReportDownloader(
-            self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
+            self.schema_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
         start_str = current_month.strftime(downloader.manifest_date_format)
@@ -284,7 +282,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         downloader = AWSLocalReportDownloader(
-            self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
+            self.schema_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
         mock_manifest.return_value = ("", {"reportKeys": []}, DateAccessor().today())

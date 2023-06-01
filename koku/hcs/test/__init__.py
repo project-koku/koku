@@ -12,13 +12,13 @@ class HCSTestCase(IamTestCase):
         """Create test case setup."""
         super().setUpClass()
 
-        cls.schema = "org1234567"
+        cls.schema_name = "org1234567"
         cls.acct = "10001"
         cls.org_id = "1234567"
 
     def setUp(self):
         """Set up each test case."""
-        self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema)
+        self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema_name)
 
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
         self.azure_provider = Provider.objects.get(type=Provider.PROVIDER_AZURE_LOCAL)

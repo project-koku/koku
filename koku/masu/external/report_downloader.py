@@ -36,7 +36,7 @@ class ReportDownloader:
 
     def __init__(
         self,
-        customer_name,
+        schema_name,
         credentials,
         data_source,
         provider_type,
@@ -47,7 +47,7 @@ class ReportDownloader:
         tracing_id="no_tracing_id",
     ):
         """Set the downloader based on the backend cloud provider."""
-        self.customer_name = customer_name
+        self.schema_name = schema_name
         self.credentials = credentials
         self.data_source = data_source
         self.report_name = report_name
@@ -60,9 +60,10 @@ class ReportDownloader:
         if self.account is None:
             # Existing schema will start with acct and we strip that prefix for use later
             # new customers include the org prefix in case an org-id and an account number might overlap
-            self.account = customer_name.strip("acct")
+            self.account = schema_name.strip("acct")
         self.context = {
             "tracing_id": self.tracing_id,
+            "schema_name": self.schema_name,
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
             "account": self.account,
@@ -105,7 +106,7 @@ class ReportDownloader:
         }
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
-                customer_name=self.customer_name,
+                schema_name=self.schema_name,
                 credentials=self.credentials,
                 data_source=self.data_source,
                 report_name=self.report_name,

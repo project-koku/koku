@@ -86,7 +86,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                     },
                 ]
             },
-            "schema": self.schema,
+            "schema": self.schema_name,
         }
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -194,7 +194,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
         url = reverse("crawl_account_hierarchy") + "?" + query_string
         start_date = str(datetime.today().date())
         self.tree_json["start_date"] = start_date
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             AWSOrganizationalUnit.objects.all().delete()
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)

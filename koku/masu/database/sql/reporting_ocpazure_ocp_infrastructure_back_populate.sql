@@ -1,4 +1,4 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     usage_start,
@@ -82,8 +82,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as persistentvolumeclaim_usage_gigabyte_months,
         max(ocp_azure.currency) as raw_currency,
         max(ocp_azure.cost_category_id) as cost_category_id
-    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p AS ocp_azure
-    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+    FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p AS ocp_azure
+    JOIN {{schema_name | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_azure.cluster_id = rp.cluster_id
             AND DATE_TRUNC('month', ocp_azure.usage_start)::date  = date(rp.report_period_start)
     WHERE ocp_azure.usage_start >= {{start_date}}::date

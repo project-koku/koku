@@ -30,17 +30,17 @@ class OCPCostModelCostUpdaterError(Exception):
 class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     """Class to update OCP report summary data with charge information."""
 
-    def __init__(self, schema, provider):
+    def __init__(self, schema_name, provider):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
 
         """
-        super().__init__(schema, provider, None)
+        super().__init__(schema_name, provider, None)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
-        with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, self._provider_uuid) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
             self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
@@ -204,7 +204,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
-            with OCPReportDBAccessor(self._schema) as report_accessor:
+            with OCPReportDBAccessor(self._schema_name) as report_accessor:
                 # Ex. cost_type == "Node", rate_term == "node_cost_per_month", rate == 1000
                 for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
                     rate_type = None
@@ -223,7 +223,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     LOG.info(
                         log_msg + " monthly %s cost for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
                         cost_type,
-                        self._schema,
+                        self._schema_name,
                         self._provider.type,
                         self._provider.name,
                         self._provider_uuid,
@@ -247,7 +247,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_monthly_tag_based_cost(self, start_date, end_date):  # noqa: C901
         """Update the monthly cost for a period of time based on tag rates."""
         try:
-            with OCPReportDBAccessor(self._schema) as report_accessor:
+            with OCPReportDBAccessor(self._schema_name) as report_accessor:
                 for (
                     openshift_resource_type,
                     monthly_cost_metric,
@@ -277,7 +277,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             "Updating tag based monthly %s cost for"
                             "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
                             openshift_resource_type,
-                            self._schema,
+                            self._schema_name,
                             self._provider.type,
                             self._provider.name,
                             self._provider_uuid,
@@ -306,7 +306,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
-        with OCPReportDBAccessor(self._schema) as report_accessor:
+        with OCPReportDBAccessor(self._schema_name) as report_accessor:
             report_accessor.populate_usage_costs(
                 metric_constants.INFRASTRUCTURE_COST_TYPE,
                 filter_dictionary(self._infra_rates, metric_constants.COST_MODEL_USAGE_RATES),
@@ -333,17 +333,17 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema_name, self._provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             if not markup:
                 msg = f"No markup to calculate for {self._provider_uuid}."
                 LOG.info(msg)
                 return
             markup = Decimal(markup.get("value", 0)) / 100
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             LOG.info(
                 "Updating markup for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
-                self._schema,
+                self._schema_name,
                 self._provider.type,
                 self._provider.name,
                 self._provider_uuid,
@@ -355,14 +355,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""
-        with OCPReportDBAccessor(self._schema) as report_accessor:
+        with OCPReportDBAccessor(self._schema_name) as report_accessor:
             report_accessor.populate_tag_usage_costs(
                 self._tag_infra_rates, self._tag_supplementary_rates, start_date, end_date, self._cluster_id
             )
 
     def _update_tag_usage_default_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs based on default values."""
-        with OCPReportDBAccessor(self._schema) as report_accessor:
+        with OCPReportDBAccessor(self._schema_name) as report_accessor:
             report_accessor.populate_tag_usage_default_costs(
                 self._tag_default_infra_rates,
                 self._tag_default_supplementary_rates,
@@ -374,8 +374,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _delete_tag_usage_costs(self, start_date, end_date, source_uuid):
         """Delete existing tag based rated entries"""
         # Delete existing records
-        with OCPReportDBAccessor(self._schema) as report_accessor:
-            with schema_context(self._schema):
+        with OCPReportDBAccessor(self._schema_name) as report_accessor:
+            with schema_context(self._schema_name):
                 report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 if not report_period:
                     LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
@@ -425,7 +425,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         if not (self._tag_infra_rates or self._tag_supplementary_rates):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
 
             accessor.populate_platform_and_worker_distributed_cost_sql(
                 start_date, end_date, self._provider_uuid, self._distribution_info
@@ -433,6 +433,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
-                with schema_context(self._schema):
+                with schema_context(self._schema_name):
                     report_period.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
                     report_period.save()

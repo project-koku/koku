@@ -1,5 +1,5 @@
 SELECT *, '{{ebs_acct_num | sqlsafe}}' as ebs_account_id, '{{org_id | sqlsafe}}' as org_id
-FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+FROM hive.{{schema_name | sqlsafe}}.{{table | sqlsafe}}
 WHERE ( sku_description LIKE '%RedHat%'
     OR sku_description LIKE '%Red Hat%'
     OR  service_description LIKE '%Red Hat%')

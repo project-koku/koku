@@ -1,5 +1,5 @@
 -- First we'll store the data in a "temp" table to do our grouping against
-CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp
+CREATE TABLE IF NOT EXISTS {{schema_name | sqlsafe}}.azure_openshift_daily_resource_matched_temp
 (
     uuid varchar,
     usage_start timestamp,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.azure_openshift_daily_resource_m
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
-CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp
+CREATE TABLE IF NOT EXISTS {{schema_name | sqlsafe}}.azure_openshift_daily_tag_matched_temp
 (
     uuid varchar,
     usage_start timestamp,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.azure_openshift_daily_tag_matche
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
 (
     azure_uuid varchar,
     cluster_id varchar,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ;
 
 -- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
+CREATE TABLE IF NOT EXISTS hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
 (
     azure_uuid varchar,
     cluster_id varchar,
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['azure_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp (
+INSERT INTO hive.{{schema_name | sqlsafe}}.azure_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
     resource_id,
@@ -171,7 +171,7 @@ SELECT cast(uuid() as varchar) as uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
+FROM hive.{{schema_name | sqlsafe}}.azure_openshift_daily as azure
 WHERE azure.source = {{azure_source_uuid}}
     AND azure.year = {{year}}
     AND azure.month = {{month}}
@@ -188,7 +188,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
 ;
 
 
-INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp (
+INSERT INTO hive.{{schema_name | sqlsafe}}.azure_openshift_daily_tag_matched_temp (
     uuid,
     usage_start,
     resource_id,
@@ -212,7 +212,7 @@ WITH cte_enabled_tag_keys AS (
         THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
         ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
     END as enabled_keys
-    FROM postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys
+    FROM postgres.{{schema_name | sqlsafe}}.reporting_azureenabledtagkeys
     WHERE enabled = TRUE
 )
 SELECT cast(uuid() as varchar) as uuid,
@@ -246,7 +246,7 @@ SELECT cast(uuid() as varchar) as uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
+FROM hive.{{schema_name | sqlsafe}}.azure_openshift_daily as azure
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE azure.source = {{azure_source_uuid}}
     AND azure.year = {{year}}
@@ -265,7 +265,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
 ;
 
 -- Directly resource_id matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
     cluster_alias,
@@ -351,8 +351,8 @@ SELECT azure.uuid as azure_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema_name | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (
                 (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
@@ -371,7 +371,7 @@ SELECT azure.uuid as azure_uuid,
 ;
 
 -- Tag matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
     cluster_alias,
@@ -457,8 +457,8 @@ SELECT azure.uuid as azure_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp as azure
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema_name | sqlsafe}}.azure_openshift_daily_tag_matched_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (
                     (strpos(azure.tags, 'openshift_project') !=0 AND strpos(azure.tags, lower(ocp.namespace)) != 0)
@@ -482,7 +482,7 @@ SELECT azure.uuid as azure_uuid,
 
 -- Group by to calculate proper cost per project
 
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+INSERT INTO hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
     azure_uuid,
     cluster_id,
     cluster_alias,
@@ -518,7 +518,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
 WITH cte_rankings AS (
     SELECT pds.azure_uuid,
         count(*) as azure_uuid_count
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
     GROUP BY azure_uuid
 )
 SELECT pds.azure_uuid,
@@ -575,13 +575,13 @@ SELECT pds.azure_uuid,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+FROM hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.azure_uuid = r.azure_uuid
 WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
 ;
 
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
+INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
     uuid,
     report_period_id,
     cluster_id,
@@ -641,7 +641,7 @@ SELECT uuid(),
     json_parse(tags),
     cost_category_id,
     cast(azure_source as UUID)
-FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
+FROM hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
 WHERE azure_source = {{azure_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}

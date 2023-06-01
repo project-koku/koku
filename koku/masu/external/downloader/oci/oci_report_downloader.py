@@ -127,18 +127,18 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://docs.oracle.com/en-us/iaas/Content/Billing/Tasks/accessingusagereports.htm
     """
 
-    def __init__(self, customer_name, data_source, **kwargs):
+    def __init__(self, schema_name, data_source, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name  (str): Name of the customer
+            schema_name  (str): Name of the customer
             data_source    (dict): dict containing name of OCI storage bucket
 
         """
         super().__init__(**kwargs)
         self.data_source = data_source
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid")
         self.namespace = data_source.get("bucket_namespace")
@@ -150,7 +150,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             OCIProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
-            msg = f"OCI source ({self._provider_uuid}) for {self.customer_name} is not reachable. Error: {ex}"
+            msg = f"OCI source ({self._provider_uuid}) for {self.schema_name} is not reachable. Error: {ex}"
             LOG.warning(log_json(self.tracing_id, msg, self.context))
             raise OCIReportDownloaderError(str(ex))
 
@@ -420,7 +420,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             err_msg = (
                 "Could not complete download. "
                 f"\n Provider: {self._provider_uuid}"
-                f"\n Customer: {self.customer_name}"
+                f"\n Customer: {self.schema_name}"
                 f"\n Response: {err}"
             )
             raise OCIReportDownloaderError(err_msg)
@@ -435,7 +435,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local directory path.
 
         """
-        safe_customer_name = self.customer_name.replace("/", "_")
+        safe_customer_name = self.schema_name.replace("/", "_")
         directory_path = os.path.join(DATA_DIR, safe_customer_name, "oci")
         return directory_path
 

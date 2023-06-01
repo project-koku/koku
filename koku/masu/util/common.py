@@ -324,7 +324,7 @@ def batch(iterable, start=0, stop=None, _slice=1):
         yield res
 
 
-def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
+def create_enabled_keys(schema_name, enabled_keys_model, enabled_keys):
     """
     Creates enabled key records.
     """
@@ -335,7 +335,7 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
     LOG.info(f"Creating enabled key records: {str(enabled_keys_model._meta.model_name)}.")
     changed = False
 
-    with schema_context(schema):
+    with schema_context(schema_name):
         new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
         if new_keys:
             changed = True
@@ -352,7 +352,7 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
     return changed
 
 
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
+def update_enabled_keys(schema_name, enabled_keys_model, enabled_keys):
     LOG.info("Updating enabled tag keys records")
     changed = False
 
@@ -360,7 +360,7 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
     update_keys_enabled = []
     update_keys_disabled = []
 
-    with schema_context(schema):
+    with schema_context(schema_name):
         for key in enabled_keys_model.objects.all():
             if key.key in enabled_keys_set:
                 if not key.enabled:
@@ -387,7 +387,7 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
 
 def execute_trino_query(schema_name, sql, params=None):
     """Execute Trino SQL."""
-    connection = trino_db.connect(schema=schema_name)
+    connection = trino_db.connect(schema_name=schema_name)
     cur = connection.cursor()
     cur.execute(sql, params=params)
     results = cur.fetchall()
@@ -406,11 +406,11 @@ def trino_table_exists(schema_name, table_name):
     return bool(table)
 
 
-def convert_account(account):
-    """Process the account string for Unleash checks."""
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
-    return account
+def convert_schema_name(schema_name):
+    """Process the schema_name string for Unleash checks."""
+    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
+        schema_name = f"acct{schema_name}"
+    return schema_name
 
 
 def filter_dictionary(dictionary, keys_to_keep):

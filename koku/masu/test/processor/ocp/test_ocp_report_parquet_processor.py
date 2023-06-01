@@ -54,7 +54,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         end_date = DateHelper().next_month_end + datetime.timedelta(days=1)
         self.processor.create_bill(bill_date.date())
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period = OCPUsageReportPeriod.objects.filter(
                 cluster_id=self.ocp_cluster_id,
                 report_period_start=start_date,
@@ -71,7 +71,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
         self.processor.create_bill(str(bill_date.date()))
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             report_period = OCPUsageReportPeriod.objects.filter(
                 cluster_id=self.ocp_cluster_id,
                 report_period_start=start_date,

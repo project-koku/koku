@@ -25,7 +25,7 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
     def setUpClass(cls):
         """Set up the customer view tests."""
         super().setUpClass()
-        cls.accessor = GCPReportDBAccessor(schema=cls.schema)
+        cls.accessor = GCPReportDBAccessor(schema_name=cls.schema_name)
 
     def setUp(self):
         """Set up a test with database objects."""

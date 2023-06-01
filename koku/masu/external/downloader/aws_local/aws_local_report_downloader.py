@@ -35,12 +35,12 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
+    def __init__(self, schema_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name    (String) Name of the customer
+            schema_name    (String) Name of the customer
             credentials      (Dict) credentials credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Name of the S3 bucket containing the CUR
@@ -50,7 +50,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         bucket = data_source.get("bucket")
 
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
 
         LOG.debug("Connecting to local service provider...")
         prefix, name = self._extract_names(bucket)
@@ -212,7 +212,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_s3_filename = utils.get_local_file_name(key)
 
-        directory_path = f"{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}"
+        directory_path = f"{DATA_DIR}/{self.schema_name}/aws-local/{self.bucket}"
         full_file_path = f"{directory_path}/{local_s3_filename}"
 
         if not os.path.isfile(key):

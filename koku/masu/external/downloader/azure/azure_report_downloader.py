@@ -44,12 +44,12 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
+    def __init__(self, schema_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
         """
         Constructor.
 
         Args:
-            customer_name    (String) Name of the customer
+            schema_name    (String) Name of the customer
             credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Dictionary containing Azure Storage blob details.
@@ -61,16 +61,16 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
-        if customer_name.startswith("acct"):
-            demo_check = customer_name[4:]
+        if schema_name.startswith("acct"):
+            demo_check = schema_name[4:]
         else:
-            demo_check = customer_name
+            demo_check = schema_name
         if demo_check in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(demo_check)
             LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
             if credentials.get("client_id") in demo_account:
                 demo_info = demo_account.get(credentials.get("client_id"))
-                self.customer_name = customer_name.replace(" ", "_")
+                self.schema_name = schema_name.replace(" ", "_")
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.container_name = demo_info.get("container_name")
                 self.directory = demo_info.get("report_prefix")
@@ -79,7 +79,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 return
 
         self._provider_uuid = kwargs.get("provider_uuid")
-        self.customer_name = customer_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         if not kwargs.get("is_local") and not self.storage_only:
             self._azure_client = self._get_azure_client(credentials, data_source)
             export_reports = self._azure_client.describe_cost_management_exports()
@@ -119,7 +119,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _get_exports_data_directory(self):
         """Return the path of the exports temporary data directory."""
-        directory_path = f"{DATA_DIR}/{self.customer_name}/azure/{self.container_name}"
+        directory_path = f"{DATA_DIR}/{self.schema_name}/azure/{self.container_name}"
         os.makedirs(directory_path, exist_ok=True)
         return directory_path
 

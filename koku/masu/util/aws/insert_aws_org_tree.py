@@ -26,8 +26,8 @@ class InsertAwsOrgTreeError(Exception):
 class InsertAwsOrgTree:
     """Insert aws org tree abstract class."""
 
-    def __init__(self, schema, provider_uuid, start_date=None):
-        self.schema = schema
+    def __init__(self, schema_name, provider_uuid, start_date=None):
+        self.schema_name = schema_name
         self.start_date = start_date
         self.yesterday_accounts = []
         self.yesterday_orgs = []
@@ -54,7 +54,7 @@ class InsertAwsOrgTree:
 
     def _insert_org_sql(self, org_node, date):
         """Inserts the org unit information into the database."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             org_unit, created = AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=org_node["org_unit_name"],
                 org_unit_id=org_node["org_unit_id"],
@@ -75,7 +75,7 @@ class InsertAwsOrgTree:
         """Inserts the account information in the database."""
         account_alias_id = act_info["account_alias_id"]
         account_alias_name = act_info.get("account_alias_name")
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if account_alias_name:
                 account_alias, created = AWSAccountAlias.objects.get_or_create(
                     account_id=account_alias_id, account_alias=account_alias_name
@@ -96,7 +96,7 @@ class InsertAwsOrgTree:
 
     def _set_deleted_timestamp(self, date, accounts_list, orgs_list):
         """Updates the delete timestamp for values left in the yesterday lists."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if self.yesterday_accounts != []:
                 removed_accounts = AWSOrganizationalUnit.objects.filter(
                     account_alias__account_id__in=self.yesterday_accounts

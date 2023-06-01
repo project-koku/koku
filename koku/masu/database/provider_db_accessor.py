@@ -74,19 +74,6 @@ class ProviderDBAccessor(KokuDBAccess):
         """Return the provider."""
         return self.provider
 
-    def get_uuid(self):
-        """
-        Return the provider uuid.
-
-        Args:
-            None
-        Returns:
-            (String): "UUID v4",
-                    example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
-
-        """
-        return str(self.provider.uuid) if self.provider else None
-
     def get_provider_name(self):
         """
         Return the provider name.
@@ -180,33 +167,7 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         self.provider.setup_complete = True
         self.provider.save()
-        invalidate_view_cache_for_tenant_and_cache_key(self.schema)
-
-    def get_customer_uuid(self):
-        """
-        Return the provider's customer uuid.
-
-        Args:
-            None
-        Returns:
-            (String): "UUID v4",
-                    example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
-
-        """
-        return str(self.provider.customer.uuid)
-
-    def get_customer_name(self):
-        """
-        Return the provider's customer name.
-
-        Args:
-            None
-        Returns:
-            (String): "Name of the customer",
-                    example: "Customer 1 Inc."
-
-        """
-        return self.get_schema()
+        invalidate_view_cache_for_tenant_and_cache_key(self.schema_name)
 
     def get_schema(self):
         """
@@ -281,7 +242,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
         self.provider.infrastructure = mapping
         self.provider.save()
-        invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+        invalidate_view_cache_for_tenant_and_cache_key(self.schema_name)
 
     def get_associated_openshift_providers(self):
         """Return a list of OpenShift clusters associated with the cloud provider."""
@@ -302,11 +263,11 @@ class ProviderDBAccessor(KokuDBAccess):
             LOG.info(msg)
             self.provider.data_updated_timestamp = updated_datetime
             self.provider.save()
-            invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+            invalidate_view_cache_for_tenant_and_cache_key(self.schema_name)
 
     def set_additional_context(self, new_value):
         """Sets the additional context value."""
         if self.provider:
             self.provider.additional_context = new_value
             self.provider.save()
-            invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+            invalidate_view_cache_for_tenant_and_cache_key(self.schema_name)

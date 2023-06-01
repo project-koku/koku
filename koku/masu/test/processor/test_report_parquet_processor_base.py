@@ -90,7 +90,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test the generate parquet table sql."""
         generated_sql = self.processor._generate_create_table_sql()
 
-        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
+        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema_name}.{self.table_name}"
         expected_end = (
             f"WITH(external_location = 's3a://test-bucket/{self.temp_dir}', "
             "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month'])"
@@ -116,7 +116,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         }
         generated_sql = self.processor._generate_create_table_sql(partition_map=partition_map)
 
-        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
+        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema_name}.{self.table_name}"
         expected_end = (
             f"WITH(external_location = 's3a://test-bucket/{self.temp_dir}', "
             "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])"

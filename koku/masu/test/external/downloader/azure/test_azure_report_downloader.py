@@ -137,7 +137,6 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         super().setUp()
         self.mock_data = MockAzureService()
-        self.customer_name = "Azure Customer"
         self.ingress_reports = [f"{self.mock_data.container}/{self.mock_data.ingress_report}"]
         self.azure_credentials = self.azure_provider.authentication.credentials
         self.azure_data_source = self.azure_provider.billing_source.data_source
@@ -148,20 +147,20 @@ class AzureReportDownloaderTest(MasuTestCase):
         }
 
         self.downloader = AzureReportDownloader(
-            customer_name=self.customer_name,
+            schema_name=self.schema_name,
             credentials=self.azure_credentials,
             data_source=self.azure_data_source,
             provider_uuid=self.azure_provider_uuid,
         )
         self.ingress_downloader = AzureReportDownloader(
-            customer_name=self.customer_name,
+            schema_name=self.schema_name,
             credentials=self.azure_credentials,
             data_source=self.azure_data_source,
             provider_uuid=self.azure_provider_uuid,
             ingress_reports=self.ingress_reports,
         )
         self.storage_only_downloader = AzureReportDownloader(
-            customer_name=self.customer_name,
+            schema_name=self.schema_name,
             credentials=self.azure_credentials,
             data_source=self.storage_only_data_source,
             provider_uuid=self.azure_provider_uuid,
@@ -291,7 +290,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_download_file(self):
         """Test that Azure report is downloaded."""
         expected_full_path = "{}/{}/azure/{}/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
+            Config.TMP_DIR, self.schema_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
         full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
         self.assertEqual(full_file_path, expected_full_path)
@@ -307,7 +306,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_download_ingress_report_file(self):
         """Test that Azure ingress report is downloaded."""
         expected_full_path = "{}/{}/azure/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.ingress_reports[0]
+            Config.TMP_DIR, self.schema_name.replace(" ", "_"), self.ingress_reports[0]
         )
         full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
         self.assertEqual(full_file_path, expected_full_path)
@@ -316,7 +315,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_download_file_matching_etag(self, mock_download_cost_method):
         """Test that Azure report is not downloaded with matching etag."""
         expected_full_path = "{}/{}/azure/{}/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
+            Config.TMP_DIR, self.schema_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
         full_file_path, etag, _, __, ___ = self.downloader.download_file(
             self.mock_data.export_key, self.mock_data.export_etag
@@ -343,7 +342,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         }
         with self.settings(DEMO_ACCOUNTS=demo_accounts):
             AzureReportDownloader(
-                customer_name=f"acct{account_id}",
+                schema_name=f"acct{account_id}",
                 credentials=self.azure_credentials,
                 data_source=self.azure_data_source,
                 provider_uuid=self.azure_provider_uuid,

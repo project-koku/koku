@@ -55,13 +55,13 @@ class TestParquetReportProcessor(MasuTestCase):
         self.test_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.test_etag = "fake_etag"
         self.tracing_id = 1
-        self.account_id = self.schema[4:]
+        self.account_id = self.schema_name[4:]
         self.manifest_id = 1
         self.start_date = DateHelper().today
         self.report_name = "koku-1.csv.gz"
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
         self.report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -76,11 +76,11 @@ class TestParquetReportProcessor(MasuTestCase):
             "reports_list": ["test"],
             "source": self.aws_provider,
         }
-        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
-        with schema_context(self.schema):
+        self.ingress_report_accessor = IngressReportDBAccessor(self.schema_name)
+        with schema_context(self.schema_name):
             self.added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
         self.report_processor_ingress = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS,
@@ -97,7 +97,7 @@ class TestParquetReportProcessor(MasuTestCase):
         # Test with missing context
         with self.assertRaises(ParquetReportProcessorError):
             report_processor = ParquetReportProcessor(
-                schema_name=self.schema,
+                schema_name=self.schema_name,
                 report_path=self.report_path,
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -111,7 +111,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.assertIsInstance(self.report_processor.start_date, datetime.date)
 
         report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -121,7 +121,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.assertIsInstance(report_processor.start_date, datetime.date)
 
         report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -132,7 +132,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         with self.assertRaises(ParquetReportProcessorError):
             report_processor = ParquetReportProcessor(
-                schema_name=self.schema,
+                schema_name=self.schema_name,
                 report_path=self.report_path,
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -146,7 +146,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.assertEqual(self.report_processor.file_extension, CSV_GZIP_EXT)
 
         report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path="file.csv",
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -157,7 +157,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         with self.assertRaises(ParquetReportProcessorError):
             report_processor = ParquetReportProcessor(
-                schema_name=self.schema,
+                schema_name=self.schema_name,
                 report_path="file.xlsx",
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -198,7 +198,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         for test in test_matrix:
             report_processor = ParquetReportProcessor(
-                schema_name=self.schema,
+                schema_name=self.schema_name,
                 report_path=self.report_path,
                 provider_uuid=test.get("provider_uuid"),
                 provider_type=test.get("provider_type"),
@@ -226,7 +226,7 @@ class TestParquetReportProcessor(MasuTestCase):
     def test_unknown_provider_post_processor(self):
         """Test that nothing is returned"""
         report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=self.report_path,
             provider_uuid="123456",
             provider_type="unknown_provider",
@@ -376,7 +376,7 @@ class TestParquetReportProcessor(MasuTestCase):
                         shutil.copy2(test_report_test_path, test_report)
 
                         report_processor = ParquetReportProcessor(
-                            schema_name=self.schema,
+                            schema_name=self.schema_name,
                             report_path=test_report,
                             provider_uuid=self.aws_provider_uuid,
                             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -399,7 +399,7 @@ class TestParquetReportProcessor(MasuTestCase):
             "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
         ), patch(
             "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.set_post_processor",
-            return_value=OCPPostProcessor(self.schema, "pod_usage"),
+            return_value=OCPPostProcessor(self.schema_name, "pod_usage"),
         ):
             with patch(
                 "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "create_parquet_table"
@@ -407,7 +407,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
                     mock_os.path.split.return_value = ("path", "file.csv")
                     report_processor = ParquetReportProcessor(
-                        schema_name=self.schema,
+                        schema_name=self.schema_name,
                         report_path="pod_usage.csv",
                         provider_uuid=self.ocp_provider_uuid,
                         provider_type=Provider.PROVIDER_OCP,
@@ -510,7 +510,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch_class, patch_method = test.get("patch")
             with patch.object(patch_class, patch_method) as mock_create_bill:
                 report_processor = ParquetReportProcessor(
-                    schema_name=self.schema,
+                    schema_name=self.schema_name,
                     report_path=test.get("report_file") or self.report_path,
                     provider_uuid=provider_uuid,
                     provider_type=provider_type,
@@ -580,7 +580,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         file_list = ["path/to/file_one", "path/to/file_two", "path/to/file_three"]
         ocp_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=f"/my/{self.test_assembly_id}/{self.report_name}",
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
@@ -607,7 +607,7 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertTrue(os.path.exists(path))
 
         gcp_processor = ParquetReportProcessor(
-            schema_name=self.schema,
+            schema_name=self.schema_name,
             report_path=report_path,
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,

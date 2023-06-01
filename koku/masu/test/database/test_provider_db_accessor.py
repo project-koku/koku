@@ -5,7 +5,6 @@
 """Test the ProviderDBAccessor utility object."""
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
-from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -45,12 +44,6 @@ class ProviderDBAccessorTest(MasuTestCase):
         with ProviderDBAccessor() as accessor:
             self.assertFalse(accessor.does_db_entry_exist())
 
-    def test_get_uuid(self):
-        """Test uuid getter."""
-        uuid = self.aws_provider_uuid
-        with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(uuid, accessor.get_uuid())
-
     def test_get_provider_name(self):
         """Test provider name getter."""
         uuid = self.aws_provider_uuid
@@ -83,27 +76,10 @@ class ProviderDBAccessorTest(MasuTestCase):
         with ProviderDBAccessor(uuid) as accessor:
             self.assertIsNone(accessor.get_data_source())
 
-    def test_get_customer_uuid(self):
-        """Test provider billing_source getter."""
-        expected_uuid = None
-        with CustomerDBAccessor(self.customer.id) as customer_accessor:
-            expected_uuid = customer_accessor.get_uuid()
-
-        uuid = self.aws_provider_uuid
-        with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(expected_uuid, accessor.get_customer_uuid())
-
-    def test_get_customer_name(self):
-        """Test provider customer getter."""
-        uuid = self.aws_provider_uuid
-        expected_customer_name = self.schema
-        with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(expected_customer_name, accessor.get_customer_name())
-
     def test_get_schema(self):
         """Test provider schema getter."""
         uuid = self.aws_provider_uuid
-        expected_schema = self.schema
+        expected_schema = self.schema_name
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(expected_schema, accessor.get_schema())
 

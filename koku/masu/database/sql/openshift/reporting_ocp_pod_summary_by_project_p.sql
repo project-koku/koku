@@ -1,10 +1,10 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocp_pod_summary_by_project_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocp_pod_summary_by_project_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_by_project_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocp_pod_summary_by_project_p (
     id,
     cluster_id,
     cluster_alias,
@@ -64,7 +64,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_by_project_p (
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency,
         sum(distributed_cost) as distributed_cost
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+    FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}

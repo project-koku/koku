@@ -33,7 +33,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.accessor = OCIReportDBAccessor(schema=cls.schema)
+        cls.accessor = OCIReportDBAccessor(schema_name=cls.schema_name)
         cls.report_schema = cls.accessor.report_schema
 
         cls.all_tables = list(OCI_CUR_TABLE_MAP.values())
@@ -62,7 +62,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.oci_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
             summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
@@ -70,14 +70,14 @@ class OCIReportDBAccessorTest(MasuTestCase):
             end_date = summary_entry["usage_start__max"]
 
         query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
                 markup=Sum(F("cost") * decimal.Decimal(0.1))
             )
             expected_markup = expected_markup.get("markup")
 
         self.accessor.populate_markup_cost(decimal.Decimal(0.1), start_date, end_date, bill_ids)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__in=bill_ids)
@@ -88,7 +88,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             table_name = OCI_CUR_TABLE_MAP["bill"]
             query = self.accessor._get_db_obj_query(table_name)
             first_entry = query.first()
@@ -120,10 +120,10 @@ class OCIReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.oci_provider.uuid)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.oci_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema_name, self.oci_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
@@ -139,7 +139,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCITagsSummary.objects.all().delete()
             OCIEnabledTagKeys.objects.all().delete()
             bill_ids = [bill.id for bill in bills]
@@ -154,7 +154,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCITagsSummary.objects.all().delete()
             key_to_keep = OCIEnabledTagKeys.objects.filter(key="app").first()
             OCIEnabledTagKeys.objects.all().update(enabled=False)
@@ -179,21 +179,21 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_delete_line_item_daily_summary_entries_for_date_range(self):
         """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             start_date = OCICostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
             end_date = start_date
 
         table_query = OCICostEntryLineItemDailySummary.objects.filter(
             source_uuid=self.oci_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertNotEqual(table_query.count(), 0)
 
         self.accessor.delete_line_item_daily_summary_entries_for_date_range(
             self.oci_provider_uuid, start_date, end_date
         )
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             self.assertEqual(table_query.count(), 0)
 
     def test_table_properties(self):

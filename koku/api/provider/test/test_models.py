@@ -81,7 +81,7 @@ class ProviderModelTest(MasuTestCase):
         with tenant_context(self.tenant):
             self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_called_with(
-            self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
+            self.schema_name, self.aws_provider.type, UUID(self.aws_provider_uuid)
         )
 
     @patch("masu.celery.tasks.delete_archived_data")
@@ -103,7 +103,7 @@ class ProviderModelTest(MasuTestCase):
             self.aws_provider.delete()
             self.assertEqual(0, CostModelMap.objects.filter(provider_uuid=self.aws_provider_uuid).count())
         mock_delete_archived_data.delay.assert_called_with(
-            self.schema, self.aws_provider.type, UUID(self.aws_provider_uuid)
+            self.schema_name, self.aws_provider.type, UUID(self.aws_provider_uuid)
         )
 
     @patch("masu.celery.tasks.delete_archived_data")
@@ -129,8 +129,8 @@ class ProviderModelTest(MasuTestCase):
             for provider in providers:
                 provider.delete()
         expected_calls = [
-            call(self.schema, Provider.PROVIDER_AWS_LOCAL, UUID(self.aws_provider_uuid)),
-            call(self.schema, Provider.PROVIDER_OCP, UUID(self.ocp_provider_uuid)),
-            call(self.schema, Provider.PROVIDER_AZURE_LOCAL, UUID(self.azure_provider_uuid)),
+            call(self.schema_name, Provider.PROVIDER_AWS_LOCAL, UUID(self.aws_provider_uuid)),
+            call(self.schema_name, Provider.PROVIDER_OCP, UUID(self.ocp_provider_uuid)),
+            call(self.schema_name, Provider.PROVIDER_AZURE_LOCAL, UUID(self.azure_provider_uuid)),
         ]
         mock_delete_archived_data.delay.assert_has_calls(expected_calls, any_order=True)

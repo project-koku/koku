@@ -1,4 +1,4 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
@@ -8,7 +8,7 @@ WHERE lids.usage_start >= {{start_date}}::date
 ;
 
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -55,7 +55,7 @@ WITH cte_volume_count AS (
         cluster_id,
         namespace,
         count(DISTINCT persistentvolumeclaim) as pvc_count
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     WHERE lids.persistentvolumeclaim IS NOT NULL
         AND lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
@@ -104,7 +104,7 @@ cte_filtered_data AS (
         {{cost_model_volume_cost | sqlsafe}},
         {{cost_type}} as monthly_cost_type,
         lids.cost_category_id
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    FROM {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     JOIN cte_volume_count AS vc
         ON lids.usage_start = vc.usage_start
             AND lids.cluster_id = vc.cluster_id

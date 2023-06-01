@@ -96,8 +96,8 @@ class IamTestCase(TestCase):
     @classmethod
     def _create_customer_data(cls, account=KokuTestRunner.account, org_id=KokuTestRunner.org_id):
         """Create customer data."""
-        schema = KokuTestRunner.schema
-        return {"account_id": account, "org_id": org_id, "schema_name": schema}
+        schema_name = KokuTestRunner.schema_name
+        return {"account_id": account, "org_id": org_id, "schema_name": schema_name}
 
     @classmethod
     def _create_user_data(cls):
@@ -198,8 +198,8 @@ class IamTestCase(TestCase):
         """Create randomized data for a customer test."""
         account = self.fake.ean8()
         org_id = self.fake.ean8()
-        schema = f"org{org_id}"
-        return {"account_id": account, "org_id": org_id, "schema_name": schema}
+        schema_name = f"org{org_id}"
+        return {"account_id": account, "org_id": org_id, "schema_name": schema_name}
 
     def mocked_query_params(self, url, view, path=None, access=None):
         """Create QueryParameters using a mocked Request."""

@@ -42,7 +42,7 @@ class TestHCSTasks(HCSTestCase):
             start_date = self.yesterday
             end_date = self.today
             collect_hcs_report_data(
-                self.schema, self.aws_provider_type, str(self.aws_provider.uuid), start_date, end_date
+                self.schema_name, self.aws_provider_type, str(self.aws_provider.uuid), start_date, end_date
             )
 
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
@@ -52,7 +52,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
-            collect_hcs_report_data(self.schema, self.aws_provider_type, str(self.aws_provider.uuid))
+            collect_hcs_report_data(self.schema_name, self.aws_provider_type, str(self.aws_provider.uuid))
 
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
@@ -61,7 +61,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
-            collect_hcs_report_data(self.schema, self.aws_provider_type, str(self.aws_provider.uuid))
+            collect_hcs_report_data(self.schema_name, self.aws_provider_type, str(self.aws_provider.uuid))
 
             self.assertIn("tracing_id", _logs.output[0])
 
@@ -72,7 +72,7 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data(
-                self.schema, self.aws_provider_type, str(self.aws_provider.uuid), tracing_id=test_id
+                self.schema_name, self.aws_provider_type, str(self.aws_provider.uuid), tracing_id=test_id
             )
 
             self.assertIn(f"'tracing_id': '{test_id}'", _logs.output[0])
@@ -83,7 +83,7 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
-            collect_hcs_report_data(self.schema, self.aws_provider_type, str(self.aws_provider.uuid), start_date)
+            collect_hcs_report_data(self.schema_name, self.aws_provider_type, str(self.aws_provider.uuid), start_date)
 
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
@@ -93,7 +93,7 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
-            collect_hcs_report_data(self.schema, "bogus", str(self.aws_provider.uuid), start_date)
+            collect_hcs_report_data(self.schema_name, "bogus", str(self.aws_provider.uuid), start_date)
 
             self.assertIn("[SKIPPED] HCS report generation", _logs.output[0])
 
@@ -102,7 +102,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
         collect_hcs_report_data("10001", self.aws_provider_type, str(self.aws_provider.uuid), self.yesterday)
 
-        self.assertEqual("org1234567", self.schema)
+        self.assertEqual("org1234567", self.schema_name)
 
     @patch("hcs.tasks.get_start_and_end_from_manifest_id")
     @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor")
@@ -114,7 +114,7 @@ class TestHCSTasks(HCSTestCase):
 
         manifests = [
             {
-                "schema_name": self.schema,
+                "schema_name": self.schema_name,
                 "provider_type": self.aws_provider_type,
                 "provider_uuid": str(self.aws_provider.uuid),
                 "tracing_id": self.tracing_id,
@@ -125,7 +125,7 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_data_from_manifest(manifests)
 
             self.assertIn("[collect_hcs_report_data_from_manifest]", _logs.output[0])
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[0])
+            self.assertIn(f"schema_name: {self.schema_name}", _logs.output[0])
             self.assertIn(f"provider_type: {self.aws_provider_type}", _logs.output[0])
             self.assertIn(f"provider_uuid: {str(self.aws_provider.uuid)}", _logs.output[0])
             self.assertIn("start:", _logs.output[0])
@@ -137,7 +137,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
         manifests = [
             {
-                "schema_name": self.schema,
+                "schema_name": self.schema_name,
                 "aws_provider": self.aws_provider_type,
                 "provider_uuid": str(self.aws_provider.uuid),
                 "start": self.today.strftime("%Y-%m-%d"),
@@ -159,7 +159,7 @@ class TestHCSTasks(HCSTestCase):
 
         manifests = [
             {
-                "schema_name": self.schema,
+                "schema_name": self.schema_name,
                 "provider_type": self.aws_provider_type,
                 "provider_uuid": str(self.aws_provider.uuid),
                 "tracing_id": self.tracing_id,
@@ -172,7 +172,7 @@ class TestHCSTasks(HCSTestCase):
             self.assertIn("SKIPPING REPORT, no manifest found: ", _logs.output[0])
             self.assertIn(
                 (
-                    f"'schema_name': '{self.schema}', 'provider_type': '{self.aws_provider_type}', "
+                    f"'schema_name': '{self.schema_name}', 'provider_type': '{self.aws_provider_type}', "
                     f"'provider_uuid': '{str(self.aws_provider.uuid)}', 'tracing_id': '{self.tracing_id}'"
                 ),
                 _logs.output[0],
@@ -294,13 +294,13 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
-            collect_hcs_report_finalization(schema_name=self.schema, provider_type=self.aws_provider_type)
+            collect_hcs_report_finalization(schema_name=self.schema_name, provider_type=self.aws_provider_type)
 
             self.assertIn(
-                f"provided schema_name: {self.schema}, provided provider_type: {self.aws_provider_type}",
+                f"provided schema_name: {self.schema_name}, provided provider_type: {self.aws_provider_type}",
                 _logs.output[0],
             )
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
+            self.assertIn(f"schema_name: {self.schema_name}", _logs.output[1])
             self.assertIn(f"provider_type: {self.aws_provider_type}", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
@@ -310,10 +310,10 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
-            collect_hcs_report_finalization(schema_name=self.schema)
+            collect_hcs_report_finalization(schema_name=self.schema_name)
 
-            self.assertIn(f"provided schema_name: {self.schema}", _logs.output[0])
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
+            self.assertIn(f"provided schema_name: {self.schema_name}", _logs.output[0])
+            self.assertIn(f"schema_name: {self.schema_name}", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_no_acct_prefix(self, rd, mock_ehp, mock_report):
@@ -336,8 +336,8 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
             collect_hcs_report_finalization(schema_name="org1234567")
 
-            self.assertIn(f"provided schema_name: {self.schema}", _logs.output[0])
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
+            self.assertIn(f"provided schema_name: {self.schema_name}", _logs.output[0])
+            self.assertIn(f"schema_name: {self.schema_name}", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name_negative(self, rd, mock_ehp, mock_report):
@@ -371,7 +371,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
-            collect_hcs_report_finalization(schema_name=self.schema, provider_uuid=str(self.aws_provider.uuid))
+            collect_hcs_report_finalization(schema_name=self.schema_name, provider_uuid=str(self.aws_provider.uuid))
 
             self.assertIn("'schema_name' and 'provider_uuid' are not supported in the same request", _logs.output[0])
 

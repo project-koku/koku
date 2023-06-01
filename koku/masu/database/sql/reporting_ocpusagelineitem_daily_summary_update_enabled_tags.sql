@@ -1,10 +1,10 @@
 -- update ocp tags leaving only enabled keys
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
-      from {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
+      from {{schema_name | sqlsafe}}.reporting_ocpenabledtagkeys
       where enabled = false
 )
-update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
+update {{schema_name | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     set pod_labels = case
         when pod_labels = '"{}"' then '{}'::jsonb
         else pod_labels - ek.keys

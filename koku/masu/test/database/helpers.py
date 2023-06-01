@@ -42,9 +42,9 @@ class ReportObjectCreator:
 
     fake = Faker()
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Initialize the report object creation helpler."""
-        self.schema = schema
+        self.schema_name = schema_name
         self.report_schema = ReportSchema(django.apps.apps.get_models())
         self.column_types = self.report_schema.column_types
 
@@ -62,7 +62,7 @@ class ReportObjectCreator:
         table = getattr(self.report_schema, table_name)
         data = self.clean_data(data, table_name)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             model_object = table(**data)
             model_object.save()
             return model_object
@@ -122,7 +122,7 @@ class ReportObjectCreator:
         model = get_model(table_name)
         start_datetime = entry_datetime or self.fake.past_datetime(start_date="-60d")
         end_datetime = start_datetime + datetime.timedelta(hours=1)
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return baker.make(
                 model, bill_id=bill.id, interval_start=start_datetime, interval_end=end_datetime, _fill_optional=True
             )
@@ -138,7 +138,7 @@ class ReportObjectCreator:
 
             data["billing_period_start"] = bill_start
             data["billing_period_end"] = bill_end
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return baker.make(model, provider_id=provider_uuid, finalized_datetime=None, **data, _fill_optional=True)
 
     def create_ocp_report_period(self, provider_uuid, period_date=None, cluster_id=None):
@@ -161,7 +161,7 @@ class ReportObjectCreator:
 
             data["report_period_start"] = period_start
             data["report_period_end"] = period_end
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return baker.make(model, **data, _fill_optional=True)
 
     def create_columns_for_table_with_bakery(self, table, data={}):
@@ -223,11 +223,11 @@ class ReportObjectCreator:
         self.create_db_object(cost_model_map, data)
         return cost_model_obj
 
-    def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
+    def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema_name):
         """Create an ocpawscostlineitem_project_daily_summary object for test."""
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
         model = get_model(table_name)
-        with AccountAliasAccessor(account_id, schema) as accessor:
+        with AccountAliasAccessor(account_id, schema_name) as accessor:
             account_alias = accessor._get_db_obj_query().first()
             data = {
                 "account_alias_id": account_alias.id,
@@ -235,21 +235,21 @@ class ReportObjectCreator:
                 "usage_start": self.make_datetime_aware(self.fake.past_datetime()),
                 "usage_end": self.make_datetime_aware(self.fake.past_datetime()),
             }
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return baker.make(model, **data, _fill_optional=True)
 
-    def create_awscostentrylineitem_daily_summary(self, account_id, schema, cost_entry_bill, usage_date=None):
+    def create_awscostentrylineitem_daily_summary(self, account_id, schema_name, cost_entry_bill, usage_date=None):
         """Create reporting_awscostentrylineitem_daily_summary object for test."""
         table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
         model = get_model(table_name)
-        with AccountAliasAccessor(account_id, schema) as accessor:
+        with AccountAliasAccessor(account_id, schema_name) as accessor:
             account_alias = accessor._get_db_obj_query().first()
             data = {
                 "account_alias_id": account_alias.id,
                 "cost_entry_bill": cost_entry_bill,
                 "usage_start": self.make_datetime_aware(usage_date or self.fake.past_datetime()),
             }
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return baker.make(model, **data, _fill_optional=True)
 
     def create_azure_cost_entry_bill(self, provider_uuid, bill_date=None):
@@ -269,7 +269,7 @@ class ReportObjectCreator:
             data["billing_period_start"] = self.make_datetime_aware(parser.parse(bill_start))
             data["billing_period_end"] = self.make_datetime_aware(parser.parse(bill_end))
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return baker.make(model, provider_id=provider_uuid, **data, _fill_optional=True)
 
 

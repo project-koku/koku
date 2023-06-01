@@ -39,7 +39,7 @@ class ReportDownloaderBase:
             download_path (String) filesystem path to store downloaded files
 
         Kwargs:
-            customer_name     (String) customer name
+            schema_name       (String) customer name
             credentials       (Dict) provider access credentials
             data_source       (Dict) cost report source
             provider_type     (String) cloud provider type

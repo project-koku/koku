@@ -124,19 +124,19 @@ def set_default_user_settings():
 """Common utilities and helpers for Currency."""
 
 
-def get_selected_currency_or_setup(schema):
+def get_selected_currency_or_setup(schema_name):
     """
     get currency and/or setup initial currency
 
     Args:
-        (schema) - user settings schema.
+        (schema_name) - user settings schema_name.
 
     Returns:
-        (schema) - currency.
+        (schema_name) - currency.
     """
-    with schema_context(schema):
+    with schema_context(schema_name):
         if not UserSettings.objects.exists():
-            set_currency(schema)
+            set_currency(schema_name)
         currency = UserSettings.objects.all().first().settings["currency"]
         return currency
 
@@ -157,18 +157,18 @@ def get_currency_options():
     ]
 
 
-def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
+def set_currency(schema_name, currency_code=KOKU_DEFAULT_CURRENCY):
     """
     set currency
 
     Args:
-        (schema) - user settings schema.
+        (schema_name) - user settings schema_name.
         (currency_code) - currency code based on supported currencies(api.user_settings.settings.currencies)
 
     Returns:
-        (schema) - user settings.
+        (schema_name) - user settings.
     """
-    with schema_context(schema):
+    with schema_context(schema_name):
         account_currency_setting = UserSettings.objects.all().first()
 
         if currency_code not in VALID_CURRENCIES:
@@ -184,17 +184,17 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
 """Common utilities and helpers for Cost_type."""
 
 
-def get_selected_cost_type_or_setup(schema):
+def get_selected_cost_type_or_setup(schema_name):
     """
     get cost_type and/or setup initial currency
 
     Args:
-        (schema) - user_settings schema.
+        (schema_name) - user_settings schema_name.
 
     Returns:
-        (schema) - user_settings.
+        (schema_name) - user_settings.
     """
-    with schema_context(schema):
+    with schema_context(schema_name):
         if not UserSettings.objects.exists():
             set_default_user_settings()
         cost_type = UserSettings.objects.all().first().settings["cost_type"]
@@ -218,18 +218,18 @@ def get_cost_type_options():
     ]
 
 
-def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
+def set_cost_type(schema_name, cost_type_code=KOKU_DEFAULT_COST_TYPE):
     """
     set cost_type
 
     Args:
-        (schema) - user settings schema.
+        (schema_name) - user settings schema_name.
         (cost_type_code) - cost type code based on supported cost_types(api.usersettings.settings.cost_types)
 
     Returns:
-        (schema) - user settings.
+        (schema_name) - user settings.
     """
-    with schema_context(schema):
+    with schema_context(schema_name):
         account_current_setting = UserSettings.objects.all().first()
         supported_cost_type_codes = [code.get("code") for code in COST_TYPES]
 

@@ -24,14 +24,14 @@ class OCPReportDBCleanerError(Exception):
 class OCPReportDBCleaner:
     """Class to remove report data."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
 
         """
-        self._schema = schema
+        self._schema_name = schema_name
 
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove usage data with a report period before specified date.
@@ -47,7 +47,7 @@ class OCPReportDBCleaner:
         """
         LOG.info("Calling purge_expired_report_data for ocp")
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
                 expired_date is None and provider_uuid is None
             ):
@@ -63,7 +63,7 @@ class OCPReportDBCleaner:
 
             usage_period_objs = accessor.get_usage_period_query_by_provider(provider_uuid)
 
-            with schema_context(self._schema):
+            with schema_context(self._schema_name):
                 for usage_period in usage_period_objs.all():
                     removed_items.append(
                         {"usage_period_id": usage_period.id, "interval_start": str(usage_period.report_period_start)}
@@ -91,7 +91,7 @@ class OCPReportDBCleaner:
         all_cluster_ids = set()
         all_period_starts = set()
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with OCPReportDBAccessor(self._schema_name) as accessor:
             all_usage_periods = accessor._get_db_obj_query(accessor._table_map["report_period"]).filter(
                 report_period_start__lte=expired_date
             )
@@ -103,7 +103,7 @@ class OCPReportDBCleaner:
             ]
             table_names.extend(UI_SUMMARY_TABLES)
 
-        with schema_context(self._schema):
+        with schema_context(self._schema_name):
             # Iterate over the remainder as they could involve much larger amounts of data
             for usage_period in all_usage_periods:
                 removed_items.append(
@@ -127,7 +127,7 @@ class OCPReportDBCleaner:
                 )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
-                        schema_name=self._schema,
+                        schema_name=self._schema_name,
                         partition_of_table_name__in=table_names,
                         partition_parameters__default=False,
                         partition_parameters__from__lte=partition_from,

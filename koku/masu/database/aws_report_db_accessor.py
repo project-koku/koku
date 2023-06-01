@@ -22,7 +22,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import enable_ocp_savings_plan_cost
+from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -40,13 +40,13 @@ LOG = logging.getLogger(__name__)
 class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema):
+    def __init__(self, schema_name):
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema_name (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        super().__init__(schema_name)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._table_map = AWS_CUR_TABLE_MAP
 
@@ -65,7 +65,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = AWSCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
@@ -81,7 +81,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = AWSCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             base_query = self._get_db_obj_query(table_name)
             if provider_uuid:
                 cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
@@ -97,7 +97,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
-                "schema": self.schema,
+                "schema_name": self.schema_name,
                 "source_uuid": source_uuid,
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -128,7 +128,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
@@ -143,7 +143,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
         table_name = AWSCostEntryBill
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill = self._get_db_obj_query(table_name).get(id=bill_id)
 
             if bill.finalized_datetime is None:
@@ -156,7 +156,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -165,7 +170,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = self._table_map["category_summary"]
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -188,7 +198,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         for table_name in tables:
             summary_sql_params = {
-                "schema_name": self.schema,
+                "schema_name": self.schema_name,
                 "start_date": start_date,
                 "end_date": end_date,
                 "year": year,
@@ -209,7 +219,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info(
                 "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tAWS Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
+                self.schema_name,
                 ocp_source,
                 aws_source,
                 table,
@@ -221,7 +231,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for i in range(retries):
                     try:
                         sql = f"""
-                            DELETE FROM hive.{self.schema}.{table}
+                            DELETE FROM hive.{self.schema_name}.{table}
                                 WHERE aws_source = '{aws_source}'
                                 AND ocp_source = '{ocp_source}'
                                 AND year = '{year}'
@@ -283,7 +293,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "year": year,
             "month": month,
@@ -306,12 +316,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         # Check if we're using the savingsplan unleash-gated feature
-        is_savingsplan_cost = enable_ocp_savings_plan_cost(self.schema)
+        is_savingsplan_cost = is_ocp_savings_plan_cost_enabled(self.schema_name)
 
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -326,13 +336,18 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema_name": self.schema_name,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             if bill_ids and start_date and end_date:
                 date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
             else:
@@ -384,7 +399,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -411,7 +426,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
@@ -422,10 +437,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
-        sql_params = {"bill_id": aws_bill_id, "schema": self.schema}
+        sql_params = {"bill_id": aws_bill_id, "schema_name": self.schema_name}
         sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(sql, params=bind_params)
             results = cursor.fetchall()
 
@@ -443,7 +458,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
-            "schema": self.schema,
+            "schema_name": self.schema_name,
             "aws_source_uuid": aws_source_uuid,
             "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
@@ -462,16 +477,16 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_awsenabledtagkeys as aws
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key
+            SELECT COUNT(*) FROM {self.schema_name}.reporting_awsenabledtagkeys as aws
+                INNER JOIN {self.schema_name}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key
                 WHERE aws.enabled = true AND ocp.enabled = true;
         """
         with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
+            cursor.db.set_schema(self.schema_name)
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on AWS {self.schema}")
+                LOG.info(f"No matching enabled keys for OCP on AWS {self.schema_name}")
                 return False
         return True
 

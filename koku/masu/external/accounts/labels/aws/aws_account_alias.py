@@ -22,7 +22,7 @@ class AWSAccountAlias:
         """
         self._credentials = credentials
         self._arn = AwsArn(credentials)
-        self._schema = schema_name
+        self._schema_name = schema_name
 
     def update_account_alias(self):
         """
@@ -35,7 +35,7 @@ class AWSAccountAlias:
 
         """
         account_id, account_alias = get_account_alias_from_role_arn(self._arn)
-        with AccountAliasAccessor(account_id, self._schema) as alias_accessor:
+        with AccountAliasAccessor(account_id, self._schema_name) as alias_accessor:
             alias_accessor.set_account_alias(account_alias)
 
         accounts = get_account_names_by_organization(self._arn)
@@ -43,7 +43,7 @@ class AWSAccountAlias:
             acct_id = account.get("id")
             acct_alias = account.get("name")
             if acct_id and acct_alias:
-                with AccountAliasAccessor(acct_id, self._schema) as alias_accessor:
+                with AccountAliasAccessor(acct_id, self._schema_name) as alias_accessor:
                     alias_accessor.set_account_alias(acct_alias)
 
         return account_id, account_alias

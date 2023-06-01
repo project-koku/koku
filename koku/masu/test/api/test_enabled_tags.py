@@ -42,12 +42,12 @@ class EnabledTagsTest(MasuTestCase):
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
                 enabled_table_class = self.provider_type_to_table.get(provider_type)
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     expected_keys = enabled_table_class.objects.filter(enabled=True).values_list("key")
                     expected_keys = [key[0] for key in expected_keys]
 
                 response = self.client.get(
-                    reverse("enabled_tags") + f"?schema={self.schema}&provider_type={provider_type}"
+                    reverse("enabled_tags") + f"?schema={self.schema_name}&provider_type={provider_type}"
                 )
                 body = response.json()
 
@@ -64,7 +64,7 @@ class EnabledTagsTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_enabled_tags_no_provider_type(self, _):
         """Test the GET enabled_tags endpoint."""
-        response = self.client.get(reverse("enabled_tags") + f"?schema={self.schema}")
+        response = self.client.get(reverse("enabled_tags") + f"?schema={self.schema_name}")
         self.assertEqual(response.status_code, 400)
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -73,7 +73,7 @@ class EnabledTagsTest(MasuTestCase):
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
                 enabled_table_class = self.provider_type_to_table.get(provider_type)
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     enabled_table_class.objects.all().delete()
 
                 post_data = {
@@ -95,7 +95,7 @@ class EnabledTagsTest(MasuTestCase):
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
                 enabled_table_class = self.provider_type_to_table.get(provider_type)
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     keys = enabled_table_class.objects.values_list("key")
                     keys = [key[0] for key in keys]
                     print(keys)
@@ -114,7 +114,7 @@ class EnabledTagsTest(MasuTestCase):
                 for key in post_data.get("tag_keys", []):
                     self.assertIn(key, body.get("tag_keys"))
 
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     self.assertEqual(enabled_table_class.objects.filter(enabled=True).count(), 0)
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -123,7 +123,7 @@ class EnabledTagsTest(MasuTestCase):
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
                 enabled_table_class = self.provider_type_to_table.get(provider_type)
-                with schema_context(self.schema):
+                with schema_context(self.schema_name):
                     keys = enabled_table_class.objects.values_list("key")
                     keys = [key[0] for key in keys]
                     print(keys)
@@ -142,7 +142,7 @@ class EnabledTagsTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_post_enabled_tags_no_schema(self, _):
         """Test the GET enabled_tags endpoint."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCPEnabledTagKeys.objects.all().delete()
 
         post_data = {"action": "create", "tag_keys": ["tag1", "tag2"], "provider_type": "aws"}
@@ -152,7 +152,7 @@ class EnabledTagsTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_post_enabled_tags_no_action(self, _):
         """Test the GET enabled_tags endpoint."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCPEnabledTagKeys.objects.all().delete()
 
         post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "provider_type": "aws"}
@@ -162,7 +162,7 @@ class EnabledTagsTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_post_enabled_tags_no_provider_type(self, _):
         """Test the GET enabled_tags endpoint."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             OCPEnabledTagKeys.objects.all().delete()
 
         post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "action": "create"}

@@ -10,10 +10,10 @@ from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 class AccountLabel:
     """Object to retreive and save account aliases."""
 
-    def __init__(self, auth, schema, provider_type):
+    def __init__(self, auth, schema_name, provider_type):
         """Set the CUR accounts external source."""
         self.auth = auth
-        self.schema = schema
+        self.schema_name = schema_name
         self.provider_type = provider_type
         self.label = self._set_labler()
 
@@ -29,7 +29,7 @@ class AccountLabel:
 
         """
         if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSAccountAlias(credentials=self.auth, schema_name=self.schema)
+            return AWSAccountAlias(credentials=self.auth, schema_name=self.schema_name)
         return None
 
     def get_label_details(self):

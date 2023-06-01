@@ -51,18 +51,18 @@ class TestOCIUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider(self):
         """Test that bill IDs are returned for an OCI provider."""
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             expected_bill_ids = OCICostEntryBill.objects.values_list("id")
             expected_bill_ids = sorted(bill_id[0] for bill_id in expected_bill_ids)
-        bills = utils.get_bills_from_provider(self.oci_provider_uuid, self.schema)
+        bills = utils.get_bills_from_provider(self.oci_provider_uuid, self.schema_name)
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill_ids = sorted(bill.id for bill in bills)
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
         # Try with unknown provider uuid
-        bills = utils.get_bills_from_provider(self.unkown_test_provider_uuid, self.schema)
+        bills = utils.get_bills_from_provider(self.unkown_test_provider_uuid, self.schema_name)
         self.assertEqual(bills, [])
 
     def test_get_bill_ids_from_provider_with_start_date(self):
@@ -71,7 +71,7 @@ class TestOCIUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.oci_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with OCIReportDBAccessor(schema=self.schema) as accessor:
+        with OCIReportDBAccessor(schema_name=self.schema_name) as accessor:
 
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
@@ -79,12 +79,12 @@ class TestOCIUtils(MasuTestCase):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
-            with schema_context(self.schema):
+            with schema_context(self.schema_name):
                 bills = bills.filter(billing_period_start__gte=end_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
-        bills = utils.get_bills_from_provider(self.oci_provider_uuid, self.schema, start_date=end_date)
-        with schema_context(self.schema):
+        bills = utils.get_bills_from_provider(self.oci_provider_uuid, self.schema_name, start_date=end_date)
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
@@ -95,7 +95,7 @@ class TestOCIUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.oci_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with OCIReportDBAccessor(schema=self.schema) as accessor:
+        with OCIReportDBAccessor(schema_name=self.schema_name) as accessor:
 
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
@@ -103,12 +103,12 @@ class TestOCIUtils(MasuTestCase):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
-            with schema_context(self.schema):
+            with schema_context(self.schema_name):
                 bills = bills.filter(billing_period_start__lte=start_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
-        bills = utils.get_bills_from_provider(self.oci_provider_uuid, self.schema, end_date=start_date)
-        with schema_context(self.schema):
+        bills = utils.get_bills_from_provider(self.oci_provider_uuid, self.schema_name, end_date=start_date)
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
@@ -119,7 +119,7 @@ class TestOCIUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.oci_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with OCIReportDBAccessor(schema=self.schema) as accessor:
+        with OCIReportDBAccessor(schema_name=self.schema_name) as accessor:
 
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
@@ -127,7 +127,7 @@ class TestOCIUtils(MasuTestCase):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
-            with schema_context(self.schema):
+            with schema_context(self.schema_name):
                 bills = (
                     bills.filter(billing_period_start__gte=start_date.date())
                     .filter(billing_period_start__lte=end_date.date())
@@ -136,9 +136,9 @@ class TestOCIUtils(MasuTestCase):
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
-            self.oci_provider_uuid, self.schema, start_date=start_date, end_date=end_date
+            self.oci_provider_uuid, self.schema_name, start_date=start_date, end_date=end_date
         )
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)

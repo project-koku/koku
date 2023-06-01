@@ -1,4 +1,4 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
+INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     uuid,
     cost_entry_bill_id,
     usage_start,
@@ -36,7 +36,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
 )
 with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys
+      from postgres.{{schema_name | sqlsafe}}.reporting_awsenabledtagkeys
      where enabled = true
 )
 SELECT uuid() as uuid,
@@ -114,7 +114,7 @@ FROM (
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,
         count(DISTINCT lineitem_resourceid) as resource_count
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
+    FROM hive.{{schema_name | sqlsafe}}.aws_line_items_daily
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
@@ -134,9 +134,9 @@ FROM (
         pricing_unit
 ) AS ds
 CROSS JOIN cte_pg_enabled_keys AS pek
-LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+LEFT JOIN postgres.{{schema_name | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
-LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
+LEFT JOIN postgres.{{schema_name | sqlsafe}}.reporting_awsorganizationalunit AS ou
     ON aa.id = ou.account_alias_id
         AND ou.created_timestamp <= ds.usage_start
         AND (
