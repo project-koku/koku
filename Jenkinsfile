@@ -104,7 +104,6 @@ def check_for_labels(String label, String LABELS_DIR) {
         }
     }
 
-    echo hasLabels
     echo hasLabelsProc.text()
 
     return hasLabels;
