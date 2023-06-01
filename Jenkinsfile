@@ -43,7 +43,7 @@ pipeline {
                 stage('Check labels') {
                     when {
                         expression {
-                            check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
+                            check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes') == false
                         }
                     }
                     steps {
@@ -56,7 +56,7 @@ pipeline {
                 stage('Check to skip smoke tests') {
                     when {
                         expression {
-                            check_for_labels('ok-to-skip-smokes', LABELS_DIR) == true
+                            check_for_labels('ok-to-skip-smokes') == true
                         }
                     }
 
@@ -73,7 +73,7 @@ pipeline {
         stage('Build Image') {
             when {
                 expression {
-                    check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
+                    check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes') == false
                 }
             }
             steps {
@@ -102,7 +102,7 @@ pipeline {
 }
 
 
-def check_for_labels(String label, String LABELS_DIR) { 
+def check_for_labels(String label) { 
     // def exists = fileExists '${LABELS_DIR}/github_labels.txt'
     def grepLabels = "egrep label ${LABELS_DIR}/github_labels.txt &>/dev/null"
 
@@ -111,14 +111,14 @@ def check_for_labels(String label, String LABELS_DIR) {
 
     def hasLabels = false
 
-    if (fileExists(LABELS_DIR + "/github_labels.txt")) {
-        def hasLabelsProc = grepLabels.execute()
-        hasLabelsProc.consumeProcessOutput(result, error)
+    // if (fileExists("${LABELS_DIR}/github_labels.txt")) {
+    def hasLabelsProc = grepLabels.execute()
+    hasLabelsProc.consumeProcessOutput(result, error)
 
-        if (!error.toString().equals("")) {
-            hasLabels = true
-        }
+    if (!error.toString().equals("")) {
+        hasLabels = true
     }
+    // }
 
     println result
 
