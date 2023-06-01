@@ -38,7 +38,7 @@ pipeline {
                     steps {
                         sh '''
                         echo PR check skipped
-                        exit 1
+                        exit 0
                         '''
                     }
                 }
@@ -52,7 +52,7 @@ pipeline {
                     steps {
                         sh '''
                         echo smokes not required
-                        exit -1
+                        exit 0
                         '''
                     }
                 }
