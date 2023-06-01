@@ -115,14 +115,15 @@ def check_for_labels(String label) {
 
     // if (fileExists("${LABELS_DIR}/github_labels.txt")) {
     def hasLabelsProc = grepLabels.execute()
-    hasLabelsProc.consumeProcessOutput(result, error)
+    // hasLabelsProc.consumeProcessOutput(result, error)
 
-    if (!error.toString().equals("")) {
-        hasLabels = true
-    }
+    // println result
+    // println error.toString()
+
+    // if (!error.toString().equals("")) {
+    //     hasLabels = true
     // }
-
-    println result
+    // }
 
     return hasLabels;
 }
