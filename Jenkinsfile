@@ -91,7 +91,7 @@ pipeline {
 }
 
 
-def check_for_labels(String label, String LABELS_DIR) {
+boolean check_for_labels(String label, String LABELS_DIR) {
     def exists = fileExists '${LABELS_DIR}/github_labels.txt'
     def grepLabels = "egrep label $LABELS_DIR/github_labels.txt &>/dev/null"
     def hasLabels = false
