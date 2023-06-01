@@ -120,7 +120,7 @@ def check_for_labels(String label, String LABELS_DIR) {
         }
     }
 
-    echo result
+    println result
 
     return hasLabels;
 }
