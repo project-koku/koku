@@ -22,7 +22,7 @@ def insert_tenant_schema_providers(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0277_store_aws_amoritized_cost"),
+        ("reporting", "0280_markup_amortized_cost"),
     ]
 
     operations = [
@@ -31,27 +31,10 @@ class Migration(migrations.Migration):
             fields=[
                 ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ("name", models.TextField()),
-                (
-                    "type",
-                    models.TextField(
-                        choices=[
-                            ("AWS", "AWS"),
-                            ("OCP", "OCP"),
-                            ("Azure", "Azure"),
-                            ("GCP", "GCP"),
-                            ("IBM", "IBM"),
-                            ("OCI", "OCI"),
-                            ("AWS-local", "AWS-local"),
-                            ("Azure-local", "Azure-local"),
-                            ("GCP-local", "GCP-local"),
-                            ("IBM-local", "IBM-local"),
-                            ("OCI-local", "OCI-local"),
-                        ]
-                    ),
-                ),
+                ("type", models.TextField()),
             ],
             options={
-                "db_table": "provider",
+                "db_table": "reporting_provider",
             },
         ),
         migrations.RunPython(insert_tenant_schema_providers)
