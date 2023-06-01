@@ -41,16 +41,13 @@ pipeline {
         stage('Verify labels') {
             parallel {
                 stage('Check labels') {
-                    // when {
-                    //     expression {
-                    //         check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
-                    //     }
-                    // }
+                    when {
+                        expression {
+                            check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
+                        }
+                    }
                     steps {
                         sh '''
-                        ls -a
-                        ls -a ${LABELS_DIR}
-                        
                         echo PR check skipped
                         exit 0
                         '''
@@ -107,7 +104,7 @@ pipeline {
 
 def check_for_labels(String label, String LABELS_DIR) { 
     def exists = fileExists '${LABELS_DIR}/github_labels.txt'
-    def grepLabels = "egrep label $LABELS_DIR/github_labels.txt &>/dev/null"
+    def grepLabels = "egrep label ${LABELS_DIR}/github_labels.txt &>/dev/null"
     def hasLabels = false
 
     if (exists) {
