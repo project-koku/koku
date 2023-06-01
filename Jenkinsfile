@@ -99,12 +99,13 @@ def check_for_labels(String label, String LABELS_DIR) {
     if (exists) {
         def hasLabelsProc = grepLabels.execute()
 
-        if (hasLabelsProc != null) {
+        if (hasLabelsProc.text() != null) {
             hasLabels = true
         }
     }
 
-    echo hasLabels.outputStream()
+    echo hasLabels
+    echo hasLabelsProc.text()
 
     return hasLabels;
 }
