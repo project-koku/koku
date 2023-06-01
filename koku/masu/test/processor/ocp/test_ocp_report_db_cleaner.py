@@ -7,10 +7,10 @@ import datetime
 import uuid
 
 import django
-import pytz
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -239,8 +239,8 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
             self.assertTrue(table_exists(self.schema, test_part.table_name))
 
-            report_period_start = datetime.datetime(2018, 1, 1, tzinfo=pytz.UTC)
-            report_period_end = datetime.datetime(2018, 1, 31, tzinfo=pytz.UTC)
+            report_period_start = datetime.datetime(2018, 1, 1, tzinfo=settings.UTC)
+            report_period_end = datetime.datetime(2018, 1, 31, tzinfo=settings.UTC)
             cluster_id = "ocp-test-cluster-0001"
             report_period = report_period_model(
                 cluster_id=cluster_id,
@@ -256,7 +256,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
             )
             lids_rec.save()
 
-        cutoff_date = datetime.datetime(2018, 12, 31, tzinfo=pytz.UTC)
+        cutoff_date = datetime.datetime(2018, 12, 31, tzinfo=settings.UTC)
         cleaner = OCPReportDBCleaner(self.schema)
         removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 

@@ -8,7 +8,7 @@ import logging
 from functools import cached_property
 
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.utils import DateHelper
@@ -211,7 +211,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
+            if self.provider_type == Provider.PROVIDER_GCP:
+                cluster_topology = accessor.get_filtered_openshift_topology_for_multiple_providers(
+                    ocp_provider_uuids, self.start_date, self.end_date
+                )
+            else:
+                cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
             # Get matching tags
             matched_tags = self.get_matched_tags(ocp_provider_uuids)
             for i, daily_data_frame in enumerate(daily_data_frames):

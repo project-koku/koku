@@ -471,6 +471,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "end": str(datetime.today()),
         }
         expected_meta = {
+            "schema": report_meta.get("schema_name"),
             "schema_name": report_meta.get("schema_name"),
             "provider_type": report_meta.get("provider_type"),
             "provider_uuid": report_meta.get("provider_uuid"),

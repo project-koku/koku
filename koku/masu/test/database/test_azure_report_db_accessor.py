@@ -13,7 +13,7 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
@@ -194,6 +194,21 @@ class AzureReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_azure_ui_summary_tables_trino(self, mock_trino):
+        """Test that Trino is used to populate UI summary."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_ocp_on_azure_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.azure_provider_uuid,
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_azure_cost_daily_summary_trino(self, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
@@ -354,10 +369,19 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.schema_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist):
+    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
         """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_azure_hive_partition_by_day(
+            [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+        )
+        mock_trino.assert_not_called()
+
+        mock_schema_exists.return_value = True
+        mock_trino.reset_mock()
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):

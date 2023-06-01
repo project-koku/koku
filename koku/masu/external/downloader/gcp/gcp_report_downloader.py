@@ -265,7 +265,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=datetime.timezone.utc)
+                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
         except GoogleCloudError as err:
             err_msg = "Could not query table for partition date information."
             extra_context = {"customer": self.customer_name, "response": err.message}

@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from dateutil import parser
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
@@ -282,7 +282,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
                 accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start, end)
-                accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
+                accessor.populate_ocp_on_aws_ui_summary_tables_trino(
+                    start, end, openshift_provider_uuid, aws_provider_uuid
+                )
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
@@ -394,7 +396,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
                 accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start, end)
-                accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
+                accessor.populate_ocp_on_azure_ui_summary_tables_trino(
+                    start, end, openshift_provider_uuid, azure_provider_uuid
+                )
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "Azure"
@@ -402,9 +406,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
-                ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
-                ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
-                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
+                    ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
+                    ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
+                    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
         with schema_context(self._schema):
@@ -523,7 +527,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
+                accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
+                    start, end, openshift_provider_uuid, gcp_provider_uuid
+                )
                 accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start, end)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:

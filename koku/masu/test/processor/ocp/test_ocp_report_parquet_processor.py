@@ -5,7 +5,7 @@
 """Test the OCPReportParquetProcessor."""
 import datetime
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor

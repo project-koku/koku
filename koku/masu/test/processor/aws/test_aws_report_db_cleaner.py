@@ -7,9 +7,9 @@ import datetime
 import uuid
 
 import django
-import pytz
+from django.conf import settings
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database import AWS_CUR_TABLE_MAP
@@ -101,8 +101,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
             self.assertTrue(table_exists(self.schema, test_part.table_name))
 
-            report_period_start = datetime.datetime(2017, 1, 1, tzinfo=pytz.UTC)
-            report_period_end = datetime.datetime(2017, 1, 31, tzinfo=pytz.UTC)
+            report_period_start = datetime.datetime(2017, 1, 1, tzinfo=settings.UTC)
+            report_period_end = datetime.datetime(2017, 1, 31, tzinfo=settings.UTC)
             cluster_id = "aws-test-cluster-0001"
             report_period = report_period_model(
                 billing_resource=cluster_id,
@@ -118,7 +118,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
             )
             lids_rec.save()
 
-            cutoff_date = datetime.datetime(2017, 12, 31, tzinfo=pytz.UTC)
+            cutoff_date = datetime.datetime(2017, 12, 31, tzinfo=settings.UTC)
             cleaner = AWSReportDBCleaner(self.schema)
             removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 

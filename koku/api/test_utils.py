@@ -8,13 +8,12 @@ import unittest
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-import pytz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.user_settings.settings import USER_SETTINGS
@@ -283,12 +282,12 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """Set up get_months_in_date_range tests."""
         super().setUp()
 
-        self.start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
-        self.end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
-        self.first_of_year = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
-        self.first_of_month = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
-        self.early_start_date = datetime.datetime(2022, 4, 3, tzinfo=pytz.UTC)
-        self.early_end_date = datetime.datetime(2022, 4, 12, tzinfo=pytz.UTC)
+        self.start_date = datetime.datetime(2023, 4, 3, tzinfo=settings.UTC)
+        self.end_date = datetime.datetime(2023, 4, 12, tzinfo=settings.UTC)
+        self.first_of_year = datetime.datetime(2023, 1, 1, tzinfo=settings.UTC)
+        self.first_of_month = datetime.datetime(2023, 1, 1, tzinfo=settings.UTC)
+        self.early_start_date = datetime.datetime(2022, 4, 3, tzinfo=settings.UTC)
+        self.early_end_date = datetime.datetime(2022, 4, 12, tzinfo=settings.UTC)
 
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
     def test_get_months_in_date_range__report_with_dates(self, mock_dh_today):

@@ -42,8 +42,8 @@ CACHE_PREFIXES = (
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "unique-snowflake",
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         }
     }
 )

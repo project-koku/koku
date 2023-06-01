@@ -14,7 +14,7 @@ from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
 from django.db.models.signals import post_delete
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
 from koku.database import get_model

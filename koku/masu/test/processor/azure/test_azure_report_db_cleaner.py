@@ -8,10 +8,10 @@ import uuid
 from unittest.mock import patch
 
 import django
-import pytz
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
@@ -271,8 +271,8 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
             self.assertTrue(table_exists(self.schema, test_part.table_name))
 
-            report_period_start = datetime.datetime(2016, 1, 1, tzinfo=pytz.UTC)
-            report_period_end = datetime.datetime(2016, 1, 31, tzinfo=pytz.UTC)
+            report_period_start = datetime.datetime(2016, 1, 1, tzinfo=settings.UTC)
+            report_period_end = datetime.datetime(2016, 1, 31, tzinfo=settings.UTC)
             report_period = report_period_model(
                 billing_period_start=report_period_start,
                 billing_period_end=report_period_end,
@@ -286,7 +286,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
             )
             lids_rec.save()
 
-            cutoff_date = datetime.datetime(2016, 12, 31, tzinfo=pytz.UTC)
+            cutoff_date = datetime.datetime(2016, 12, 31, tzinfo=settings.UTC)
             cleaner = AzureReportDBCleaner(self.schema)
             removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 

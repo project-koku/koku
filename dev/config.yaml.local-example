@@ -45,15 +45,15 @@ apps:
       path: deploy/clowdapp.yaml
       ref: main
       parameters:
-        IMAGE_TAG: 3.1.2-metastore-006
+        IMAGE_TAG: 3.1.2-metastore-009
         S3_BUCKET_NAME: koku-eph-s3
-    - name: presto
+    - name: trino
       host: github
       repo: redhatinsights/ubi-trino
       path: deploy/clowdapp.yaml
       ref: main
       parameters:
-        IMAGE_TAG: 371-001
+        IMAGE_TAG: 405-002
         S3_BUCKET_NAME: koku-eph-s3
         S3_SSE_ENABLED: false
         S3_SELECT_PUSHDOWN_ENABLED: false

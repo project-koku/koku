@@ -11,7 +11,7 @@ from functools import reduce
 from django.db.models import F
 from django.db.models import Q
 from django.db.models.functions import Coalesce
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
