@@ -119,20 +119,21 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = [
-        "aws_line_items_daily",
-    ]
+    # tables_to_drop = [
+    #     "aws_line_items_daily",
+    # ]
     # columns_to_drop = ["ocp_matched"]
-    # columns_to_add = {
-    #     "aws_cost_category": "varchar",
-    # }
+    columns_to_add = {
+        "calculated_amortized_cost": "double",
+        "markup_cost_amortized": "double",
+    }
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        # logging.info(f"*** Adding column to tables for schema {schema} ***")
-        # add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
-        logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        logging.info(f"*** Adding column to tables for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
+        # logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
+        # drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
