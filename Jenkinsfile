@@ -91,16 +91,20 @@ pipeline {
 }
 
 
-boolean check_for_labels(String label, String LABELS_DIR) {
+def check_for_labels(String label, String LABELS_DIR) {
     def exists = fileExists '${LABELS_DIR}/github_labels.txt'
     def grepLabels = "egrep label $LABELS_DIR/github_labels.txt &>/dev/null"
     def hasLabels = false
 
     if (exists) {
-        hasLabels = grepLabels.execute();
+        def hasLabelsProc = grepLabels.execute()
+
+        if (hasLabelsProc != null) {
+            hasLabels = true
+        }
     }
 
-    echo hasLabels
+    echo hasLabels.outputStream()
 
     return hasLabels;
 }
