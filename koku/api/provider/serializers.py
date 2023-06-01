@@ -8,9 +8,9 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.db import transaction
+from django_tenants.utils import schema_context
 from rest_framework import serializers
 from rest_framework.fields import empty
-from tenant_schemas.utils import schema_context
 
 from api.common import error_obj
 from api.iam.serializers import AdminCustomerSerializer
