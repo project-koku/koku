@@ -7,8 +7,6 @@ from uuid import uuid4
 
 from django.db import models
 
-from api.provider.models import Provider
-
 
 class Provider(models.Model):
     """A tenant specific provider model"""
@@ -16,8 +14,8 @@ class Provider(models.Model):
     class Meta:
         """Meta for Provider."""
 
-        db_table = "provider"
+        db_table = "reporting_provider"
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.TextField(null=False)
-    type = models.TextField(null=False, choices=Provider.PROVIDER_CHOICES)
+    type = models.TextField(null=False)
