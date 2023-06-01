@@ -111,7 +111,7 @@ def check_for_labels(String label, String LABELS_DIR) {
 
     def hasLabels = false
 
-    if (fileExists('${LABELS_DIR}/github_labels.txt')) {
+    if (fileExists(LABELS_DIR + "/github_labels.txt")) {
         def hasLabelsProc = grepLabels.execute()
         hasLabelsProc.consumeProcessOutput(result, error)
 
