@@ -748,7 +748,7 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
-        with schema_context(self.schema):
+        with schema_context(self.schema_name):
             cluster = OCPCluster(
                 cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid
             )

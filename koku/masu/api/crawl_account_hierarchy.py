@@ -56,9 +56,9 @@ def crawl_account_hierarchy(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         if data.get("start_date"):
             insert_obj = InsertAwsOrgTree(
-                schema=schema_name, provider_uuid=provider_uuid, start_date=data.get("start_date")
+                schema_name=schema_name, provider_uuid=provider_uuid, start_date=data.get("start_date")
             )
         else:
-            insert_obj = InsertAwsOrgTree(schema=schema_name, provider_uuid=provider_uuid)
+            insert_obj = InsertAwsOrgTree(schema_name=schema_name, provider_uuid=provider_uuid)
         insert_obj.insert_tree(day_list=days_list)
         return Response(data)

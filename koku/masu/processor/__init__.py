@@ -17,7 +17,7 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
-def is_purge_trino_files_enabled(schema_name):
+def enable_purge_trino_files(schema_name):
     """Helper to determine if schema_name is enabled for deleting trino files."""
     schema_name = convert_schema_name(schema_name)
 
@@ -26,7 +26,7 @@ def is_purge_trino_files_enabled(schema_name):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-purge-turnpike", context)
 
 
-def is_cloud_source_processing_disabled(schema_name):
+def disable_cloud_source_processing(schema_name):
     """Disable processing for a cloud source."""
     schema_name = convert_schema_name(schema_name)
 
@@ -38,7 +38,7 @@ def is_cloud_source_processing_disabled(schema_name):
     return res
 
 
-def is_summary_processing_disabled(schema_name):
+def disable_summary_processing(schema_name):
     """Disable summary processing."""
     schema_name = convert_schema_name(schema_name)
 
@@ -50,7 +50,7 @@ def is_summary_processing_disabled(schema_name):
     return res
 
 
-def is_ocp_on_cloud_summary_disabled(schema_name):
+def disable_ocp_on_cloud_summary(schema_name):
     """Disable OCP on Cloud summary."""
     schema_name = convert_schema_name(schema_name)
 
@@ -62,7 +62,7 @@ def is_ocp_on_cloud_summary_disabled(schema_name):
     return res
 
 
-def is_gcp_resource_matching_disabled(schema_name):
+def disable_gcp_resource_matching(schema_name):
     """Disable GCP resource matching for OCP on GCP."""
     schema_name = convert_schema_name(schema_name)
 
@@ -74,7 +74,7 @@ def is_gcp_resource_matching_disabled(schema_name):
     return res
 
 
-def should_summarize_ocp_on_gcp_by_node(schema_name):
+def summarize_ocp_on_gcp_by_node(schema_name):
     """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
     schema_name = convert_schema_name(schema_name)
 
@@ -86,7 +86,7 @@ def should_summarize_ocp_on_gcp_by_node(schema_name):
     return res
 
 
-def is_large_customer(schema_name):
+def large_customer(schema_name):
     """Flag the customer as large."""
     schema_name = convert_schema_name(schema_name)
 
@@ -94,7 +94,7 @@ def is_large_customer(schema_name):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
 
 
-def is_ocp_savings_plan_cost_enabled(schema_name):
+def enable_ocp_savings_plan_cost(schema_name):
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     schema_name = convert_schema_name(schema_name)
 
@@ -104,7 +104,7 @@ def is_ocp_savings_plan_cost_enabled(schema_name):
     )
 
 
-def is_ocp_amortized_monthly_cost_enabled(schema_name):
+def enable_ocp_amortized_monthly_cost(schema_name):
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     schema_name = convert_schema_name(schema_name)
 
@@ -112,7 +112,7 @@ def is_ocp_amortized_monthly_cost_enabled(schema_name):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
 
 
-def is_aws_category_settings_enabled(schema_name):
+def enable_aws_category_settings(schema_name):
     """Enable aws category settings."""
     schema_name = convert_schema_name(schema_name)
 
@@ -122,7 +122,7 @@ def is_aws_category_settings_enabled(schema_name):
     )
 
 
-def is_source_disabled(source_uuid):
+def source_disabled(source_uuid):
     """
     Disable source processing
 
