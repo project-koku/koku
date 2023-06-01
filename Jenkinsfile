@@ -29,7 +29,7 @@ pipeline {
     stages {
         stage('Verify labels') {
             parallel {
-                stage('Check some labels') {
+                stage('Check labels') {
                     when {
                         expression {
                             check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
@@ -100,7 +100,9 @@ def check_for_labels(String label, String LABELS_DIR) {
         hasLabels = grepLabels.execute();
     }
 
-    return exists;
+    echo hasLabels
+
+    return hasLabels;
 }
 
 def run_test_filter_expression() {
