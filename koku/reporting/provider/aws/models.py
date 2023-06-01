@@ -86,6 +86,9 @@ class AWSCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSCostEntryLineItemDailySummary(models.Model):
@@ -219,6 +222,9 @@ class AWSOrganizationalUnit(models.Model):
     created_timestamp = models.DateField(auto_now_add=True)
     deleted_timestamp = models.DateField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
     def __str__(self):
         """Convert to string."""
@@ -324,6 +330,9 @@ class AWSCostSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSCostSummaryByServiceP(models.Model):
@@ -366,6 +375,9 @@ class AWSCostSummaryByServiceP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSCostSummaryByAccountP(models.Model):
@@ -402,6 +414,9 @@ class AWSCostSummaryByAccountP(models.Model):
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
     )
 
 
@@ -447,6 +462,9 @@ class AWSCostSummaryByRegionP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSComputeSummaryP(models.Model):
@@ -488,6 +506,9 @@ class AWSComputeSummaryP(models.Model):
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
     )
 
 
@@ -534,6 +555,9 @@ class AWSComputeSummaryByAccountP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSStorageSummaryP(models.Model):
@@ -573,6 +597,9 @@ class AWSStorageSummaryP(models.Model):
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
     )
 
 
@@ -617,6 +644,9 @@ class AWSStorageSummaryByAccountP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSNetworkSummaryP(models.Model):
@@ -660,6 +690,9 @@ class AWSNetworkSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+    )
 
 
 class AWSDatabaseSummaryP(models.Model):
@@ -702,4 +735,7 @@ class AWSDatabaseSummaryP(models.Model):
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    reporting_provider = models.ForeignKey(
+        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
     )
