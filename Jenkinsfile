@@ -27,6 +27,15 @@ pipeline {
     }
 
     stages {
+        stage('Sanity Check') {
+            steps {
+                sh '''
+                    ls -a
+                    ls -a ${LABELS_DIR}
+                '''
+            }
+        }
+
         stage('Verify labels') {
             parallel {
                 stage('Check labels') {
@@ -91,7 +100,7 @@ pipeline {
 }
 
 
-def check_for_labels(String label, String LABELS_DIR) {
+def check_for_labels(String label, String LABELS_DIR) { 
     def exists = fileExists '${LABELS_DIR}/github_labels.txt'
     def grepLabels = "egrep label $LABELS_DIR/github_labels.txt &>/dev/null"
     def hasLabels = false
