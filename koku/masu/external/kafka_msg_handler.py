@@ -92,7 +92,7 @@ def create_manifest_entries(report_meta, request_id, context={}):
         None,
         provider_uuid=report_meta.get("provider_uuid"),
         request_id=request_id,
-        account=context.get("account", "no_account"),
+        s3_schema_name=context.get("account", "no_account"),
     )
     return downloader._prepare_db_manifest_record(report_meta)
 

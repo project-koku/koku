@@ -170,7 +170,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source      (Dict) Not used for OCP
 
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
 
         LOG.debug("Connecting to OCP service provider...")
 

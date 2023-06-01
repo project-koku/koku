@@ -55,7 +55,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source      (Dict) Dictionary containing Azure Storage blob details.
             ingress_reports  (List) List of reports from ingress post endpoint (optional)
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
 

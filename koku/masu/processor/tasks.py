@@ -41,9 +41,9 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_ocp_on_cloud_summary
+from masu.processor import disable_source
 from masu.processor import disable_summary_processing
 from masu.processor import large_customer
-from masu.processor import source_disabled
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -409,7 +409,7 @@ def update_summary_tables(  # noqa: C901
     if disable_summary_processing(schema_name):
         LOG.info(f"Summary disabled for {schema_name}.")
         return
-    if source_disabled(provider_uuid):
+    if disable_source(provider_uuid):
         return
     if disable_ocp_on_cloud_summary(schema_name):
         LOG.info(f"OCP on Cloud summary disabled for {schema_name}.")

@@ -133,7 +133,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source    (Dict) dict containing IBM Enterprise ID
 
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
 
         self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})

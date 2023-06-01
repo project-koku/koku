@@ -59,7 +59,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ingress_reports (List) List of reports from ingress post endpoint (optional)
 
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
 
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")

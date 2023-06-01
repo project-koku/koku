@@ -51,7 +51,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source    (dict): dict containing name of OCI storage bucket
 
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
         self.data_source = data_source
         self.storage_location = self.data_source.get("bucket")
         self.schema_name = schema_name.replace(" ", "_")

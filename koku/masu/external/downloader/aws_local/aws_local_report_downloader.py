@@ -46,7 +46,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source      (Dict) Name of the S3 bucket containing the CUR
 
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
 
         bucket = data_source.get("bucket")
 

@@ -128,7 +128,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source    (dict): dict containing name of GCP storage bucket
             ingress_reports (List) List of reports from ingress post endpoint (optional)
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
 
         self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})

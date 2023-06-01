@@ -122,7 +122,7 @@ def enable_aws_category_settings(schema_name):
     )
 
 
-def source_disabled(source_uuid):
+def disable_source(source_uuid):
     """
     Disable source processing
 

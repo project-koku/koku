@@ -136,7 +136,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source    (dict): dict containing name of OCI storage bucket
 
         """
-        super().__init__(**kwargs)
+        super().__init__(schema_name, **kwargs)
         self.data_source = data_source
         self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})

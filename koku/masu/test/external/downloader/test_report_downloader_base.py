@@ -39,7 +39,9 @@ class ReportDownloaderBaseTest(MasuTestCase):
         """Set up each test case."""
         super().setUp()
         self.cache_key = self.fake.word()
-        self.downloader = ReportDownloaderBase(provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key)
+        self.downloader = ReportDownloaderBase(
+            schema_name=self.schema_name, provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key
+        )
         self.billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.manifest_dict = {
             "assembly_id": self.assembly_id,
@@ -75,7 +77,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
     def test_report_downloader_base_no_path(self):
         """Test report downloader download_path."""
-        downloader = ReportDownloaderBase()
+        downloader = ReportDownloaderBase(schema_name=self.schema_name)
         self.assertIsInstance(downloader, ReportDownloaderBase)
         self.assertIsNotNone(downloader.download_path)
         self.assertTrue(os.path.exists(downloader.download_path))
@@ -83,7 +85,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def test_report_downloader_base(self):
         """Test download path matches expected."""
         dl_path = f"/{self.fake.word().lower()}/{self.fake.word().lower()}/{self.fake.word().lower()}"
-        downloader = ReportDownloaderBase(download_path=dl_path)
+        downloader = ReportDownloaderBase(schema_name=self.schema_name, download_path=dl_path)
         self.assertEqual(downloader.download_path, dl_path)
 
     def test_get_existing_manifest_db_id(self):
@@ -111,7 +113,9 @@ DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present
 """  # noqa
         )  # noqa
         with patch.object(ReportManifestDBAccessor, "add", side_effect=side_effect_error):
-            downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
+            downloader = ReportDownloaderBase(
+                schema_name=self.schema_name, provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key
+            )
             with self.assertRaises(ReportDownloaderError):
                 downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
 

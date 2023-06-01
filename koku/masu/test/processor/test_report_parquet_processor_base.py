@@ -153,7 +153,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_schema_exists(self, mock_execute):
         """Test that hive partitions are synced."""
-        expected_log = "INFO:masu.processor.report_parquet_processor_base:" "Checking for schema"
+        expected_log = "INFO:masu.processor.report_parquet_processor_base:" "Checking for schema_name"
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.schema_exists()
             self.assertIn(expected_log, logger.output)
@@ -171,7 +171,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test that hive partitions are synced."""
         expected_log = (
             "INFO:masu.processor.report_parquet_processor_base:"
-            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS {self.s3_schema_name}"
+            f"Creating Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS {self.s3_schema_name}"
         )
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.create_schema()

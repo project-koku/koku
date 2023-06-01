@@ -22,7 +22,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import disable_cloud_source_processing
-from masu.processor import source_disabled
+from masu.processor import disable_source
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
@@ -97,7 +97,7 @@ class Orchestrator:
             if disable_cloud_source_processing(schema_name) and not provider_uuid:
                 LOG.info(log_json("get_accounts", "processing disabled for schema_name", schema_name=schema_name))
                 continue
-            if source_disabled(provider_uuid):
+            if disable_source(provider_uuid):
                 LOG.info(
                     log_json(
                         "get_accounts",

@@ -31,7 +31,7 @@ class ReportDownloaderBase:
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, download_path=None, **kwargs):
+    def __init__(self, schema_name, download_path=None, **kwargs):
         """
         Create a downloader.
 
@@ -47,13 +47,13 @@ class ReportDownloaderBase:
             report_name       (String) cost report name
 
         """
+        self.s3_schema_name = schema_name
         self.download_path = download_path or mkdtemp(prefix="masu")
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self._provider_type = kwargs.get("provider_type")
         self.request_id = kwargs.get("request_id")  # TODO: Remove this once the downloaders have been updated
         self.tracing_id = kwargs.get("tracing_id")
-        self.s3_schema_name = kwargs.get("s3_schema_name")
         self.context = {
             "provider_uuid": self._provider_uuid,
             "provider_type": self._provider_type,

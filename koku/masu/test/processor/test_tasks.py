@@ -1366,7 +1366,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.is_large_customer") as mock_customer:
+        with patch("masu.processor.tasks.large_customer") as mock_customer:
             mock_customer.return_value = True
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
@@ -1593,7 +1593,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.is_large_customer") as mock_customer:
+        with patch("masu.processor.tasks.large_customer") as mock_customer:
             mock_customer.return_value = True
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
