@@ -69,7 +69,8 @@ class ParquetReportProcessor:
         """initialize report processor."""
         if context is None:
             context = {}
-        self._schema_name = schema_name
+        self.schema_name = schema_name
+        self.s3_schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._report_file = report_path
         self._provider_type = provider_type
@@ -89,14 +90,20 @@ class ParquetReportProcessor:
         """The tenant schema."""
         return self._schema_name
 
+    @schema_name.setter
+    def schema_name(self, schema_name):
+        self._schema_name = schema_name
+
     @property
-    def account(self):
+    def s3_schema_name(self):
         """The tenant account number as a string."""
+        return self._s3_schema_name
+
+    @s3_schema_name.setter
+    def s3_schema_name(self, schema_name):
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
-        if self._schema_name.startswith("acct"):
-            return self._schema_name[4:]
-        return self._schema_name
+        self._s3_schema_name = schema_name.strip("acct")
 
     @property
     def provider_uuid(self):
@@ -128,7 +135,11 @@ class ParquetReportProcessor:
     @property
     def error_context(self):
         """Context information for logging errors."""
-        return {"account": self.account, "provider_uuid": self.provider_uuid, "provider_type": self.provider_type}
+        return {
+            "s3_schema_name": self.s3_schema_name,
+            "provider_uuid": self.provider_uuid,
+            "provider_type": self.provider_type,
+        }
 
     @property
     def tracing_id(self):
@@ -200,14 +211,14 @@ class ParquetReportProcessor:
     def csv_path_s3(self):
         """The path in the S3 bucket where CSV files are loaded."""
         return get_path_prefix(
-            self.account, self.provider_type, self.provider_uuid, self.start_date, Config.CSV_DATA_TYPE
+            self.s3_schema_name, self.provider_type, self.provider_uuid, self.start_date, Config.CSV_DATA_TYPE
         )
 
     @property
     def parquet_path_s3(self):
         """The path in the S3 bucket where Parquet files are loaded."""
         return get_path_prefix(
-            self.account,
+            self.s3_schema_name,
             self.provider_type,
             self.provider_uuid,
             self.start_date,
@@ -222,7 +233,7 @@ class ParquetReportProcessor:
         if report_type is None:
             report_type = "raw"
         return get_path_prefix(
-            self.account,
+            self.s3_schema_name,
             self.provider_type,
             self.provider_uuid,
             self.start_date,
@@ -235,7 +246,7 @@ class ParquetReportProcessor:
     def parquet_ocp_on_cloud_path_s3(self):
         """The path in the S3 bucket where Parquet files are loaded."""
         return get_path_prefix(
-            self.account,
+            self.s3_schema_name,
             self.provider_type,
             self.provider_uuid,
             self.start_date,
@@ -246,7 +257,7 @@ class ParquetReportProcessor:
 
     @property
     def local_path(self):
-        local_path = f"{Config.TMP_DIR}/{self.account}/{self.provider_uuid}"
+        local_path = f"{Config.TMP_DIR}/{self.s3_schema_name}/{self.provider_uuid}"
         Path(local_path).mkdir(parents=True, exist_ok=True)
         return local_path
 
@@ -254,42 +265,52 @@ class ParquetReportProcessor:
         """Post processor based on provider type."""
         post_processor = None
         if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-            post_processor = AWSPostProcessor(schema_name=self._schema_name)
+            post_processor = AWSPostProcessor(schema_name=self.schema_name)
         elif self.provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
             post_processor = AzurePostProcessor(schema_name=self.schema_name)
         elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            post_processor = GCPPostProcessor(schema_name=self._schema_name)
+            post_processor = GCPPostProcessor(schema_name=self.schema_name)
         elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
-            post_processor = OCIPostProcessor(schema_name=self._schema_name)
+            post_processor = OCIPostProcessor(schema_name=self.schema_name)
         elif self.provider_type == Provider.PROVIDER_OCP:
-            post_processor = OCPPostProcessor(schema_name=self._schema_name, report_type=self.report_type)
+            post_processor = OCPPostProcessor(schema_name=self.schema_name, report_type=self.report_type)
         return post_processor
 
     def _set_report_processor(self, parquet_file, daily=False):
         """Return the correct ReportParquetProcessor."""
         s3_hive_table_path = get_hive_table_path(
-            self.account, self.provider_type, report_type=self.report_type, daily=daily
+            self.s3_schema_name, self.provider_type, report_type=self.report_type, daily=daily
         )
         processor = None
         if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             processor = AWSReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
+                self.manifest_id, self.s3_schema_name, s3_hive_table_path, self.provider_uuid, parquet_file
             )
         elif self.provider_type in (Provider.PROVIDER_OCP,):
             processor = OCPReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
+                self.manifest_id,
+                self.s3_schema_name,
+                s3_hive_table_path,
+                self.provider_uuid,
+                parquet_file,
+                self.report_type,
             )
         elif self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             processor = AzureReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
+                self.manifest_id, self.s3_schema_name, s3_hive_table_path, self.provider_uuid, parquet_file
             )
         elif self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             processor = GCPReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
+                self.manifest_id, self.s3_schema_name, s3_hive_table_path, self.provider_uuid, parquet_file
             )
         elif self.provider_type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
             processor = OCIReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
+                self.manifest_id,
+                self.s3_schema_name,
+                s3_hive_table_path,
+                self.provider_uuid,
+                parquet_file,
+                self.report_type,
             )
         if processor is None:
             msg = f"There is no ReportParquetProcessor for provider type {self.provider_type}"
@@ -384,7 +405,7 @@ class ParquetReportProcessor:
         if not post_processor:
             msg = "Unrecongized provider type can't convert csv."
             context = {
-                "schema_name": self._schema_name,
+                "schema_name": self.schema_name,
                 "provider_type": self.provider_type,
                 "provider_uuid": self.provider_uuid,
             }
@@ -467,7 +488,7 @@ class ParquetReportProcessor:
             if report_type is None:
                 report_type = "raw"
             return get_path_prefix(
-                self.account,
+                self.s3_schema_name,
                 self.provider_type,
                 self.provider_uuid,
                 start_of_invoice,
@@ -478,7 +499,7 @@ class ParquetReportProcessor:
         else:
             if self.report_type == OPENSHIFT_REPORT_TYPE:
                 return get_path_prefix(
-                    self.account,
+                    self.s3_schema_name,
                     self.provider_type,
                     self.provider_uuid,
                     self.start_date,
@@ -489,7 +510,11 @@ class ParquetReportProcessor:
                 )
             else:
                 return get_path_prefix(
-                    self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
+                    self.s3_schema_name,
+                    self.provider_type,
+                    self.provider_uuid,
+                    start_of_invoice,
+                    Config.PARQUET_DATA_TYPE,
                 )
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):

@@ -36,7 +36,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         data_frame.to_parquet(self.output_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
 
         self.manifest_id = 1
-        self.account = "org1234567"
+        self.s3_schema_name = "org1234567"
         self.s3_path = self.temp_dir
         self.provider_uuid = str(uuid.uuid4())
         self.local_parquet = self.output_file
@@ -52,7 +52,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         }
         self.processor = ReportParquetProcessorBase(
             self.manifest_id,
-            self.account,
+            self.s3_schema_name,
             self.s3_path,
             self.provider_uuid,
             self.local_parquet,
@@ -73,7 +73,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     def test_schema_name(self):
         """Test the account to schema name generation."""
         expected_schema_name = "org1234567"
-        self.assertEqual(self.processor._schema_name, expected_schema_name)
+        self.assertEqual(self.processor.s3_schema_name, expected_schema_name)
 
     def test_generate_column_list(self):
         """Test the generate_column_list helper."""
@@ -143,7 +143,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test that hive partitions are synced."""
         expected_log = (
             "INFO:masu.processor.report_parquet_processor_base:"
-            f"CALL system.sync_partition_metadata('{self.processor._schema_name}', "
+            f"CALL system.sync_partition_metadata('{self.processor.s3_schema_name}', "
             f"'{self.processor._table_name}', 'FULL')"
         )
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
@@ -171,7 +171,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test that hive partitions are synced."""
         expected_log = (
             "INFO:masu.processor.report_parquet_processor_base:"
-            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS {self.account}"
+            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS {self.s3_schema_name}"
         )
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.create_schema()

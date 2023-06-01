@@ -279,7 +279,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.s3_client.download_file(self.bucket, key, full_file_path)
             # Push to S3
             s3_csv_path = get_path_prefix(
-                self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
+                self.s3_schema_name, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             utils.copy_local_report_file_to_s3_bucket(
                 self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context

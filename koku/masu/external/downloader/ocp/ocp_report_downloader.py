@@ -59,7 +59,9 @@ def divide_csv_daily(file_path, filename):
     return daily_files
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(
+    tracing_id, s3_schema_name, provider_uuid, filename, filepath, manifest_id, start_date, context={}
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -80,7 +82,9 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         daily_files = divide_csv_daily(filepath, filename)
     for daily_file in daily_files:
         # Push to S3
-        s3_csv_path = get_path_prefix(account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+        s3_csv_path = get_path_prefix(
+            s3_schema_name, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
+        )
         copy_local_report_file_to_s3_bucket(
             tracing_id,
             s3_csv_path,
@@ -307,7 +311,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         file_names = create_daily_archives(
             self.tracing_id,
-            self.account,
+            self.s3_schema_name,
             self._provider_uuid,
             local_filename,
             full_file_path,

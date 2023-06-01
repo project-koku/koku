@@ -52,10 +52,8 @@ def _get_report_files(
     context = {"schema_name": schema_name}
     if schema_name.startswith("acct"):
         context["account"] = schema_name[4:]
-        download_acct = schema_name[4:]
     else:
         context["org_id"] = schema_name[3:]
-        download_acct = schema_name
     context["provider_uuid"] = provider_uuid
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
@@ -84,7 +82,6 @@ def _get_report_files(
         provider_uuid=provider_uuid,
         report_name=None,
         ingress_reports=ingress_reports,
-        account=download_acct,
         tracing_id=tracing_id,
     )
     return downloader.download_report(report_context)

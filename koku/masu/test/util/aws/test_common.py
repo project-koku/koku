@@ -350,7 +350,7 @@ class TestAWSUtils(MasuTestCase):
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
         s3_csv_path = get_path_prefix(
-            "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
+            "s3_schema_name", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
         expected_key = "removed_key"
         mock_object = Mock(metadata={}, key=expected_key)

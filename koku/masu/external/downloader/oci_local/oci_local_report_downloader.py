@@ -230,7 +230,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         file_names, date_range = create_monthly_archives(
             self.tracing_id,
-            self.account,
+            self.s3_schema_name,
             self._provider_uuid,
             key,
             full_file_path,

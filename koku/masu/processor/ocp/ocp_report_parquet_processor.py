@@ -19,7 +19,7 @@ from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
+    def __init__(self, manifest_id, s3_schema_name, s3_path, provider_uuid, parquet_local_path, report_type):
         if "daily" in s3_path:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
         else:
@@ -46,7 +46,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
         super().__init__(
             manifest_id=manifest_id,
-            account=account,
+            s3_schema_name=s3_schema_name,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
@@ -76,7 +76,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         cluster_id = utils.get_cluster_id_from_provider(provider.uuid)
         cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
 
-        with schema_context(self._schema_name):
+        with schema_context(self.s3_schema_name):
             OCPUsageReportPeriod.objects.get_or_create(
                 cluster_id=cluster_id,
                 cluster_alias=cluster_alias,

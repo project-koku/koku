@@ -22,12 +22,12 @@ class AzureReportParquetProcessorTest(MasuTestCase):
         super().setUp()
 
         self.manifest_id = 1
-        self.account = "org1234567"
+        self.s3_schema_name = "org1234567"
         self.s3_path = "/s3/path"
         self.provider_uuid = self.azure_provider_uuid
         self.local_parquet = "/local/path"
         self.processor = AzureReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet
+            self.manifest_id, self.s3_schema_name, self.s3_path, self.provider_uuid, self.local_parquet
         )
 
     def test_azure_table_name(self):
@@ -36,7 +36,7 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         s3_path = "/s3/path/openshift/daily"
         processor = AzureReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+            self.manifest_id, self.s3_schema_name, s3_path, self.aws_provider_uuid, self.local_parquet
         )
         self.assertEqual(processor._table_name, TRINO_OCP_ON_AZURE_DAILY_TABLE)
 

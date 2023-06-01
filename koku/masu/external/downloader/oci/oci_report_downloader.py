@@ -71,7 +71,7 @@ def divide_csv_monthly(file_path, filename):
     return monthly_files, date_range
 
 
-def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, context={}):
+def create_monthly_archives(tracing_id, s3_schema_name, provider_uuid, filename, filepath, manifest_id, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -91,7 +91,7 @@ def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepa
     for monthly_file in monthly_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
-            account,
+            s3_schema_name,
             Provider.PROVIDER_OCI,
             provider_uuid,
             monthly_file.get("start_date"),
@@ -405,7 +405,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             file_names, date_range = create_monthly_archives(
                 self.tracing_id,
-                self.account,
+                self.s3_schema_name,
                 self._provider_uuid,
                 key,
                 full_local_path,

@@ -30,7 +30,9 @@ class GCPReportDownloaderError(Exception):
     pass
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(
+    tracing_id, s3_schema_name, provider_uuid, filename, filepath, manifest_id, start_date, context={}
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -66,7 +68,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             invoice_partition_data = invoice_month_data[partition_date_filter]
             start_of_invoice = dh.invoice_month_start(invoice_month)
             s3_csv_path = get_path_prefix(
-                account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                s3_schema_name, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
             )
             day_file = f"{invoice_month}_{partition_date}.csv"
             day_filepath = f"{directory}/{day_file}"
@@ -241,7 +243,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         file_names, date_range = create_daily_archives(
             self.request_id,
-            self.account,
+            self.s3_schema_name,
             self._provider_uuid,
             key,
             full_local_path,

@@ -47,21 +47,29 @@ class ReportDownloaderBase:
             report_name       (String) cost report name
 
         """
-        if download_path:
-            self.download_path = download_path
-        else:
-            self.download_path = mkdtemp(prefix="masu")
+        self.download_path = download_path or mkdtemp(prefix="masu")
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self._provider_type = kwargs.get("provider_type")
         self.request_id = kwargs.get("request_id")  # TODO: Remove this once the downloaders have been updated
         self.tracing_id = kwargs.get("tracing_id")
-        self.account = kwargs.get("account")
+        self.s3_schema_name = kwargs.get("s3_schema_name")
         self.context = {
             "provider_uuid": self._provider_uuid,
             "provider_type": self._provider_type,
-            "account": self.account,
+            "s3_schema_name": self.s3_schema_name,
         }
+
+    @property
+    def s3_schema_name(self):
+        """The tenant account number as a string."""
+        return self._s3_schema_name
+
+    @s3_schema_name.setter
+    def s3_schema_name(self, schema_name):
+        # Existing schema will start with acct and we strip that prefix for use later
+        # new customers include the org prefix in case an org-id and an account number might overlap
+        self._s3_schema_name = schema_name.strip("acct")
 
     def _get_existing_manifest_db_id(self, assembly_id):
         """Return a manifest DB object if it exists."""

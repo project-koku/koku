@@ -213,7 +213,7 @@ class CommonUtilTests(MasuTestCase):
 
     def test_get_path_prefix(self):
         """Test that path prefix is returned."""
-        account = "10001"
+        s3_schema_name = "10001"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         start_date = datetime.utcnow().date()
@@ -221,27 +221,30 @@ class CommonUtilTests(MasuTestCase):
         month = start_date.strftime("%m")
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
         expected_path = (
-            f"{expected_path_prefix}/{account}/{provider_type}/" f"source={provider_uuid}/year={year}/month={month}"
+            f"{expected_path_prefix}/{s3_schema_name}/{provider_type}/"
+            f"source={provider_uuid}/year={year}/month={month}"
         )
 
-        path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
+        path = common_utils.get_path_prefix(s3_schema_name, provider_type, provider_uuid, start_date, "parquet")
         self.assertEqual(path, expected_path)
 
         expected_path = (
-            f"{expected_path_prefix}/daily/{account}/{provider_type}/"
+            f"{expected_path_prefix}/daily/{s3_schema_name}/{provider_type}/"
             f"source={provider_uuid}/year={year}/month={month}"
         )
-        path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet", daily=True)
+        path = common_utils.get_path_prefix(
+            s3_schema_name, provider_type, provider_uuid, start_date, "parquet", daily=True
+        )
         self.assertEqual(path, expected_path)
 
         # Test with report_type
         report_type = "pod_report"
         expected_path = (
-            f"{expected_path_prefix}/{account}/{provider_type}/{report_type}/"
+            f"{expected_path_prefix}/{s3_schema_name}/{provider_type}/{report_type}/"
             f"source={provider_uuid}/year={year}/month={month}"
         )
         path = common_utils.get_path_prefix(
-            account, provider_type, provider_uuid, start_date, "parquet", report_type=report_type
+            s3_schema_name, provider_type, provider_uuid, start_date, "parquet", report_type=report_type
         )
         self.assertEqual(path, expected_path)
 
@@ -254,11 +257,11 @@ class CommonUtilTests(MasuTestCase):
         day = start_date.strftime("%d")
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}/daily"
         expected_path = (
-            f"{expected_path_prefix}/{account}/{provider_type}/"
+            f"{expected_path_prefix}/{s3_schema_name}/{provider_type}/"
             f"source={provider_uuid}/year={year}/month={month}/day={day}"
         )
         path = common_utils.get_path_prefix(
-            account, provider_type, provider_uuid, start_date, "parquet", daily=True, partition_daily=True
+            s3_schema_name, provider_type, provider_uuid, start_date, "parquet", daily=True, partition_daily=True
         )
         self.assertEqual(path, expected_path)
 

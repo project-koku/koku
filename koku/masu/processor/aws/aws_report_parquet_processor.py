@@ -17,7 +17,7 @@ from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, s3_schema_name, s3_path, provider_uuid, parquet_local_path):
         numeric_columns = [
             "lineitem_normalizationfactor",
             "lineitem_normalizedusageamount",
@@ -52,7 +52,7 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             table_name = TRINO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
-            account=account,
+            s3_schema_name=s3_schema_name,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
@@ -83,14 +83,14 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
                 AND month = '{bill_date.strftime("%m")}'
         """
 
-        rows = self._execute_sql(sql, self._schema_name)
+        rows = self._execute_sql(sql, self.s3_schema_name)
         payer_account_id = None
         if rows:
             payer_account_id = rows[0][0]
 
         provider = self._get_provider()
 
-        with schema_context(self._schema_name):
+        with schema_context(self.s3_schema_name):
             AWSCostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,

@@ -240,7 +240,14 @@ def date_range_pair(start_date, end_date, step=5):
 
 
 def get_path_prefix(
-    account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False, partition_daily=False
+    s3_schema_name,
+    provider_type,
+    provider_uuid,
+    start_date,
+    data_type,
+    report_type=None,
+    daily=False,
+    partition_daily=False,
 ):
     """Get the S3 bucket prefix"""
     path = None
@@ -251,10 +258,10 @@ def get_path_prefix(
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
         if daily:
             path_prefix += "/daily"
-        path = f"{path_prefix}/{account}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
+        path = f"{path_prefix}/{s3_schema_name}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
         if report_type:
             path = (
-                f"{path_prefix}/{account}/{provider_type}/{report_type}"
+                f"{path_prefix}/{s3_schema_name}/{provider_type}/{report_type}"
                 f"/source={provider_uuid}/year={year}/month={month}"
             )
         if partition_daily:
@@ -262,14 +269,14 @@ def get_path_prefix(
     return path
 
 
-def get_hive_table_path(account, provider_type, report_type=None, daily=False):
+def get_hive_table_path(s3_schema_name, provider_type, report_type=None, daily=False):
     """Get the S3 bucket prefix without partitions for hive table location."""
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
     if daily:
         path_prefix += "/daily"
         if report_type is None:
             report_type = "raw"
-    table_path = f"{path_prefix}/{account}/{provider_type}"
+    table_path = f"{path_prefix}/{s3_schema_name}/{provider_type}"
     if report_type:
         table_path += f"/{report_type}"
     return table_path

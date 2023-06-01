@@ -1095,7 +1095,7 @@ def process_daily_openshift_on_cloud(
             context={"tracing_id": tracing_id, "start_date": day.date(), "invoice_month": invoice_month},
         )
         daily_s3_path = get_path_prefix(
-            processor.account,
+            processor.s3_schema_name,
             processor.provider_type,
             processor.provider_uuid,
             day,

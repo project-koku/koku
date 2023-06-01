@@ -50,7 +50,7 @@ class GCPReportDownloaderError(Exception):
 
 def create_daily_archives(
     tracing_id,
-    account,
+    s3_schema_name,
     provider_uuid,
     filename,
     local_file_paths,
@@ -99,7 +99,7 @@ def create_daily_archives(
                 invoice_partition_data = invoice_month_data[partition_date_filter]
                 start_of_invoice = dh.invoice_month_start(invoice_month)
                 s3_csv_path = get_path_prefix(
-                    account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                    s3_schema_name, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 day_filepath = f"{directory}/{day_file}"
@@ -124,13 +124,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         Constructor.
 
         Args:
-            customer_name  (str): Name of the customer
+            schema_name  (str): Name of the customer
             data_source    (dict): dict containing name of GCP storage bucket
             ingress_reports (List) List of reports from ingress post endpoint (optional)
         """
         super().__init__(**kwargs)
 
-        self.customer_name = schema_name.replace(" ", "_")
+        self.schema_name = schema_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")
@@ -179,7 +179,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
             msg = "GCP source for  is not reachable."
-            extra_context = {"customer": self.customer_name, "response": str(ex)}
+            extra_context = {"customer": self.schema_name, "response": str(ex)}
             LOG.warning(log_json(self.tracing_id, msg, self.context | extra_context))
             raise GCPReportDownloaderError(str(ex))
         self.big_query_export_time = None
@@ -268,7 +268,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
         except GoogleCloudError as err:
             err_msg = "Could not query table for partition date information."
-            extra_context = {"customer": self.customer_name, "response": err.message}
+            extra_context = {"customer": self.schema_name, "response": err.message}
             LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
             raise GCPReportDownloaderError(err_msg)
         return mapping
@@ -443,7 +443,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 blob.download_to_filename(full_local_path)
             except GoogleCloudError as err:
                 err_msg = "Could not find or download file from bucket."
-                extra_context = {"customer": self.customer_name, "response": err.message}
+                extra_context = {"customer": self.schema_name, "response": err.message}
                 LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
                 raise GCPReportDownloaderError(err_msg)
             paths_list.append(full_local_path)
@@ -460,7 +460,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query_job = client.query(query).result()
             except GoogleCloudError as err:
                 err_msg = "Could not query table for billing information."
-                extra_context = {"customer": self.customer_name, "response": err.message}
+                extra_context = {"customer": self.schema_name, "response": err.message}
                 LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
                 raise GCPReportDownloaderError(err_msg)
             except UnboundLocalError:
@@ -482,14 +482,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 err_msg = (
                     "Could not create GCP billing data csv file."
                     f"\n  Provider: {self._provider_uuid}"
-                    f"\n  Customer: {self.customer_name}"
+                    f"\n  Customer: {self.schema_name}"
                     f"\n  Response: {exc}"
                 )
                 raise GCPReportDownloaderError(err_msg)
 
         file_names, date_range = create_daily_archives(
             self.tracing_id,
-            self.account,
+            self.s3_schema_name,
             self._provider_uuid,
             key,
             paths_list,
@@ -509,7 +509,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local directory path.
 
         """
-        safe_customer_name = self.customer_name.replace("/", "_")
+        safe_customer_name = self.schema_name.replace("/", "_")
         directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp")
         return directory_path
 

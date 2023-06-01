@@ -26,15 +26,11 @@ class PostgresSummaryTableError(Exception):
 
 
 class ReportParquetProcessorBase:
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
+    def __init__(
+        self, manifest_id, s3_schema_name, s3_path, provider_uuid, parquet_local_path, column_types, table_name
+    ):
+        self.s3_schema_name = s3_schema_name
         self._manifest_id = manifest_id
-        self._account = account
-        # Existing schema will start with acct and we strip that prefix for use later
-        # new customers include the org prefix in case an org-id and an account number might overlap
-        if account.startswith("org"):
-            self._schema_name = str(account)
-        else:
-            self._schema_name = f"acct{account}"
         self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid
@@ -76,7 +72,7 @@ class ReportParquetProcessorBase:
     def schema_exists(self):
         """Check if schema_name exists."""
         LOG.info("Checking for schema_name")
-        schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
+        schema_check_sql = f"SHOW SCHEMAS LIKE '{self.s3_schema_name}'"
         result = bool(self._execute_sql(schema_check_sql, "default"))
         LOG.info(f"schema_name found: {result}")
         return result
@@ -85,17 +81,17 @@ class ReportParquetProcessorBase:
         """Check if table exists."""
         LOG.info("Checking for table")
         table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
-        result = bool(self._execute_sql(table_check_sql, self._schema_name))
+        result = bool(self._execute_sql(table_check_sql, self.s3_schema_name))
         LOG.info(f"table found: {result}")
         return result
 
     def create_schema(self):
         """Create Trino schema."""
-        schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
+        schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self.s3_schema_name}"
         LOG.info(f"Creating Trino/Hive schema SQL: {schema_create_sql}")
         self._execute_sql(schema_create_sql, "default")
         LOG.info(f"Created Trino/Hive schema SQL: {schema_create_sql}")
-        return self._schema_name
+        return self.s3_schema_name
 
     def _generate_column_list(self):
         """Generate column list based on parquet file."""
@@ -107,7 +103,7 @@ class ReportParquetProcessorBase:
         parquet_columns = self._generate_column_list()
         s3_path = f"{settings.S3_BUCKET_NAME}/{self._s3_path}"
 
-        sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
+        sql = f"CREATE TABLE IF NOT EXISTS {self.s3_schema_name}.{self._table_name} ("
         for idx, col in enumerate(parquet_columns):
             norm_col = strip_characters_from_column_name(col)
             if norm_col in self._column_types["numeric_columns"]:
@@ -145,7 +141,7 @@ class ReportParquetProcessorBase:
     def create_table(self, partition_map=None):
         """Create Trino SQL table."""
         sql = self._generate_create_table_sql(partition_map=partition_map)
-        self._execute_sql(sql, self._schema_name)
+        self._execute_sql(sql, self.s3_schema_name)
         LOG.info(f"Trino Table: {self._table_name} created.")
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
@@ -167,7 +163,7 @@ class ReportParquetProcessorBase:
         )
 
         part_rec = dict(
-            schema_name=self._schema_name,
+            schema_name=self.s3_schema_name,
             table_name=None,
             partition_of_table_name=table_name,
             partition_type=partition_type,
@@ -196,6 +192,6 @@ class ReportParquetProcessorBase:
     def sync_hive_partitions(self):
         """Sync hive partition metadata for new partitions."""
         LOG.info("Syncing Trino/Hive partitions.")
-        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
+        sql = f"CALL system.sync_partition_metadata('{self.s3_schema_name}', '{self._table_name}', 'FULL')"
         LOG.info(sql)
-        self._execute_sql(sql, self._schema_name)
+        self._execute_sql(sql, self.s3_schema_name)

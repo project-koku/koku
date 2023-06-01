@@ -331,7 +331,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         # Push to S3
         s3_csv_path = get_path_prefix(
-            self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
+            self.s3_schema_name, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
         )
         copy_local_report_file_to_s3_bucket(
             self.tracing_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context

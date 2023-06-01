@@ -16,7 +16,7 @@ from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
 
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
+    def __init__(self, manifest_id, s3_schema_name, s3_path, provider_uuid, parquet_local_path, report_type):
         numeric_columns = ["usage_consumedquantity", "cost_mycost"]
         date_columns = [
             "lineitem_intervalusagestart",
@@ -37,7 +37,7 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
             table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
         super().__init__(
             manifest_id=manifest_id,
-            account=account,
+            s3_schema_name=s3_schema_name,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
@@ -67,12 +67,12 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
                 AND year = '{bill_date.strftime("%Y")}'
                 AND month = '{bill_date.strftime("%m")}'
         """
-        rows = self._execute_sql(sql, self._schema_name)
+        rows = self._execute_sql(sql, self.s3_schema_name)
         payer_tenant_id = None
         if rows:
             payer_tenant_id = rows[0][0]
         provider = self._get_provider()
-        with schema_context(self._schema_name):
+        with schema_context(self.s3_schema_name):
             OCICostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,

@@ -24,13 +24,18 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         super().setUp()
 
         self.manifest_id = 1
-        self.account = "org1234567"
+        self.s3_schema_name = "org1234567"
         self.s3_path = "/s3/path"
         self.provider_uuid = self.ocp_provider_uuid
         self.local_parquet = "/local/path"
         self.report_type = "pod_usage"
         self.processor = OCPReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet, self.report_type
+            self.manifest_id,
+            self.s3_schema_name,
+            self.s3_path,
+            self.provider_uuid,
+            self.local_parquet,
+            self.report_type,
         )
 
     def test_ocp_table_name(self):
@@ -39,7 +44,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
         s3_path = "/s3/path/daily"
         processor = OCPReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.provider_uuid, self.local_parquet, self.report_type
+            self.manifest_id, self.s3_schema_name, s3_path, self.provider_uuid, self.local_parquet, self.report_type
         )
         self.assertEqual(processor._table_name, TRINO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type])
 

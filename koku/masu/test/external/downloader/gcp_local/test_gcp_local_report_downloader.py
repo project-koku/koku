@@ -190,7 +190,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
 
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
+            "request_id", "s3_schema_name", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
         )
         expected_date_range = {"start": "2020-11-08", "end": "2020-11-11", "invoice_month": "202011"}
         self.assertEqual(date_range, expected_date_range)

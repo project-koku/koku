@@ -42,7 +42,6 @@ class ReportDownloader:
         provider_type,
         provider_uuid,
         report_name=None,
-        account=None,
         ingress_reports=None,
         tracing_id="no_tracing_id",
     ):
@@ -55,18 +54,14 @@ class ReportDownloader:
         self.provider_uuid = provider_uuid
         self.tracing_id = tracing_id
         self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
-        self.account = account
+        self.s3_schema_name = schema_name
         self.ingress_reports = ingress_reports
-        if self.account is None:
-            # Existing schema will start with acct and we strip that prefix for use later
-            # new customers include the org prefix in case an org-id and an account number might overlap
-            self.account = schema_name.strip("acct")
         self.context = {
             "tracing_id": self.tracing_id,
             "schema_name": self.schema_name,
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
-            "account": self.account,
+            "s3_schema_name": self.s3_schema_name,
         }
 
         try:
@@ -78,6 +73,17 @@ class ReportDownloader:
 
         if not self._downloader:
             raise ReportDownloaderError("Invalid provider type specified.")
+
+    @property
+    def s3_schema_name(self):
+        """The tenant account number as a string."""
+        return self._s3_schema_name
+
+    @s3_schema_name.setter
+    def s3_schema_name(self, schema_name):
+        # Existing schema will start with acct and we strip that prefix for use later
+        # new customers include the org prefix in case an org-id and an account number might overlap
+        self._s3_schema_name = schema_name.strip("acct")
 
     def _set_downloader(self):
         """
@@ -112,7 +118,7 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 tracing_id=self.tracing_id,
-                account=self.account,
+                s3_schema_name=self.s3_schema_name,
                 provider_type=self.provider_type,
                 ingress_reports=self.ingress_reports,
             )

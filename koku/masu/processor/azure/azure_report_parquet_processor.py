@@ -16,7 +16,7 @@ from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, s3_schema_name, s3_path, provider_uuid, parquet_local_path):
         numeric_columns = [
             "usagequantity",
             "quantity",
@@ -40,7 +40,7 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             table_name = TRINO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
-            account=account,
+            s3_schema_name=s3_schema_name,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
@@ -65,7 +65,7 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
 
         provider = self._get_provider()
 
-        with schema_context(self._schema_name):
+        with schema_context(self.s3_schema_name):
             AzureCostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc, billing_period_end=end_date_utc, provider=provider
             )

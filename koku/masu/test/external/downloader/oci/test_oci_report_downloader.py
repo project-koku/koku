@@ -307,7 +307,7 @@ class OCIReportDownloaderTest(MasuTestCase):
             ]
 
             daily_file_names, date_range = create_monthly_archives(
-                "request_id", "account", self.oci_provider_uuid, file_name, temp_path, None
+                "request_id", "s3_schema_name", self.oci_provider_uuid, file_name, temp_path, None
             )
 
             mock_s3.assert_called()
