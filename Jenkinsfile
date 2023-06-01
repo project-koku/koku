@@ -31,11 +31,9 @@ pipeline {
             steps {
                 sh '''
                     mkdir -p $LABELS_DIR
+
                     # Save PR labels into a file
                     curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
-
-                    ls -a
-                    ls -a ${LABELS_DIR}
                 '''
             }
         }
@@ -43,13 +41,16 @@ pipeline {
         stage('Verify labels') {
             parallel {
                 stage('Check labels') {
-                    when {
-                        expression {
-                            check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
-                        }
-                    }
+                    // when {
+                    //     expression {
+                    //         check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes', LABELS_DIR) == false
+                    //     }
+                    // }
                     steps {
                         sh '''
+                        ls -a
+                        ls -a ${LABELS_DIR}
+                        
                         echo PR check skipped
                         exit 0
                         '''
