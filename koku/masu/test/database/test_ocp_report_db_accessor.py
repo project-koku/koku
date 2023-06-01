@@ -728,6 +728,43 @@ select * from eek where val1 in {{report_period_id}} ;
             for project in projects:
                 self.assertIn(project.project, topo.get("projects"))
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_trino")
+    def test_get_filtered_openshift_topology_for_multiple_providers(self, mock_get_nodes, mock_get_pvcs, mock_table):
+        """Test that OpenShift topology is populated."""
+        nodes = ["test_node_1", "test_node_2"]
+        resource_ids = ["id_1", "id_2"]
+        capacity = [1, 1]
+        volumes = ["vol_1", "vol_2"]
+        pvcs = ["pvc_1", "pvc_2"]
+        roles = ["master", "worker"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
+        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_table.return_value = True
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "test-cluster-1"
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        with schema_context(self.schema):
+            cluster = OCPCluster(
+                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid
+            )
+            cluster.save()
+            topology = self.accessor.get_filtered_openshift_topology_for_multiple_providers(
+                [self.gcp_provider_uuid], start_date, end_date
+            )
+            self.assertEqual(len(topology), 1)
+            topo = topology[0]
+            self.assertEqual(topo.get("cluster_id"), cluster_id)
+            self.assertEqual(len(nodes), len(topo.get("nodes")))
+            for node in nodes:
+                self.assertIn(node, topo.get("nodes"))
+            for volume in volumes:
+                self.assertIn(volume, topo.get("persistent_volumes"))
+
     def test_populate_node_table_update_role(self):
         """Test that populating the node table for an entry that previously existed fills the node role correctly."""
         node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
