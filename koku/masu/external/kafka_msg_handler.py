@@ -507,11 +507,12 @@ def summarize_manifest(report_meta, manifest_uuid):
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
-    context = {"account": report_meta.get("schema_name"), "provider_uuid": str(provider_uuid)}
+    context = {"account": schema_name, "provider_uuid": str(provider_uuid), "schema": schema_name}
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
             new_report_meta = {
+                "schema": schema_name,
                 "schema_name": schema_name,
                 "provider_type": provider_type,
                 "provider_uuid": provider_uuid,
