@@ -432,8 +432,11 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the gcp_openshift_daily trino table for OCP on GCP.
 
         Args:
+            gcp_provider_uuid (UUID) GCP source UUID.
+            ocp_provider_uuid (UUID) OCP source UUID.
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            matched_tag_strs (str) matching tags.
 
         Returns
             (None)

@@ -46,6 +46,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
+        self.report_processor_gcp = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+        )
 
     def test_parquet_ocp_on_cloud_path_s3(self):
         """Test that the path is set properly."""
@@ -409,3 +417,11 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         ):
             self.report_processor.get_matched_tags([])
             mock_get_tags.assert_not_called()
+
+    @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
+    @patch.object(GCPReportDBAccessor, "populate_ocp_on_cloud_daily_trino")
+    def test_process_trino(self, mock_data_processor, mock_trino_tags):
+        """Test that ocp on cloud data is fully processed via trino process."""
+        self.report_processor_gcp.process_trino(self.start_date, self.start_date)
+
+        mock_data_processor.assert_called()

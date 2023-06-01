@@ -385,6 +385,31 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 mock_delete.assert_called()
                 mock_month_delete.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_cloud_daily_trino(
+        self,
+        mock_trino,
+        mock_month_delete,
+        mock_delete,
+    ):
+        """Test that we construst our SQL and query using Trino."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_ocp_on_cloud_daily_trino(
+            self.ocp_provider_uuid,
+            self.gcp_provider_uuid,
+            start_date,
+            end_date,
+            None,
+        )
+        mock_trino.assert_called()
+        mock_delete.assert_called()
+        mock_month_delete.assert_called()
+
     def test_get_openshift_on_cloud_matched_tags(self):
         """Test that matched tags are returned."""
         dh = DateHelper()

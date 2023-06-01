@@ -58,6 +58,7 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
+from masu.processor.tasks import populate_ocp_on_cloud_parquet
 from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
@@ -637,6 +638,17 @@ class TestProcessorTasks(MasuTestCase):
             )
         mock_trino.assert_has_calls(expected_calls, any_order=True)
         mock_s3_delete.assert_called()
+        mock_process.assert_called()
+
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_trino")
+    def test_process_populate_ocp_on_cloud_parquet(self, mock_process):
+        """Test the process_daily_openshift_on_cloud task."""
+        tracing_id = uuid4()
+        report_meta = [{"start": self.start_date, "end": self.start_date}]
+        result = populate_ocp_on_cloud_parquet(
+            report_meta, self.gcp_provider.type, self.schema, self.gcp_provider_uuid, tracing_id
+        )
+        self.assertEqual(report_meta, result)
         mock_process.assert_called()
 
 
