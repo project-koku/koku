@@ -27,13 +27,14 @@ def _get_sts_access(credentials):
     """Get for sts access."""
     # create an STS client
     arn = None
-    error_message = f"Unable to assume role with ARN {arn.arn}."
+    error_message = "Unable to assume role with given ARN."
     try:
         arn = AwsArn(credentials)
     except SyntaxError as error:
         LOG.warn(msg=error_message, exc_info=error)
         return {"aws_access_key_id": None, "aws_secret_access_key": None, "aws_session_token": None}
 
+    error_message = f"Unable to assume role with ARN {arn.arn}."
     sts_client = boto3.client("sts")
     aws_credentials = {}
     credentials = {}
