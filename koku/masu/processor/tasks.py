@@ -498,6 +498,10 @@ def update_summary_tables(  # noqa: C901
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
         Provider.PROVIDER_AZURE_LOCAL,
+        Provider.PROVIDER_GCP,
+        Provider.PROVIDER_GCP_LOCAL,
+        Provider.PROVIDER_OCI,
+        Provider.PROVIDER_OCI_LOCAL,
     ):
         cost_model = None
         LOG.info(
