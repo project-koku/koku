@@ -493,16 +493,7 @@ def update_summary_tables(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    if provider_type in (
-        Provider.PROVIDER_AWS,
-        Provider.PROVIDER_AWS_LOCAL,
-        Provider.PROVIDER_AZURE,
-        Provider.PROVIDER_AZURE_LOCAL,
-        Provider.PROVIDER_GCP,
-        Provider.PROVIDER_GCP_LOCAL,
-        Provider.PROVIDER_OCI,
-        Provider.PROVIDER_OCI_LOCAL,
-    ):
+    if provider_type != Provider.PROVIDER_OCP:
         cost_model = None
         LOG.info(
             log_json(
