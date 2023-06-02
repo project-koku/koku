@@ -4,6 +4,7 @@
 #
 """Asynchronous tasks."""
 import json
+import logging
 import os
 from collections import defaultdict
 from decimal import Decimal
@@ -13,7 +14,6 @@ import ciso8601
 import pandas as pd
 from celery import chain
 from celery import group
-from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.conf import settings
 from django.db import connection
@@ -65,7 +65,7 @@ from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
