@@ -75,6 +75,15 @@ class AWSProviderTestCase(TestCase):
         self.assertEqual(aws_credentials.get("aws_secret_access_key"), expected_secret_access_key)
         self.assertEqual(aws_credentials.get("aws_session_token"), expected_session_token)
 
+    def test_get_sts_access_invalid_arn(self):
+        """Test _get_sts_access with invalid arn."""
+        iam_arn = "random_resource_name"
+        credentials = {"role_arn": iam_arn}
+        aws_credentials = _get_sts_access(credentials)
+        self.assertIsNone(aws_credentials.get("aws_access_key_id"))
+        self.assertIsNone(aws_credentials.get("aws_secret_access_key"))
+        self.assertIsNone(aws_credentials.get("aws_session_token"))
+
     @patch("providers.aws.provider.boto3.client")
     def test_get_sts_access_fail(self, mock_boto3_client):
         """Test _get_sts_access fail."""

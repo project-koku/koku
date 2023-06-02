@@ -26,12 +26,17 @@ LOG = logging.getLogger(__name__)
 def _get_sts_access(credentials):
     """Get for sts access."""
     # create an STS client
-    arn = AwsArn(credentials)
+    arn = None
+    error_message = f"Unable to assume role with ARN {arn.arn}."
+    try:
+        arn = AwsArn(credentials)
+    except SyntaxError as error:
+        LOG.warn(msg=error_message, exc_info=error)
+        return {"aws_access_key_id": None, "aws_secret_access_key": None, "aws_session_token": None}
+
     sts_client = boto3.client("sts")
     aws_credentials = {}
-
     credentials = {}
-    error_message = f"Unable to assume role with ARN {arn.arn}."
     try:
         # Call the assume_role method of the STSConnection object and pass the role
         # ARN and a role session name.
