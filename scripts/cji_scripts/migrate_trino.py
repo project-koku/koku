@@ -120,7 +120,8 @@ def main():
     logging.info(schemas)
 
     tables_to_drop = [
-        "aws_openshift_daily",
+        "aws_openshift_daily_resource_matched_temp",
+        "aws_openshift_daily_tag_matched_temp",
     ]
     # columns_to_drop = ["ocp_matched"]
     # columns_to_add = {
