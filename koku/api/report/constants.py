@@ -10,3 +10,8 @@ AWS_CATEGORY_PREFIX = "aws_category:"
 AND_AWS_CATEGORY_PREFIX = "and:aws_category:"
 OR_AWS_CATEGORY_PREFIX = "or:aws_category:"
 URL_ENCODED_SAFE = "[]:"
+AWS_MARKUP_COST = {
+    "blended_cost": "markup_cost_blended",
+    "savingsplan_effective_cost": "markup_cost_savingsplan",
+    "calculated_amortized_cost": "markup_cost_amortized",
+}

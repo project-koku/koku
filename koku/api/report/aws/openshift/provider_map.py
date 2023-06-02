@@ -29,11 +29,9 @@ from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 class OCPAWSProviderMap(ProviderMap):
     """OCP on AWS Provider Map."""
 
-    def __init__(self, provider, report_type, cost_type):
+    def __init__(self, provider, report_type, cost_type, markup_cost="markup_cost"):
         """Constructor."""
-        self.markup_cost = "markup_cost"
-        if cost_type != "unblended_cost":
-            self.markup_cost = "markup_cost_" + cost_type.split("_")[0]
+        self.markup_cost = markup_cost
         self._mapping = [
             {
                 "provider": Provider.OCP_AWS,
