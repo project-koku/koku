@@ -4,8 +4,7 @@
 #
 """Update reporting summary tables."""
 import datetime
-
-from celery.utils.log import get_task_logger
+import logging
 
 from api.common import log_json
 from api.models import Provider
@@ -20,7 +19,7 @@ from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParqu
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
     Provider.PROVIDER_AWS: AWSReportParquetSummaryUpdater,
     Provider.PROVIDER_AZURE: AzureReportParquetSummaryUpdater,
