@@ -68,7 +68,7 @@ class IngressReportsSerializer(serializers.ModelSerializer):
                 )
                 if ingress_reports:
                     key = "Processing"
-                    message = f"Reports for billing month {bill_month} already in-progress!"
+                    message = f"Reports for billing month {bill_month} are currently already being processed. New reports cannot be processed until the current reports are completed."
                     raise serializers.ValidationError(error_obj(key, message))
                 return data
             key = "bill_period"
