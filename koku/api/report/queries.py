@@ -1082,10 +1082,11 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
-            for key, val in self.default_ordering.items():
-                order_field, order_direction = key, val
-            rank_annotations = {order_field: self.report_annotations.get(order_field)}
-            rank_orders.append(getattr(F(order_field), order_direction)())
+            # We take the default_ordering into consideration when we create the property.
+            # order_by = self.parameters.get("order_by", self.default_ordering)
+            # order_direction = self.parameters.get("order_by", self.default_ordering)
+            rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
+            rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
