@@ -73,11 +73,6 @@ pipeline {
         }
 
         stage('Build Image') {
-            when {
-                expression {
-                    check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes') == false
-                }
-            }
             steps {
                 run_test_filter_expression()
 
