@@ -27,7 +27,7 @@ pipeline {
     }
 
     stages {
-        stage('Sanity Check') {
+        stage('Get Github Labels') {
             steps {
                 sh '''
                     mkdir -p $LABELS_DIR
@@ -74,11 +74,44 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                run_test_filter_expression()
+                // run_test_filter_expression()
 
                 sh '''
-                    # Install bonfire repo/initialize
+                    if check_for_labels "aws-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+                    elif check_for_labels "azure-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+                    elif check_for_labels "gcp-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+                    elif check_for_labels "oci-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+                    elif check_for_labels "ocp-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+                    elif check_for_labels "hot-fix-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api"
+                        export IQE_MARKER_EXPRESSION="outage"
+                    elif check_for_labels "cost-model-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+                    elif check_for_labels "full-run-smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api"
+                    elif check_for_labels "smoke-tests"
+                    then
+                        export IQE_FILTER_EXPRESSION="test_api"
+                        export IQE_MARKER_EXPRESSION="cost_required"
+                    else
+                        echo "PR smoke tests skipped"
+                        exit_code=2
+                    fi
                     
+                    # Install bonfire repo/initialize
                     echo $IQE_MARKER_EXPRESSION
                     echo $IQE_FILTER_EXPRESSION
                     curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
@@ -124,28 +157,5 @@ def check_for_labels(String label) {
 }
 
 def run_test_filter_expression() {
-    if (check_for_labels("aws-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-    } else if (check_for_labels("azure-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-    } else if (check_for_labels("gcp-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-    } else if (check_for_labels("oci-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-    } else if (check_for_labels("ocp-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-    } else if (check_for_labels("hot-fix-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api"
-        IQE_MARKER_EXPRESSION="outage"
-    } else if (check_for_labels("cost-model-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-    } else if (check_for_labels("full-run-smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api"
-    } else if (check_for_labels("smoke-tests")) {
-        IQE_FILTER_EXPRESSION="test_api"
-        IQE_MARKER_EXPRESSION="cost_required"
-    } else {
-        echo "PR smoke tests skipped"
-        "exit 2".execute()
-    }
+
 }
