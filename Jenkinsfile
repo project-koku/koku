@@ -59,7 +59,7 @@ pipeline {
                 stage('Check to skip smoke tests') {
                     when {
                         expression {
-                            sh(script: "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) == null
+                            sh(script: "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) != null
 
                         }
                     }
