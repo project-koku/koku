@@ -74,7 +74,7 @@ def _calculate_unused(row):
     row["capacity_unused_percent"] = capacity_unused_percent
     unused_request = max(request - usage, 0)
     row["request_unused"] = unused_request
-    if request == 0:
+    if request <= 0:
         request = 1
     row["request_unused_percent"] = unused_request / request * 100
 
