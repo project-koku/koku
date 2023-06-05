@@ -1209,6 +1209,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "table_name": table_name,
+            "report_period_id": report_period_id,
         }
         LOG.info(log_json(msg="removing infrastructure raw cast from daily summary", context=ctx))
         sql = f"""
@@ -1232,6 +1233,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "table_name": table_name,
+            "report_period_id": report_period_id,
         }
         LOG.info(log_json(msg="removing all cost excluding infrastructure_raw_cost from daily summary", context=ctx))
         sql = f"""
