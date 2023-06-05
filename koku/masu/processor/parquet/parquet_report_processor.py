@@ -388,7 +388,7 @@ class ParquetReportProcessor:
                 "provider_type": self.provider_type,
                 "provider_uuid": self.provider_uuid,
             }
-            LOG.warn(log_json(self.tracing_id, msg, context))
+            LOG.warn(log_json(self.tracing_id, msg=msg, context=context))
             return None, None, False
 
         daily_data_frames = []
