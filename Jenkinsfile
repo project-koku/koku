@@ -45,8 +45,7 @@ pipeline {
                 stage('Check labels') {
                     when {
                         expression {
-                            sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) == null
-                            // check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes') == false
+                            sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true", returnStdout: true) != true
                         }
                     }
                     steps {
@@ -59,7 +58,7 @@ pipeline {
                 stage('Check to skip smoke tests') {
                     when {
                         expression {
-                            sh(script: "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) != null
+                            sh(script: "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true", returnStdout: true) == true
 
                         }
                     }
