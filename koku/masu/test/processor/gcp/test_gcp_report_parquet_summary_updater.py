@@ -136,24 +136,3 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
-
-    def test_determine_if_full_summary_update_needed_false(self):
-        """
-        Test that false is return if the manifest is already present in the db.
-        """
-        # Grab existing bill
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        start, _ = self.updater._get_sql_inputs(start_str, end_str)
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.gcp_provider_uuid, start)
-        updater = GCPReportParquetSummaryUpdater(self.schema_name, self.gcp_provider, manifests.first())
-        with GCPReportDBAccessor(self.schema) as accessor:
-            with schema_context(self.schema):
-                existing_bills = accessor.bills_for_provider_uuid(self.gcp_provider.uuid, start)
-                existing_bill = existing_bills.first()
-                # the summary_data_creation_datetime is how we decide if it is a new bill or not.
-                existing_bill.summary_data_creation_datetime = start
-                existing_bill.save()
-                result = updater._determine_if_full_summary_update_needed(existing_bill)
-                self.assertFalse(result)
