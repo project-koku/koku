@@ -527,12 +527,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            msg = "No report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update."
-            context = {"provider_uuid": provider_uuid, "start_date": start_date}
+            msg = "no report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update"
+            context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
             # TODO: Figure out a way to pass the tracing id down here
             # in a separate PR. For now I am just going to use the
             # provider_uuid
-            LOG.info(log_json(provider_uuid, msg, context))
+            LOG.info(log_json(provider_uuid, msg=msg, context=context))
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
@@ -566,18 +566,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "source_uuid": provider_uuid,
                 "populate": populate,
             }
-            LOG.debug(f"sql_params: {sql_params}")
 
             templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{metadata['sql_file']}")
             templated_sql = templated_sql.decode("utf-8")
             templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, sql_params)
-            context = {
-                "provider_uuid": provider_uuid,
-                "start_date": start_date,
-                "end_date": end_date,
-                "report_period": report_period_id,
-            }
-            LOG.info(log_json(provider_uuid, metadata["log_msg"][populate], context))
+            LOG.info(log_json(provider_uuid, msg=metadata["log_msg"][populate], context=sql_params))
             self._execute_raw_sql_query(
                 table_name,
                 templated_sql,
@@ -891,13 +884,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             "k_v_pair": key_value_pair,
                             "labels_field": labels_field,
                         }
-                        tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
-                            tag_rates_sql, tag_rates_sql_params
-                        )
-                        msg = f"Running populate_tag_usage_costs SQL with params: {tag_rates_sql_params}"
-                        LOG.info(msg)
+                        sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
+                        LOG.info(log_json(msg="running populate_tag_usage_costs SQL", **tag_rates_sql_params))
                         self._execute_raw_sql_query(
-                            table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
+                            table_name, sql, start_date, end_date, bind_params=list(sql_params)
                         )
 
     def populate_tag_usage_default_costs(  # noqa: C901
@@ -986,14 +976,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         "k_v_pair": key_value_pair,
                         "labels_field": labels_field,
                     }
-                    tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
-                        tag_rates_sql, tag_rates_sql_params
-                    )
-                    msg = f"Running populate_tag_usage_default_costs SQL with params: {tag_rates_sql_params}"
-                    LOG.info(msg)
-                    self._execute_raw_sql_query(
-                        table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
-                    )
+                    sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
+                    LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", **tag_rates_sql_params))
+                    self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=list(sql_params))
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
