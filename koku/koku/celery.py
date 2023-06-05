@@ -1,4 +1,5 @@
 """Celery configuration for the Koku project."""
+import json
 import logging
 import os
 import time
@@ -81,6 +82,13 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
+def validate_cron_expression(CRON_SCHEDULE):
+    if not croniter.is_valid(CRON_SCHEDULE):
+        print(f"Invalid report-download-schedule {CRON_SCHEDULE}. Falling back to default `0 4,16 * * *`")
+        CRON_SCHEDULE = "0 4,16 * * *"
+    return CRON_SCHEDULE
+
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 print("starting celery")
@@ -104,20 +112,61 @@ app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The schedule to scan for new reports.
-    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value(
-        "REPORT_DOWNLOAD_SCHEDULE", default="0 4,16 * * *"
-    )  # default: “At minute 0 past hour 4 and 16.”
-    if not croniter.is_valid(REPORT_DOWNLOAD_SCHEDULE):
-        print(f"Invalid report-download-schedule {REPORT_DOWNLOAD_SCHEDULE}. Falling back to default `0 4,16 * * *`")
-        REPORT_DOWNLOAD_SCHEDULE = "0 4,16 * * *"
-    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
-
-    CHECK_REPORT_UPDATES_DEF = {
+    REPORT_DOWNLOAD_SCHEDULE_GCP = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_GCP", default="0 4,16 * * *")
+    REPORT_DOWNLOAD_SCHEDULE_GCP = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_GCP)
+    report_schedule_gcp = crontab(*REPORT_DOWNLOAD_SCHEDULE_GCP.split(" ", 5))
+    CHECK_REPORT_UPDATES_DEF_GCP = {
         "task": "masu.celery.tasks.check_report_updates",
-        "schedule": report_schedule,
-        "args": [],
+        "schedule": report_schedule_gcp,
+        "kwargs": json.dumps(
+            {
+                "provider_type": "GCP",
+            }
+        ),
     }
-    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF
+    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_GCP
+
+    REPORT_DOWNLOAD_SCHEDULE_AWS = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_AWS", default="0 4,16 * * *")
+    REPORT_DOWNLOAD_SCHEDULE_AWS = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_AWS)
+    report_schedule_aws = crontab(*REPORT_DOWNLOAD_SCHEDULE_AWS.split(" ", 5))
+    CHECK_REPORT_UPDATES_DEF_AWS = {
+        "task": "masu.celery.tasks.check_report_updates",
+        "schedule": report_schedule_aws,
+        "kwargs": json.dumps(
+            {
+                "provider_type": "AWS",
+            }
+        ),
+    }
+    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_AWS
+
+    REPORT_DOWNLOAD_SCHEDULE_AZURE = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_AZURE", default="0 4,16 * * *")
+    REPORT_DOWNLOAD_SCHEDULE_AZURE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_AZURE)
+    report_schedule_azure = crontab(*REPORT_DOWNLOAD_SCHEDULE_AZURE.split(" ", 5))
+    CHECK_REPORT_UPDATES_DEF_AZURE = {
+        "task": "masu.celery.tasks.check_report_updates",
+        "schedule": report_schedule_azure,
+        "kwargs": json.dumps(
+            {
+                "provider_type": "AZURE",
+            }
+        ),
+    }
+    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_AZURE
+
+    REPORT_DOWNLOAD_SCHEDULE_OCI = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_OCI", default="0 4,16 * * *")
+    REPORT_DOWNLOAD_SCHEDULE_OCI = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_OCI)
+    report_schedule_oci = crontab(*REPORT_DOWNLOAD_SCHEDULE_OCI.split(" ", 5))
+    CHECK_REPORT_UPDATES_DEF_OCI = {
+        "task": "masu.celery.tasks.check_report_updates",
+        "schedule": report_schedule_oci,
+        "kwargs": json.dumps(
+            {
+                "provider_type": "OCI",
+            }
+        ),
+    }
+    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_OCI
 
 
 # Specify the day of the month for removal of expired report data.
