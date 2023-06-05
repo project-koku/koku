@@ -83,7 +83,6 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "table": table,
             }
 
-            sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
             # trino-python-client 0.321.0 released a breaking change to map results to python types by default
             # This altered the timestamp values present in generated CSVs, impacting consumers of these files
             # legacy_primitive_types restores previous functionality of using primitive types
