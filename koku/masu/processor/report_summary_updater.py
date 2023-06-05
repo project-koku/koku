@@ -195,7 +195,9 @@ class ReportSummaryUpdater:
         start_date, end_date = self._format_dates(start_date, end_date)
         context = {
             "schema": self._schema,
-            "provider_uuid": self._provider_uuid,
+            "provider_uuid": infra_provider_uuid,
+            "provider_type": infra_provider_type,
+            "ocp_provider_uuid": ocp_provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
         }
