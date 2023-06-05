@@ -1,3 +1,20 @@
+def secrets = [
+    [path: params.VAULT_PATH_SVC_ACCOUNT_EPHEMERAL, engineVersion: 1, secretValues: [
+        [envVar: 'OC_LOGIN_TOKEN_DEV', vaultKey: 'oc-login-token-dev'],
+        [envVar: 'OC_LOGIN_SERVER_DEV', vaultKey: 'oc-login-server-dev']]],
+    [path: params.VAULT_PATH_QUAY_PUSH, engineVersion: 1, secretValues: [
+        [envVar: 'QUAY_USER', vaultKey: 'user'],
+        [envVar: 'QUAY_TOKEN', vaultKey: 'token']]],
+    [path: params.VAULT_PATH_RHR_PULL, engineVersion: 1, secretValues: [
+        [envVar: 'RH_REGISTRY_USER', vaultKey: 'user'],
+        [envVar: 'RH_REGISTRY_TOKEN', vaultKey: 'token']]],
+    [path: params.VAULT_PATH_QUAY_TOKEN, engineVersion: 1, secretValues: [
+        [envVar: 'QUAY_API_TOKEN', vaultKey: 'api-token']]]
+
+]
+
+def configuration = [vaultUrl: params.VAULT_ADDRESS, vaultCredentialId: params.VAULT_CREDS_ID, engineVersion: 1]
+
 pipeline {
     agent { label 'insights' }
     options {
@@ -74,49 +91,51 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                sh '''
-                    if egrep 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-                    elif egrep 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-                    elif egrep 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-                    elif egrep 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-                    elif egrep 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-                    elif egrep 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api"
-                        export IQE_MARKER_EXPRESSION="outage"
-                    elif egrep 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-                    elif egrep 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api"
-                    elif egrep 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                    then
-                        export IQE_FILTER_EXPRESSION="test_api"
-                        export IQE_MARKER_EXPRESSION="cost_required"
-                    else
-                        echo "PR smoke tests skipped"
-                        exit_code=2
-                    fi
-                    
-                    # Install bonfire repo/initialize
-                    echo $IQE_MARKER_EXPRESSION
-                    echo $IQE_FILTER_EXPRESSION
-                    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
-                    echo "creating PR image"
-                    export DOCKER_BUILDKIT=1
-                    source $CICD_ROOT/build.sh
-                '''
+                withVault([configuration: configuration, vaultSecrets: secrets]) {
+                    sh '''
+                        if egrep 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+                        elif egrep 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+                        elif egrep 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+                        elif egrep 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+                        elif egrep 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+                        elif egrep 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api"
+                            export IQE_MARKER_EXPRESSION="outage"
+                        elif egrep 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+                        elif egrep 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api"
+                        elif egrep 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
+                        then
+                            export IQE_FILTER_EXPRESSION="test_api"
+                            export IQE_MARKER_EXPRESSION="cost_required"
+                        else
+                            echo "PR smoke tests skipped"
+                            exit_code=2
+                        fi
+                        
+                        # Install bonfire repo/initialize
+                        echo $IQE_MARKER_EXPRESSION
+                        echo $IQE_FILTER_EXPRESSION
+                        curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
+                        echo "creating PR image"
+                        export DOCKER_BUILDKIT=1
+                        source $CICD_ROOT/build.sh
+                    '''
+                }
             }
         }
     }
