@@ -894,8 +894,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                             tag_rates_sql, tag_rates_sql_params
                         )
-                        msg = f"Running populate_tag_usage_costs SQL with params: {tag_rates_sql_params}"
-                        LOG.info(msg)
+                        LOG.info(log_json(msg="running populate_tag_usage_costs SQL", **tag_rates_sql_params))
                         self._execute_raw_sql_query(
                             table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                         )
@@ -989,8 +988,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                         tag_rates_sql, tag_rates_sql_params
                     )
-                    msg = f"Running populate_tag_usage_default_costs SQL with params: {tag_rates_sql_params}"
-                    LOG.info(msg)
+                    LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", **tag_rates_sql_params))
                     self._execute_raw_sql_query(
                         table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                     )
