@@ -46,4 +46,4 @@ class ReportHCS:
                 LOG.info(log_json(self._tracing_id, f"{tnfe}, skipping..."))
 
             except Exception as e:
-                LOG.error(log_json(self._tracing_id, e))
+                LOG.error(log_json(self._tracing_id, "get_hcs_daily_summary exception"), exc_info=e)
