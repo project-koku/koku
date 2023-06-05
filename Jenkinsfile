@@ -45,7 +45,7 @@ pipeline {
                 stage('Check labels') {
                     when {
                         expression {
-                            sh(script: "egrep lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) != 0
+                            sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) != 0
                             // check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes') == false
                         }
                     }
