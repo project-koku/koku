@@ -407,13 +407,9 @@ def update_summary_tables(  # noqa: C901
         "provider_uuid": provider_uuid,
         "manifest_id": manifest_id,
     }
-    if is_summary_processing_disabled(schema):
-        LOG.info(f"Summary disabled for {schema}.")
-        return
-    if is_source_disabled(provider_uuid):
+    if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
         return
     if is_ocp_on_cloud_summary_disabled(schema):
-        LOG.info(f"OCP on Cloud summary disabled for {schema}.")
         ocp_on_cloud = False
 
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
