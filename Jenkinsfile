@@ -45,21 +45,22 @@ pipeline {
                 stage('Check labels') {
                     when {
                         expression {
-                            sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) != 0
+                            sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) == null
                             // check_for_labels('lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes') == false
                         }
                     }
                     steps {
                         sh '''
                         echo PR check skipped
-                        exit 0
+                        exit 1
                         '''
                     }
                 }
                 stage('Check to skip smoke tests') {
                     when {
                         expression {
-                            check_for_labels('ok-to-skip-smokes') == true
+                            sh(script: "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null", returnStdout: true) == null
+
                         }
                     }
 
