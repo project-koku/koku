@@ -1,7 +1,7 @@
 INSERT INTO {{schema | sqlsafe}}.reporting_enabledtagkeys (uuid, key, enabled, provider_type)
 SELECT uuid_generate_v4() as uuid,
     key,
-    true as enabled,
+    false as enabled, -- GCP tags are disabled by default
     'GCP' as provider_type
   FROM reporting_gcpcostentrylineitem_daily_summary as lids,
        jsonb_each_text(lids.tags) labels

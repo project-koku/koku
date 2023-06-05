@@ -362,7 +362,11 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=
                 )
                 for ix in range(batch_size):
                     if provider_type:
-                        new_batch[ix] = enabled_keys_model(key=new_batch[ix], provider_type=provider_type)
+                        # OCP and GCP keys are disabled by default
+                        enabled = provider_type not in (Provider.PROVIDER_OCP, Provider.PROVIDER_GCP)
+                        new_batch[ix] = enabled_keys_model(
+                            key=new_batch[ix], provider_type=provider_type, enabled=enabled
+                        )
                     else:
                         new_batch[ix] = enabled_keys_model(key=new_batch[ix])
                 enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
