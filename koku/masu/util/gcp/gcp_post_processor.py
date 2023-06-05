@@ -61,7 +61,6 @@ class GCPPostProcessor:
         "project.name",
         "project.labels",
         "project.ancestry_numbers",
-        "labels",
         "system_labels",
         "location.location",
         "location.country",
