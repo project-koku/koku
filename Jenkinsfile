@@ -130,7 +130,9 @@ pipeline {
                         # Install bonfire repo/initialize
                         echo $IQE_MARKER_EXPRESSION
                         echo $IQE_FILTER_EXPRESSION
-                        curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
+                        curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh
+                        source .cicd_bootstrap.sh
+                        
                         echo "creating PR image"
                         export DOCKER_BUILDKIT=1
                         source $CICD_ROOT/build.sh
