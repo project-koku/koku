@@ -74,35 +74,33 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                // run_test_filter_expression()
-
                 sh '''
-                    if check_for_labels "aws-smoke-tests"
+                    if egrep 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-                    elif check_for_labels "azure-smoke-tests"
+                    elif egrep 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-                    elif check_for_labels "gcp-smoke-tests"
+                    elif egrep 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-                    elif check_for_labels "oci-smoke-tests"
+                    elif egrep 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-                    elif check_for_labels "ocp-smoke-tests"
+                    elif egrep 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-                    elif check_for_labels "hot-fix-smoke-tests"
+                    elif egrep 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api"
                         export IQE_MARKER_EXPRESSION="outage"
-                    elif check_for_labels "cost-model-smoke-tests"
+                    elif egrep 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-                    elif check_for_labels "full-run-smoke-tests"
+                    elif egrep 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api"
-                    elif check_for_labels "smoke-tests"
+                    elif egrep 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                     then
                         export IQE_FILTER_EXPRESSION="test_api"
                         export IQE_MARKER_EXPRESSION="cost_required"
