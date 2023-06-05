@@ -191,27 +191,20 @@ def collect_hcs_report_data(
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
+    ctx = {
+        "schema_name": schema_name,
+        "provider_uuid": provider_uuid,
+        "provider_type": provider_type,
+        "start_date": start_date,
+        "end_date": end_date,
+    }
     if enable_hcs_processing(schema_name) and provider_type in HCS_ACCEPTED_PROVIDERS:
-        stmt = (
-            f"[collect_hcs_report_data]: "
-            f"schema_name: {schema_name}, "
-            f"provider_uuid: {provider_uuid}, "
-            f"provider_type: {provider_type}, "
-            f"dates {start_date} - {end_date}"
-        )
-        LOG.info(log_json(tracing_id, stmt))
+        LOG.info(log_json(tracing_id, "collecting hcs report data", ctx))
         reporter = ReportHCS(schema_name, provider_type, provider_uuid, tracing_id)
         reporter.generate_report(start_date, end_date, finalize)
 
     else:
-        stmt = (
-            f"[SKIPPED] HCS report generation: "
-            f"Schema_name: {schema_name}, "
-            f"provider_type: {provider_type}, "
-            f"provider_uuid: {provider_uuid}, "
-            f"dates {start_date} - {end_date}"
-        )
-        LOG.info(log_json(tracing_id, stmt))
+        LOG.info(log_json(tracing_id, "skipping hcs report generation", ctx))
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)  # noqa: C901
@@ -287,14 +280,15 @@ def collect_hcs_report_finalization(  # noqa: C901
         p_uuid = provider.uuid
         p_type = provider.type
 
-        stmt = (
-            f"[collect_hcs_report_finalization]: "
-            f"schema_name: {s_name}, "
-            f"provider_type: {p_type}, "
-            f"provider_uuid: {p_uuid}, "
-            f"dates: {start_date} - {end_date}"
-        )
-        LOG.info(log_json(tracing_id, stmt))
+        ctx = {
+            "schema_name": s_name,
+            "provider_uuid": p_uuid,
+            "provider_type": p_type,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+
+        LOG.info(log_json(tracing_id, "collecting hcs report finalization", ctx))
 
         collect_hcs_report_data.s(
             s_name,
