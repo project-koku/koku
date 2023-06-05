@@ -984,37 +984,25 @@ select * from eek where val1 in {{report_period_id}} ;
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping populate_monthly_cost_sql update."
-        )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_monthly_cost_sql("", "", "", start_date, end_date, "", self.provider_uuid)
-            self.assertIn(expected, logger.output)
+            self.assertIn("no report period for OCP provider", logger.output)
 
     def test_populate_monthly_cost_tag_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping populate_monthly_tag_cost_sql update."
-        )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_monthly_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
-            self.assertIn(expected, logger.output)
+            self.assertIn("no report period for OCP provider", logger.output)
 
     def test_populate_usage_costs_new_columns_no_report_period(self):
         """Test that updating new column usage costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping populate_usage_costs_new_columns update."
-        )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
-            self.assertIn(expected, logger.output)
+            self.assertIn("no report period for OCP provider", logger.output)
 
     def test_populate_platform_and_worker_distributed_cost_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""

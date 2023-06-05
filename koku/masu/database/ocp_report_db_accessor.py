@@ -130,13 +130,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "schema": self.schema,
                 "source_uuid": source_uuid,
             }
-            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
                 table_name,
-                summary_sql,
+                sql,
                 start_date,
                 end_date,
-                bind_params=list(summary_sql_params),
+                bind_params=sql_params,
                 operation="DELETE/INSERT",
             )
 
@@ -160,10 +160,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_ids": report_period_ids,
             "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        )
+        sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=sql_params)
 
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
@@ -563,7 +561,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 templated_sql,
                 start_date,
                 end_date,
-                bind_params=list(templated_sql_params),
+                bind_params=templated_sql_params,
                 operation="INSERT",
             )
 
@@ -643,7 +641,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql,
             start_date,
             end_date,
-            bind_params=list(sql_params),
+            bind_params=sql_params,
             operation="INSERT",
         )
 
@@ -709,14 +707,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
             summary_sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
 
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         LOG.info(log_json(msg="populating monthly tag costs", **summary_sql_params))
         self._execute_raw_sql_query(
             table_name,
-            summary_sql,
+            sql,
             start_date,
             end_date,
-            bind_params=list(summary_sql_params),
+            bind_params=sql_params,
             operation="INSERT",
         )
 
@@ -751,7 +749,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=daily_sql_params)
 
     def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
@@ -816,7 +814,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cost_model_usage_sql,
             start_date,
             end_date,
-            bind_params=list(cost_model_usage_sql_params),
+            bind_params=cost_model_usage_sql_params,
             operation="INSERT",
         )
 
@@ -898,9 +896,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         }
                         sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
                         LOG.info(log_json(msg="running populate_tag_usage_costs SQL", **tag_rates_sql_params))
-                        self._execute_raw_sql_query(
-                            table_name, sql, start_date, end_date, bind_params=list(sql_params)
-                        )
+                        self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=sql_params)
 
     def populate_tag_usage_default_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
@@ -990,7 +986,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     }
                     sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
                     LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", **tag_rates_sql_params))
-                    self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=list(sql_params))
+                    self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=sql_params)
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
