@@ -133,6 +133,8 @@ ocp_on_aws_daily_summary = Recipe(
     markup_cost_blended=cycle(decimal_yielder()),
     savingsplan_effective_cost=cycle(decimal_yielder()),
     markup_cost_savingsplan=cycle(decimal_yielder()),
+    calculated_amortized_cost=cycle(decimal_yielder()),
+    markup_cost_amortized=cycle(decimal_yielder()),
     _fill_optional=True,
     _quantity=min(AWS_CONSTANTS.length, 9),
 )
@@ -157,6 +159,8 @@ ocp_on_aws_project_daily_summary_pod = Recipe(  # Pod data_source
     markup_cost_blended=cycle(decimal_yielder()),
     savingsplan_effective_cost=cycle(decimal_yielder()),
     markup_cost_savingsplan=cycle(decimal_yielder()),
+    calculated_amortized_cost=cycle(decimal_yielder()),
+    markup_cost_amortized=cycle(decimal_yielder()),
     _fill_optional=True,
     _quantity=min(AWS_CONSTANTS.length, 9),
 )
@@ -181,6 +185,8 @@ ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
     markup_cost_blended=cycle(decimal_yielder()),
     savingsplan_effective_cost=cycle(decimal_yielder()),
     markup_cost_savingsplan=cycle(decimal_yielder()),
+    calculated_amortized_cost=cycle(decimal_yielder()),
+    markup_cost_amortized=cycle(decimal_yielder()),
     _fill_optional=True,
     _quantity=min(AWS_CONSTANTS.length, 9),
 )

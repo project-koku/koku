@@ -34,5 +34,8 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpazure_database_summa
         AND day in {{days | inclause}}
         AND usage_start >= {{start_date}}
         AND usage_start <= date_add('day', 1, {{end_date}})
-        AND service_name IN ('Cosmos DB','Cache for Redis') OR lower(service_name) LIKE '%%database%%'
+        AND (
+            service_name IN ('Cosmos DB','Cache for Redis')
+            OR lower(service_name) LIKE '%%database%%'
+        )
     GROUP BY usage_start, subscription_guid, service_name

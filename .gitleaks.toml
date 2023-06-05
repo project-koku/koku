@@ -1,4 +1,6 @@
 [allowlist]
 paths = [
     '''grafana\/grafana.db.sql''',
+    '''.env.example''',
+    '''docs\/devtools.md''',
 ]

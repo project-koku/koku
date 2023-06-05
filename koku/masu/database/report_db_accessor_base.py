@@ -127,7 +127,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 t2 = time.time()
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
-                LOG.error(log_json(os.getpid(), str(db_exc), context=db_exc.as_dict()))
+                LOG.error(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
                 raise db_exc
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
@@ -150,6 +150,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
+        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, **sql_params))
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
@@ -157,11 +158,10 @@ class ReportDBAccessorBase(KokuDBAccess):
             description = trino_cur.description
         except Exception as ex:
             if attempts_left == 0:
-                msg = f"Failing SQL:\n{sql}\nwith bind_params:\n\t{bind_params}"
-                LOG.error(msg)
+                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, **sql_params), exc_info=ex)
             raise ex
-        t2 = time.time()
-        LOG.info(f"{log_ref} for {self.schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds.")
+        running_time = time.time() - t1
+        LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, **sql_params))
         return results, description
 
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):

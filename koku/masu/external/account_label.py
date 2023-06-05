@@ -29,7 +29,7 @@ class AccountLabel:
 
         """
         if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSAccountAlias(role_arn=self.auth.get("role_arn"), schema_name=self.schema)
+            return AWSAccountAlias(credentials=self.auth, schema_name=self.schema)
         return None
 
     def get_label_details(self):

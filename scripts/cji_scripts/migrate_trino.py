@@ -120,11 +120,14 @@ def main():
     logging.info(schemas)
 
     tables_to_drop = [
-        "aws_line_items_daily",
+        "aws_openshift_daily_resource_matched_temp",
+        "aws_openshift_daily_tag_matched_temp",
+        "reporting_ocpawscostlineitem_project_daily_summary_temp",
     ]
     # columns_to_drop = ["ocp_matched"]
     # columns_to_add = {
-    #     "aws_cost_category": "varchar",
+    #     "calculated_amortized_cost": "double",
+    #     "markup_cost_amortized": "double",
     # }
 
     for schema in schemas:

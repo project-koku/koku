@@ -21,7 +21,6 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
-import pytz
 from cachetools import TTLCache
 from dateutil import relativedelta
 from django.conf import settings
@@ -352,7 +351,7 @@ class ProcessReportFileTests(MasuTestCase):
             {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
             {"type": Provider.PROVIDER_OCI, "uuid": self.oci_test_provider_uuid},
         ]
-        test_date = datetime.datetime(2023, 3, 3, tzinfo=pytz.UTC)
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
 
         for provider_dict in providers:
             invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(
@@ -396,7 +395,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
 
-        test_date = datetime.datetime(2023, 3, 3, tzinfo=pytz.UTC)
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
         report_meta = {}
         report_meta["start"] = test_date.strftime("%Y-%m-%d")
         report_meta["end"] = test_date.strftime("%Y-%m-%d")
@@ -487,14 +486,14 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks._process_report_file")
     def test_get_report_files_report_dict_none(self, mock_process_files, mock_inspect, mock_cache_remove):
         """Test raising download exception is handled."""
-        expected_log = "No report to be processed:"
+        expected_log = "no report to be processed"
         with patch("masu.processor.tasks._get_report_files", return_value=None) as mock_get_files:
             with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
                 get_report_files(**self.get_report_args)
                 mock_get_files.assert_called()
                 mock_cache_remove.assert_called()
                 mock_process_files.assert_not_called()
-                self.assertIn(expected_log, logger.output[0])
+                self.assertIn(expected_log.lower(), logger.output[0].lower())
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -504,7 +503,7 @@ class TestProcessorTasks(MasuTestCase):
         self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
     ):
         """Test raising download exception is handled."""
-        expected_log = "Invoice_month: 202201"
+        expected_log = "'invoice_month': '202201'"
         mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP", "invoice_month": "202201"}
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             get_report_files(**self.get_report_args_gcp)
@@ -718,14 +717,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         # We need to bypass the None check for cost model in update_cost_model_costs
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
-        provider = Provider.PROVIDER_OCP
+        provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         mock_date_check.return_value = (start_date, end_date)
 
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
         update_cost_model_costs(
             schema_name=self.schema,
             provider_uuid=provider_ocp_uuid,
@@ -780,12 +779,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     ):
         """Test that the summary table task runs."""
 
-        provider = Provider.PROVIDER_OCP
+        provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
         mock_chain.return_value.apply_async.assert_not_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -814,13 +813,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     ):
         """Test that the summary table task runs."""
 
-        provider = Provider.PROVIDER_OCP
+        provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         mock_date_check.return_value = (start_date, end_date)
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -833,7 +832,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that the update summary table task runs."""
 
         # COST-444: We use start & end date based off manifest
-        provider = Provider.PROVIDER_AWS
+        provider_type = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
@@ -843,18 +842,18 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         update_summary_tables(
             self.schema,
-            provider,
+            provider_type,
             provider_aws_uuid,
             start_date,
             end_date,
-            manifest_id,
             tracing_id=tracing_id,
+            manifest_id=manifest_id,
             synchronous=True,
         )
         mock_chain.assert_called_with(
             mark_manifest_complete.s(
                 self.schema,
-                provider,
+                provider_type,
                 provider_uuid=provider_aws_uuid,
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
@@ -867,7 +866,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data_gcp(self, mock_accessor, mock_chain):
         # COST-444: We use start & end date based off manifest
-        provider = Provider.PROVIDER_GCP
+        provider_type = Provider.PROVIDER_GCP
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
         manifest_id = 1
@@ -876,12 +875,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
         update_summary_tables(
             self.schema,
-            provider,
+            provider_type,
             self.gcp_provider_uuid,
             start_date,
             end_date,
-            manifest_id,
             tracing_id=tracing_id,
+            manifest_id=manifest_id,
             synchronous=True,
             invoice_month=invoice_month,
         )
@@ -891,7 +890,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             )
             | mark_manifest_complete.si(
                 self.schema,
-                provider,
+                provider_type,
                 provider_uuid=self.gcp_provider_uuid,
                 manifest_list=[manifest_id],
                 tracing_id=tracing_id,
@@ -915,10 +914,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_summary_tables(
             self.schema,
             self.aws_provider.type,
-            str(self.aws_provider.uuid),
+            self.aws_provider_uuid,
             start_date,
             end_date,
-            manifest_id,
+            manifest_id=manifest_id,
             tracing_id=tracing_id,
             synchronous=True,
         )
@@ -1423,13 +1422,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_summary.side_effect = ReportSummaryUpdaterCloudError
-        expected = "Failed to correlate"
+        expected = "failed to correlate"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
-            statement_found = False
-            for log in logger.output:
-                if expected in log:
-                    statement_found = True
+            statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.update_summary_tables.s")
@@ -1459,11 +1455,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         expected = "Processing for this provier will halt."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
-            statement_found = False
-            for log in logger.output:
-                if expected in log:
-                    statement_found = True
-                    break
+            statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
     @skip("cost model calcs are taking longer with the conversion to partables. This test needs a rethink.")
@@ -1610,14 +1602,16 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.chain")
     def test_unleash_disable_source(self, mock_chain):
         """Test unleash flag to disable processing by source_uuid."""
-        provider = Provider.PROVIDER_OCP
+        provider_type = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
         with patch("masu.processor.tasks.disable_source") as disable_source:
             disable_source.return_value = True
-            update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+            update_summary_tables(
+                self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
+            )
             mock_chain.return_value.apply_async.assert_not_called()
 
 

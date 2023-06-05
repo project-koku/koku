@@ -239,7 +239,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
+    @patch.object(OCPReportDBAccessor, "get_filtered_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
     def test_process_gcp(
