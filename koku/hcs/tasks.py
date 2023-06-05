@@ -141,16 +141,15 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
             finalize = should_finalize(start_date, end_date)
             start_date = start_date.strftime("%Y-%m-%d")
             end_date = end_date.strftime("%Y-%m-%d")
-        stmt = (
-            f"[collect_hcs_report_data_from_manifest]:"
-            f" schema_name: {schema_name},"
-            f" provider_type: {provider_type},"
-            f" provider_uuid: {provider_uuid},"
-            f" start: {start_date},"
-            f" end: {end_date}"
-            f" finalization: {finalize}"
-        )
-        LOG.info(log_json(tracing_id, stmt))
+        ctx = {
+            "schema_name": schema_name,
+            "provider_type": provider_type,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "finalization": finalize,
+        }
+        LOG.info(log_json(tracing_id, msg="collect hcs report data from manifest", context=ctx))
 
         collect_hcs_report_data.s(
             schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id, finalize
@@ -199,12 +198,12 @@ def collect_hcs_report_data(
         "end_date": end_date,
     }
     if enable_hcs_processing(schema_name) and provider_type in HCS_ACCEPTED_PROVIDERS:
-        LOG.info(log_json(tracing_id, "collecting hcs report data", ctx))
+        LOG.info(log_json(tracing_id, msg="collecting hcs report data", context=ctx))
         reporter = ReportHCS(schema_name, provider_type, provider_uuid, tracing_id)
         reporter.generate_report(start_date, end_date, finalize)
 
     else:
-        LOG.info(log_json(tracing_id, "skipping hcs report generation", ctx))
+        LOG.info(log_json(tracing_id, msg="skipping hcs report generation", context=ctx))
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)  # noqa: C901
@@ -229,15 +228,19 @@ def collect_hcs_report_finalization(  # noqa: C901
     schema_name = check_schema_name(schema_name)
 
     if provider_type is not None and provider_uuid is not None:
-        LOG.warning(log_json(tracing_id, "'provider_type' and 'provider_uuid' are not supported in the same request"))
+        LOG.warning(
+            log_json(tracing_id, msg="'provider_type' and 'provider_uuid' are not supported in the same request")
+        )
         return
 
     if schema_name is not None and provider_uuid is not None:
-        LOG.warning(log_json(tracing_id, "'schema_name' and 'provider_uuid' are not supported in the same request"))
+        LOG.warning(
+            log_json(tracing_id, msg="'schema_name' and 'provider_uuid' are not supported in the same request")
+        )
         return
 
     if schema_name is not None and not enable_hcs_processing(schema_name):
-        LOG.info(log_json(tracing_id, f"schema_name provided: {schema_name} is not HCS enabled"))
+        LOG.info(log_json(tracing_id, msg=f"schema_name provided: {schema_name} is not HCS enabled"))
         return
 
     finalization_date = DateAccessor().today()
@@ -246,7 +249,7 @@ def collect_hcs_report_finalization(  # noqa: C901
     if month and year:
         finalization_date = finalization_date.replace(year=int(year), month=int(month)) + relativedelta(months=1)
     elif month or year:
-        LOG.warning(log_json(tracing_id, "month and year must be provided together."))
+        LOG.warning(log_json(tracing_id, msg="month and year must be provided together."))
         return
 
     end_date = finalization_date - datetime.timedelta(days=1)
@@ -257,17 +260,17 @@ def collect_hcs_report_finalization(  # noqa: C901
 
     if schema_name is not None and provider_type is not None:
         LOG.debug(
-            log_json(tracing_id, f"provided schema_name: {schema_name}, provided provider_type: {provider_type}")
+            log_json(tracing_id, msg=f"provided schema_name: {schema_name}, provided provider_type: {provider_type}")
         )
         providers = get_providers_by_schema(schema_name, provider_type)
     elif schema_name is not None:
-        LOG.debug(log_json(tracing_id, f"provided schema_name: {schema_name}"))
+        LOG.debug(log_json(tracing_id, msg=f"provided schema_name: {schema_name}"))
         providers = get_providers_by_schema(schema_name)
     elif provider_uuid is not None:
-        LOG.debug(log_json(tracing_id, f"provided provider_uuid: {provider_uuid}"))
+        LOG.debug(log_json(tracing_id, msg=f"provided provider_uuid: {provider_uuid}"))
         providers = get_providers_by_uuid(provider_uuid)
     elif provider_type is not None:
-        LOG.debug(log_json(tracing_id, f"provided provider_type: {provider_type}"))
+        LOG.debug(log_json(tracing_id, msg=f"provided provider_type: {provider_type}"))
         providers = get_providers_by_type(provider_type)
     else:
         providers = get_all_accepted_providers()
@@ -288,7 +291,7 @@ def collect_hcs_report_finalization(  # noqa: C901
             "end_date": end_date,
         }
 
-        LOG.info(log_json(tracing_id, "collecting hcs report finalization", ctx))
+        LOG.info(log_json(tracing_id, msg="collecting hcs report finalization", context=ctx))
 
         collect_hcs_report_data.s(
             s_name,

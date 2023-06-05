@@ -400,7 +400,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg=msg, context=context))
     return upload
 
 
@@ -431,7 +431,7 @@ def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False,
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg=msg, context=context))
     return upload
 
 
@@ -467,10 +467,10 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
                     removed.append(key)
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
-                LOG.info(log_json(request_id, msg, context))
+                LOG.info(log_json(request_id, msg=msg, context=context))
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.info(log_json(request_id, msg, context))
+            LOG.info(log_json(request_id, msg=msg, context=context))
     return removed
 
 

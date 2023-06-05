@@ -127,7 +127,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 t2 = time.time()
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
-                LOG.error(log_json(os.getpid(), str(db_exc), context=db_exc.as_dict()))
+                LOG.error(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
                 raise db_exc
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)

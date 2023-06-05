@@ -141,11 +141,11 @@ class ReportSummaryUpdater:
             "end_date": end_date,
             "invoice_month": invoice_month,
         }
-        LOG.info(log_json(tracing_id, "summary processing starting", context))
+        LOG.info(log_json(tracing_id, msg="summary processing starting", context=context))
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
-        LOG.info(log_json(tracing_id, "summary processing complete", context))
+        LOG.info(log_json(tracing_id, msg="summary processing complete", context=context))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 
@@ -164,7 +164,7 @@ class ReportSummaryUpdater:
                 "start_date": start_date,
                 "end_date": end_date,
             }
-            LOG.info(log_json(tracing_id, "getting OCP-on-Cloud infra map", context))
+            LOG.info(log_json(tracing_id, msg="getting OCP-on-Cloud infra map", context=context))
             return self._ocp_cloud_updater.get_infra_map(start_date, end_date)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex
@@ -189,7 +189,7 @@ class ReportSummaryUpdater:
                 f"{infra_provider_type} is not in {Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST}.",
                 "Not running OpenShift on Cloud summary.",
             )
-            LOG.info(log_json(self._tracing_id, msg))
+            LOG.info(log_json(self._tracing_id, msg=msg))
             return
 
         start_date, end_date = self._format_dates(start_date, end_date)
@@ -200,13 +200,21 @@ class ReportSummaryUpdater:
             "end_date": end_date,
         }
 
-        LOG.info(log_json(tracing_id, f"OpenShift on {infra_provider_type} summary processing starting", context))
+        LOG.info(
+            log_json(
+                tracing_id, msg=f"OpenShift on {infra_provider_type} summary processing starting", context=context
+            )
+        )
 
         try:
             self._ocp_cloud_updater.update_summary_tables(
                 start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type
             )
-            LOG.info(log_json(tracing_id, f"OpenShift on {infra_provider_type} summary processing complete", context))
+            LOG.info(
+                log_json(
+                    tracing_id, msg=f"OpenShift on {infra_provider_type} summary processing complete", context=context
+                )
+            )
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex
