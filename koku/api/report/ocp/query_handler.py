@@ -63,7 +63,7 @@ def _calculate_unused(row):
     """Calculates the unused portions of the capacity & request."""
     # Populate unused request and capacity
     capacity = row.get("capacity", Decimal(0))
-    if capacity == 0:
+    if capacity <= 0:
         capacity = 1  # prevents dividing by zero
     usage = row.get("usage", 0)
     request = row.get("request", 0)
