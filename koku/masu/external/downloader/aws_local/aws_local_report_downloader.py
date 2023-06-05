@@ -59,7 +59,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.report_prefix = prefix
 
         msg = f"Found report name: {self.report_name}, report prefix: {self.report_prefix}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         if self.report_prefix:
             self.base_path = f"{bucket}/{self.report_prefix}/"
         else:
@@ -118,7 +118,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_file, _, manifest_modified_timestamp, __, ___ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             return "", self.empty_manifest, None
 
         manifest_json = None
@@ -177,10 +177,10 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.remove(manifest_file)
             msg = f"Deleted manifest file at {manifest_file}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         except OSError:
             msg = f"Could not delete manifest file at {manifest_file}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         return None
 
@@ -228,7 +228,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_creation_date = None
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             shutil.copy2(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
             # Push to S3

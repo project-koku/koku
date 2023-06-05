@@ -54,14 +54,15 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
 
         :returns (None)
         """
-        LOG.info(log_json(tracing_id, "acquiring marketplace data..."))
-        LOG.info(
-            log_json(
-                tracing_id,
-                f"schema: {self.schema}, provider: {provider}, "
-                + f"date: {date}, org_id: {self._org_id}, ebs_num: {self._ebs_acct_num}",
-            )
-        )
+        ctx = {
+            "schema": self.schema,
+            "provider_type": provider,
+            "provider_uuid": provider_uuid,
+            "date": date,
+            "org_id": self._org_id,
+            "ebs_account": self._ebs_acct_num,
+        }
+        LOG.info(log_json(tracing_id, msg="acquiring marketplace data", context=ctx))
 
         try:
             sql = pkgutil.get_data("hcs.database", sql_summary_file)
@@ -82,8 +83,6 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "table": table,
             }
 
-            LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
-
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
             # trino-python-client 0.321.0 released a breaking change to map results to python types by default
             # This altered the timestamp values present in generated CSVs, impacting consumers of these files
@@ -97,16 +96,11 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             cols = [col[0] for col in description]
 
             if len(data) > 0:
-                LOG.info(log_json(tracing_id, f"data found for date: {date}"))
+                LOG.info(log_json(tracing_id, msg="data found", context=ctx))
                 csv_handler = CSVFileHandler(self.schema, provider, provider_uuid)
                 csv_handler.write_csv_to_s3(date, data, cols, finalize, tracing_id)
             else:
-                LOG.info(
-                    log_json(
-                        tracing_id,
-                        f"no data found for date: {date}, " f"provider: {provider}, provider_uuid: {provider_uuid}",
-                    )
-                )
+                LOG.info(log_json(tracing_id, msg="no data found", context=ctx))
 
         except FileNotFoundError:
-            LOG.error(log_json(tracing_id, f"unable to locate SQL file: {sql_summary_file}"))
+            LOG.error(log_json(tracing_id, msg=f"unable to locate SQL file: {sql_summary_file}"))

@@ -160,7 +160,7 @@ class ParquetReportProcessor:
             return
         except (ValueError, TypeError):
             msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
-            LOG.error(log_json(self.tracing_id, msg, self.error_context))
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context))
             raise ParquetReportProcessorError(msg)
 
     @property
@@ -178,7 +178,7 @@ class ParquetReportProcessor:
             return CSV_GZIP_EXT
         else:
             msg = f"File {first_file} is not valid CSV. Conversion to parquet skipped."
-            LOG.error(log_json(self.tracing_id, msg, self.error_context))
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context))
             raise ParquetReportProcessorError(msg)
 
     @property
@@ -315,7 +315,7 @@ class ParquetReportProcessor:
                 f"Invalid paths provided to convert_csv_to_parquet."
                 f"CSV path={self.csv_path_s3}, Parquet path={self.parquet_path_s3}, and local_path={self.local_path}."
             )
-            LOG.error(log_json(self.tracing_id, msg, self.error_context))
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context))
             return "", pd.DataFrame()
 
         manifest_accessor = ReportManifestDBAccessor()
@@ -346,7 +346,7 @@ class ParquetReportProcessor:
         for csv_filename in self.file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = f"Could not establish report type for {csv_filename}."
-                LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+                LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
                 failed_conversion.append(csv_filename)
                 continue
             if self.provider_type == Provider.PROVIDER_OCI:
@@ -361,7 +361,7 @@ class ParquetReportProcessor:
 
         if failed_conversion:
             msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
-            LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+            LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
@@ -388,7 +388,7 @@ class ParquetReportProcessor:
                 "provider_type": self.provider_type,
                 "provider_uuid": self.provider_uuid,
             }
-            LOG.warn(log_json(self.tracing_id, msg, context))
+            LOG.warn(log_json(self.tracing_id, msg=msg, context=context))
             return None, None, False
 
         daily_data_frames = []
@@ -400,7 +400,7 @@ class ParquetReportProcessor:
             kwargs = {"compression": "gzip"}
 
         msg = f"Running convert_csv_to_parquet on file {csv_filename}."
-        LOG.info(log_json(self.tracing_id, msg, self.error_context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.error_context))
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
@@ -434,7 +434,7 @@ class ParquetReportProcessor:
             msg = (
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
-            LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+            LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
@@ -507,11 +507,11 @@ class ParquetReportProcessor:
                     self.tracing_id, s3_path, file_name, fin, manifest_id=self.manifest_id, context=self.error_context
                 )
                 msg = f"{file_path} sent to S3."
-                LOG.info(log_json(self.tracing_id, msg, self.error_context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.error_context))
         except Exception as err:
             s3_key = f"{self.parquet_path_s3}/{file_path}"
             msg = f"File {file_name} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
-            LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+            LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
             return False
         finally:
             self.files_to_remove.append(file_path)

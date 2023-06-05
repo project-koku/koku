@@ -12,7 +12,7 @@ def error_obj(key, message):
     return {key: [_(message)]}
 
 
-def log_json(tracing_id="", msg="", context=None, **kwargs):
+def log_json(tracing_id="", *, msg, context=None, **kwargs):
     """Create JSON object for logging data."""
     stmt = {"message": msg, "tracing_id": tracing_id}
     if context:
