@@ -891,12 +891,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             "k_v_pair": key_value_pair,
                             "labels_field": labels_field,
                         }
-                        tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
-                            tag_rates_sql, tag_rates_sql_params
-                        )
+                        sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
                         LOG.info(log_json(msg="running populate_tag_usage_costs SQL", **tag_rates_sql_params))
                         self._execute_raw_sql_query(
-                            table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
+                            table_name, sql, start_date, end_date, bind_params=list(sql_params)
                         )
 
     def populate_tag_usage_default_costs(  # noqa: C901
@@ -985,13 +983,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         "k_v_pair": key_value_pair,
                         "labels_field": labels_field,
                     }
-                    tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
-                        tag_rates_sql, tag_rates_sql_params
-                    )
+                    sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
                     LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", **tag_rates_sql_params))
-                    self._execute_raw_sql_query(
-                        table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
-                    )
+                    self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=list(sql_params))
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
