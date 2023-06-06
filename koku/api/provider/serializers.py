@@ -377,6 +377,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             tenant_api_provider.uuid = provider.uuid
             tenant_api_provider.name = provider.name
             tenant_api_provider.type = provider.type
+            tenant_api_provider.provider = provider
             tenant_api_provider.save()
 
         customer.date_updated = DateHelper().now_utc
@@ -438,6 +439,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                 tenant_api_provider.uuid = instance.uuid
                 tenant_api_provider.name = instance.name
                 tenant_api_provider.type = instance.type
+                tenant_api_provider.provider = instance
                 tenant_api_provider.save()
 
             customer.date_updated = DateHelper().now_utc
