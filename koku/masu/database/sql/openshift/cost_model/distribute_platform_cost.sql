@@ -87,7 +87,7 @@ SELECT
     max(report_period_id) as report_period_id,
     lids.cluster_id,
     max(cluster_alias) as cluster_alias,
-    'Pod' as data_source,
+    lids.data_source as data_source,
     lids.usage_start,
     max(usage_end) as usage_end,
     lids.namespace,
@@ -145,13 +145,8 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id}}
     AND lids.namespace IS NOT NULL
-    AND data_source = 'Pod'
-    AND node_capacity_cpu_core_hours IS NOT NULL
-    AND node_capacity_cpu_core_hours != 0
-    AND cluster_capacity_cpu_core_hours IS NOT NULL
-    AND cluster_capacity_cpu_core_hours != 0
     AND lids.namespace != 'Worker unallocated'
-GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id;
+GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id, lids.data_source;
 {% endif %}
 
 -- Notes:
