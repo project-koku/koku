@@ -59,6 +59,20 @@ class IngressReportsSerializer(serializers.ModelSerializer):
             if bill_month in month_range and bill_year in year_range:
                 interface = ProviderAccessor(source_type)
                 interface.check_file_access(data.get("source"), data.get("reports_list"))
+                ingress_reports = IngressReports.objects.filter(
+                    source=data.get("source"),
+                    bill_year=bill_year,
+                    bill_month=bill_month,
+                    status="pending",
+                    created_timestamp__gte=DateHelper().today,
+                )
+                if ingress_reports:
+                    key = "Processing"
+                    message = (
+                        f"Reports for billing month {bill_month} are currently already being processed. "
+                        "New reports cannot be processed until the current reports are completed."
+                    )
+                    raise serializers.ValidationError(error_obj(key, message))
                 return data
             key = "bill_period"
             message = (
