@@ -95,12 +95,9 @@ class SourceStatus:
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
                 if not status_obj:
                     if self.source.koku_uuid:
-                        builder.update_account(self.source)
+                        status_obj = self.try_catch_validation_error(status_obj, builder.update_account)
                     elif self.source.billing_source.get("data_source", {}).get("table_id"):
-                        try:
-                            builder.create_account(self.source)
-                        except ValidationError as validation_error:
-                            status_obj = validation_error
+                        status_obj = self.try_catch_validation_error(status_obj, builder.create_account)
             self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
@@ -109,6 +106,13 @@ class SourceStatus:
         except (SourcesHTTPClientError, SourceNotFoundError) as error:
             err_msg = f"Unable to push source status. Reason: {str(error)}"
             LOG.warning(err_msg)
+
+    def try_catch_validation_error(self, status_obj, func):
+        try:
+            func(self.source)
+            return status_obj
+        except ValidationError as validation_error:
+            return validation_error
 
 
 def _get_source_id_from_request(request):
