@@ -65,9 +65,8 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 "sql/reporting_aws_hcs_daily_summary.sql",
                 "1234-1234-1234",
             )
-            self.assertIn("acquiring marketplace data...", _logs.output[0])
-            self.assertIn(f"schema: {self.schema}, provider: {self.provider}, date: {self.today}", _logs.output[1])
-            self.assertIn("no data found for date", _logs.output[2])
+            self.assertIn("acquiring marketplace data", _logs.output[0])
+            self.assertIn("no data found", _logs.output[1])
 
     @patch("hcs.csv_file_handler.CSVFileHandler")
     @patch("hcs.csv_file_handler.CSVFileHandler.write_csv_to_s3")
@@ -85,6 +84,5 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 "sql/reporting_aws_hcs_daily_summary.sql",
                 "1234-1234-1234",
             )
-            self.assertIn("acquiring marketplace data...", _logs.output[0])
-            self.assertIn(f"schema: {self.schema}, provider: {self.provider}, date: {self.today}", _logs.output[1])
-            self.assertIn("data found for date", _logs.output[2])
+            self.assertIn("acquiring marketplace data", _logs.output[0])
+            self.assertIn("data found", _logs.output[1])

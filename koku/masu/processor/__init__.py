@@ -125,7 +125,11 @@ def enable_aws_category_settings(account):
     account = convert_account(account)
 
     context = {"schema": account}
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable_aws_category_settings", context))
+    res = bool(
+        UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.enable_aws_category_settings", context, fallback_development_true
+        )
+    )
     return res
 
 

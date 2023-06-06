@@ -174,7 +174,7 @@ class ReportDownloader:
         """
         date_time = report_context.get("date")
         msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}."
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         manifest_id = report_context.get("manifest_id")
         report = report_context.get("current_file")

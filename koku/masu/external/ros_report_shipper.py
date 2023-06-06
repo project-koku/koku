@@ -79,10 +79,10 @@ class ROSReportShipper:
         """
         if not reports_to_upload:
             msg = "No ROS reports to handle in the current payload."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
         msg = "Preparing to upload ROS reports to S3 bucket."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         report_urls = []
         upload_keys = []
         for filename, report in reports_to_upload:
@@ -91,17 +91,17 @@ class ROSReportShipper:
                 upload_keys.append(upload_tuple[1])
         if not report_urls:
             msg = "ROS reports did not upload cleanly to S3, skipping kafka message."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
         if not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context):
             msg = "ROS report handling gated by unleash - not sending kafka msg"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
         kafka_msg = self.build_ros_msg(report_urls, upload_keys)
         msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         self.send_kafka_message(kafka_msg)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
@@ -119,7 +119,7 @@ class ROSReportShipper:
             uploaded_obj_url = generate_s3_object_url(self.s3_client, upload_key)
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.warning(log_json(self.request_id, msg))
+            LOG.warning(log_json(self.request_id, msg=msg))
             return
         return uploaded_obj_url, upload_key
 

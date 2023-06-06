@@ -9,8 +9,8 @@ from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
-import pytz
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 
 from api.provider.models import Provider
 from masu.config import Config
@@ -62,35 +62,35 @@ class ExpiredDataRemoverTest(MasuTestCase):
         date_matrix = [
             {
                 "current_date": datetime(year=2018, month=7, day=1),
-                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC)
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=settings.UTC)
                 - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS),
                 "months_to_keep": None,
             },
             {
                 "current_date": datetime(year=2018, month=7, day=31),
-                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC)
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=settings.UTC)
                 - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS),
                 "months_to_keep": None,
             },
             {
                 "current_date": datetime(year=2018, month=3, day=20),
-                "expected_expire": datetime(year=2018, month=3, day=1, tzinfo=pytz.UTC)
+                "expected_expire": datetime(year=2018, month=3, day=1, tzinfo=settings.UTC)
                 - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS),
                 "months_to_keep": None,
             },
             {
                 "current_date": datetime(year=2018, month=7, day=1),
-                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC) - relativedelta(months=12),
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=settings.UTC) - relativedelta(months=12),
                 "months_to_keep": 12,
             },
             {
                 "current_date": datetime(year=2018, month=7, day=31),
-                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC) - relativedelta(months=12),
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=settings.UTC) - relativedelta(months=12),
                 "months_to_keep": 12,
             },
             {
                 "current_date": datetime(year=2018, month=3, day=20),
-                "expected_expire": datetime(year=2018, month=3, day=1, tzinfo=pytz.UTC) - relativedelta(months=24),
+                "expected_expire": datetime(year=2018, month=3, day=1, tzinfo=settings.UTC) - relativedelta(months=24),
                 "months_to_keep": 24,
             },
         ]

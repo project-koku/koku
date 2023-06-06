@@ -4,6 +4,7 @@
 #
 """AWS Account aliases resolver."""
 from masu.database.account_alias_accessor import AccountAliasAccessor
+from masu.util.aws.common import AwsArn
 from masu.util.aws.common import get_account_alias_from_role_arn
 from masu.util.aws.common import get_account_names_by_organization
 
@@ -11,15 +12,16 @@ from masu.util.aws.common import get_account_names_by_organization
 class AWSAccountAlias:
     """AWS account alias resolver."""
 
-    def __init__(self, role_arn, schema_name):
+    def __init__(self, credentials, schema_name):
         """
         Object to find account alias for the RoleARN's account id.
 
         Args:
-            role_arn (String): AWS IAM RoleArn.
+            credentials (Dict): AWS IAM RoleArn + External ID.
 
         """
-        self._role_arn = role_arn
+        self._credentials = credentials
+        self._arn = AwsArn(credentials)
         self._schema = schema_name
 
     def update_account_alias(self):
@@ -32,11 +34,11 @@ class AWSAccountAlias:
             (String, String) Account ID, Account Alias
 
         """
-        account_id, account_alias = get_account_alias_from_role_arn(self._role_arn)
+        account_id, account_alias = get_account_alias_from_role_arn(self._arn)
         with AccountAliasAccessor(account_id, self._schema) as alias_accessor:
             alias_accessor.set_account_alias(account_alias)
 
-        accounts = get_account_names_by_organization(self._role_arn)
+        accounts = get_account_names_by_organization(self._arn)
         for account in accounts:
             acct_id = account.get("id")
             acct_alias = account.get("name")
