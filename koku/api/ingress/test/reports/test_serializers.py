@@ -79,6 +79,26 @@ class IngressReportsSerializerTest(IamTestCase):
             aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
         ),
     )
+    def test_posting_reports_while_pending(self, mock_get_sts_access):
+        """Test posting additional reports while currently processing same bill month."""
+        reports = {
+            "source": self.aws_provider.uuid,
+            "reports_list": ["test-file"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
+        with tenant_context(self.tenant):
+            with patch("api.ingress.reports.serializers.IngressReports", return_value="something"):
+                serializer = IngressReportsSerializer(data=reports)
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.is_valid(raise_exception=True)
+
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
+    )
     def test_valid_data(self, mock_get_sts_access):
         """Test ingress report valid entries."""
         reports = {
