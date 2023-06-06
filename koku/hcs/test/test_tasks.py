@@ -45,7 +45,7 @@ class TestHCSTasks(HCSTestCase):
                 self.schema, self.aws_provider_type, str(self.aws_provider.uuid), start_date, end_date
             )
 
-            self.assertIn("[collect_hcs_report_data]", _logs.output[0])
+            self.assertIn("collecting hcs report data", _logs.output[0])
 
     def test_get_report_no_start_date(self, mock_ehp, mock_report):
         """Test no start or end dates provided"""
@@ -54,7 +54,7 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data(self.schema, self.aws_provider_type, str(self.aws_provider.uuid))
 
-            self.assertIn("[collect_hcs_report_data]", _logs.output[0])
+            self.assertIn("collecting hcs report data", _logs.output[0])
 
     def test_get_report_no_tracing_id(self, mock_ehp, mock_report):
         """Test that tracing_id is added to log output when not provided"""
@@ -85,7 +85,7 @@ class TestHCSTasks(HCSTestCase):
             start_date = self.yesterday
             collect_hcs_report_data(self.schema, self.aws_provider_type, str(self.aws_provider.uuid), start_date)
 
-            self.assertIn("[collect_hcs_report_data]", _logs.output[0])
+            self.assertIn("collecting hcs report data", _logs.output[0])
 
     def test_get_report_invalid_provider(self, mock_ehp, mock_report):
         """Test invalid provider"""
@@ -95,7 +95,7 @@ class TestHCSTasks(HCSTestCase):
             start_date = self.yesterday
             collect_hcs_report_data(self.schema, "bogus", str(self.aws_provider.uuid), start_date)
 
-            self.assertIn("[SKIPPED] HCS report generation", _logs.output[0])
+            self.assertIn("skipping hcs report generation", _logs.output[0])
 
     def test_get_report_schema_no_acct_prefix(self, mock_ehp, mock_report):
         """Test no schema name prefix provided"""
@@ -124,12 +124,12 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data_from_manifest(manifests)
 
-            self.assertIn("[collect_hcs_report_data_from_manifest]", _logs.output[0])
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[0])
-            self.assertIn(f"provider_type: {self.aws_provider_type}", _logs.output[0])
-            self.assertIn(f"provider_uuid: {str(self.aws_provider.uuid)}", _logs.output[0])
-            self.assertIn("start:", _logs.output[0])
-            self.assertIn("end:", _logs.output[0])
+            self.assertIn("collect hcs report data from manifest", _logs.output[0])
+            self.assertIn(f"'schema_name': '{self.schema}'", _logs.output[0])
+            self.assertIn(f"'provider_type': '{self.aws_provider_type}'", _logs.output[0])
+            self.assertIn(f"'provider_uuid': '{str(self.aws_provider.uuid)}'", _logs.output[0])
+            self.assertIn("'start_date':", _logs.output[0])
+            self.assertIn("'end_date':", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest_and_dates(self, rd, mock_ehp, mock_report):
@@ -187,11 +187,10 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_finalization()
 
-            self.assertIn("[collect_hcs_report_finalization]:", _logs.output[0])
-            self.assertIn("schema_name:", _logs.output[0])
-            self.assertIn("provider_type:", _logs.output[0])
-            self.assertIn("provider_uuid:", _logs.output[0])
-            self.assertIn("dates:", _logs.output[0])
+            self.assertIn("collecting hcs report finalization", _logs.output[0])
+            self.assertIn("'schema_name':", _logs.output[0])
+            self.assertIn("'provider_type':", _logs.output[0])
+            self.assertIn("'provider_uuid':", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_tracing_id(self, rd, mock_ehp, mock_report):
@@ -237,7 +236,8 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_finalization(provider_type=self.aws_provider_type, month=10, year=2021)
-            self.assertIn(f"dates: {start_date} - {end_date}", _logs.output[0])
+            self.assertIn(f"'start_date': '{start_date}'", _logs.output[0])
+            self.assertIn(f"'end_date': '{end_date}'", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_report_finalization_provider_type(self, rd, mock_ehp, mock_report):
@@ -249,7 +249,7 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_finalization(provider_type=self.aws_provider_type)
 
             self.assertIn(f"provided provider_type: {self.aws_provider_type}", _logs.output[0])
-            self.assertIn(f"provider_type: {self.aws_provider_type}", _logs.output[1])
+            self.assertIn(f"'provider_type': '{self.aws_provider_type}'", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_negative(self, rd, mock_ehp, mock_report):
@@ -273,7 +273,6 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_finalization(provider_uuid=str(self.aws_provider.uuid))
 
             self.assertIn(f"provided provider_uuid: {str(self.aws_provider.uuid)}", _logs.output[0])
-            self.assertIn(f"provider_uuid: {self.aws_provider.uuid}", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_uuid_negative(self, rd, mock_ehp, mock_report):
@@ -300,8 +299,8 @@ class TestHCSTasks(HCSTestCase):
                 f"provided schema_name: {self.schema}, provided provider_type: {self.aws_provider_type}",
                 _logs.output[0],
             )
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
-            self.assertIn(f"provider_type: {self.aws_provider_type}", _logs.output[1])
+            self.assertIn(f"'schema_name': '{self.schema}'", _logs.output[1])
+            self.assertIn(f"'provider_type': '{self.aws_provider_type}'", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name(self, rd, mock_ehp, mock_report):
@@ -313,7 +312,7 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_finalization(schema_name=self.schema)
 
             self.assertIn(f"provided schema_name: {self.schema}", _logs.output[0])
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
+            self.assertIn(f"'schema_name': '{self.schema}'", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_no_acct_prefix(self, rd, mock_ehp, mock_report):
@@ -337,7 +336,7 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_finalization(schema_name="org1234567")
 
             self.assertIn(f"provided schema_name: {self.schema}", _logs.output[0])
-            self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
+            self.assertIn(f"'schema_name': '{self.schema}'", _logs.output[1])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_schema_name_negative(self, rd, mock_ehp, mock_report):
