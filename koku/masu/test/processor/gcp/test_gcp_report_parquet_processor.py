@@ -65,7 +65,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         self.processor.create_bill(bill_date.date())
         with schema_context(self.schema):
             bill = GCPCostEntryBill.objects.filter(
-                billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider
+                billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider_uuid
             )
             self.assertIsNotNone(bill.first())
 
@@ -81,7 +81,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         self.processor.create_bill(str(bill_date.date()))
         with schema_context(self.schema):
             bill = GCPCostEntryBill.objects.filter(
-                billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider
+                billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider_uuid
             )
             self.assertIsNotNone(bill.first())
 

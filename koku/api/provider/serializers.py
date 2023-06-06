@@ -435,11 +435,8 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.save()
 
             with schema_context(customer.schema_name):
-                tenant_api_provider = TenantAPIProvider()
-                tenant_api_provider.uuid = instance.uuid
+                tenant_api_provider = TenantAPIProvider.objects.get(provider_id=instance.uuid)
                 tenant_api_provider.name = instance.name
-                tenant_api_provider.type = instance.type
-                tenant_api_provider.provider = instance
                 tenant_api_provider.save()
 
             customer.date_updated = DateHelper().now_utc

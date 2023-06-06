@@ -14,6 +14,7 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from reporting.models import TenantAPIProvider
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -21,11 +22,23 @@ from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
+def create_test_provider(schema, provider):
+    with schema_context(schema):
+        tenant_provider = TenantAPIProvider(
+            uuid=provider.uuid,
+            type=provider.type,
+            name=provider.name,
+            provider=provider,
+        )
+        tenant_provider.save()
+
+
 @patch("masu.celery.tasks.delete_archived_data.delay", Mock())
 class TestProviderDeleteSQL(IamTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.schema_name = "acct918273"
         action_ts = datetime.now().replace(tzinfo=settings.UTC)
         # Add a bogus customer
         c = Customer(
@@ -33,7 +46,7 @@ class TestProviderDeleteSQL(IamTestCase):
             date_updated=action_ts,
             uuid=uuid.uuid4(),
             account_id="918273",
-            schema_name="acct918273",
+            schema_name=cls.schema_name,
         )
         c.save()
         # Create a customer tenant
@@ -55,6 +68,7 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         paws.save()
+        create_test_provider(self.schema_name, paws)
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=settings.UTC)
         period_end = datetime(2020, 2, 1, tzinfo=settings.UTC)
@@ -62,7 +76,7 @@ class TestProviderDeleteSQL(IamTestCase):
             billing_resource="6846351687354184651",
             billing_period_start=period_start,
             billing_period_end=period_end,
-            provider=paws,
+            provider_id=paws.uuid,
         )
         with schema_context(c.schema_name):
             awsceb.save()
@@ -93,11 +107,12 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         pazure.save()
+        create_test_provider(self.schema_name, pazure)
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=settings.UTC)
         period_end = datetime(2020, 2, 1, tzinfo=settings.UTC)
         azureceb = AzureCostEntryBill(
-            billing_period_start=period_start, billing_period_end=period_end, provider=pazure
+            billing_period_start=period_start, billing_period_end=period_end, provider_id=pazure.uuid
         )
         with schema_context(c.schema_name):
             azureceb.save()
@@ -128,10 +143,13 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         pgcp.save()
+        create_test_provider(self.schema_name, pgcp)
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=settings.UTC)
         period_end = datetime(2020, 2, 1, tzinfo=settings.UTC)
-        gcpceb = GCPCostEntryBill(billing_period_start=period_start, billing_period_end=period_end, provider=pgcp)
+        gcpceb = GCPCostEntryBill(
+            billing_period_start=period_start, billing_period_end=period_end, provider_id=pgcp.uuid
+        )
         with schema_context(c.schema_name):
             gcpceb.save()
 
@@ -161,11 +179,15 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         pocp.save()
+        create_test_provider(self.schema_name, pocp)
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=settings.UTC)
         period_end = datetime(2020, 2, 1, tzinfo=settings.UTC)
         ocpurp = OCPUsageReportPeriod(
-            cluster_id="584634154687685", report_period_start=period_start, report_period_end=period_end, provider=pocp
+            cluster_id="584634154687685",
+            report_period_start=period_start,
+            report_period_end=period_end,
+            provider_id=pocp.uuid,
         )
         with schema_context(c.schema_name):
             ocpurp.save()
@@ -196,6 +218,7 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         poci.save()
+        create_test_provider(self.schema_name, poci)
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=settings.UTC)
         period_end = datetime(2020, 2, 1, tzinfo=settings.UTC)
@@ -203,7 +226,7 @@ class TestProviderDeleteSQL(IamTestCase):
             billing_resource="546315338435",
             billing_period_start=period_start,
             billing_period_end=period_end,
-            provider=poci,
+            provider_id=poci.uuid,
         )
         with schema_context(c.schema_name):
             ociceb.save()
