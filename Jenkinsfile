@@ -115,7 +115,7 @@ pipeline {
                             source $CICD_ROOT/build.sh
                         fi
                     '''
-                )
+                }
             }
         }
 
