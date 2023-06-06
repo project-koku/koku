@@ -169,7 +169,7 @@ generators:
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
-                  mem_limit_gig: 4
+                  mem_limit_gig: 2
                   pod_seconds: 3600
                   labels: label_environment:dev|label_app:master|label_version:master
             openshift-kube-apiserver:
@@ -179,5 +179,5 @@ generators:
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
-                  mem_limit_gig: 4
+                  mem_limit_gig: 2
                   pod_seconds: 3600
