@@ -463,8 +463,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": openshift_provider_uuid,
             "matched_tag_array": matched_tag_strs,
         }
-        LOG.info("Running OCP on GCP daily SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP daily SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
