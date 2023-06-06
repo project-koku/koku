@@ -17,6 +17,7 @@ def insert_tenant_schema_providers(apps, schema_editor):
         tenant_provider.uuid = provider.uuid
         tenant_provider.name = provider.name
         tenant_provider.type = provider.type
+        tenant_provider.provider_id = provider.uuid
         tenant_provider.save()
 
 
