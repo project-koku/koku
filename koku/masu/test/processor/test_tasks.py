@@ -1540,7 +1540,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
         task_name = "masu.processor.tasks.update_openshift_on_cloud"
-        cache_args = [self.schema, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
+        cache_args = [
+            self.schema,
+            self.aws_provider_uuid,
+            self.ocp_on_aws_ocp_provider.uuid,
+            str(start_date.strftime("%Y-%m")),
+        ]
 
         manifest_dict = {
             "assembly_id": "12345",
