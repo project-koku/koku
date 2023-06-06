@@ -8,6 +8,7 @@ from unittest.mock import patch
 from masu.external.account_label import AccountLabel
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
 
 class AccountLabelTest(MasuTestCase):
@@ -15,19 +16,19 @@ class AccountLabelTest(MasuTestCase):
 
     def test_initializer(self):
         """Test AccountLabel initializer."""
-        auth = {"role_arn": "roleARN"}
+        auth = {"role_arn": fake_arn()}
         accessor = AccountLabel(auth, "org1234567", "AWS")
         self.assertIsInstance(accessor.label, AWSAccountAlias)
 
     def test_initializer_not_supported_provider(self):
         """Test AccountLabel initializer for unsupported provider."""
-        auth = {"role_arn": "roleARN"}
+        auth = {"role_arn": fake_arn()}
         accessor = AccountLabel(auth, "org1234567", "unsupported")
         self.assertIsNone(accessor.label)
 
     def test_get_label_details(self):
         """Test getting label details for supported provider."""
-        auth = {"role_arn": "roleARN"}
+        auth = {"role_arn": fake_arn()}
         accessor = AccountLabel(auth, "org1234567", "AWS")
         mock_id = 333
         mock_alias = "three"
@@ -38,7 +39,7 @@ class AccountLabelTest(MasuTestCase):
 
     def test_get_label_details_unsupported(self):
         """Test getting label details for supported provider."""
-        auth = {"role_arn": "roleARN"}
+        auth = {"role_arn": fake_arn()}
         accessor = AccountLabel(auth, "org1234567", "unsupported")
         account_id, alias = accessor.get_label_details()
         self.assertIsNone(account_id)

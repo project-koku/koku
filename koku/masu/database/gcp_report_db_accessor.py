@@ -18,6 +18,7 @@ from django.db.models import F
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -421,8 +422,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "node_count": node_count,
         }
 
-        LOG.info("Running OCP on GCP SQL with params (BY NODE):")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP SQL (by node)", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
@@ -503,8 +503,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "matching_type": matching_type,
         }
-        LOG.info("Running OCP on GCP SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP SQL (not by node)", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
@@ -522,21 +521,50 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     table_name, summary_sql, bind_params=list(summary_sql_params), operation="DELETE/INSERT"
                 )
 
+    def populate_ocp_on_gcp_ui_summary_tables_trino(
+        self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES
+    ):
+        """Populate our UI summary tables (formerly materialized views)."""
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+        invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
+        for invoice_month in invoice_month_list:
+            for table_name in tables:
+                summary_sql_params = {
+                    "schema_name": self.schema,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "year": year,
+                    "month": month,
+                    "days": days_tup,
+                    "invoice_month": invoice_month,
+                    "gcp_source_uuid": gcp_provider_uuid,
+                    "ocp_source_uuid": openshift_provider_uuid,
+                }
+                summary_sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
+                summary_sql = summary_sql.decode("utf-8")
+                self._execute_trino_raw_sql_query(
+                    summary_sql, sql_params=summary_sql_params, log_ref=f"{table_name}.sql"
+                )
+
     def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpgcpcostlineitem_project_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tGCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                ocp_source,
-                gcp_source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions",
+                    schema=self.schema,
+                    ocp_source=ocp_source,
+                    gcp_source=gcp_source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):

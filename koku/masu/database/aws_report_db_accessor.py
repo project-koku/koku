@@ -16,6 +16,7 @@ from django.db.models import F
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -177,21 +178,46 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
             self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
 
+    def populate_ocp_on_aws_ui_summary_tables_trino(
+        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, tables=OCPAWS_UI_SUMMARY_TABLES
+    ):
+        """Populate our UI summary tables (formerly materialized views)."""
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+
+        for table_name in tables:
+            summary_sql_params = {
+                "schema_name": self.schema,
+                "start_date": start_date,
+                "end_date": end_date,
+                "year": year,
+                "month": month,
+                "days": days_tup,
+                "aws_source_uuid": aws_provider_uuid,
+                "ocp_source_uuid": openshift_provider_uuid,
+            }
+            summary_sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            self._execute_trino_raw_sql_query(summary_sql, sql_params=summary_sql_params, log_ref=f"{table_name}.sql")
+
     def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpawscostlineitem_project_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tAWS Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                ocp_source,
-                aws_source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions",
+                    schema=self.schema,
+                    ocp_source=ocp_source,
+                    aws_source=aws_source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):
@@ -273,8 +299,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "node_column": node_column,
         }
-        LOG.info("Running OCP on AWS SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on AWS SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
@@ -320,6 +345,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_cost=(F("unblended_cost") * markup),
                     markup_cost_blended=(F("blended_cost") * markup),
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                    markup_cost_amortized=(F("calculated_amortized_cost") * markup),
                 )
 
                 OCPAWSCostLineItemProjectDailySummaryP.objects.filter(

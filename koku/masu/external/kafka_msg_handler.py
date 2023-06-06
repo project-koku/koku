@@ -117,12 +117,9 @@ def get_account_from_cluster_id(cluster_id, manifest_uuid, context={}):
 
     """
     account = None
-    provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
-    if provider_uuid:
-        msg = f"Found provider_uuid: {str(provider_uuid)} for cluster_id: {str(cluster_id)}"
-        LOG.info(log_json(manifest_uuid, msg, context))
-        if context:
-            context["provider_uuid"] = provider_uuid
+    if provider_uuid := utils.get_provider_uuid_from_cluster_id(cluster_id):
+        context |= {"provider_uuid": provider_uuid, "cluster_id": cluster_id}
+        LOG.info(log_json(manifest_uuid, msg="found provider for cluster-id", context=context))
         account = get_account(provider_uuid, manifest_uuid, context)
     return account
 
@@ -152,7 +149,7 @@ def download_payload(request_id, url, context={}):
     except requests.exceptions.HTTPError as err:
         shutil.rmtree(temp_dir)
         msg = f"Unable to download file. Error: {str(err)}"
-        LOG.warning(log_json(request_id, msg))
+        LOG.warning(log_json(request_id, msg=msg), exc_info=err)
         raise KafkaMsgHandlerError(msg)
 
     sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
@@ -165,7 +162,7 @@ def download_payload(request_id, url, context={}):
     except OSError as error:
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
         raise KafkaMsgHandlerError(msg)
 
     return (temp_dir, temp_file, gzip_filename)
@@ -189,7 +186,7 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
 
     if not os.path.isfile(tarball_path):
         msg = f"Unable to find tar file {tarball_path}."
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError("Extraction failure, file not found.")
 
     try:
@@ -199,13 +196,13 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
         manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
     except (ReadError, EOFError, OSError) as error:
         msg = f"Unable to untar file {tarball_path}. Reason: {str(error)}"
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg=msg, context=context))
         shutil.rmtree(out_dir)
         raise KafkaMsgHandlerError("Extraction failure.")
 
     if not manifest_path:
         msg = "No manifest found in payload."
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError("No manifest found in payload.")
 
     return manifest_path
@@ -285,19 +282,23 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     # Filter and get account from payload's cluster-id
     cluster_id = report_meta.get("cluster_id")
     manifest_uuid = report_meta.get("uuid", request_id)
+    context |= {
+        "request_id": request_id,
+        "cluster_id": cluster_id,
+        "manifest_uuid": manifest_uuid,
+    }
     LOG.info(
         log_json(
             request_id,
-            f"Payload with the request id {request_id} from cluster {cluster_id}"
+            msg=f"Payload with the request id {request_id} from cluster {cluster_id}"
             + f" is part of the report with manifest id {manifest_uuid}",
+            context=context,
         )
     )
-    if context:
-        context["cluster_id"] = cluster_id
     account = get_account_from_cluster_id(cluster_id, manifest_uuid, context)
     if not account:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
-        LOG.warning(log_json(manifest_uuid, msg, context))
+        LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
         shutil.rmtree(temp_dir)
         return None, manifest_uuid
     schema_name = account.get("schema_name")
@@ -344,7 +345,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     except Exception as e:
         # If a ROS report fails to process, this should not prevent Koku processing from continuing.
         msg = f"ROS reports not processed for payload. Reason: {e}"
-        LOG.warning(log_json(manifest_uuid, msg, context))
+        LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
     for report_file in manifest_files:
         current_meta = report_meta.copy()
         payload_source_path = f"{subdirectory}/{report_file}"
@@ -357,12 +358,12 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
                 # Report already processed
                 continue
             msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
-            LOG.info(log_json(manifest_uuid, msg, context))
+            LOG.info(log_json(manifest_uuid, msg=msg, context=context))
             construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
             report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
-            LOG.debug(log_json(manifest_uuid, msg, context))
+            LOG.debug(log_json(manifest_uuid, msg=msg, context=context))
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_metas, manifest_uuid
@@ -438,18 +439,18 @@ def handle_message(kmsg):
     context = {"account": account, "org_id": org_id}
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg=msg, context=context))
         report_metas, manifest_uuid = extract_payload(value["url"], request_id, value["b64_identity"], context)
         return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()
         msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError(msg) from error
     except Exception as error:  # noqa
         traceback.print_exc()
         msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
 
 
@@ -477,7 +478,7 @@ def get_account(provider_uuid, manifest_uuid, context={}):
         all_accounts = AccountsAccessor().get_accounts(provider_uuid)
     except AccountsAccessorError as error:
         msg = f"Unable to get accounts. Error: {str(error)}"
-        LOG.warning(log_json(manifest_uuid, msg, context))
+        LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
         return None
 
     return all_accounts.pop() if all_accounts else None
@@ -507,11 +508,12 @@ def summarize_manifest(report_meta, manifest_uuid):
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
-    context = {"account": report_meta.get("schema_name"), "provider_uuid": str(provider_uuid)}
+    context = {"account": schema_name, "provider_uuid": str(provider_uuid), "schema": schema_name}
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
             new_report_meta = {
+                "schema": schema_name,
                 "schema_name": schema_name,
                 "provider_type": provider_type,
                 "provider_uuid": provider_uuid,
@@ -531,18 +533,18 @@ def summarize_manifest(report_meta, manifest_uuid):
                         # The full CR status is logged below, but we should limit our alert to just the query.
                         # We can check the full manifest to get the full error.
                         LOG.error(msg)
-                        LOG.info(log_json(manifest_uuid, msg, context))
+                        LOG.info(log_json(manifest_uuid, msg=msg, context=context))
                     LOG.info(
-                        log_json(manifest_uuid, f"CR Status for invalid manifest: {json.dumps(cr_status)}", context)
+                        log_json(
+                            manifest_uuid,
+                            msg=f"CR Status for invalid manifest: {json.dumps(cr_status)}",
+                            context=context,
+                        )
                     )
                     return  # an invalid payload will fail to summarize, so return before we try
-                LOG.info(
-                    log_json(
-                        manifest_uuid,
-                        f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}",
-                        context,
-                    )
-                )
+                context["start_date"] = start_date
+                context["end_date"] = end_date
+                LOG.info(log_json(manifest_uuid, msg="summarizing ocp reports", context=context))
                 new_report_meta["start"] = start_date
                 new_report_meta["end"] = end_date
                 new_report_meta["manifest_uuid"] = manifest_uuid
@@ -657,19 +659,19 @@ def process_messages(msg):
     if report_metas:
         for report_meta in report_metas:
             report_meta["process_complete"] = process_report(request_id, report_meta)
-            LOG.info(log_json(tracing_id, f"Processing: {report_meta.get('current_file')} complete."))
+            LOG.info(log_json(tracing_id, msg=f"Processing: {report_meta.get('current_file')} complete."))
         process_complete = report_metas_complete(report_metas)
         summary_task_id = summarize_manifest(report_meta, tracing_id)
         if summary_task_id:
-            LOG.info(log_json(tracing_id, f"Summarization celery uuid: {summary_task_id}"))
+            LOG.info(log_json(tracing_id, msg=f"Summarization celery uuid: {summary_task_id}"))
 
     if status:
         if report_metas:
             file_list = [meta.get("current_file") for meta in report_metas]
             files_string = ",".join(map(str, file_list))
-            LOG.info(log_json(tracing_id, f"Sending Ingress Service confirmation for: {files_string}"))
+            LOG.info(log_json(tracing_id, msg=f"Sending Ingress Service confirmation for: {files_string}"))
         else:
-            LOG.info(log_json(tracing_id, f"Sending Ingress Service confirmation for: {value}"))
+            LOG.info(log_json(tracing_id, msg=f"Sending Ingress Service confirmation for: {value}"))
         send_confirmation(value["request_id"], status)
 
     return process_complete

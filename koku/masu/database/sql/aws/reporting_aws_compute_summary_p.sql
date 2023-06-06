@@ -16,9 +16,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
     unblended_cost,
     blended_cost,
     savingsplan_effective_cost,
+    calculated_amortized_cost,
     markup_cost,
     markup_cost_blended,
     markup_cost_savingsplan,
+    markup_cost_amortized,
     currency_code,
     source_uuid
 )
@@ -33,9 +35,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
         c.unblended_cost,
         c.blended_cost,
         c.savingsplan_effective_cost,
+        c.calculated_amortized_cost,
         c.markup_cost,
         c.markup_cost_blended,
         c.markup_cost_savingsplan,
+        c.markup_cost_amortized,
         c.currency_code,
         c.source_uuid
     FROM (
@@ -47,9 +51,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             SUM(unblended_cost) AS unblended_cost,
             SUM(blended_cost) AS blended_cost,
             SUM(coalesce(savingsplan_effective_cost, 0.0::numeric(24,9))) AS savingsplan_effective_cost,
+            SUM(coalesce(calculated_amortized_cost, 0.0::numeric(33,9))) AS calculated_amortized_cost,
             SUM(markup_cost) AS markup_cost,
             SUM(coalesce(markup_cost_blended, 0.0::numeric(33,15))) AS markup_cost_blended,
             SUM(coalesce(markup_cost_savingsplan, 0.0::numeric(33,15))) AS markup_cost_savingsplan,
+            SUM(coalesce(markup_cost_amortized, 0.0::numeric(33,9))) AS markup_cost_amortized,
             MAX(currency_code) AS currency_code,
             {{source_uuid}}::uuid as source_uuid
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary

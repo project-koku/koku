@@ -180,7 +180,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except ValidationError as ex:
             msg = "GCP source for  is not reachable."
             extra_context = {"customer": self.customer_name, "response": str(ex)}
-            LOG.warning(log_json(self.tracing_id, msg, self.context | extra_context))
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
             raise GCPReportDownloaderError(str(ex))
         self.big_query_export_time = None
         if self.ingress_reports:
@@ -265,12 +265,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=datetime.timezone.utc)
+                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
         except GoogleCloudError as err:
-            err_msg = "Could not query table for partition date information."
+            msg = "Could not query table for partition date information."
             extra_context = {"customer": self.customer_name, "response": err.message}
-            LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
-            raise GCPReportDownloaderError(err_msg)
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
+            raise GCPReportDownloaderError(msg)
         return mapping
 
     def collect_new_manifests(self, current_manifests, bigquery_mappings):
@@ -297,14 +297,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 }
                 new_manifests.append(manifest_metadata)
         if not new_manifests:
-            stmt = "No new manifests created."
+            msg = "No new manifests created."
             extra_context = {
                 "scan_start": str(self.scan_start),
                 "scan_end": str(self.scan_end),
                 "bigquery mapping count": len(bigquery_mappings),
                 "current manifest count": len(current_manifests),
             }
-            LOG.info(log_json(self.tracing_id, stmt, self.context | extra_context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
         return new_manifests
 
     def get_manifest_context_for_date(self, date):
@@ -324,13 +324,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         reports_list = []
         if self.storage_only and not self.ingress_reports:
-            log_msg = "Skipping ingest as source is storage_only and requires ingress reports"
-            LOG.info(log_json(self.tracing_id, log_msg, self.context))
+            msg = "Skipping ingest as source is storage_only and requires ingress reports"
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             return reports_list
         dh = DateHelper()
         if isinstance(date, datetime.datetime):
             date = date.date()
-        log_msg = "New manifest to be created."
+        msg = "New manifest to be created."
         extra_context = {
             "scan_start": str(self.scan_start),
             "scan_end": str(self.scan_end),
@@ -340,7 +340,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest = self._generate_monthly_pseudo_manifest(date)
             extra_context["manifest_data"] = manifest
             assembly_id = manifest.get("assembly_id")
-            LOG.info(log_json(self.tracing_id, log_msg, self.context | extra_context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
             manifest_id = self._process_manifest_db_record(
                 assembly_id,
                 date.strftime("%Y-%m-%d"),
@@ -362,7 +362,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
             for manifest in new_manifest_list:
                 extra_context["manifest_data"] = manifest
-                LOG.info(log_json(self.tracing_id, log_msg, self.context | extra_context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
                 manifest_id = self._process_manifest_db_record(
                     manifest["assembly_id"],
                     manifest["bill_date"],
@@ -442,10 +442,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 full_local_path = self._get_local_file_path(directory_path, key)
                 blob.download_to_filename(full_local_path)
             except GoogleCloudError as err:
-                err_msg = "Could not find or download file from bucket."
+                msg = "Could not find or download file from bucket."
                 extra_context = {"customer": self.customer_name, "response": err.message}
-                LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
-                raise GCPReportDownloaderError(err_msg)
+                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
+                raise GCPReportDownloaderError(msg)
             paths_list.append(full_local_path)
         else:
             try:
@@ -459,33 +459,33 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 client = bigquery.Client()
                 query_job = client.query(query).result()
             except GoogleCloudError as err:
-                err_msg = "Could not query table for billing information."
+                msg = "Could not query table for billing information."
                 extra_context = {"customer": self.customer_name, "response": err.message}
-                LOG.warning(log_json(self.tracing_id, err_msg, self.context | extra_context))
-                raise GCPReportDownloaderError(err_msg)
+                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
+                raise GCPReportDownloaderError(msg)
             except UnboundLocalError:
-                err_msg = f"Error recovering start and end date from csv key ({key})."
-                raise GCPReportDownloaderError(err_msg)
+                msg = f"Error recovering start and end date from csv key ({key})."
+                raise GCPReportDownloaderError(msg)
             try:
                 column_list = self.gcp_big_query_columns.copy()
                 column_list.append("partition_date")
                 for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
                     full_local_path = self._get_local_file_path(directory_path, partition_date, i)
                     msg = f"Downloading subset of {partition_date} to {full_local_path}"
-                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                     with open(full_local_path, "w") as f:
                         writer = csv.writer(f)
                         writer.writerow(column_list)
                         writer.writerows(rows)
                     paths_list.append(full_local_path)
             except OSError as exc:
-                err_msg = (
+                msg = (
                     "Could not create GCP billing data csv file."
                     f"\n  Provider: {self._provider_uuid}"
                     f"\n  Customer: {self.customer_name}"
                     f"\n  Response: {exc}"
                 )
-                raise GCPReportDownloaderError(err_msg)
+                raise GCPReportDownloaderError(msg)
 
         file_names, date_range = create_daily_archives(
             self.tracing_id,
@@ -530,7 +530,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         else:
             local_file_name = key.replace("/", "_") + f"_{str(iterable_num)}.csv"
         msg = f"Local filename: {local_file_name}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path
 

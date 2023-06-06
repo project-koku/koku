@@ -151,7 +151,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             OCIProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
             msg = f"OCI source ({self._provider_uuid}) for {self.customer_name} is not reachable. Error: {ex}"
-            LOG.warning(log_json(self.tracing_id, msg, self.context))
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
             raise OCIReportDownloaderError(str(ex))
 
     @staticmethod
@@ -388,9 +388,9 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             file_creation_date = None
             msg = f"Returning full_file_path: {full_local_path}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             msg = f"Downloading {key} to {full_local_path}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             report_file = self._oci_client.get_object(bucket_namespace, bucket, key)
 
             with open(full_local_path, "wb") as f:
@@ -453,6 +453,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_file_name = key.replace("/", "_")
         msg = f"Local filename: {local_file_name}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path
