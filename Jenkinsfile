@@ -62,10 +62,10 @@ pipeline {
         stage('Verify labels') {
             steps {
                 sh '''
-                    if [ sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true", returnStdout: true) == true ]; then
+                    if [ egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true == true ]; then
                         echo PR check skipped
                         EXIT_CODE=1
-                    elif sh(script: "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true", returnStdout: true) == true; then
+                    elif [ "egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true == true ]; then
                         echo smokes not required
                         EXIT_CODE=-1
                     else
