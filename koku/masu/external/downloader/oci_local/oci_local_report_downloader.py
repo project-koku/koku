@@ -221,10 +221,10 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         file_creation_date = None
         msg = f"Returning full_file_path: {full_file_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         if not os.path.isfile(full_file_path):
             msg = f"Downloading {base_path} to {full_file_path}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             shutil.copy2(base_path, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
@@ -245,8 +245,8 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.remove(manifest_file)
             msg = f"Deleted manifest file at {manifest_file}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         except OSError:
             msg = f"Could not delete manifest file at {manifest_file}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         return None

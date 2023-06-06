@@ -97,14 +97,14 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
     for report in report_files:
         try:
             with ReportStatsDBAccessor(report, manifest_id):
-                LOG.debug(log_json(tracing_id, f"Logging {report} for manifest ID: {manifest_id}"))
+                LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
             # two listeners to recieve a report file for the same manifest at
             # roughly the same time.  In that case the report file may already
             # exist and an IntegrityError would be thrown.
-            LOG.debug(log_json(tracing_id, f"Report {report} has already been recorded."))
+            LOG.debug(log_json(tracing_id, msg=f"Report {report} has already been recorded."))
 
 
 def record_report_status(manifest_id, file_name, tracing_id, context={}):
@@ -133,7 +133,7 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
             msg = f"Report {file_name} has already been processed."
         else:
             msg = f"Recording stats entry for {file_name}"
-        LOG.info(log_json(tracing_id, msg, context))
+        LOG.info(log_json(tracing_id, msg=msg, context=context))
     return already_processed
 
 
@@ -204,16 +204,16 @@ def get_report_files(  # noqa: C901
         except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
             worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             WorkerCache().remove_task_from_cache(cache_key)
-            LOG.warning(log_json(tracing_id, str(err), context))
+            LOG.warning(log_json(tracing_id, msg=str(err), context=context), exc_info=err)
             return
 
         if report_dict:
             context["file"] = report_dict["file"]
             context["invoice_month"] = report_dict.get("invoice_month")
-            LOG.info(log_json(tracing_id, "reports to be processed", context))
+            LOG.info(log_json(tracing_id, msg="reports to be processed", context=context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
-            LOG.info(log_json(tracing_id, "no report to be processed", context))
+            LOG.info(log_json(tracing_id, msg="no report to be processed", context=context))
             return
 
         report_meta = {
@@ -228,7 +228,7 @@ def get_report_files(  # noqa: C901
         }
 
         try:
-            LOG.info(log_json(tracing_id, "processing starting", context))
+            LOG.info(log_json(tracing_id, msg="processing starting", context=context))
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
             report_dict["tracing_id"] = tracing_id
@@ -240,25 +240,25 @@ def get_report_files(  # noqa: C901
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(log_json(tracing_id, f"Report processing error: {processing_error}", context))
+            LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
-            LOG.info(log_json(tracing_id, f"Not implemented error: {err}", context))
+            LOG.info(log_json(tracing_id, msg=f"Not implemented error: {err}", context=context))
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
         if not result:
-            LOG.info(log_json(tracing_id, "no report files processed, skipping summary", context))
+            LOG.info(log_json(tracing_id, msg="no report files processed, skipping summary", context=context))
             return None
 
         return report_meta
     except ReportDownloaderWarning as err:
-        LOG.warning(log_json(tracing_id, f"Report downloader Warning: {err}", context))
+        LOG.warning(log_json(tracing_id, msg=f"Report downloader Warning: {err}", context=context), exc_info=err)
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(log_json(tracing_id, f"Unknown downloader exception: {err}", context))
+        LOG.error(log_json(tracing_id, msg=f"Unknown downloader exception: {err}", context=context), exc_info=err)
         WorkerCache().remove_task_from_cache(cache_key)
 
 
@@ -281,7 +281,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
         "provider_type": provider,
         "provider_uuid": provider_uuid,
     }
-    LOG.info(log_json("remove_expired_data", "removing expired data", context))
+    LOG.info(log_json("remove_expired_data", msg="removing expired data", context=context))
     _remove_expired_data(schema_name, provider, simulate, provider_uuid)
 
 
@@ -309,7 +309,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
         Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
         Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
     }
-    LOG.info(log_json("summarize_reports", "deduplicating reports"))
+    LOG.info(log_json("summarize_reports", msg="deduplicating reports"))
     for report_list in reports_by_source.values():
         if report and report.get("provider_type") in dedup_func_map:
             provider_type = report.get("provider_type")
@@ -337,7 +337,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
                 }
             )
 
-    LOG.info(log_json("summarize_reports", f"deduplicated reports, num report: {len(reports_deduplicated)}"))
+    LOG.info(log_json("summarize_reports", msg=f"deduplicated reports, num report: {len(reports_deduplicated)}"))
     for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
@@ -349,10 +349,10 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
 
             if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
-                LOG.info(log_json(tracing_id, "manifest not ready for summary", report))
+                LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
                 continue
 
-            LOG.info(log_json(tracing_id, "report to summarize", report))
+            LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
 
             months = get_months_in_date_range(report)
             for month in months:
@@ -437,7 +437,7 @@ def update_summary_tables(  # noqa: C901
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg))
+            LOG.debug(log_json(tracing_id, msg=msg))
             update_summary_tables.s(
                 schema,
                 provider_type,
@@ -457,8 +457,8 @@ def update_summary_tables(  # noqa: C901
     LOG.info(
         log_json(
             tracing_id,
-            "starting summary table update",
-            context,
+            msg="starting summary table update",
+            context=context,
             start_date=start_date,
             end_date=end_date,
             invoice_month=invoice_month,
@@ -473,13 +473,13 @@ def update_summary_tables(  # noqa: C901
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
-        LOG.info(log_json(tracing_id, f"failed to correlate OpenShift metrics: error: {ex}", context))
+        LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
 
     except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
         LOG.warning(
             log_json(
                 tracing_id,
-                (
+                msg=(
                     f"{pnf_ex} Possible source/provider delete during processing. "
                     + "Processing for this provier will halt."
                 ),
@@ -502,7 +502,9 @@ def update_summary_tables(  # noqa: C901
         cost_model = None
         LOG.info(
             log_json(
-                tracing_id, "markup calculated during summarization so not running update_cost_model_costs", context
+                tracing_id,
+                msg="markup calculated during summarization so not running update_cost_model_costs",
+                context=context,
             )
         )
     else:
@@ -548,7 +550,7 @@ def update_summary_tables(  # noqa: C901
 
     # Apply OCP on Cloud tasks
     if signature_list:
-        LOG.info(log_json(tracing_id, "chaining deletes and summaries", context))
+        LOG.info(log_json(tracing_id, msg="chaining deletes and summaries", context=context))
         deletes = group(delete_signature_list)
         summaries = group(signature_list)
         c = chain(deletes, summaries)
@@ -561,7 +563,7 @@ def update_summary_tables(  # noqa: C901
         manifest_list = [manifest_id]
 
     if cost_model is not None:
-        LOG.info(log_json(tracing_id, "updating cost model costs", context))
+        LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
@@ -570,7 +572,7 @@ def update_summary_tables(  # noqa: C901
             queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
         )
     else:
-        LOG.info(log_json(tracing_id, "skipping cost model updates", context))
+        LOG.info(log_json(tracing_id, msg="skipping cost model updates", context=context))
         linked_tasks = mark_manifest_complete.s(
             schema,
             provider_type,
@@ -648,7 +650,7 @@ def update_openshift_on_cloud(
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema_name} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg))
+            LOG.debug(log_json(tracing_id, msg=msg))
             update_openshift_on_cloud.s(
                 schema_name,
                 openshift_provider_uuid,
@@ -663,19 +665,18 @@ def update_openshift_on_cloud(
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
-    stmt = (
-        f"update_openshift_on_cloud called with args: "
-        f" schema_name: {schema_name}, "
-        f" openshift_provider_uuid: {openshift_provider_uuid}, "
-        f" infrastructure_provider_uuid: {infrastructure_provider_uuid}, "
-        f" infrastructure_provider_type: {infrastructure_provider_type}, "
-        f" start_date: {start_date}, "
-        f" end_date: {end_date}, "
-        f" manifest_id: {manifest_id}, "
-        f" queue_name: {queue_name}, "
-        f" tracing_id: {tracing_id}"
-    )
-    LOG.info(log_json(tracing_id, stmt))
+
+    ctx = {
+        "schema": schema_name,
+        "ocp_provider_uuid": openshift_provider_uuid,
+        "provider_type": infrastructure_provider_type,
+        "provider_uuid": infrastructure_provider_uuid,
+        "start_date": start_date,
+        "end_date": end_date,
+        "manifest_id": manifest_id,
+        "queue_name": queue_name,
+    }
+    LOG.info(log_json(tracing_id, msg="updating ocp on cloud", context=ctx))
 
     try:
         updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
@@ -691,13 +692,10 @@ def update_openshift_on_cloud(
         LOG.info(
             log_json(
                 tracing_id,
-                (
-                    f"update_openshift_on_cloud failed for: {infrastructure_provider_type} ",
-                    f"provider: {infrastructure_provider_uuid}, ",
-                    f"OpenShift provider {openshift_provider_uuid}. \nError: {ex}\n",
-                    f"Retry {self.request.retries} of {settings.MAX_UPDATE_RETRIES}",
-                ),
-            )
+                msg=f"updating ocp on cloud failed: retry {self.request.retries} of {settings.MAX_UPDATE_RETRIES}",
+                context=ctx,
+            ),
+            exc_info=ex,
         )
         raise ReportSummaryUpdaterCloudError
     finally:
@@ -768,7 +766,7 @@ def update_cost_model_costs(
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.debug(log_json(tracing_id, msg))
+            LOG.debug(log_json(tracing_id, msg=msg))
             update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
@@ -789,7 +787,7 @@ def update_cost_model_costs(
         "start_date": start_date,
         "end_date": end_date,
     }
-    LOG.info(log_json(tracing_id, "updating cost model costs", context))
+    LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
     try:
         if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
@@ -822,13 +820,13 @@ def mark_manifest_complete(  # noqa: C901
         "ingress_report_uuid": ingress_report_uuid,
         "manifest_list": manifest_list,
     }
-    LOG.info(log_json(tracing_id, "marking manifest complete", context))
+    LOG.info(log_json(tracing_id, msg="marking manifest complete", context=context))
     if provider_uuid:
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     with ReportManifestDBAccessor() as manifest_accessor:
         manifest_accessor.mark_manifests_as_completed(manifest_list)
     if ingress_report_uuid:
-        LOG.info(log_json(tracing_id, "marking ingress report complete", context))
+        LOG.info(log_json(tracing_id, msg="marking ingress report complete", context=context))
         with IngressReportDBAccessor(schema) as ingressreport_accessor:
             ingressreport_accessor.mark_ingress_report_as_completed(ingress_report_uuid)
 

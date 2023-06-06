@@ -163,7 +163,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 blob = self._azure_client.get_file_for_key(report, self.container_name)
             except AzureCostReportNotFound as ex:
                 msg = f"Unable to find report. Error: {ex}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                 return manifest, None
             report_name = blob.name
             last_modified = blob.last_modified
@@ -184,7 +184,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if json_manifest:
                 report_name = json_manifest.name
                 last_modified = json_manifest.last_modified
-                LOG.info(log_json(self.tracing_id, f"Found JSON manifest {report_name}", self.context))
+                LOG.info(log_json(self.tracing_id, msg=f"Found JSON manifest {report_name}", context=self.context))
                 # Download the manifest and extract the list of files.
                 try:
                     manifest_tmp = self._azure_client.download_file(
@@ -192,7 +192,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     )
                 except AzureReportDownloaderError as err:
                     msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
-                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                     return {}, None
                 # Extract data from the JSON file
                 try:
@@ -209,11 +209,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
                 except AzureCostReportNotFound as ex:
                     msg = f"Unable to find manifest. Error: {ex}"
-                    LOG.info(log_json(self.tracing_id, msg, self.context))
+                    LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                     return manifest, None
                 report_name = blob.name
                 last_modified = blob.last_modified
-                LOG.info(log_json(self.tracing_id, f"Found cost export {report_name}", self.context))
+                LOG.info(log_json(self.tracing_id, msg=f"Found cost export {report_name}", context=self.context))
                 manifest["reportKeys"] = [report_name]
 
             try:
@@ -232,10 +232,10 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.unlink(manifest_file)
             msg = f"Deleted manifest file '{manifest_file}'"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         except OSError:
             msg = f"Could not delete manifest file '{manifest_file}'"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
     def get_manifest_context_for_date(self, date):
         """
@@ -319,13 +319,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 file_creation_date = blob.last_modified
             except AzureCostReportNotFound as ex:
                 msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
-                LOG.error(log_json(self.tracing_id, msg, self.context))
+                LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
                 raise AzureReportDownloaderError(msg)
 
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
         msg = f"Downloading {key} to {full_file_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         self._azure_client.download_file(
             key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
         )
@@ -345,5 +345,5 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_accessor.mark_s3_csv_cleared(manifest)
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         return full_file_path, etag, file_creation_date, [], {}
