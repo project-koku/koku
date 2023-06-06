@@ -60,11 +60,6 @@ pipeline {
         }
 
         stage('Verify labels') {
-            when {
-                expression {
-                    sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true", returnStdout: true) == true
-                }
-            }
             steps {
                 sh '''
                     if [ sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true", returnStdout: true) == true ]; then
