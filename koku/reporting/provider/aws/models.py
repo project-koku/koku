@@ -85,10 +85,7 @@ class AWSCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True)
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
-    )
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
 
 
 class AWSCostEntryLineItemDailySummary(models.Model):
@@ -221,10 +218,7 @@ class AWSOrganizationalUnit(models.Model):
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
     created_timestamp = models.DateField(auto_now_add=True)
     deleted_timestamp = models.DateField(null=True)
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
-    )
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         """Convert to string."""
@@ -328,10 +322,7 @@ class AWSCostSummaryP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -373,10 +364,7 @@ class AWSCostSummaryByServiceP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -413,10 +401,7 @@ class AWSCostSummaryByAccountP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -460,10 +445,7 @@ class AWSCostSummaryByRegionP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -505,10 +487,7 @@ class AWSComputeSummaryP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -553,10 +532,7 @@ class AWSComputeSummaryByAccountP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -596,10 +572,7 @@ class AWSStorageSummaryP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -642,10 +615,7 @@ class AWSStorageSummaryByAccountP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -688,10 +658,7 @@ class AWSNetworkSummaryP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
 
 
@@ -734,8 +701,5 @@ class AWSDatabaseSummaryP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    reporting_provider = models.ForeignKey(
-        "reporting.Provider", on_delete=models.CASCADE, null=True, db_column="provider_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )

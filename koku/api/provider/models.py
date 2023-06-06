@@ -235,6 +235,7 @@ class Provider(models.Model):
         # Provider ---> <branch-table> ---> x...
         # Make sure that any table(s) in the public schema are first.
         _cascade_branch_tables = (
+            "reporting_tenant_api_provider",
             "reporting_common_costusagereportmanifest",
             f"reporting_{self._normalized_type}costentrybill",
             f"reporting_{self._normalized_type}meter",

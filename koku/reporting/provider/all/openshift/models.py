@@ -225,7 +225,9 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, db_column="source_uuid", null=True)
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
+    )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
@@ -282,7 +284,9 @@ class OCPAllCostLineItemProjectDailySummaryP(models.Model):
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, db_column="source_uuid", null=True)
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
+    )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
@@ -315,7 +319,7 @@ class OCPAllCostSummaryPT(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -350,7 +354,7 @@ class OCPAllCostSummaryByAccountPT(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -389,7 +393,7 @@ class OCPAllCostSummaryByServicePT(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -428,7 +432,7 @@ class OCPAllCostSummaryByRegionPT(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -469,7 +473,7 @@ class OCPAllComputeSummaryPT(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -507,7 +511,7 @@ class OCPAllDatabaseSummaryPT(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -544,7 +548,7 @@ class OCPAllNetworkSummaryPT(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -584,7 +588,7 @@ class OCPAllStorageSummaryPT(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     source_type = models.TextField(default="")
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)

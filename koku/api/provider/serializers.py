@@ -22,7 +22,7 @@ from api.provider.models import ProviderBillingSource
 from api.utils import DateHelper
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import ProviderErrors
-from reporting.provider.models import Provider as TenantProvider
+from reporting.models import TenantAPIProvider
 
 LOG = logging.getLogger(__name__)
 
@@ -373,11 +373,11 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.save()
 
         with schema_context(customer.schema_name):
-            tenant_provider = TenantProvider()
-            tenant_provider.uuid = provider.uuid
-            tenant_provider.name = provider.name
-            tenant_provider.type = provider.type
-            tenant_provider.save()
+            tenant_api_provider = TenantAPIProvider()
+            tenant_api_provider.uuid = provider.uuid
+            tenant_api_provider.name = provider.name
+            tenant_api_provider.type = provider.type
+            tenant_api_provider.save()
 
         customer.date_updated = DateHelper().now_utc
         customer.save()
@@ -434,11 +434,11 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.save()
 
             with schema_context(customer.schema_name):
-                tenant_provider = TenantProvider()
-                tenant_provider.uuid = instance.uuid
-                tenant_provider.name = instance.name
-                tenant_provider.type = instance.type
-                tenant_provider.save()
+                tenant_api_provider = TenantAPIProvider()
+                tenant_api_provider.uuid = instance.uuid
+                tenant_api_provider.name = instance.name
+                tenant_api_provider.type = instance.type
+                tenant_api_provider.save()
 
             customer.date_updated = DateHelper().now_utc
             customer.save()

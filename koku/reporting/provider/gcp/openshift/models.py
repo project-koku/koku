@@ -185,7 +185,7 @@ class OCPGCPCostSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -222,7 +222,7 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -258,7 +258,7 @@ class OCPGCPCostSummaryByRegionP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -294,7 +294,7 @@ class OCPGCPCostSummaryByServiceP(models.Model):
     currency = models.TextField(null=True)
     account_id = models.CharField(max_length=50, null=False)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
@@ -327,7 +327,7 @@ class OCPGCPCostSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -361,7 +361,7 @@ class OCPGCPComputeSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -398,7 +398,7 @@ class OCPGCPDatabaseSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -434,7 +434,7 @@ class OCPGCPNetworkSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -470,7 +470,7 @@ class OCPGCPStorageSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
