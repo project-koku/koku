@@ -1,4 +1,3 @@
--- Now create our proper table if it does not exist
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.gcp_openshift_daily
 (
     invoice_month varchar,
