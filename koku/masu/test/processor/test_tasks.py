@@ -1159,7 +1159,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         update_openshift_on_cloud(
             self.schema,
-            self.ocp_on_aws_ocp_provider.uuid,
+            self.ocpaws_provider_uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
             start_date,
@@ -1171,7 +1171,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             update_openshift_on_cloud(
                 self.schema,
-                self.ocp_on_aws_ocp_provider.uuid,
+                self.ocpaws_provider_uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
                 start_date,
@@ -1192,7 +1192,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_openshift_on_cloud(
                 self.schema,
-                self.ocp_on_aws_ocp_provider.uuid,
+                self.ocpaws_provider_uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
                 start_date,
@@ -1543,7 +1543,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache_args = [
             self.schema,
             self.aws_provider_uuid,
-            self.ocp_on_aws_ocp_provider.uuid,
+            self.ocpaws_provider_uuid,
             str(start_date.strftime("%Y-%m")),
         ]
 
@@ -1560,7 +1560,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
         update_openshift_on_cloud(
             self.schema,
-            self.ocp_on_aws_ocp_provider.uuid,
+            self.ocpaws_provider_uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
             start_date,
@@ -1569,7 +1569,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay.assert_not_called()
         update_openshift_on_cloud(
             self.schema,
-            self.ocp_on_aws_ocp_provider.uuid,
+            self.ocpaws_provider_uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
             start_date,
@@ -1577,7 +1577,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         )
         update_openshift_on_cloud(
             self.schema,
-            self.ocp_on_aws_ocp_provider.uuid,
+            self.ocpaws_provider_uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
             start_date,
@@ -1596,7 +1596,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
                 mock_delay.reset_mock()
                 update_openshift_on_cloud(
                     self.schema,
-                    self.ocp_on_aws_ocp_provider.uuid,
+                    self.ocpaws_provider_uuid,
                     self.aws_provider_uuid,
                     Provider.PROVIDER_AWS,
                     start_date,
@@ -1608,7 +1608,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
                 update_openshift_on_cloud(
                     self.schema,
-                    self.ocp_on_aws_ocp_provider.uuid,
+                    self.ocpaws_provider_uuid,
                     self.aws_provider_uuid,
                     Provider.PROVIDER_AWS,
                     start_date,
