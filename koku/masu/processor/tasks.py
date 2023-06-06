@@ -694,7 +694,7 @@ def update_openshift_on_cloud(
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
-    cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
+    cache_args = [schema_name, infrastructure_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
