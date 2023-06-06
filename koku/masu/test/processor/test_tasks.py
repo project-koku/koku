@@ -673,7 +673,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         super().setUp()
         self.aws_accessor = AWSReportDBAccessor(schema=self.schema)
         self.ocp_accessor = OCPReportDBAccessor(schema=self.schema)
-        self.dh = DateHelper()
 
         # Populate some line item data so that the summary tables
         # have something to pull from
