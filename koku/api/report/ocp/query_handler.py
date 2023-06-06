@@ -7,6 +7,8 @@ import copy
 import datetime
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
+from dataclasses import field
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
@@ -23,12 +25,58 @@ from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 
 LOG = logging.getLogger(__name__)
+
+
+@dataclass
+class CapacitySubsets:
+    key: str
+    level_key: str
+    resolution: str
+    total: Decimal = Decimal(0)
+    resolution_total: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
+    resolution_level_total: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
+    by_level: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
+
+    def add(self, cap_value, usage_start, level_value):
+        self.total += cap_value
+        if self.resolution == "daily":
+            if isinstance(usage_start, datetime.date):
+                usage_start = usage_start.isoformat()
+            self.by_level[level_value] += cap_value
+            self.resolution_level_total[usage_start][level_value] += cap_value
+            self.resolution_total[usage_start] += cap_value
+        elif self.resolution == "monthly":
+            month = usage_start.month
+            self.by_level[level_value] += cap_value
+            self.resolution_total[month] += cap_value
+            self.resolution_level_total[month][level_value] += cap_value
+
+
+def _calculate_unused(row):
+    """Calculates the unused portions of the capacity & request."""
+    # Populate unused request and capacity
+    capacity = row.get("capacity", Decimal(0))
+    if capacity <= 0:
+        capacity = 1  # prevents dividing by zero
+    usage = row.get("usage", 0)
+    request = row.get("request", 0)
+    effective_usage = max(usage, request)
+    unused_capacity = max(capacity - effective_usage, 0)
+    capacity_unused_percent = (unused_capacity / capacity) * 100
+    row["capacity_unused"] = unused_capacity
+    row["capacity_unused_percent"] = capacity_unused_percent
+    unused_request = max(request - usage, 0)
+    row["request_unused"] = unused_request
+    if request <= 0:
+        request = 1
+    row["request_unused_percent"] = unused_request / request * 100
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -75,6 +123,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
+        # Note: The value & units will be supplied by the usage keys in the parent class.
+        ocp_pack_definitions["unused_usage"] = {
+            "keys": {
+                "request_unused": {"key": "unused", "group": "request"},
+                "request_unused_percent": {"key": "unused_percent", "group": "request"},
+                "capacity_unused": {"key": "unused", "group": "capacity"},
+                "capacity_unused_percent": {"key": "unused_percent", "group": "capacity"},
+                "capacity_count": {"key": "count", "group": "capacity"},
+                "capacity_count_units": {"key": "count_units", "group": "capacity"},
+            },
+            "units": "usage_units",
+        }
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -105,6 +165,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
             else:
                 annotations["project"] = F("namespace")
+
+        if is_grouped_by_node(self.parameters):
+            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
+                self.report_annotations.update(
+                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
+                )
 
         return annotations
 
@@ -203,7 +269,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
-            query_data, total_capacity = self.get_cluster_capacity(query_data)
+            query_data, total_capacity = self.get_capacity(query_data)
             if total_capacity:
                 query_sum.update(total_capacity)
 
@@ -236,83 +302,81 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         return self._format_query_response()
 
-    def get_cluster_capacity(self, query_data):  # noqa: C901
+    def get_capacity(self, query_data):  # noqa: C901
         """Calculate cluster capacity for all nodes over the date range."""
-        annotations = self._mapper.report_type_map.get("capacity_aggregate")
-        if not annotations:
-            return query_data, {}
+        if is_grouped_by_node(self.parameters):
+            annotations = self._mapper.report_type_map.get("capacity_aggregate", {}).get("node")
+            if annotations:
+                capacity_sets = self._generate_capacity_subsets(annotations, "node", ["usage_start", "node"])
+                return self._get_node_capacity(query_data, capacity_sets)
+        else:
+            annotations = self._mapper.report_type_map.get("capacity_aggregate", {}).get("cluster")
+            if annotations:
+                annotations["cluster"] = Coalesce("cluster_alias", "cluster_id")
+                capacity_sets = self._generate_capacity_subsets(annotations, "cluster", ["usage_start", "cluster_id"])
+                return self._get_cluster_capacity(query_data, capacity_sets)
+        return query_data, {}
 
+    def _generate_capacity_subsets(self, annotations, level_key, group_list):
+        """Calculate capacity over the date range"""
         cap_key = list(annotations.keys())[0]
-        annotations["cluster"] = Coalesce("cluster_alias", "cluster_id")
-        total_capacity = Decimal(0)
-        daily_total_capacity = defaultdict(Decimal)
-        capacity_by_cluster = defaultdict(Decimal)
-        capacity_by_month = defaultdict(Decimal)
-        capacity_by_cluster_month = defaultdict(lambda: defaultdict(Decimal))
-        daily_capacity_by_cluster = defaultdict(lambda: defaultdict(Decimal))
-
+        _capacity = CapacitySubsets(key=cap_key, level_key=level_key, resolution=self.resolution)
         q_table = self._mapper.query_table
         LOG.debug(f"Using query table: {q_table}")
         query = q_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
-        query_group_by = ["usage_start", "cluster_id"]
-
         with tenant_context(self.tenant):
-            cap_data = query.values(*query_group_by).annotate(**annotations)
+            cap_data = query.values(*group_list).annotate(**annotations)
             for entry in cap_data:
-                cluster = entry.get("cluster", "")
+                level_value = entry.get(level_key, "")
                 usage_start = entry.get("usage_start", "")
-                month = entry.get("usage_start", "").month
-                if isinstance(usage_start, datetime.date):
-                    usage_start = usage_start.isoformat()
                 cap_value = entry.get(cap_key, 0)
                 if cap_value is None:
                     cap_value = 0
-                capacity_by_cluster[cluster] += cap_value
-                capacity_by_month[month] += cap_value
-                capacity_by_cluster_month[month][cluster] += cap_value
-                daily_capacity_by_cluster[usage_start][cluster] = cap_value
-                daily_total_capacity[usage_start] += cap_value
-                total_capacity += cap_value
+                _capacity.add(cap_value, usage_start, level_value)
+        return _capacity
 
-        if self.resolution == "daily":
-            for row in query_data:
-                cluster_list = row.get("clusters")
+    def _get_node_capacity(self, query_data, _capacity):
+        """Calculate node capacity for all nodes over the date range."""
+        for row in query_data:
+            if row.get("node"):
+                _calculate_unused(row)
+            elif self.resolution == "daily":
+                row[_capacity.key] = _capacity.resolution_total.get(row.get("date"), Decimal(0))
+            elif self.resolution == "monthly" and not self.parameters.get("start_date"):
+                row[_capacity.key] = _capacity.total
+            else:
+                row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
+                row[_capacity.key] = _capacity.resolution_total.get(row_date, Decimal(0))
+        return query_data, {_capacity.key: _capacity.total}
+
+    def _get_cluster_capacity(self, query_data, _capacity):
+        """Calculate the cluster capacity."""
+        for row in query_data:
+            cluster_list = row.get("clusters")
+            if self.resolution == "monthly" and not self.parameters.get("start_date"):
                 if cluster_list:
-                    row[cap_key] = sum(
+                    row[_capacity.key] = sum(
+                        [_capacity.by_level.get(cluster_id, Decimal(0)) for cluster_id in cluster_list]
+                    )
+                else:
+                    row[_capacity.key] = _capacity.total
+            else:
+                row_date = row.get("date")
+                if self.resolution == "monthly":
+                    row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
+                if cluster_list:
+                    row[_capacity.key] = sum(
                         [
-                            daily_capacity_by_cluster.get(row.get("date"), {}).get(cluster_id, Decimal(0))
+                            _capacity.resolution_level_total.get(row_date, {}).get(cluster_id, Decimal(0))
                             for cluster_id in cluster_list
                         ]
                     )
                 else:
-                    row[cap_key] = daily_total_capacity.get(row.get("date"), Decimal(0))
-        elif self.resolution == "monthly":
-            if not self.parameters.get("start_date"):
-                for row in query_data:
-                    cluster_list = row.get("clusters")
-                    if cluster_list:
-                        row[cap_key] = sum(
-                            [capacity_by_cluster.get(cluster_id, Decimal(0)) for cluster_id in cluster_list]
-                        )
-                    else:
-                        row[cap_key] = total_capacity
-            else:
-                for row in query_data:
-                    cluster_list = row.get("clusters")
-                    row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
-                    if cluster_list:
-                        row[cap_key] = sum(
-                            [
-                                capacity_by_cluster_month.get(row_date, {}).get(cluster_id, Decimal(0))
-                                for cluster_id in cluster_list
-                            ]
-                        )
-                    else:
-                        row[cap_key] = capacity_by_month.get(row_date, Decimal(0))
-
-        return query_data, {cap_key: total_capacity}
+                    row[_capacity.key] = _capacity.resolution_total.get(row_date, Decimal(0))
+            _calculate_unused(row)
+        return query_data, {_capacity.key: _capacity.total}
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.

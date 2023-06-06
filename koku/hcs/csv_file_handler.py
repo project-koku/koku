@@ -37,7 +37,7 @@ class CSVFileHandler:
             f"hcs/csv/{self._schema_name}/{self._provider}/source={self._provider_uuid}/year={year}/month={month}"
         )
 
-        LOG.info(log_json(tracing_id, "preparing to write file to object storage"))
+        LOG.info(log_json(tracing_id, msg="preparing to write file to object storage"))
         my_df.to_csv(filename, header=cols, index=False)
         copy_local_hcs_report_file_to_s3_bucket(tracing_id, s3_csv_path, filename, filename, finalize, date)
         os.remove(filename)
