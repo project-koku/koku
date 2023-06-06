@@ -62,10 +62,10 @@ pipeline {
         stage('Verify labels & Test Image') {
             steps {
                 sh '''
-                    if [ egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true == true ]; then
+                    if [ egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null]; then
                         echo PR check skipped
                         EXIT_CODE=1
-                    elif [ egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null || true == true ]; then
+                    elif [ egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt &>/dev/null]; then
                         echo smokes not required
                         EXIT_CODE=-1
                     else
