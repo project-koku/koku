@@ -272,8 +272,11 @@ def populate_ocp_on_cloud_parquet(  # noqa: C901
     Task to process ocp on cloud parquet files.
 
     Args:
-        provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
-        schema_name       (String): Name of the DB schema
+        report_meta       (Dict):   Metadata for running task
+        provider_type     (String): Koku defined provider type string.
+        schema_name       (String): Name of the DB schema.
+        provider_uuid     (String): UUID of specific provider.
+        tracing_id        (String): Task tracing ID.
 
     Returns:
         None
@@ -288,24 +291,21 @@ def populate_ocp_on_cloud_parquet(  # noqa: C901
                 ends.append(report.get("end"))
             start = min(starts) if starts != [] else None
             end = max(ends) if ends != [] else None
-        stmt = (
-            f"populate_ocp_on_cluod_parquet called with args:\n"
-            f" schema_name: {schema_name},\n"
-            f" provider_type: {provider_type},\n"
-            f" provider_uuid: {provider_uuid},\n",
-            f" tracing_id: {tracing_id}, \n",
-        )
-        LOG.info(stmt)
-        if isinstance(start, str):
-            start = ciso8601.parse_datetime(start)
-        if isinstance(end, str):
-            end = ciso8601.parse_datetime(end)
         dh = DateHelper()
+        start = dh.parse_date(start)
+        end = dh.parse_date(end)
         months = dh.list_month_tuples(start, end)
         date_ranges = []
         date_ranges.append({"start": start, "end": months[0][1]})
         date_ranges.append({"start": months[-1][0], "end": end})
         for date_range in date_ranges:
+            ctx = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "start_date": date_range.get("start"),
+            }
+            LOG.info(log_json(tracing_id, msg="Populate_ocp_on_cluod_parquet called", context=ctx))
             invoice_month = date_range.get("start").strftime("%Y%m")
             processor = OCPCloudParquetReportProcessor(
                 schema_name,
