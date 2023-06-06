@@ -394,7 +394,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_month_delete,
         mock_delete,
     ):
-        """Test that we construst our SQL and query using Trino."""
+        """Test that we construct our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
