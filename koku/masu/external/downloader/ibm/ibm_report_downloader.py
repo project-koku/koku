@@ -141,7 +141,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
             IBMProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
             msg = f"IBM source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
-            LOG.error(log_json(self.request_id, msg, self.context))
+            LOG.error(log_json(self.request_id, msg=msg, context=self.context))
             raise IBMReportDownloaderError(str(ex))
 
     def get_manifest_context_for_date(self, date):
@@ -204,14 +204,14 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
         fallback_date = "-".join(key.split("_")[0].split("-")[0:2])
         invoice_month = start_date.strftime("%Y-%m") if start_date else fallback_date
         msg = f"Downloading {key} to {full_local_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
 
         page_downloader = page_downloader_factory(self.credentials, self.data_source, invoice_month)
         csv_file_writer = writer_factory(full_local_path)
         download_pages_from(page_downloader, csv_file_writer, 1)
 
         msg = f"Returning full_file_path: {full_local_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         dh = DateHelper()
         file_names = create_daily_archives(
             self.request_id,

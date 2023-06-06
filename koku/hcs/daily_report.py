@@ -43,7 +43,7 @@ class ReportHCS:
                     )
 
             except HCSTableNotFoundError as tnfe:
-                LOG.info(log_json(self._tracing_id, f"{tnfe}, skipping..."))
+                LOG.info(log_json(self._tracing_id, msg=f"{tnfe}, skipping..."))
 
             except Exception as e:
-                LOG.error(log_json(self._tracing_id, e))
+                LOG.warning(log_json(self._tracing_id, msg="get_hcs_daily_summary exception"), exc_info=e)

@@ -18,6 +18,7 @@ from django.db.models import F
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -422,8 +423,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "node_count": node_count,
         }
 
-        LOG.info("Running OCP on GCP SQL with params (BY NODE):")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP SQL (by node)", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_cloud_daily_trino(
@@ -545,8 +545,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "matching_type": matching_type,
         }
-        LOG.info("Running OCP on GCP SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP SQL (not by node)", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
@@ -598,15 +597,16 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tGCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                ocp_source,
-                gcp_source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions",
+                    schema=self.schema,
+                    ocp_source=ocp_source,
+                    gcp_source=gcp_source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):
