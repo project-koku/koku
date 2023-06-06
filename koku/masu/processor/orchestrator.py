@@ -284,7 +284,6 @@ class Orchestrator:
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
                 async_id = chord(report_tasks, chain(ocp_on_cloud_parquet, group(summary_task, hcs_task)))()
-                # async_id = chord(chain(group(report_tasks), ocp_on_cloud_parquet), group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}", schema=schema_name))
