@@ -376,11 +376,10 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=
     return changed
 
 
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
 
+def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
     ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
-
-    LOG.info(log_json(msg="updating enabled keys records", context=ctx))
+    LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
     changed = False
 
     enabled_keys_set = set(enabled_keys)
@@ -388,7 +387,11 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
     update_keys_disabled = []
 
     with schema_context(schema):
-        for key in enabled_keys_model.objects.all():
+        if provider_type:
+            key_objects = enabled_keys_model.objects.filter(provider_type=provider_type)
+        else:
+            key_objects = enabled_keys_model.objects.all()
+        for key in key_objects:
             if key.key in enabled_keys_set:
                 if not key.enabled:
                     update_keys_enabled.append(key.key)
@@ -402,13 +405,23 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
                 LOG.info(
                     log_json(msg="updating keys to ENABLED", keys_to_update=len(update_keys_enabled), context=ctx)
                 )
-                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+                if provider_type:
+                    enabled_keys_model.objects.filter(key__in=update_keys_enabled, provider_type=provider_type).update(
+                        enabled=True
+                    )
+                else:
+                    enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
 
             if update_keys_disabled:
                 LOG.info(
                     log_json(msg="updating keys to DISABLED", keys_to_update=len(update_keys_disabled), context=ctx)
                 )
-                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+                if provider_type:
+                    enabled_keys_model.objects.filter(
+                        key__in=update_keys_disabled, provider_type=provider_type
+                    ).update(enabled=False)
+                else:
+                    enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
 
     if not changed:
         LOG.info(log_json(msg="no enabled keys updated", context=ctx))
