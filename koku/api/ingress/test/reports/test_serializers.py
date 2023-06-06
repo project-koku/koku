@@ -73,7 +73,13 @@ class IngressReportsSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
 
-    def test_posting_reports_while_pending(self):
+    @patch(
+        "providers.aws.provider._get_sts_access",
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
+    )
+    def test_posting_reports_while_pending(self, mock_get_sts_access):
         """Test posting additional reports while currently processing same bill month."""
         reports = {
             "source": self.aws_provider.uuid,
