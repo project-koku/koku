@@ -286,11 +286,11 @@ def populate_ocp_on_cloud_parquet(  # noqa: C901
         starts = []
         ends = []
         for report in report_meta:
-            if report.get("start") and report.get("end"):
-                starts.append(report.get("start"))
-                ends.append(report.get("end"))
-            start = min(starts) if starts != [] else None
-            end = max(ends) if ends != [] else None
+            # GCP and OCI set report start and report end, AWS/Azure do not
+            starts.append(report.get("start"))
+            ends.append(report.get("end"))
+            start = min(starts)
+            end = max(ends)
         dh = DateHelper()
         start = dh.parse_date(start)
         end = dh.parse_date(end)

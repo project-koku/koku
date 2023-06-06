@@ -242,7 +242,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
-        for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
+        for ocp_provider_uuid in ocp_provider_uuids:
             self.db_accessor.populate_ocp_on_cloud_daily_trino(
                 self.provider_uuid, ocp_provider_uuid, start_date, end_date, matched_tag_strs
             )
