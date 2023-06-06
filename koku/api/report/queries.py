@@ -71,6 +71,11 @@ def is_grouped_by_project(parameters):
     return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["project", "and:project", "or:project"])
 
 
+def is_grouped_by_node(parameters):
+    """Determine if grouped by node."""
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["node", "and:node", "or:node"])
+
+
 def check_if_valid_date_str(date_str):
     """Check to see if a valid date has been passed in."""
     try:
@@ -865,9 +870,9 @@ class ReportQueryHandler(QueryHandler):
             key_units = pack_def.get("units")
             if isinstance(key_items, dict):
                 for data_key, group_info in key_items.items():
-                    value = data.get(data_key)
                     units = data.get(key_units)
-                    if value is not None and units is not None:
+                    value = data.get(data_key)
+                    if value is not None:
                         group_key = group_info.get("group")
                         new_key = group_info.get("key")
                         if data.get(group_key):
@@ -875,10 +880,12 @@ class ReportQueryHandler(QueryHandler):
                                 # This if is to overwrite the "cost": "No-cost"
                                 # that is provided by the order_by function.
                                 data[group_key] = {}
-                            data[group_key][new_key] = {"value": value, "units": units}
                         else:
                             data[group_key] = {}
+                        if units:
                             data[group_key][new_key] = {"value": value, "units": units}
+                        else:
+                            data[group_key][new_key] = value
                         remove_keys.append(data_key)
             else:
                 if key_items:
@@ -891,7 +898,8 @@ class ReportQueryHandler(QueryHandler):
             if units is not None:
                 del data[key_units]
             for key in remove_keys:
-                del data[key]
+                if key in data:
+                    del data[key]
         delete_keys = []
         new_data = {}
         for data_key in data.keys():
