@@ -86,6 +86,8 @@ class AWSPostProcessor:
         "reservation/UnitsPerReservation",
         "reservation/StartTime",
         "reservation/EndTime",
+        "product/physicalCores",
+        "identity/TimeInterval",
     }
 
     INGRESS_ALT_COLUMNS = {
@@ -135,6 +137,8 @@ class AWSPostProcessor:
         "reservation_units_per_reservation",
         "reservation_start_time",
         "reservation_end_time",
+        "product_physical_cores",
+        "identity_time_interval",
     }
 
     COL_TRANSLATION = {
@@ -184,6 +188,8 @@ class AWSPostProcessor:
         "reservation_units_per_reservation": "reservation/UnitsPerReservation",
         "reservation_start_time": "reservation/StartTime",
         "reservation_end_time": "reservation/EndTime",
+        "product_physical_cores": "product/pyhsicalCores",
+        "identity_time_interval": "identity/TimeInterval",
     }
 
     CSV_COLUMN_PREFIX = (
