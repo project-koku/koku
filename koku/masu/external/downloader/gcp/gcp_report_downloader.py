@@ -464,7 +464,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = self._get_local_directory_path()
         os.makedirs(directory_path, exist_ok=True)
         if self.ingress_reports:
-            key = key.split(f"{self.bucket}/")[-1].replace("-", "_")
+            key = key.split(f"{self.bucket}/")[-1]
             try:
                 storage_client = storage.Client(self.credentials.get("project_id"))
                 bucket = storage_client.get_bucket(self.bucket)
