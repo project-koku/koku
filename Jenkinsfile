@@ -45,20 +45,6 @@ pipeline {
     }
 
     stages {
-        stage('Get Github Labels') {
-            steps {
-                sh '''
-                    mkdir -p $LABELS_DIR
-                    mkdir -p $ARTIFACTS_DIR
-
-                    # Save PR labels into a file
-                    curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
-                
-                    cat $LABELS_DIR/github_labels.txt
-                '''
-            }
-        }
-
         stage('Check PR check/smoke tests run') {
             when {
                 expression {
@@ -67,6 +53,15 @@ pipeline {
             }
             steps {
                 sh '''
+
+                    mkdir -p $LABELS_DIR
+                    mkdir -p $ARTIFACTS_DIR
+
+                    # Save PR labels into a file
+                    curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
+                
+                    cat $LABELS_DIR/github_labels.txt
+
                     task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
                     error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
@@ -163,7 +158,10 @@ pipeline {
             steps {
                 withVault([configuration: configuration, vaultSecrets: secrets]) {
                     sh '''
+                        curl -s "$CICD_URL/bootstrap.sh" > .cicd_bootstrap.sh
+                        source ./.cicd_bootstrap.sh
                         source ${CICD_ROOT}/_common_deploy_logic.sh
+
                         export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
 
                         oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
