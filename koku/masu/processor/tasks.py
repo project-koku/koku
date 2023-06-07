@@ -489,12 +489,7 @@ def update_summary_tables(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    if provider_type in (
-        Provider.PROVIDER_AWS,
-        Provider.PROVIDER_AWS_LOCAL,
-        Provider.PROVIDER_AZURE,
-        Provider.PROVIDER_AZURE_LOCAL,
-    ):
+    if provider_type != Provider.PROVIDER_OCP:
         cost_model = None
         LOG.info(
             log_json(
@@ -634,7 +629,7 @@ def update_openshift_on_cloud(
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
-    cache_args = [schema_name, infrastructure_provider_uuid, cache_arg_date]
+    cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT

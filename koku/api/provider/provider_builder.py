@@ -16,6 +16,7 @@ from api.models import Provider
 from api.models import Tenant
 from api.models import User
 from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerAuthorizationError
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
@@ -172,8 +173,12 @@ class ProviderBuilder:
             manager = ProviderManager(provider_uuid)
         except ProviderManagerError:
             LOG.info("Provider does not exist, skipping Provider delete.")
-        else:
-            manager.remove(user=user, from_sources=True, retry_count=retry_count)
-        finally:
-            invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+            manager = None
+        if manager:
+            try:
+                manager.remove(user=user, from_sources=True, retry_count=retry_count)
+            except ProviderManagerAuthorizationError as err:
+                LOG.warning(str(err), exc_info=err)
+
+        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         connection.set_schema_to_public()
