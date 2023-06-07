@@ -180,7 +180,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except ValidationError as ex:
             msg = "GCP source is not reachable"
             extra_context = {"schema": self.customer_name, "response": str(ex)}
-            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context), exc_info=ex)
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context), exc_info=ex)
             raise GCPReportDownloaderError(str(ex)) from ex
         self.big_query_export_time = None
         if self.ingress_reports:
@@ -269,17 +269,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except GoogleCloudError as err:
             msg = "could not query table for partition date information"
             extra_context = {"schema": self.customer_name, "response": err.message}
-            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context), exc_info=err)
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context), exc_info=err)
             raise GCPReportDownloaderError(msg) from err
         return mapping
 
     def collect_new_manifests(self, current_manifests, bigquery_mappings):
         """
-        Checks the partition dates and decides
-
-        Variable Shorthand:
-        *_pd = partition_date
-        *_et = export_time
+        Generate a dict representing an analog to other providers' "manifest" files.
         """
         new_manifests = []
         for bigquery_pd, bigquery_et in bigquery_mappings.items():
@@ -304,7 +300,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "bigquery_mapping_count": len(bigquery_mappings),
                 "current_manifest_count": len(current_manifests),
             }
-            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context))
         return new_manifests
 
     def collect_pseudo_manifests(self, date):
@@ -315,13 +311,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         files in the bucket based on what the customer posts.
 
         Args:
-            report_data: Where reports are stored
+            date (datetime): billing period start date
 
         Returns:
             Manifest-like dict with keys and value placeholders
                 assembly_id - (String): empty string
-                compression - (String): Report compression format
-                start_date - (Datetime): billing period start date
+                bill_date - (String): billing period start date
                 file_names - (list): list of filenames.
         """
         date_str = date.strftime("%Y-%m-%d")
@@ -477,7 +472,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except GoogleCloudError as err:
                 msg = "could not find or download file from bucket"
                 extra_context = {"schema": self.customer_name, "response": err.message}
-                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context), exc_info=err)
+                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context), exc_info=err)
                 raise GCPReportDownloaderError(msg) from err
             paths_list.append(full_local_path)
         else:
@@ -494,7 +489,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except GoogleCloudError as err:
                 msg = "Could not query table for billing information."
                 extra_context = {"schema": self.customer_name, "response": err.message}
-                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context), exc_info=err)
+                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context, **extra_context), exc_info=err)
                 raise GCPReportDownloaderError(msg) from err
             except UnboundLocalError as e:
                 msg = f"Error recovering start and end date from csv key ({key})."
