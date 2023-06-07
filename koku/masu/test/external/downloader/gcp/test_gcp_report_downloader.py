@@ -376,7 +376,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             "file_names": self.ingress_reports,
         }
         mock_pseudo_manifest.return_value = expected_manifest_data
-        result_manifest = self.gcp_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
+        result_manifest = self.gcp_ingress_report_downloader.collect_pseudo_manifests(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
 
     def test_get_storage_only_manifest_file(self):
