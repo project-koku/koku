@@ -80,7 +80,6 @@ pipeline {
                     </testsuite>
                     EOF
 
-                    exit_code=1
                 elif [ $(egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
                     echo "smokes not required"
 
@@ -92,7 +91,6 @@ pipeline {
                         </testcase>
                     </testsuite>
                     EOF
-                    exit_code=-1
 
                 exit 1
             '''
@@ -138,7 +136,6 @@ pipeline {
                             export IQE_MARKER_EXPRESSION="cost_required"
                         else
                             echo "PR smoke tests skipped"
-                            exit_code=2
                         fi
                         
                         # Install bonfire repo/initialize
