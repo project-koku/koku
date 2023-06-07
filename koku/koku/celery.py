@@ -152,7 +152,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
         "schedule": report_schedule_azure,
         "kwargs": json.dumps(
             {
-                "provider_type": "AZURE",
+                "provider_type": "Azure",
             }
         ),
     }
