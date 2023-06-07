@@ -21,7 +21,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import process_daily_openshift_on_cloud as process_daily_openshift_on_cloud_task
+from masu.processor.tasks import populate_ocp_on_cloud_parquet as process_openshift_on_cloud_trino_task
 from masu.processor.tasks import process_openshift_on_cloud as process_openshift_on_cloud_task
 from masu.processor.tasks import QUEUE_LIST
 
@@ -74,7 +74,6 @@ def process_openshift_on_cloud(request):
         params = {
             "schema_name": schema_name,
             "provider_uuid": cloud_provider_uuid,
-            "bill_date": bill_date,
             "tracing_id": tracing_id,
         }
         if provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
@@ -82,13 +81,16 @@ def process_openshift_on_cloud(request):
             bill_start = DateHelper().month_start(bill_date)
             start = ciso8601.parse_datetime(start_date).date()
             end = ciso8601.parse_datetime(end_date).date() if end_date else bill_end
+            params["report_meta"] = None
+            params["provider_type"] = provider.type
             params["start_date"] = max(start, bill_start)
             params["end_date"] = min(bill_end, end)
             LOG.info("Triggering process_daily_openshift_on_cloud task with params:")
             LOG.info(params)
             LOG.info("on queue: %s", queue_name)
-            async_result = process_daily_openshift_on_cloud_task.s(**params).apply_async(queue=queue_name)
+            async_result = process_openshift_on_cloud_trino_task.s(**params).apply_async(queue=queue_name)
         else:
+            params["bill_date"] = bill_date
             LOG.info("Triggering process_openshift_on_cloud task with params:")
             LOG.info(params)
             LOG.info("on queue: %s", queue_name)

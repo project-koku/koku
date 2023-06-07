@@ -266,10 +266,10 @@ def get_report_files(  # noqa: C901
     name="masu.processor.tasks.populate_ocp_on_cloud_parquet", queue=GET_REPORT_FILES_QUEUE, bind=True
 )  # noqa: C901
 def populate_ocp_on_cloud_parquet(  # noqa: C901
-    self, report_meta, provider_type, schema_name, provider_uuid, tracing_id
+    self, report_meta, provider_type, schema_name, provider_uuid, tracing_id, start_date=None, end_date=None
 ):
     """
-    Task to process ocp on cloud parquet files.
+    Task to process ocp on cloud via trino.
 
     Args:
         report_meta       (Dict):   Metadata for running task
@@ -277,23 +277,26 @@ def populate_ocp_on_cloud_parquet(  # noqa: C901
         schema_name       (String): Name of the DB schema.
         provider_uuid     (String): UUID of specific provider.
         tracing_id        (String): Task tracing ID.
+        start_date        (String): Start date to process.
+        end_date          (String): End date to process.
 
     Returns:
         None
 
     """
     if provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        starts = []
-        ends = []
-        for report in report_meta:
-            # GCP and OCI set report start and report end, AWS/Azure do not
-            starts.append(report.get("start"))
-            ends.append(report.get("end"))
-            start = min(starts)
-            end = max(ends)
+        if not start_date and end_date:
+            starts = []
+            ends = []
+            for report in report_meta:
+                # GCP and OCI set report start and report end, AWS/Azure do not
+                starts.append(report.get("start"))
+                ends.append(report.get("end"))
+                start_date = min(starts)
+                end_date = max(ends)
         dh = DateHelper()
-        start = dh.parse_date(start)
-        end = dh.parse_date(end)
+        start = dh.parse_date(start_date)
+        end = dh.parse_date(end_date)
         months = dh.list_month_tuples(start, end)
         date_ranges = []
         date_ranges.append({"start": start, "end": months[0][1]})
