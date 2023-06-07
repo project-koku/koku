@@ -18,6 +18,10 @@ from koku.pg_partition import get_or_create_partition
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 
+# from django_tenants.utils import schema_context
+
+# from reporting.models import TenantAPIProvider
+
 LOG = logging.getLogger(__name__)
 
 
@@ -72,6 +76,11 @@ class ReportParquetProcessorBase:
     def _get_provider(self):
         """Retrieve the postgres provider id."""
         return Provider.objects.get(uuid=self._provider_uuid)
+
+    # def _get_tenant_provider(self):
+    #     """Retrieve the postgres provider id."""
+    #     with schema_context(self._account):
+    #         return TenantAPIProvider.objects.get(uuid=self._provider_uuid)
 
     def schema_exists(self):
         """Check if schema exists."""
