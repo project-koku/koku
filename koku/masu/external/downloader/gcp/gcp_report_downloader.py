@@ -74,7 +74,7 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
-    for i, local_file_path in enumerate(local_file_paths):
+    for local_file_path in local_file_paths:
         if not ingress_reports:
             file_name = os.path.basename(local_file_path).split("/")[-1]
         else:
