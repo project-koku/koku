@@ -78,7 +78,7 @@ def create_daily_archives(
         if not ingress_reports:
             file_name = os.path.basename(local_file_path).split("/")[-1]
         else:
-            file_name = f"ingress_report_{i}.csv"
+            file_name = filename
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
         try:
@@ -433,7 +433,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = self._get_local_directory_path()
         os.makedirs(directory_path, exist_ok=True)
         if self.ingress_reports:
-            key = key.split(f"{self.bucket}/")[-1]
+            key = key.split("bucketname/")[-1].replace("-", "_")
             try:
                 filename = key
                 storage_client = storage.Client(self.credentials.get("project_id"))
