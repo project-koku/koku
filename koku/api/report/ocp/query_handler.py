@@ -62,7 +62,10 @@ class CapacitySubsets:
 def _calculate_unused(row):
     """Calculates the unused portions of the capacity & request."""
     # Populate unused request and capacity
-    capacity = max(row.get("capacity"), Decimal(1)) if row.get("capacity") else Decimal(0)
+    capacity = row.get("capacity", Decimal(0))
+    if not capacity:
+        capacity = Decimal(0)
+    capacity = max(capacity, Decimal(1))
     usage = row.get("usage") if row.get("usage") else Decimal(0)
     request = row.get("request") if row.get("request") else Decimal(0)
     effective_usage = max(usage, request)
