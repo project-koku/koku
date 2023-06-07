@@ -65,35 +65,37 @@ pipeline {
                     sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt || true", returnStdout: true) == true
                 }
             }
-            sh '''
-                task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
-                error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
+            steps {
+                sh '''
+                    task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
+                    error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
-                if [ ! $(egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
-                    echo "PR check skipped; making skipped xml"
+                    if [ ! $(egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
+                        echo "PR check skipped; making skipped xml"
 
-                    cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
-                    <?xml version="1.0" encoding="UTF-8" ?>
-                    <testsuite id="pr_check" name="PR Check" tests="1" failures="0">
-                        <testcase id="pr_check.skipped" name="Skipped">
-                        </testcase>
-                    </testsuite>
-                    EOF
+                        cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
+                        <?xml version="1.0" encoding="UTF-8" ?>
+                        <testsuite id="pr_check" name="PR Check" tests="1" failures="0">
+                            <testcase id="pr_check.skipped" name="Skipped">
+                            </testcase>
+                        </testsuite>
+                        EOF
 
-                elif [ $(egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
-                    echo "smokes not required"
+                    elif [ $(egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
+                        echo "smokes not required"
 
-                    cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
-                    <?xml version="1.0" encoding="UTF-8" ?>
-                    <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
-                        <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]}">
-                            <failure type="${task_arr[$exit_code]}">"${error_arr[$exit_code]}"</failure>
-                        </testcase>
-                    </testsuite>
-                    EOF
+                        cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
+                        <?xml version="1.0" encoding="UTF-8" ?>
+                        <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
+                            <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]}">
+                                <failure type="${task_arr[$exit_code]}">"${error_arr[$exit_code]}"</failure>
+                            </testcase>
+                        </testsuite>
+                        EOF
 
-                exit 1
-            '''
+                    exit 1
+                '''
+            }
         }
 
         stage('Build test image') {
