@@ -371,8 +371,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_datetime = DateAccessor().today()
         expected_manifest_data = {
             "assembly_id": "1234",
-            "compression": UNCOMPRESSED,
-            "start_date": mock_datetime,
+            "bill_date": mock_datetime,
             "file_names": self.ingress_reports,
         }
         mock_pseudo_manifest.return_value = expected_manifest_data
