@@ -285,7 +285,7 @@ def populate_ocp_on_cloud_parquet(  # noqa: C901
 
     """
     if provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        if not start_date and end_date:
+        if not start_date and not end_date:
             starts = []
             ends = []
             for report in report_meta:

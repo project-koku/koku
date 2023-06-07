@@ -120,13 +120,15 @@ class ProcessOpenShiftOnCloudTest(MasuTestCase):
         mock_process.delay.assert_not_called()
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.process_openshift_on_cloud.process_daily_openshift_on_cloud_task")
+    @patch("masu.api.process_openshift_on_cloud.process_openshift_on_cloud_trino_task")
     def test_get_process_daily_openshift_on_cloud(self, mock_process, _):
         """Test the GET report_data endpoint for a provider that is daily partitioned."""
         dh = DateHelper()
         start_date = str(dh.this_month_start.date())
         end_date = str(dh.this_month_end.date())
         params = {
+            "report_meta": "None",
+            "provider_type": self.gcp_provider.type,
             "schema": self.schema,
             "provider_uuid": self.gcp_provider_uuid,
             "start_date": start_date,
