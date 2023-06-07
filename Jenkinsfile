@@ -63,10 +63,10 @@ pipeline {
             steps {
                 withVault([configuration: configuration, vaultSecrets: secrets]) {
                     sh '''
-                        if [[ egrep -c 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt -gt 0 ]]; then
+                        if [ egrep -c 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt -gt 0 ]; then
                             echo PR check skipped
                             EXIT_CODE=1
-                        elif [[ egrep -c'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt -gt 0 ]]; then
+                        elif [ egrep -c'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt -gt 0 ]; then
                             echo smokes not required
                             EXIT_CODE=-1
                         else
@@ -125,7 +125,7 @@ pipeline {
                     sh '''
                         if [[ $exit_code == 0 ]]; then
                             # check if this PR is labeled to run smoke tests
-                            if [[ egrep -c 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt -gt 0 ]]; then
+                            if [ egrep -c 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt -gt 0 ]; then
                                 echo "PR smoke tests skipped"
                                 exit_code=2
                             else
