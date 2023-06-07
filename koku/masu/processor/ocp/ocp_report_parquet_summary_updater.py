@@ -11,6 +11,7 @@ import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -40,6 +41,12 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         self._date_accessor = DateAccessor()
+        self._context = {
+            "schema": self._schema,
+            "provider_uuid": self._provider.uuid,
+            "cluster_id": self._cluster_id,
+            "cluster_alias": self._cluster_alias,
+        }
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -64,7 +71,9 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         and bill_date.month == self._date_accessor.today().month
                     ):
                         end_date = bill_date.replace(day=self._date_accessor.today().day)
-                    LOG.info("Overriding start and end date to process full month.")
+                    LOG.info(
+                        log_json(msg="overriding start and end date to process full month", context=self._context)
+                    )
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
@@ -103,7 +112,9 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             with schema_context(self._schema):
                 report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 if not report_period:
-                    LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
+                    LOG.warning(
+                        log_json(msg=f"no report period found for start_date {start_date}", context=self._context)
+                    )
                     return start_date, end_date
                 report_period_id = report_period.id
 
@@ -113,14 +124,13 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating OpenShift report summary tables for \n\tSchema: %s "
-                    "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
-                    self._schema,
-                    self._provider.uuid,
-                    self._cluster_id,
-                    report_period_id,
-                    start,
-                    end,
+                    log_json(
+                        msg="updating OCP report summary tables",
+                        context=self._context,
+                        start_date=start,
+                        end_date=end,
+                        report_period_id=report_period_id,
+                    )
                 )
                 # This will process POD and STORAGE together
                 # "delete_all_except_infrastructure_raw_cost_from_daily_summary" specificallly excludes
@@ -135,33 +145,55 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
             # This will process POD and STORAGE together
             LOG.info(
-                "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
-                self._schema,
-                [report_period_id],
+                log_json(
+                    msg="updating OCP label summary tables",
+                    context=self._context,
+                    start_date=start_date,
+                    end_date=end_date,
+                    report_period_id=report_period_id,
+                )
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
             accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
 
-            LOG.info("Updating OpenShift report periods")
+            LOG.info(
+                log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
+            )
             if report_period.summary_data_creation_datetime is None:
                 report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()
+            LOG.info(
+                log_json(
+                    msg="updated OCP report periods",
+                    created=report_period.summary_data_creation_datetime,
+                    updated=report_period.summary_data_updated_datetime,
+                    context=self._context,
+                    report_period_id=report_period_id,
+                )
+            )
 
             self.check_cluster_infrastructure(start_date, end_date)
 
         return start_date, end_date
 
     def check_cluster_infrastructure(self, start_date, end_date):
-        LOG.info("Checking if OpenShift cluster %s is running on cloud infrastructure.", self._provider.uuid)
+
+        LOG.info(log_json(msg="checking if OCP cluster is running on cloud infrastructure", context=self._context))
+
         updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
-        infra_map = updater_base.get_infra_map_from_providers()
-        if not infra_map:
-            # Check the cluster to see if it is running on cloud infrastructure
-            infra_map = updater_base._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
-        if infra_map:
+        if (
+            infra_map := updater_base.get_infra_map_from_providers()
+            or updater_base._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
+        ):
             for ocp_source, infra_tuple in infra_map.items():
                 LOG.info(
-                    "OpenShift cluster %s is running on %s source %s.", ocp_source, infra_tuple[1], infra_tuple[0]
+                    log_json(
+                        msg="OCP cluster is running on cloud infrastructure",
+                        context=self._context,
+                        ocp_provider_uuid=ocp_source,
+                        infra_provider_uuid=infra_tuple[0],
+                        infra_provider_type=infra_tuple[1],
+                    )
                 )
