@@ -39,9 +39,6 @@ pipeline {
         IQE_MARKER_EXPRESSION="cost_smoke"
         IQE_CJI_TIMEOUT="120m"
 
-        task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
-        error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
-
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
@@ -69,6 +66,9 @@ pipeline {
                 }
             }
             sh '''
+                task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
+                error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
+
                 if [ ! $(egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
                     echo "PR check skipped; making skipped xml"
 
@@ -208,7 +208,7 @@ pipeline {
             }
         }
     }
-    
+
     // post {
     //     always {
     //         archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
