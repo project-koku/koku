@@ -299,10 +299,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not new_manifests:
             msg = "no new manifests created"
             extra_context = {
-                "scan_start": str(self.scan_start),
-                "scan_end": str(self.scan_end),
-                "bigquery mapping count": len(bigquery_mappings),
-                "current manifest count": len(current_manifests),
+                "scan_start": self.scan_start,
+                "scan_end": self.scan_end,
+                "bigquery_mapping_count": len(bigquery_mappings),
+                "current_manifest_count": len(current_manifests),
             }
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
         return new_manifests
@@ -360,8 +360,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if isinstance(date, datetime.datetime):
             date = date.date()
         ctx = {
-            "scan_start": str(self.scan_start),
-            "scan_end": str(self.scan_end),
+            "scan_start": self.scan_start,
+            "scan_end": self.scan_end,
             "ingress": bool(self.ingress_reports),
         }
         if self.ingress_reports:
@@ -375,7 +375,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     **manifest,
                 )
             )
-            reports_list.append(self.get_report_from_manifest(manifest, date))
+            reports_list.append(self.get_report_from_manifest(manifest, date, ctx))
         else:
             current_manifests = self.retrieve_current_manifests_mapping()
             bigquery_mapping = self.bigquery_export_to_partition_mapping()
@@ -384,11 +384,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.info(
                     log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **manifest)
                 )
-                reports_list.append(self.get_report_from_manifest(manifest, dh._now))
+                reports_list.append(self.get_report_from_manifest(manifest, dh._now, ctx))
 
         return reports_list
 
-    def get_report_from_manifest(self, manifest, date):
+    def get_report_from_manifest(self, manifest, date, context):
         """Generate manifest and return report dict."""
         assembly_id = manifest["assembly_id"]
         manifest_id = self._process_manifest_db_record(
@@ -396,6 +396,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest["bill_date"],
             len(manifest["files"]),
             date,
+        )
+        LOG.info(
+            log_json(
+                msg="created manifest",
+                context=self.context,
+                manifest_id=manifest_id,
+                **context,
+                **manifest,
+            )
         )
         return {
             "manifest_id": manifest_id,
