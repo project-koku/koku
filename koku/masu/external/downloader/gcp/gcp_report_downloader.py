@@ -430,6 +430,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         paths_list = []
+        file_names = []
+        date_range = {}
         directory_path = self._get_local_directory_path()
         os.makedirs(directory_path, exist_ok=True)
         if self.ingress_reports:
@@ -447,6 +449,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context | extra_context))
                 raise GCPReportDownloaderError(msg)
             paths_list.append(full_local_path)
+            LOG.info(f"\n\n PATH LIST {paths_list} \n\n")
         else:
             try:
                 filename = os.path.splitext(key)[0]
@@ -487,17 +490,17 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 )
                 raise GCPReportDownloaderError(msg)
 
-        file_names, date_range = create_daily_archives(
-            self.tracing_id,
-            self.account,
-            self._provider_uuid,
-            key,
-            paths_list,
-            manifest_id,
-            start_date,
-            self.context,
-            self.ingress_reports,
-        )
+            file_names, date_range = create_daily_archives(
+                self.tracing_id,
+                self.account,
+                self._provider_uuid,
+                key,
+                paths_list,
+                manifest_id,
+                start_date,
+                self.context,
+                self.ingress_reports,
+            )
 
         return key, None, DateHelper().today, file_names, date_range
 

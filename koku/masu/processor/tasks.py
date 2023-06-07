@@ -58,6 +58,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
@@ -217,6 +218,7 @@ def get_report_files(  # noqa: C901
             return
 
         report_meta = {
+            "file": report_dict["file"],
             "schema_name": schema_name,
             "provider_type": provider_type,
             "provider_uuid": provider_uuid,
@@ -1112,3 +1114,57 @@ def process_daily_openshift_on_cloud(
 
             file_name = f"ocp_on_{provider_type}_{i}"
             processor.process(file_name, [data_frame])
+
+
+@celery_app.task(
+    name="masu.processor.tasks.get_ingress_daily_archives", queue=GET_REPORT_FILES_QUEUE, bind=True
+)  # noqa: C901
+def get_ingress_daily_archives(self, report_meta):
+    daily_file_names = []
+    date_range = {}
+    for report in report_meta:
+        local_file_path = report.get("file")
+        file_name = os.path.basename(local_file_path).split("/")[-1]
+        dh = DateHelper()
+        directory = os.path.dirname(local_file_path)
+        try:
+            data_frame = pd.read_csv(local_file_path)
+        except Exception as error:
+            LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
+            raise
+        # putting it in for loop handles crossover data, when we have distinct invoice_month
+        for invoice_month in data_frame["invoice.month"].unique():
+            invoice_filter = data_frame["invoice.month"] == invoice_month
+            invoice_month_data = data_frame[invoice_filter]
+            unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
+            days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
+            date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
+            partition_dates = invoice_month_data.partition_date.unique()
+            for partition_date in partition_dates:
+                partition_date_filter = invoice_month_data["partition_date"] == partition_date
+                invoice_partition_data = invoice_month_data[partition_date_filter]
+                start_of_invoice = dh.invoice_month_start(invoice_month)
+                s3_csv_path = get_path_prefix(
+                    self.schema, Provider.PROVIDER_GCP, self.provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                )
+                day_file = f"{invoice_month}_{partition_date}_{file_name}"
+                day_filepath = f"{directory}/{day_file}"
+                invoice_partition_data.to_csv(day_filepath, index=False, header=True)
+                copy_local_report_file_to_s3_bucket(
+                    self.tracing_id,
+                    s3_csv_path,
+                    day_filepath,
+                    day_file,
+                    report_meta.get("manifest_id"),
+                    self.start_date,
+                    self.context,
+                )
+                daily_file_names.append(day_filepath)
+        report_meta["start"] = date_range.get("start")
+        report_meta["end"] = date_range.get("end")
+        report_meta["invoice_month"] = date_range.get(
+            "invoice_month"
+        )  # Its also totally possible we could have multiple invoce months here
+        report_meta["split_files"] = daily_file_names
+
+    return report_meta
