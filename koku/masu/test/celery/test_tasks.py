@@ -346,20 +346,20 @@ class TestCeleryTasks(MasuTestCase):
             expected_log_msg = "does not exist"
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=False)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=False)
     def test_purge_s3_files_failed_unleash(self, _):
         """Test that the scheduled task calls the orchestrator."""
         msg = tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         expected_msg = "Schema act1111 not enabled in unleash."
         self.assertEqual(msg, expected_msg)
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     def test_purge_s3_files_missing_params(self, _):
         """Test that the scheduled task calls the orchestrator."""
         with self.assertRaises(TypeError):
             tasks.purge_s3_files(None, None, None, None)
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     @override_settings(SKIP_MINIO_DATA_DELETION=True)
     def test_purge_s3_files_skipped_minio_true(self, delete_call, *args):
@@ -367,7 +367,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         delete_call.assert_not_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     @override_settings(SKIP_MINIO_DATA_DELETION=False)
     def test_purge_s3_files_success(self, delete_call, *args):
@@ -375,7 +375,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         delete_call.assert_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     def test_purge_manifest_success(self, _):
         """Test that the scheduled task calls the orchestrator."""
         dates = {"start_date": datetime.now().date(), "end_date": datetime.now().date()}
@@ -384,7 +384,7 @@ class TestCeleryTasks(MasuTestCase):
             mock_accessor.return_value.__enter__.return_value = FakeManifest()
             mock_accessor.assert_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=False)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=False)
     def test_purge_manifest_fail(self, _):
         """Test that the scheduled task calls the orchestrator."""
         dates = {"bill_date": datetime.now().date()}
@@ -393,7 +393,7 @@ class TestCeleryTasks(MasuTestCase):
             tasks.purge_manifest_records("act1111", "123456", dates)
             mock_accessor.assert_not_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     def test_purge_manifest_fail_no_dates(self, _):
         """Test that the scheduled task calls the orchestrator."""
         dates = {}
