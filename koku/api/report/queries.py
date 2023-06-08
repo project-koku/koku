@@ -1090,10 +1090,16 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
-            for key, val in self.default_ordering.items():
-                order_field, order_direction = key, val
-            rank_annotations = {order_field: self.report_annotations.get(order_field)}
-            rank_orders.append(getattr(F(order_field), order_direction)())
+            if self.order_field not in self.report_annotations.keys():
+                for key, val in self.default_ordering.items():
+                    order_field, order_direction = key, val
+                rank_annotations = {order_field: self.report_annotations.get(order_field)}
+                rank_orders.append(getattr(F(order_field), order_direction)())
+            else:
+                rank_annotations = {
+                    self.order_field: self.report_annotations.get(self.order_field, self.order_direction)
+                }
+                rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
@@ -1146,7 +1152,7 @@ class ReportQueryHandler(QueryHandler):
         data_frame = pd.DataFrame(data_list)
 
         rank_data_frame = pd.DataFrame(ranks)
-        rank_data_frame.drop(columns=["cost_total", "usage"], inplace=True, errors="ignore")
+        rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
         if self.is_aws and "account" in group_by:

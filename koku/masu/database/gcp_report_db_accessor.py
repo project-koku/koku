@@ -556,7 +556,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
-                    msg="deleting Hive partitions",
+                    msg="deleting Hive partitions by day",
                     schema=self.schema,
                     ocp_source=ocp_source,
                     gcp_source=gcp_source,
