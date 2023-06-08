@@ -38,6 +38,7 @@ class AWSProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type, cost_type, markup_cost="markup_cost"):
         """Constructor."""
+        self.cost_type = cost_type
         self.markup_cost = markup_cost
         self._mapping = [
             {
@@ -77,13 +78,13 @@ class AWSProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -97,13 +98,13 @@ class AWSProviderMap(ProviderMap):
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -112,10 +113,10 @@ class AWSProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                         },
-                        "aggregate_key": cost_type,
+                        "aggregate_key": self.cost_type,
                         "annotations": {
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Value(0, output_field=DecimalField()),
@@ -125,7 +126,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -135,7 +136,7 @@ class AWSProviderMap(ProviderMap):
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Value(0, output_field=DecimalField()),
@@ -145,7 +146,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -160,7 +161,7 @@ class AWSProviderMap(ProviderMap):
                             # cost goes to cost_total
                             "cost_total": Sum(
                                 ExpressionWrapper(
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + F(self.markup_cost),
                                     output_field=DecimalField(),
                                 )
@@ -176,7 +177,7 @@ class AWSProviderMap(ProviderMap):
                     "instance_type": {
                         "aggregates": {
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -186,7 +187,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -197,13 +198,13 @@ class AWSProviderMap(ProviderMap):
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -216,7 +217,7 @@ class AWSProviderMap(ProviderMap):
                         "aggregate_key": "usage_amount",
                         "annotations": {
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Value(0, output_field=DecimalField()),
@@ -226,7 +227,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -236,7 +237,7 @@ class AWSProviderMap(ProviderMap):
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Value(0, output_field=DecimalField()),
@@ -246,7 +247,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -274,7 +275,7 @@ class AWSProviderMap(ProviderMap):
                             "infra_total": Sum(
                                 (
                                     Coalesce(
-                                        NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                        NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                         Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                     )
                                     + Coalesce(
@@ -286,7 +287,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "infra_raw": Sum(
                                 Coalesce(
-                                    NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                    NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                     Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -306,7 +307,7 @@ class AWSProviderMap(ProviderMap):
                             "cost_total": Sum(
                                 (
                                     Coalesce(
-                                        NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                        NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                         Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                     )
                                     + Coalesce(
@@ -318,7 +319,7 @@ class AWSProviderMap(ProviderMap):
                             ),
                             "cost_raw": Sum(
                                 Coalesce(
-                                    NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                    NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                     Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -337,7 +338,7 @@ class AWSProviderMap(ProviderMap):
                         "annotations": {
                             "infra_raw": Sum(
                                 Coalesce(
-                                    NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                    NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                     Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -353,7 +354,7 @@ class AWSProviderMap(ProviderMap):
                             "infra_total": Sum(
                                 (
                                     Coalesce(
-                                        NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                        NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                         Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                     )
                                     + Coalesce(
@@ -369,7 +370,7 @@ class AWSProviderMap(ProviderMap):
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_raw": Sum(
                                 Coalesce(
-                                    NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                    NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                     Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -385,7 +386,7 @@ class AWSProviderMap(ProviderMap):
                             "cost_total": Sum(
                                 (
                                     Coalesce(
-                                        NullIf(F(cost_type), Value(0, output_field=DecimalField())),
+                                        NullIf(F(self.cost_type), Value(0, output_field=DecimalField())),
                                         Coalesce("unblended_cost", Value(0, output_field=DecimalField())),
                                     )
                                     + Coalesce(

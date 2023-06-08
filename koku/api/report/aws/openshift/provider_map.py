@@ -31,6 +31,7 @@ class OCPAWSProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type, cost_type, markup_cost="markup_cost"):
         """Constructor."""
+        self.cost_type = cost_type
         self.markup_cost = markup_cost
         self._mapping = [
             {
@@ -74,13 +75,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -94,13 +95,13 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -112,13 +113,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "annotations": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Value(0, output_field=DecimalField()),
@@ -132,13 +133,13 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Value(0, output_field=DecimalField()),
@@ -156,7 +157,7 @@ class OCPAWSProviderMap(ProviderMap):
                         "delta_key": {
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
@@ -172,13 +173,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -192,13 +193,13 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -212,13 +213,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "annotations": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -232,13 +233,13 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -268,13 +269,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -288,13 +289,13 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -309,13 +310,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "annotations": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
@@ -329,13 +330,13 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                     + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
