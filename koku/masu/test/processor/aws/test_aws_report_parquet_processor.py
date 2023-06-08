@@ -68,7 +68,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_account_id=account_id,
-                provider=self.aws_provider,
+                provider=self.aws_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -87,7 +87,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_account_id=account_id,
-                provider=self.aws_provider,
+                provider=self.aws_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
