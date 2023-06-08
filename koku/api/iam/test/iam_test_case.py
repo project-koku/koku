@@ -194,10 +194,10 @@ class IamTestCase(TestCase):
     def request_path(self, value):
         self._request_path = value
 
-    def create_mock_customer_data(self, account=None, org_id=None):
+    def create_mock_customer_data(self):
         """Create randomized data for a customer test."""
-        account = account or self.fake.ean8()
-        org_id = org_id or self.fake.ean8()
+        account = self.fake.ean8()
+        org_id = self.fake.ean8()
         schema = f"org{org_id}"
         return {"account_id": account, "org_id": org_id, "schema_name": schema}
 

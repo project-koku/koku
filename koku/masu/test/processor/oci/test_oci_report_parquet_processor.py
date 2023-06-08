@@ -61,7 +61,7 @@ class OCIReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_tenant_id=payer_tenant_id,
-                provider=self.oci_provider_uuid,
+                provider=self.oci_provider,
             )
             self.assertIsNotNone(bill.first())
 
@@ -80,7 +80,7 @@ class OCIReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_tenant_id=payer_tenant_id,
-                provider=self.oci_provider_uuid,
+                provider=self.oci_provider,
             )
             self.assertIsNotNone(bill.first())
 

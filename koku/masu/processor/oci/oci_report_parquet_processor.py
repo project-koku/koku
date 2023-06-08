@@ -71,11 +71,11 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         payer_tenant_id = None
         if rows:
             payer_tenant_id = rows[0][0]
-        tenant_provider = self._get_tenant_provider()
+        provider = self._get_provider()
         with schema_context(self._schema_name):
             OCICostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,
                 payer_tenant_id=payer_tenant_id,
-                provider=tenant_provider,
+                provider=provider,
             )

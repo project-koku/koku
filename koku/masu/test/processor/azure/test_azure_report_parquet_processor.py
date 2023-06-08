@@ -54,9 +54,7 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             bill = AzureCostEntryBill.objects.filter(
-                billing_period_start=start_date,
-                billing_period_end=end_date,
-                provider=self.azure_provider_uuid,
+                billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
             )
             self.assertIsNotNone(bill.first())
 
@@ -70,8 +68,6 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             bill = AzureCostEntryBill.objects.filter(
-                billing_period_start=start_date,
-                billing_period_end=end_date,
-                provider=self.azure_provider_uuid,
+                billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
             )
             self.assertIsNotNone(bill.first())

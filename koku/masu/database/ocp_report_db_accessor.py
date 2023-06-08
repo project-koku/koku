@@ -1008,7 +1008,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get or create an entry in the OCP cluster table."""
         with schema_context(self.schema):
             cluster, created = OCPCluster.objects.get_or_create(
-                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
+                cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider
             )
 
         LOG.info(
