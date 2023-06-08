@@ -114,7 +114,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
     REPORT_DOWNLOAD_SCHEDULE_GCP = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_GCP", default=download_expression)
-    REPORT_DOWNLOAD_SCHEDULE_GCP = validate_cron_expression("* * * * *")
+    REPORT_DOWNLOAD_SCHEDULE_GCP = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_GCP)
     report_schedule_gcp = crontab(*REPORT_DOWNLOAD_SCHEDULE_GCP.split(" ", 5))
     CHECK_REPORT_UPDATES_DEF_GCP = {
         "task": download_task,
