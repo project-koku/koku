@@ -23,7 +23,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import enable_ocp_savings_plan_cost
+from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -209,7 +209,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
-                    msg="deleting Hive partitions",
+                    msg="deleting Hive partitions by day",
                     schema=self.schema,
                     ocp_source=ocp_source,
                     aws_source=aws_source,
@@ -307,7 +307,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         # Check if we're using the savingsplan unleash-gated feature
-        is_savingsplan_cost = enable_ocp_savings_plan_cost(self.schema)
+        is_savingsplan_cost = is_ocp_savings_plan_cost_enabled(self.schema)
 
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")

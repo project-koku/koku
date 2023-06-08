@@ -78,7 +78,7 @@ def create_daily_archives(
         if not ingress_reports:
             file_name = os.path.basename(local_file_path).split("/")[-1]
         else:
-            file_name = "ingress_report.csv"
+            file_name = filename.replace("/", "_").replace("-", "_")
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
         try:
@@ -435,12 +435,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if self.ingress_reports:
             key = key.split(f"{self.bucket}/")[-1]
             try:
-                filename = key
                 storage_client = storage.Client(self.credentials.get("project_id"))
                 bucket = storage_client.get_bucket(self.bucket)
                 blob = bucket.blob(key)
                 full_local_path = self._get_local_file_path(directory_path, key)
                 blob.download_to_filename(full_local_path)
+
             except GoogleCloudError as err:
                 msg = "Could not find or download file from bucket."
                 extra_context = {"customer": self.customer_name, "response": err.message}
@@ -526,7 +526,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         if self.ingress_reports:
-            local_file_name = key.replace("/", "_")
+            local_file_name = key.replace("/", "_").replace("-", "_")
         else:
             local_file_name = key.replace("/", "_") + f"_{str(iterable_num)}.csv"
         msg = f"Local filename: {local_file_name}"

@@ -40,10 +40,10 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
-from masu.processor import disable_ocp_on_cloud_summary
-from masu.processor import disable_source
-from masu.processor import disable_summary_processing
-from masu.processor import is_large_customer
+from masu.processor import is_customer_large
+from masu.processor import is_ocp_on_cloud_summary_disabled
+from masu.processor import is_source_disabled
+from masu.processor import is_summary_processing_disabled
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -407,13 +407,9 @@ def update_summary_tables(  # noqa: C901
         "provider_uuid": provider_uuid,
         "manifest_id": manifest_id,
     }
-    if disable_summary_processing(schema):
-        LOG.info(f"Summary disabled for {schema}.")
+    if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
         return
-    if disable_source(provider_uuid):
-        return
-    if disable_ocp_on_cloud_summary(schema):
-        LOG.info(f"OCP on Cloud summary disabled for {schema}.")
+    if is_ocp_on_cloud_summary_disabled(schema):
         ocp_on_cloud = False
 
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
@@ -429,7 +425,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        if is_large_customer(schema):
+        if is_customer_large(schema):
             rate_limited = rate_limit_tasks(task_name, schema)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
@@ -493,12 +489,7 @@ def update_summary_tables(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    if provider_type in (
-        Provider.PROVIDER_AWS,
-        Provider.PROVIDER_AWS_LOCAL,
-        Provider.PROVIDER_AZURE,
-        Provider.PROVIDER_AZURE_LOCAL,
-    ):
+    if provider_type != Provider.PROVIDER_OCP:
         cost_model = None
         LOG.info(
             log_json(
@@ -630,7 +621,7 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
-    if disable_ocp_on_cloud_summary(schema_name):
+    if is_ocp_on_cloud_summary_disabled(schema_name):
         msg = f"OCP on Cloud summary disabled for {schema_name}."
         LOG.info(msg)
         return
@@ -638,12 +629,12 @@ def update_openshift_on_cloud(
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
-    cache_args = [schema_name, infrastructure_provider_uuid, cache_arg_date]
+    cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        if is_large_customer(schema_name):
+        if is_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
