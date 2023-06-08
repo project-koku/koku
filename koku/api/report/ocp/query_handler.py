@@ -306,6 +306,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def get_capacity(self, query_data):  # noqa: C901
         """Calculate cluster capacity for all nodes over the date range."""
         if is_grouped_by_node(self.parameters):
+            # calculate node capacity
             annotations = self._mapper.report_type_map.get("capacity_aggregate", {}).get("node")
             if annotations:
                 _capacity = self._generate_capacity_subsets(annotations, "node", ["usage_start", "node"])
@@ -344,17 +345,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     cap_value = 0
                 _capacity.add(cap_value, usage_start, level_value)
         return _capacity
-
-    # def _get_node_capacity(self, query_data, _capacity):
-    #     """Calculate node capacity for all nodes over the date range."""
-    #     for row in query_data:
-    #         node = row.get("node")
-    #         row_date = row.get("date")
-    #         if self.resolution == "monthly":
-    #             row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
-    #         row[_capacity.key] = _capacity.resolution_level_total.get(row_date, {}).get(node, Decimal(0))
-    #         _calculate_unused(row)
-    #     return query_data, {_capacity.key: _capacity.total}
 
     def _get_cluster_capacity(self, query_data, _capacity):
         """Calculate the cluster capacity."""
