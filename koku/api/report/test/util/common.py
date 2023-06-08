@@ -20,7 +20,7 @@ def populate_ocp_topology(schema, provider, cluster_id):
             .values_list("node", "resource_id")
             .distinct()
         )
-        cluster = OCPCluster(cluster_id=cluster_id, provider=provider)
+        cluster = OCPCluster(cluster_id=cluster_id, provider_id=provider.uuid)
         cluster.save()
         for node in nodes:
             if node[0]:
