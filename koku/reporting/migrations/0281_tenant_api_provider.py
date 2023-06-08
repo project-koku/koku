@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                 "db_table": "reporting_tenant_api_provider",
             },
         ),
-        migrations.RunPython(insert_tenant_schema_providers),
+        migrations.RunPython(insert_tenant_schema_providers, reverse_code=migrations.RunPython.noop),
         migrations.AlterField(
             model_name="awscostentrybill",
             name="provider",
