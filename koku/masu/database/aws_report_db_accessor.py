@@ -472,7 +472,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on AWS {self.schema}")
+                LOG.info(log_json(msg="no matching enabled keys for OCP on AWS", schema=self.schema))
                 return False
         return True
 
