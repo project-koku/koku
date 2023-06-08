@@ -84,7 +84,7 @@ class OCICostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
 
 
 class OCICostEntryLineItemDailySummary(models.Model):
