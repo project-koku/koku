@@ -574,7 +574,7 @@ class ProviderSerializerTest(IamTestCase):
         ]
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            self.create_mock_customer_data(account="10002", org_id="2222222"), user_data, create_tenant=True
+            self.create_mock_customer_data(), user_data, create_tenant=True
         )
         for test in test_cases:
             with self.subTest(test=test):

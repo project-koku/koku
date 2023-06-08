@@ -184,11 +184,9 @@ class ProviderManager:
             ).order_by("manifest_creation_datetime")
 
             if self.model.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
-                clusters = Provider.objects.filter(
-                    infrastructure__infrastructure_provider_id=self.model.uuid
-                ).values_list("uuid", flat=True)
+                clusters = Provider.objects.filter(infrastructure__infrastructure_provider_id=self.model.uuid).all()
                 report_periods = OCPUsageReportPeriod.objects.filter(
-                    provider__in=list(clusters), report_period_start=month
+                    provider__in=clusters, report_period_start=month
                 ).all()
                 ocp_on_cloud_updates = []
                 with tenant_context(tenant):
