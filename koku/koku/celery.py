@@ -1,5 +1,4 @@
 """Celery configuration for the Koku project."""
-import json
 import logging
 import os
 import time
@@ -120,7 +119,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_GCP = {
         "task": download_task,
         "schedule": report_schedule_gcp,
-        "args": json.dumps({"provider_type": "GCP"}),
+        "kwargs": {"provider_type": "GCP"},
     }
     app.conf.beat_schedule["check-report-updates-gcp"] = CHECK_REPORT_UPDATES_DEF_GCP
 
@@ -130,7 +129,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_AWS = {
         "task": download_task,
         "schedule": report_schedule_aws,
-        "args": json.dumps({"provider_type": "AWS"}),
+        "kwargs": {"provider_type": "AWS"},
     }
     app.conf.beat_schedule["check-report-updates-aws"] = CHECK_REPORT_UPDATES_DEF_AWS
 
@@ -142,7 +141,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_AZURE = {
         "task": download_task,
         "schedule": report_schedule_azure,
-        "args": json.dumps({"provider_type": "Azure"}),
+        "kwargs": {"provider_type": "Azure"},
     }
     app.conf.beat_schedule["check-report-updates-azure"] = CHECK_REPORT_UPDATES_DEF_AZURE
 
@@ -152,10 +151,9 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_OCI = {
         "task": download_task,
         "schedule": report_schedule_oci,
-        "args": json.dumps({"provider_type": "OCI"}),
+        "kwargs": {"provider_type": "OCI"},
     }
     app.conf.beat_schedule["check-report-updates-oci"] = CHECK_REPORT_UPDATES_DEF_OCI
-
 
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
