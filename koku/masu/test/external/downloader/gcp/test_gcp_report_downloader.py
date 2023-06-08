@@ -297,7 +297,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test GCP error retrieving partition data."""
         downloader = self.downloader
         err_msg = "GCP Error"
-        expected_error_msg = "Could not query table for partition date information."
+        expected_error_msg = "could not query table for partition date information"
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, expected_error_msg):
@@ -365,19 +365,17 @@ class GCPReportDownloaderTest(MasuTestCase):
             self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
             self.assertEqual(manifest_metadata["files"], [expected_filename])
 
-    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._generate_monthly_pseudo_manifest")
-    def test_generate_pseudo_manifest(self, mock_pseudo_manifest):
+    def test_generate_pseudo_manifest(self):
         """Test Generating pseudo manifest for storage only."""
         mock_datetime = DateAccessor().today()
+        mock_date_str = mock_datetime.strftime("%Y-%m-%d")
         expected_manifest_data = {
-            "assembly_id": "1234",
-            "compression": UNCOMPRESSED,
-            "start_date": mock_datetime,
-            "file_names": self.ingress_reports,
+            "bill_date": mock_date_str,
+            "files": self.ingress_reports,
         }
-        mock_pseudo_manifest.return_value = expected_manifest_data
-        result_manifest = self.gcp_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
-        self.assertEqual(result_manifest, expected_manifest_data)
+        result_manifest = self.gcp_ingress_report_downloader.collect_pseudo_manifests(mock_datetime)
+        self.assertDictContainsSubset(expected_manifest_data, result_manifest)
+        self.assertIn(mock_date_str, result_manifest["assembly_id"])
 
     def test_get_storage_only_manifest_file(self):
         """Test _get_manifest method w storage only."""

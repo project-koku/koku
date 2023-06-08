@@ -7,6 +7,7 @@ from rest_framework import serializers
 
 from api.common import error_obj
 from api.utils import DateHelper
+from masu.processor import is_ingress_rate_limiting_disabled
 from providers.provider_access import ProviderAccessor
 from reporting.ingress.models import IngressReports
 
@@ -66,7 +67,7 @@ class IngressReportsSerializer(serializers.ModelSerializer):
                     status="pending",
                     created_timestamp__gte=DateHelper().today,
                 )
-                if ingress_reports:
+                if ingress_reports and not is_ingress_rate_limiting_disabled():
                     key = "Processing"
                     message = (
                         f"Reports for billing month {bill_month} are currently already being processed. "
