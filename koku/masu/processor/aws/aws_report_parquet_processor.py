@@ -88,12 +88,12 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
         if rows:
             payer_account_id = rows[0][0]
 
-        tenant_provider = self._get_tenant_provider()
+        provider = self._get_provider()
 
         with schema_context(self._schema_name):
             AWSCostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,
                 payer_account_id=payer_account_id,
-                provider=tenant_provider,
+                provider_id=provider.uuid,
             )

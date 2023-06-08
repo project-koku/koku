@@ -64,11 +64,11 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
         start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
         end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
 
-        tenant_provider = self._get_tenant_provider()
+        provider = self._get_provider()
 
         with schema_context(self._schema_name):
             GCPCostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,
-                provider=tenant_provider,
+                provider_id=provider.uuid,
             )

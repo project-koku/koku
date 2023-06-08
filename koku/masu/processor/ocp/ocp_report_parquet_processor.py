@@ -71,9 +71,9 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         # Make end date first of next month
         report_period_end = report_period_end + datetime.timedelta(days=1)
 
-        tenant_provider = self._get_tenant_provider()
+        provider = self._get_provider()
 
-        cluster_id = utils.get_cluster_id_from_provider(tenant_provider.uuid)
+        cluster_id = utils.get_cluster_id_from_provider(provider.uuid)
         cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
 
         with schema_context(self._schema_name):
@@ -82,5 +82,5 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 cluster_alias=cluster_alias,
                 report_period_start=report_period_start,
                 report_period_end=report_period_end,
-                provider=tenant_provider,
+                provider_id=provider.uuid,
             )
