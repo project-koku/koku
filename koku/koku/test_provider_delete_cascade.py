@@ -14,23 +14,25 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
-from reporting.models import TenantAPIProvider
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
+# from reporting.models import TenantAPIProvider
+
 
 def create_test_provider(schema, provider):
-    with schema_context(schema):
-        tenant_provider = TenantAPIProvider(
-            uuid=provider.uuid,
-            type=provider.type,
-            name=provider.name,
-            provider=provider,
-        )
-        tenant_provider.save()
+    pass
+    # with schema_context(schema):
+    #     tenant_provider = TenantAPIProvider(
+    #         uuid=provider.uuid,
+    #         type=provider.type,
+    #         name=provider.name,
+    #         provider=provider,
+    #     )
+    #     tenant_provider.save()
 
 
 @patch("masu.celery.tasks.delete_archived_data.delay", Mock())
