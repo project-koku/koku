@@ -70,7 +70,7 @@ class OCPUsageReportPeriod(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True)
     ocp_on_cloud_updated_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
-    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
 class OCPUsageLineItemDailySummary(models.Model):
@@ -259,7 +259,7 @@ class OCPCluster(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
-    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
 class OCPNode(models.Model):

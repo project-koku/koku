@@ -85,7 +85,7 @@ class AWSCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True)
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
-    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
 class AWSCostEntryLineItemDailySummary(models.Model):
@@ -218,7 +218,7 @@ class AWSOrganizationalUnit(models.Model):
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
     created_timestamp = models.DateField(auto_now_add=True)
     deleted_timestamp = models.DateField(null=True)
-    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         """Convert to string."""
