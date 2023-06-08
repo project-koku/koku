@@ -21,7 +21,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor import summarize_ocp_on_gcp_by_node
+from masu.processor import is_summarize_ocp_on_gcp_by_node_enabled
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
@@ -434,7 +434,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
 
-            if summarize_ocp_on_gcp_by_node(self._schema):
+            if is_summarize_ocp_on_gcp_by_node_enabled(self._schema):
                 msg = f"Summarizing OCP on GCP by node enabled for {self._schema}."
                 LOG.info(msg)
                 # vars that are only needed if processing by node instead of cluster
@@ -495,7 +495,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     cluster_id,
                     current_gcp_bill_id,
                 )
-                if summarize_ocp_on_gcp_by_node(self._schema):
+                if is_summarize_ocp_on_gcp_by_node_enabled(self._schema):
                     for node in nodes:
                         LOG.info(f"Summarizing ocp on gcp daily for node: {node}")
                         accessor.populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
