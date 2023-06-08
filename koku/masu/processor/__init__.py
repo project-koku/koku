@@ -122,6 +122,14 @@ def is_source_disabled(source_uuid):  # pragma: no cover
     """
     context = {"source_uuid": source_uuid}
     res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-source", context)
-    if res:  # pragma: no cover
+    if res:
         LOG.info(log_json(msg="processing disabled for source", context=context))
+    return res
+
+
+def is_ingress_rate_limiting_disabled():  # pragma: no cover
+    """Disable ingress rate limiting"""
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ingress-rate-limit")
+    if res:
+        LOG.info(log_json(msg="ingress rate limiting disabled"))
     return res
