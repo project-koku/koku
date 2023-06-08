@@ -120,13 +120,9 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_GCP = {
         "task": download_task,
         "schedule": report_schedule_gcp,
-        "kwargs": json.dumps(
-            {
-                "provider_type": "GCP",
-            }
-        ),
+        "args": json.dumps({"provider_type": "GCP"}),
     }
-    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_GCP
+    app.conf.beat_schedule["check-report-updates-gcp"] = CHECK_REPORT_UPDATES_DEF_GCP
 
     REPORT_DOWNLOAD_SCHEDULE_AWS = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_AWS", default=download_expression)
     REPORT_DOWNLOAD_SCHEDULE_AWS = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_AWS)
@@ -134,13 +130,9 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_AWS = {
         "task": download_task,
         "schedule": report_schedule_aws,
-        "kwargs": json.dumps(
-            {
-                "provider_type": "AWS",
-            }
-        ),
+        "args": json.dumps({"provider_type": "AWS"}),
     }
-    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_AWS
+    app.conf.beat_schedule["check-report-updates-aws"] = CHECK_REPORT_UPDATES_DEF_AWS
 
     REPORT_DOWNLOAD_SCHEDULE_AZURE = ENVIRONMENT.get_value(
         "REPORT_DOWNLOAD_SCHEDULE_AZURE", default=download_expression
@@ -150,13 +142,9 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_AZURE = {
         "task": download_task,
         "schedule": report_schedule_azure,
-        "kwargs": json.dumps(
-            {
-                "provider_type": "Azure",
-            }
-        ),
+        "args": json.dumps({"provider_type": "Azure"}),
     }
-    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_AZURE
+    app.conf.beat_schedule["check-report-updates-azure"] = CHECK_REPORT_UPDATES_DEF_AZURE
 
     REPORT_DOWNLOAD_SCHEDULE_OCI = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_OCI", default=download_expression)
     REPORT_DOWNLOAD_SCHEDULE_OCI = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_OCI)
@@ -164,13 +152,9 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF_OCI = {
         "task": download_task,
         "schedule": report_schedule_oci,
-        "kwargs": json.dumps(
-            {
-                "provider_type": "OCI",
-            }
-        ),
+        "args": json.dumps({"provider_type": "OCI"}),
     }
-    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF_OCI
+    app.conf.beat_schedule["check-report-updates-oci"] = CHECK_REPORT_UPDATES_DEF_OCI
 
 
 # Specify the day of the month for removal of expired report data.
