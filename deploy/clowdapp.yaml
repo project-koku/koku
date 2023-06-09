@@ -2495,11 +2495,11 @@ objects:
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
+            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
+            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
           requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
+            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
+            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -2662,6 +2662,22 @@ parameters:
   name: _MIGRATION_DIRECTIVE
   required: false
   value: ""
+- displayName: Memory Request
+  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MIGRATIONS_CPU_REQUEST
+  required: true
+  value: 2
+- displayName: CPU Limit
+  name: KOKU_MIGRATIONS_CPU_LIMIT
+  required: true
+  value: 3
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
