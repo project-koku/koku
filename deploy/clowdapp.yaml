@@ -659,8 +659,14 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE
-          value: ${REPORT_DOWNLOAD_SCHEDULE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
+          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
+          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -2756,9 +2762,21 @@ parameters:
   value: "True"
 - name: QE_SCHEMA
   value: ""
-- description: Report download schedule
-  displayName: Report download schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+- description: Report download schedule GCP
+  displayName: Report download schedule GCP
+  name: REPORT_DOWNLOAD_SCHEDULE_GCP
+  value: 0 4,16 * * *
+- description: Report download schedule AWS
+  displayName: Report download schedule AWS
+  name: REPORT_DOWNLOAD_SCHEDULE_AWS
+  value: 0 4,16 * * *
+- description: Report download schedule AZURE
+  displayName: Report download schedule AZURE
+  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+  value: 0 4,16 * * *
+- description: Report download schedule OCI
+  displayName: Report download schedule OCI
+  name: REPORT_DOWNLOAD_SCHEDULE_OCI
   value: 0 4,16 * * *
 - description: Remove expired data on day
   displayName: Remove expired data on day
