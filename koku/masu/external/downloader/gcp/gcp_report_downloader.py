@@ -87,6 +87,7 @@ def create_daily_archives(
         except Exception as error:
             LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
             raise GCPReportDownloaderError(error)
+        partition_date_counter = {}
         data_frame = add_label_columns(data_frame)
         # putting it in for loop handles crossover data, when we have distinct invoice_month
         for invoice_month in data_frame["invoice.month"].unique():
@@ -97,6 +98,8 @@ def create_daily_archives(
             date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
             partition_dates = invoice_month_data.partition_date.unique()
             for partition_date in partition_dates:
+                if partition_date_counter.get(partition_date) is None:
+                    partition_date_counter[partition_date] = 0
                 partition_date_filter = invoice_month_data["partition_date"] == partition_date
                 invoice_partition_data = invoice_month_data[partition_date_filter]
                 start_of_invoice = dh.invoice_month_start(invoice_month)
@@ -104,6 +107,9 @@ def create_daily_archives(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
+                if ingress_reports:
+                    day_file = f"{invoice_month}_{partition_date}_{partition_date_counter[partition_date]}"
+                    partition_date_counter[partition_date] = partition_date_counter[partition_date] + 1
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
