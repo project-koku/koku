@@ -8,7 +8,7 @@ pipeline {
         stage('no-op') {
             steps {
                 script {
-                    env.GITHUB_LABELS = pullRequest.getLabels()
+                    env.GITHUB_LABELS = pullRequest.labels
                 }
                 sh "env"
             }
