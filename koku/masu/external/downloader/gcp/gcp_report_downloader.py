@@ -30,6 +30,7 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
+from masu.util.gcp.common import add_label_columns
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 
@@ -86,6 +87,7 @@ def create_daily_archives(
         except Exception as error:
             LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
             raise GCPReportDownloaderError(error)
+        data_frame = add_label_columns(data_frame)
         # putting it in for loop handles crossover data, when we have distinct invoice_month
         for invoice_month in data_frame["invoice.month"].unique():
             invoice_filter = data_frame["invoice.month"] == invoice_month
