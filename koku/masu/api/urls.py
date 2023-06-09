@@ -14,6 +14,7 @@ from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import clear_celery_queues
+from masu.api.views import clear_statement_statistics
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
@@ -26,7 +27,9 @@ from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
 from masu.api.views import lockinfo
 from masu.api.views import notification
+from masu.api.views import pg_cancel_backend
 from masu.api.views import pg_engine_version
+from masu.api.views import pg_terminate_backend
 from masu.api.views import process_openshift_on_cloud
 from masu.api.views import purge_trino_files
 from masu.api.views import report_data
@@ -99,6 +102,9 @@ urlpatterns = [
     path("db-performance/explain-query/", explain_query, name="explain_query"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
+    path("db-performance/cancel-backend-pid/", pg_cancel_backend, name="db_cancel_connection"),
+    path("db-performance/terminate-backend-pid/", pg_terminate_backend, name="db_terminate_connection"),
+    path("db-performance/stat-statements-reset/", clear_statement_statistics, name="clear_statement_statistics"),
 ]
 
 urlpatterns += ROUTER.urls

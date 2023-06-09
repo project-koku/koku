@@ -74,40 +74,40 @@ SPDX-License-Identifier: Apache-2.0
         </style>
         <script>
             function do_terminate(target_pid) {
-                // var terminate_url = '{{action_urls[1]}}';
+                var terminate_url = '{{action_urls[1]}}';
                 _msg = "This SQL will terminate the backend pid: " + target_pid + "\n"
                        + "This will close the connection.\n\n"
                        + "SELECT pg_terminate_backend(" + target_pid + ");";
                 window.alert(_msg);
                 location.reload();
-                // if ( window.confirm(_msg) ) {
-                //     _msg = 'Enter "TERMINATE" to terminate connection: ' + target_pid;
-                //     var reconfirm = window.prompt(_msg);
-                //     if ((reconfirm !== null) && (reconfirm == "TERMINATE")) {
-                //         var xhttp = new XMLHttpRequest();
-                //         var terminate_data = null;
-                //         xhttp.open("GET", terminate_url, false);
-                //         xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid);
-                //         xhttp.send();
-                //         if (xhttp.status == 200) {
-                //             terminate_data = JSON.parse(xhttp.responseText)[0];
-                //             _msg = "Successful request sent.\n"
-                //                 + "Response:\n"
-                //                 + "Pid: "
-                //                 + terminate_data.pid
-                //                 + " Terminated: "
-                //                 + terminate_data.terminate;
-                //             window.alert(_msg);
-                //             location.reload();
-                //         } else {
-                //             window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
-                //         }
-                //     }
-                // }
+                if ( window.confirm(_msg) ) {
+                    _msg = 'Enter "TERMINATE" to terminate connection: ' + target_pid;
+                    var reconfirm = window.prompt(_msg);
+                    if ((reconfirm !== null) && (reconfirm == "TERMINATE")) {
+                        var xhttp = new XMLHttpRequest();
+                        var terminate_data = null;
+                        xhttp.open("GET", terminate_url, false);
+                        xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid);
+                        xhttp.send();
+                        if (xhttp.status == 200) {
+                            terminate_data = JSON.parse(xhttp.responseText)[0];
+                            _msg = "Successful request sent.\n"
+                                + "Response:\n"
+                                + "Pid: "
+                                + terminate_data.pid
+                                + " Terminated: "
+                                + terminate_data.terminate;
+                            window.alert(_msg);
+                            location.reload();
+                        } else {
+                            window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+                        }
+                    }
+                }
             }
 
             function do_cancel(target_pid) {
-                // var cancel_url = '{{action_urls[0]}}';
+                var cancel_url = '{{action_urls[0]}}';
                 _msg = "This SQL will cancel the backend pid: " + target_pid + "\n"
                         + "This will halt the current action for that connection.\n"
                         + "If the backend process is idle, this may not work. \n"
@@ -115,24 +115,24 @@ SPDX-License-Identifier: Apache-2.0
                         + "SELECT pg_cancel_backend(" + target_pid + ");";
                 window.alert(_msg);
                 location.reload();
-                // if ( window.confirm(_msg) ) {
-                //     var xhttp = new XMLHttpRequest();
-                //     var cancel_data = null;
-                //     xhttp.open("GET", cancel_url, false);;
-                //     xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid);
-                //     xhttp.send();
-                //     if (xhttp.status == 200) {
-                //         cancel_data = JSON.parse(xhttp.responseText)[0];
-                //         _msg = "Successful request sent.\n"
-                //                + "Response:\n"
-                //                + "Pid: "
-                //                + cancel_data.pid
-                //                + " Cancelled: "
-                //                + cancel_data.cancel;
-                //         window.alert(_msg);
-                //         location.reload();
-                //     }
-                // }
+                if ( window.confirm(_msg) ) {
+                    var xhttp = new XMLHttpRequest();
+                    var cancel_data = null;
+                    xhttp.open("GET", cancel_url, false);;
+                    xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid);
+                    xhttp.send();
+                    if (xhttp.status == 200) {
+                        cancel_data = JSON.parse(xhttp.responseText)[0];
+                        _msg = "Successful request sent.\n"
+                               + "Response:\n"
+                               + "Pid: "
+                               + cancel_data.pid
+                               + " Cancelled: "
+                               + cancel_data.cancel;
+                        window.alert(_msg);
+                        location.reload();
+                    }
+                }
             }
 
             function select_db(db_sel) {
@@ -182,13 +182,13 @@ SPDX-License-Identifier: Apache-2.0
                         <div>
     {% for target in targets %}
         {% set raw_target = rec["_raw_" + target] %}
-                            <button class="left-btn" id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{raw_target}}');">Show SQL for Cancel {{target}} {{raw_target}}</button>
+                            <button class="left-btn" id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{raw_target}}');">Cancel {{target}} {{raw_target}}</button>
                             <br/>
    {% endfor %}
                             <br />
     {% for target in targets %}
         {% set raw_target = rec["_raw_" + target] %}
-                            <button class="left-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{raw_target}}');">Show SQL for Terminate {{target}} {{raw_target}}</button>
+                            <button class="left-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{raw_target}}');">Terminate {{target}} {{raw_target}}</button>
                             <br/>
    {% endfor %}
                         </div>

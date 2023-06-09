@@ -229,15 +229,15 @@ def lockinfo(request):
     if "blocked_pid" in data[0]:
         targets.append("blocked_pid")
 
-    # action_urls = [reverse("db_cancel_connection")]
-    # if request.query_params.get("terminate") == "enable":
-    #     LOG.info("Enabling the pg_stat_activity terminate action template.")
-    #     template = "t_action_table.html"
-    #     action_urls.append(reverse("db_terminate_connection"))
-    # elif request.query_params.get("cancel") == "enable":
-    #     template = "action_table.html"
-    # else:
-    #     template = "gen_table.html"
+    action_urls = [reverse("db_cancel_connection")]
+    if request.query_params.get("terminate") == "enable":
+        LOG.info("Enabling the pg_stat_activity terminate action template.")
+        template = "t_action_table.html"
+        action_urls.append(reverse("db_terminate_connection"))
+    elif request.query_params.get("cancel") == "enable":
+        template = "action_table.html"
+    else:
+        template = "gen_table.html"
 
     template = "t_action_table.html"
 
@@ -283,7 +283,7 @@ def lockinfo(request):
             template=template,
             db_select=db_options,
             pagination=pagination,
-            # action_urls=action_urls,
+            action_urls=action_urls,
         )
     )
 
@@ -347,11 +347,11 @@ def stat_statements(request):
 def stat_activity(request):
     """Get any blocked and blocking process data"""
 
-    # action_urls = [reverse("db_cancel_connection")]
-    # if request.query_params.get("terminate") == "enable":
-    #     LOG.info("Enabling the pg_stat_activity terminate action template.")
-    #     template = "t_action_table.html"
-    #     action_urls.append(reverse("db_terminate_connection"))
+    action_urls = [reverse("db_cancel_connection")]
+    if request.query_params.get("terminate") == "enable":
+        LOG.info("Enabling the pg_stat_activity terminate action template.")
+        template = "t_action_table.html"
+        action_urls.append(reverse("db_terminate_connection"))
     # elif request.query_params.get("cancel") == "enable":
     #     template = "action_table.html"
     # else:
@@ -534,3 +534,50 @@ def schema_sizes(request):
             pagination=pagination,
         )
     )
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+def pg_cancel_backend(request):
+    """Get any blocked and blocking process data"""
+
+    backends = request.META.get("HTTP_PARAM_DB_CONNID")
+    if backends:
+        backends = [int(pid) for pid in backends.split("<")]
+
+    data = None
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        data = dbp.cancel_backends(backends)
+
+    return Response(data or {})
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+def pg_terminate_backend(request):
+    """Get any blocked and blocking process data"""
+
+    backends = request.META.get("HTTP_PARAM_DB_CONNID")
+    if backends:
+        backends = [int(pid) for pid in backends.split("<")]
+
+    data = None
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        data = dbp.terminate_backends(backends)
+
+    return Response(data or {})
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+def clear_statement_statistics(request):
+    """Get any blocked and blocking process data"""
+
+    data = None
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        data = dbp.pg_stat_statements_reset()
+
+    return Response(data)
