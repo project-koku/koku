@@ -20,7 +20,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4.3.0
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Run pre-commit checks
         uses: pre-commit/action@v3.0.0
@@ -147,7 +147,7 @@ jobs:
       max-parallel: 4
       matrix:
         python-version:
-          - '3.9'
+          - '3.11'
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
