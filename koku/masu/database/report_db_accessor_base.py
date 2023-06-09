@@ -114,23 +114,19 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor."""
-        if start and end:
-            LOG.info("Triggering %s on %s from %s to %s.", operation, table, start, end)
-        else:
-            LOG.info("Triggering %s %s", operation, table)
-
+        LOG.info(log_json(msg=f"triggering {operation}", table=table, start=start, end=end))
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
+            t1 = time.time()
             try:
-                t1 = time.time()
                 cursor.execute(sql, params=bind_params)
-                t2 = time.time()
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
                 LOG.error(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
-                raise db_exc
+                raise db_exc from exc
 
-        LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
+        running_time = time.time() - t1
+        LOG.info(log_json(msg=f"finished {operation}", table=table, start=start, end=end, running_time=running_time))
 
     def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""

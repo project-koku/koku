@@ -618,7 +618,7 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
         expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
-        with patch("masu.util.gcp.common.disable_gcp_resource_matching", return_value=True):
+        with patch("masu.util.gcp.common.is_gcp_resource_matching_disabled", return_value=True):
             with self.assertLogs("masu", level="INFO") as logger:
                 self.accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
@@ -715,7 +715,7 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider])
+            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider_uuid])
             self.assertEqual(len(topology), 1)
             topo = topology[0]
             self.assertEqual(topo.get("cluster_id"), cluster_id)

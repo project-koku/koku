@@ -584,7 +584,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertTrue(value)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
-    @patch("masu.database.aws_report_db_accessor.enable_ocp_savings_plan_cost")
+    @patch("masu.database.aws_report_db_accessor.is_ocp_savings_plan_cost_enabled")
     def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_execute):
         """Test that we back populate raw cost to OCP."""
         is_savingsplan_cost = True

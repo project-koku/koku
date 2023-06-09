@@ -68,5 +68,7 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
 
         with schema_context(self._schema_name):
             GCPCostEntryBill.objects.get_or_create(
-                billing_period_start=start_date_utc, billing_period_end=end_date_utc, provider=provider
+                billing_period_start=start_date_utc,
+                billing_period_end=end_date_utc,
+                provider_id=provider.uuid,
             )
