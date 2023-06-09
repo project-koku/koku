@@ -230,7 +230,7 @@ Information about Grafana dashboards can be found here: https://grafana.com/docs
 
 ### Developing with OpenShift
 
-Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to [Working with Openshift](docs/openshift.md).
+Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to [Working with OpenShift](docs/openshift.md).
 
 ### Testing
 
