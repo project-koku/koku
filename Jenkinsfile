@@ -45,22 +45,27 @@ pipeline {
     }
 
     stages {
+        stage('Initial setup') {
+            sh '''
+                mkdir -p $LABELS_DIR
+                mkdir -p $ARTIFACTS_DIR
+
+                # Save PR labels into a file
+                curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
+
+                cat $LABELS_DIR/github_labels.txt
+            '''
+        }
+
         stage('Check PR check/smoke tests run') {
             when {
                 expression {
-                    sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt || true", returnStdout: true) == true
+                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt")
                 }
             }
             steps {
                 sh '''
-
-                    mkdir -p $LABELS_DIR
-                    mkdir -p $ARTIFACTS_DIR
-
-                    # Save PR labels into a file
-                    curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
-                
-                    cat $LABELS_DIR/github_labels.txt
+                    
 
                     task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
                     error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
