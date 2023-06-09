@@ -33,7 +33,7 @@ LABEL summary="$SUMMARY" \
 # gcc to compile some python packages (e.g. ciso8601)
 # shadow-utils to make useradd available
 # libpq-devel needed for building psycopg2
-RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc shadow-utils libpq-devel" && \
+RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc gcc-c++ shadow-utils libpq-devel" && \
     microdnf --nodocs -y upgrade && \
     microdnf reinstall tzdata && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
