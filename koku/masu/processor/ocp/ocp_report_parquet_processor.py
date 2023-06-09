@@ -82,5 +82,5 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 cluster_alias=cluster_alias,
                 report_period_start=report_period_start,
                 report_period_end=report_period_end,
-                provider=provider,
+                provider_id=provider.uuid,
             )
