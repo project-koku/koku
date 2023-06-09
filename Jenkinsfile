@@ -7,7 +7,10 @@ pipeline {
     stages {
         stage('no-op') {
             steps {
-                sh "echo 'Jenkinsfile placeholder'"
+                script {
+                    env.GITHUB_LABELS = pullRequest.getLabels()
+                }
+                sh "env"
             }
         }
     }
