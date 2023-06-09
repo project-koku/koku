@@ -20,11 +20,8 @@ This project is developed using Python 3.9. Make sure you have at least this ver
 
 ### Prerequisites
 
--   Docker
-
-#### For macOS
-
--   [Install Homebrew](https://brew.sh/)
+- Docker
+- (macOS only) [Install Homebrew](https://brew.sh/)
 
 ## Development
 
@@ -83,7 +80,7 @@ This will explain how to start the server and its dependencies usin Docker, crea
 
 1.  Start the containers:
 
-        make docker-up-min-trino
+        make docker-up-min
 
 2.  Display log output from the containers. It is recommended that logs be kept in a second terminal:
 
@@ -94,7 +91,7 @@ With all containers running any source added will be processed by saving CSV fil
 To add test sources and data:
 
     make create-test-customer
-    make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
+    make load-test-customer-data # Optional parameters: start={start_date} end={end_date} test_source=AWS
 
 The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials.
 
