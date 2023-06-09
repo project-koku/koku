@@ -169,6 +169,7 @@ clear-trino:
 
 clear-trino-data:
 	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data
+	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/hcs
 
 clear-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall

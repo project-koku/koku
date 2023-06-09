@@ -16,7 +16,7 @@ To submit an issue please visit https://issues.redhat.com/projects/COST/.
 
 ## Getting Started
 
-This project is developed using Python 3.9. Make sure you have at least this version installed.
+This project is developed using Python 3.11. Make sure you have at least this version installed.
 
 ### Prerequisites
 
