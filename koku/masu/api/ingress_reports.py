@@ -5,7 +5,6 @@
 """View for ingress_data endpoint."""
 # flake8: noqa
 import logging
-from json import dumps
 
 from django.views.decorators.cache import never_cache
 from django_tenants.utils import schema_context
@@ -40,7 +39,6 @@ def ingress_reports(request):
         ingress_uuid = params.get("ingress_uuid")
         provider_uuid = params.get("provider_uuid")
         schema_name = params.get("schema_name")
-        ingress_download = params.get("download")
 
         queue_name = params.get("queue") or GET_REPORT_FILES_QUEUE
         if schema_name is None:
@@ -50,7 +48,7 @@ def ingress_reports(request):
             errmsg = f"'queue' must be one of {QUEUE_LIST}."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        if ingress_download:
+        if "download" in params.keys():
             if not ingress_uuid:
                 errmsg = "ingress_uuid must be supplied as a parameter for downloads."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
