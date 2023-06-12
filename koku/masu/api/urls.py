@@ -30,6 +30,7 @@ from masu.api.views import pg_engine_version
 from masu.api.views import process_openshift_on_cloud
 from masu.api.views import purge_trino_files
 from masu.api.views import report_data
+from masu.api.views import reserved_celery_tasks
 from masu.api.views import running_celery_tasks
 from masu.api.views import schema_sizes
 from masu.api.views import stat_activity
@@ -61,6 +62,7 @@ urlpatterns = [
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("additional_context/", additional_context, name="additional_context"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
+    path("reserved_celery_tasks/", reserved_celery_tasks, name="reserved_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("manifests/", ManifestView.as_view({"get": "get_all_manifests"}), name="all_manifests"),

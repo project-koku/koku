@@ -82,3 +82,19 @@ def clear_celery_queues(request):
 
         LOG.info(f"Celery purged tasks: {purged_tasks}")
         return Response({"purged_tasks": purged_tasks})
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def reserved_celery_tasks(request):
+    """Get the task ids of running celery tasks."""
+    tasks_list = CELERY_INSPECT.reserved()
+    # active_tasks = []
+    # if active_dict:
+    #     for task_list in active_dict.values():
+    #         active_tasks.extend(task_list)
+    # if active_tasks:
+    #     active_tasks = [dikt.get("id", "") for dikt in active_tasks]
+    return Response({"active_tasks": tasks_list})

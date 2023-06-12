@@ -27,6 +27,7 @@ from masu.api.purge_trino_files import purge_trino_files
 from masu.api.report_data import report_data
 from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import clear_celery_queues
+from masu.api.running_celery_tasks import reserved_celery_tasks
 from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.source_cleanup import cleanup
 from masu.api.sources.views import SourcesViewSet
