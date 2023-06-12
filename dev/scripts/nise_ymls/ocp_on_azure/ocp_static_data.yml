@@ -171,7 +171,7 @@ generators:
           node_name: azure_master
           node_labels: label_nodeclass:master
           cpu_cores: 6
-          memory_gig: 16
+          memory_gig: 20
           resource_id: 99999998
           namespaces:
             kube-system:

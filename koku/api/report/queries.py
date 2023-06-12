@@ -1143,7 +1143,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = {"cost_units", "source_uuid"}
+        drop_columns = {"source_uuid"}
         if self.is_openshift:
             drop_columns.add("clusters")
 
@@ -1155,14 +1155,15 @@ class ReportQueryHandler(QueryHandler):
         rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
-        agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
-        if "costs" not in self._report_type:
-            agg_fields.update({"usage_units": ["max"]})
-            drop_columns.add("usage_units")
+
+        agg_fields = {}
+        for col in [col for col in self.report_annotations if "units" in col]:
+            drop_columns.add(col)
+            agg_fields[col] = ["max"]
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
