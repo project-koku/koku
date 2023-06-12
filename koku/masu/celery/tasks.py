@@ -511,7 +511,7 @@ def collect_queue_metrics(self):
 
 
 @celery_app.task(name="masu.celery.tasks.task_list", bind=True, queue=DEFAULT)
-def get_celery_queue_items(queue_name=None, task_name=None):
+def get_celery_queue_items(self, queue_name=None, task_name=None):
     """
     Collect info on tasks in the celery queues.
 
