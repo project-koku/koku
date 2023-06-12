@@ -95,9 +95,9 @@ def celery_queue_tasks(request):
     """Get the task info of queued celery tasks."""
     params = request.query_params
     queue = params.get("queue", None)
-    if queue not in QUEUES:
+    if queue and queue not in QUEUES:
         errmsg = "Must provide a valid queue to search."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     task = params.get("task", None)
-    tasks_list = get_celery_queue_items(queue, task)
+    tasks_list = get_celery_queue_items(queue_name=queue, task_name=task)
     return Response({"active_tasks": tasks_list})
