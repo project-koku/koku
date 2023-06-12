@@ -375,7 +375,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Calculate the cluster capacity."""
         for row in query_data:
             row_date = row.get("date")
-            # I am not convinced we need this:
             if self.resolution == "monthly" and not self.parameters.get("start_date"):
                 if cluster_list := row.get("clusters"):
                     row[_capacity.key] = sum(
