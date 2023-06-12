@@ -18,6 +18,7 @@ from rest_framework.settings import api_settings
 from koku import CELERY_INSPECT
 from koku.celery import app
 from masu.celery.tasks import collect_queue_metrics
+from masu.celery.tasks import get_celery_queue_items
 
 LOG = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def clear_celery_queues(request):
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def reserved_celery_tasks(request):
     """Get the task ids of running celery tasks."""
-    tasks_list = CELERY_INSPECT.reserved()
+    tasks_list = get_celery_queue_items()
     # active_tasks = []
     # if active_dict:
     #     for task_list in active_dict.values():

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
+import base64
+import json
 import logging
 import math
 
@@ -507,3 +509,21 @@ def collect_queue_metrics(self):
             gauge.set(length)
     LOG.debug(f"Celery queue backlog info: {queue_len}")
     return queue_len
+
+
+@celery_app.task(name="masu.celery.tasks.task_list", bind=True, queue=DEFAULT)
+def get_celery_queue_items(queue_name):
+    with celery_app.pool.acquire(block=True) as conn:
+        tasks = conn.default_channel.client.lrange("priority", 0, -1)
+
+    decoded_tasks = []
+    for task in tasks:
+        j = json.loads(task)
+        body = json.loads(base64.b64decode(j["body"]))
+        header_dict = j["headers"]
+        # useful_stuff = {"name": header_dict['task'],
+        # "args": header_dict["argsrepr"], "kwargs": header_dict["kwargsrepr"]}
+        useful_stuff = {"name": header_dict["task"], "body": body}
+        decoded_tasks.append(useful_stuff)
+
+    return decoded_tasks
