@@ -2492,6 +2492,10 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
@@ -2678,6 +2682,12 @@ parameters:
   name: KOKU_MIGRATIONS_CPU_LIMIT
   required: true
   value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: true
+  value: "2"
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
