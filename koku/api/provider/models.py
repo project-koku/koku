@@ -325,10 +325,10 @@ select ftn.nspname as "table_schema",
          ft.relname ~ %(api_fregex)s
        )
  order
-    by case when ft.relname ~ %(ui_table_sregex)s then %(ui_table_sval)s
+    by case when ft.relname ~ %(tenant_provider_sregex)s then %(tenant_provider_sval)s
+            when ft.relname ~ %(ui_table_sregex)s then %(ui_table_sval)s
             when ft.relname ~ %(ocp_type_sregex)s then %(ocp_type_sval)s
             when ft.relname ~ %(daily_summ_sregex)s then %(daily_summ_sval)s
-            when ft.relname ~ %(tenant_provider_sregex)s then %(tenant_provider_sval)s
             when ft.relname ~ %(api_sregex)s then %(api_sval)s
             else %(default_sval)s
        end::int,
@@ -347,14 +347,14 @@ select ftn.nspname as "table_schema",
                 "rpt_ingress_fregex": "^reporting_ingressreports",
                 "rpt_provider_fregex": "^reporting_tenant_api_provider",
                 "api_fregex": "^api_",
-                "ui_table_sregex": f"^reporting_{self._normalized_type}_",
-                "ui_table_sval": 1,
-                "ocp_type_sregex": f"^reporting_ocp({self._normalized_type}|all)",
-                "ocp_type_sval": 2,
-                "daily_summ_sregex": "_daily_summary",
-                "daily_summ_sval": 3,
                 "tenant_provider_sregex": "^reporting_tenant_api_provider",
-                "tenant_provider_sval": 4,
+                "tenant_provider_sval": 1,
+                "ui_table_sregex": f"^reporting_{self._normalized_type}_",
+                "ui_table_sval": 2,
+                "ocp_type_sregex": f"^reporting_ocp({self._normalized_type}|all)",
+                "ocp_type_sval": 3,
+                "daily_summ_sregex": "_daily_summary",
+                "daily_summ_sval": 4,
                 "api_sregex": "^api_",
                 "api_sval": 10,
                 "default_sval": 5,
