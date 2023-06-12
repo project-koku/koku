@@ -65,4 +65,9 @@ class CURAccountsDB(CURAccountsInterface):
                 if provider_type and provider_type not in provider.type:
                     continue
                 accounts.append(self.get_account_information(provider))
+            msg = f"""Looping through providers polling for:
+                provider_uuid: {provider_uuid},
+                provider_type: {provider_type}
+            """
+            LOG.info(msg)
         return accounts
