@@ -26,7 +26,7 @@ class CURAccountsDB(CURAccountsInterface):
             "provider_uuid": provider.uuid,
         }
 
-    def get_accounts_from_source(self, provider_uuid=None):
+    def get_accounts_from_source(self, provider_uuid=None, provider_type=None):
         """
         Retrieve all accounts from the Koku database.
 
@@ -62,10 +62,12 @@ class CURAccountsDB(CURAccountsInterface):
                         f"or paused={provider.paused}. Processing suspended..."
                     )
                     continue
+                if provider_type and provider_type not in provider.type:
+                    continue
                 accounts.append(self.get_account_information(provider))
-        msg = f"""Looping through all providers to for polling:
+            msg = f"""Looping through providers polling for:
                 provider_uuid: {provider_uuid},
-                provider: {provider}
+                provider_type: {provider_type}
             """
-        LOG.info(msg)
+            LOG.info(msg)
         return accounts

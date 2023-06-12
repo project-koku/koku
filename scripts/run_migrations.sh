@@ -154,7 +154,7 @@ process_migrations()
         fi
 
         echo "⌚ : Running Migrations ${_app} ${_mig}"
-        python3 ${_APP_HOME}/manage.py migrate_schemas ${_app} ${_mig}
+        python3 ${_APP_HOME}/manage.py migrate_schemas ${_app} ${_mig} --executor=multiprocessing
         _rc=$?
         if [[ ${_rc} -ne 0 ]]; then
             echo "⛔ : ERROR (${_rc}) running migrations ${_app} ${_mig}" >&2

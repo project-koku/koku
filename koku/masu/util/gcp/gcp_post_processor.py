@@ -59,10 +59,7 @@ class GCPPostProcessor:
         "usage_end_time",
         "project.id",
         "project.name",
-        "project.labels",
         "project.ancestry_numbers",
-        "labels",
-        "system_labels",
         "location.location",
         "location.country",
         "location.region",
@@ -182,7 +179,6 @@ class GCPPostProcessor:
             new_col_name = strip_characters_from_column_name(column)
             column_name_map[column] = new_col_name
         data_frame = data_frame.rename(columns=column_name_map)
-
         label_set = set()
         unique_labels = data_frame.labels.unique()
         for label in unique_labels:
