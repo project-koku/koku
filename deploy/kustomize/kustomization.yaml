@@ -62,3 +62,7 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-subs.yaml
+  target:
+    version: v1
+    kind: Template
