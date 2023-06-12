@@ -100,4 +100,4 @@ def celery_queue_tasks(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     task = params.get("task", None)
     tasks_list = get_celery_queue_items(queue_name=queue, task_name=task)
-    return Response({"active_tasks": tasks_list})
+    return Response({"queued_tasks": tasks_list})
