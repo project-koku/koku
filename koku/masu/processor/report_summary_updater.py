@@ -142,9 +142,6 @@ class ReportSummaryUpdater:
             "invoice_month": invoice_month,
         }
         LOG.info(log_json(tracing_id, msg="summary processing starting", context=context))
-        import time
-
-        time.sleep(30)
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
-import base64
 import json
 import logging
 import math
@@ -512,18 +511,34 @@ def collect_queue_metrics(self):
 
 
 @celery_app.task(name="masu.celery.tasks.task_list", bind=True, queue=DEFAULT)
-def get_celery_queue_items(queue_name):
-    with celery_app.pool.acquire(block=True) as conn:
-        tasks = conn.default_channel.client.lrange("priority", 0, -1)
+def get_celery_queue_items(queue_name=None, task_name=None):
+    """
+    Collect info on tasks in the celery queues.
 
-    decoded_tasks = []
-    for task in tasks:
-        j = json.loads(task)
-        body = json.loads(base64.b64decode(j["body"]))
-        header_dict = j["headers"]
-        # useful_stuff = {"name": header_dict['task'],
-        # "args": header_dict["argsrepr"], "kwargs": header_dict["kwargsrepr"]}
-        useful_stuff = {"name": header_dict["task"], "body": body}
-        decoded_tasks.append(useful_stuff)
+    Parameters:
+        queue_name (str): A specific queue to check task info for
+        task_name (str): A specific task to get info for
+
+    """
+    queue_tasks = {}
+    with celery_app.pool.acquire(block=True) as conn:
+        if queue_name:
+            queue_tasks[queue_name] = conn.default_channel.client.lrange(queue_name, 0, -1)
+        else:
+            for queue in QUEUES:
+                queue_tasks[queue] = conn.default_channel.client.lrange(queue, 0, -1)
+
+    decoded_tasks = {}
+    for queue, tasks in queue_tasks.items():
+        task_list = []
+        for task in tasks:
+            j = json.loads(task)
+            t_header = j.get("headers", {})
+            t_name = t_header.get("task", "")
+            if task_name and t_name != task_name:
+                continue
+            t_info = {"name": t_name, "args": t_header.get("argsrepr", ""), "kwargs": t_header.get("kwargsrepr", "")}
+            task_list.append(t_info)
+        decoded_tasks[queue] = task_list
 
     return decoded_tasks

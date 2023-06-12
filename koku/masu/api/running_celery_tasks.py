@@ -8,6 +8,7 @@ import logging
 import redis
 from django.conf import settings
 from django.views.decorators.cache import never_cache
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -19,6 +20,7 @@ from koku import CELERY_INSPECT
 from koku.celery import app
 from masu.celery.tasks import collect_queue_metrics
 from masu.celery.tasks import get_celery_queue_items
+from masu.prometheus_stats import QUEUES
 
 LOG = logging.getLogger(__name__)
 
@@ -89,13 +91,13 @@ def clear_celery_queues(request):
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def reserved_celery_tasks(request):
-    """Get the task ids of running celery tasks."""
-    tasks_list = get_celery_queue_items()
-    # active_tasks = []
-    # if active_dict:
-    #     for task_list in active_dict.values():
-    #         active_tasks.extend(task_list)
-    # if active_tasks:
-    #     active_tasks = [dikt.get("id", "") for dikt in active_tasks]
+def celery_queue_tasks(request):
+    """Get the task info of queued celery tasks."""
+    params = request.query_params
+    queue = params.get("queue", None)
+    if queue not in QUEUES:
+        errmsg = "Must provide a valid queue to search."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    task = params.get("task", None)
+    tasks_list = get_celery_queue_items(queue, task)
     return Response({"active_tasks": tasks_list})
