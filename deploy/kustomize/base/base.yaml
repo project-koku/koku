@@ -17,7 +17,7 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
-      dbResourceSize: medium
+      dbResourceSize: small
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
 
@@ -84,6 +84,10 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -265,6 +269,12 @@ parameters:
   name: KOKU_MIGRATIONS_CPU_LIMIT
   required: true
   value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: True
+  value: "2"
 
 - displayName: App domain
   name: APP_DOMAIN
