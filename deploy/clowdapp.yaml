@@ -659,8 +659,14 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE
-          value: ${REPORT_DOWNLOAD_SCHEDULE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
+          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
+          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -2489,11 +2495,11 @@ objects:
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
+            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
+            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
           requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
+            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
+            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -2656,6 +2662,22 @@ parameters:
   name: _MIGRATION_DIRECTIVE
   required: false
   value: ""
+- displayName: Memory Request
+  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MIGRATIONS_CPU_REQUEST
+  required: true
+  value: "2"
+- displayName: CPU Limit
+  name: KOKU_MIGRATIONS_CPU_LIMIT
+  required: true
+  value: "3"
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
@@ -2756,9 +2778,21 @@ parameters:
   value: "True"
 - name: QE_SCHEMA
   value: ""
-- description: Report download schedule
-  displayName: Report download schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+- description: Report download schedule GCP
+  displayName: Report download schedule GCP
+  name: REPORT_DOWNLOAD_SCHEDULE_GCP
+  value: 0 4,16 * * *
+- description: Report download schedule AWS
+  displayName: Report download schedule AWS
+  name: REPORT_DOWNLOAD_SCHEDULE_AWS
+  value: 0 4,16 * * *
+- description: Report download schedule AZURE
+  displayName: Report download schedule AZURE
+  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+  value: 0 4,16 * * *
+- description: Report download schedule OCI
+  displayName: Report download schedule OCI
+  name: REPORT_DOWNLOAD_SCHEDULE_OCI
   value: 0 4,16 * * *
 - description: Remove expired data on day
   displayName: Remove expired data on day
