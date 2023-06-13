@@ -95,5 +95,5 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,
                 payer_account_id=payer_account_id,
-                provider=provider,
+                provider_id=provider.uuid,
             )

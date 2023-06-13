@@ -21,8 +21,8 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
-from masu.processor import disable_cloud_source_processing
-from masu.processor import disable_source
+from masu.processor import is_cloud_source_processing_disabled
+from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
@@ -45,7 +45,9 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None, **kwargs):
+    def __init__(
+        self, billing_source=None, provider_uuid=None, provider_type=None, bill_date=None, queue_name=None, **kwargs
+    ):
         """
         Orchestrator for processing.
 
@@ -57,14 +59,17 @@ class Orchestrator:
         self.billing_source = billing_source
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
+        self.provider_type = provider_type
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
+        self._accounts, self._polling_accounts = self.get_accounts(
+            self.billing_source, self.provider_uuid, self.provider_type
+        )
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None):
+    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None):
         """
         Prepare a list of accounts for the orchestrator to get CUR from.
 
@@ -75,6 +80,8 @@ class Orchestrator:
 
         Args:
             billing_source (String): Individual account to retrieve.
+            provider_uuid  (String): Individual provider UUID.
+            provider_type  (String): Specific provider type.
 
         Returns:
             [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
@@ -83,7 +90,7 @@ class Orchestrator:
         all_accounts = []
         polling_accounts = []
         try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid)
+            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type)
         except AccountsAccessorError as error:
             LOG.error("Unable to get accounts. Error: %s", str(error))
 
@@ -94,10 +101,10 @@ class Orchestrator:
 
         for account in all_accounts:
             schema_name = account.get("schema_name")
-            if disable_cloud_source_processing(schema_name) and not provider_uuid:
+            if is_cloud_source_processing_disabled(schema_name) and not provider_uuid:
                 LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
                 continue
-            if disable_source(provider_uuid):
+            if is_source_disabled(provider_uuid):
                 LOG.info(
                     log_json(
                         "get_accounts",
