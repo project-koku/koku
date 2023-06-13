@@ -67,7 +67,7 @@ def _process_report_file(
             context=report_dict,
             ingress_reports=ingress_reports,
             ingress_reports_uuid=ingress_reports_uuid,
-            ingress_report_counter=None,
+            ingress_report_counter=ingress_report_counter,
         )
 
         result = processor.process()

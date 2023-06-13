@@ -77,10 +77,7 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     for local_file_path in local_file_paths:
-        if not ingress_reports:
-            file_name = os.path.basename(local_file_path).split("/")[-1]
-        else:
-            file_name = filename.replace("/", "_").replace("-", "_")
+        file_name = os.path.basename(local_file_path).split("/")[-1]
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
         try:
@@ -99,8 +96,6 @@ def create_daily_archives(
             date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
             partition_dates = invoice_month_data.partition_date.unique()
             for partition_date in partition_dates:
-                if ingress_reports and ingress_report_counter and ingress_report_counter.get(partition_date) is None:
-                    ingress_report_counter.partition_date_counter[partition_date] = 0
                 partition_date_filter = invoice_month_data["partition_date"] == partition_date
                 invoice_partition_data = invoice_month_data[partition_date_filter]
                 start_of_invoice = dh.invoice_month_start(invoice_month)
@@ -108,8 +103,12 @@ def create_daily_archives(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
-                if ingress_reports and ingress_report_counter and ingress_report_counter.get(partition_date):
-                    day_file = f"{invoice_month}_{partition_date}_{ingress_report_counter[partition_date]}"
+                if ingress_reports and ingress_report_counter == {}:
+                    if ingress_report_counter.get(partition_date) is None:
+                        ingress_report_counter[partition_date] = 0
+                    else:
+                        ingress_report_counter.get(partition_date)
+                    day_file = f"{invoice_month}_{partition_date}_{ingress_report_counter[partition_date]}.csv"
                     ingress_report_counter[partition_date] = ingress_report_counter[partition_date] + 1
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
@@ -525,7 +524,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     f"\n  Response: {exc}"
                 )
                 raise GCPReportDownloaderError(msg) from exc
-
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
