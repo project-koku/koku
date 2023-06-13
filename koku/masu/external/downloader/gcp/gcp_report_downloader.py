@@ -75,11 +75,14 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
+    manifest = None
+    try:
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+    except DataError as err:
+        raise GCPReportDownloaderError(err) from err
     for local_file_path in local_file_paths:
-        if not ingress_reports:
-            file_name = os.path.basename(local_file_path).split("/")[-1]
-        else:
-            file_name = filename.replace("/", "_").replace("-", "_")
+        file_name = os.path.basename(local_file_path).split("/")[-1]
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
         try:
@@ -104,6 +107,13 @@ def create_daily_archives(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
+                if ingress_reports and manifest and manifest.report_tracker:
+                    if not manifest.report_tracker.get(partition_date):
+                        manifest.report_tracker[partition_date] = 0
+                    counter = manifest.report_tracker[partition_date]
+                    day_file = f"{invoice_month}_{partition_date}_{counter}"
+                    manifest.report_tracker[partition_date] = counter + 1
+                    manifest.save()
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
