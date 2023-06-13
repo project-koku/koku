@@ -84,6 +84,7 @@ from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
 from api.views import ResourceTypeView
+from api.views import SettingsAWSCategoryKeyView
 from api.views import SettingsView
 from api.views import StatusView
 from api.views import UserAccessView
@@ -340,6 +341,7 @@ urlpatterns = [
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
     path("settings/", SettingsView.as_view(), name="settings"),
+    path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws_category_keys"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),

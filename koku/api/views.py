@@ -70,6 +70,7 @@ from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
 from api.resource_types.view import ResourceTypeView
+from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView
 from api.settings.view import SettingsView
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView
