@@ -105,8 +105,6 @@ help:
 	@echo "  shell                                 run the Django interactive shell"
 	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
 	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
-	@echo "  trino-shell                           run trino shell with the specified schema"
-	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
@@ -244,10 +242,6 @@ shell:
 shell-schema: schema := org1234567
 shell-schema:
 	$(DJANGO_MANAGE) tenant_command shell --schema=$(schema)
-
-trino-shell: schema := org1234567
-trino-shell:
-	trino --server 127.0.0.1:8080 --catalog hive --schema=$(schema) --user admin --debug
 
 unittest:
 	$(DJANGO_MANAGE) test $(PYDIR) -v 2
