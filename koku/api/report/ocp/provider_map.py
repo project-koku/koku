@@ -301,7 +301,12 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum("pod_limit_cpu_core_hours"),
                         },
                         "capacity_aggregate": {
-                            "cluster": {"capacity": Max("cluster_capacity_cpu_core_hours")},
+                            "cluster": {
+                                "capacity": Max("cluster_capacity_cpu_core_hours"),
+                                "capacity_count": Max("node_capacity_cpu_cores"),
+                                "capacity_count_units": Value("Core", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
                             "node": {
                                 "capacity": Max("node_capacity_cpu_core_hours"),
                                 "capacity_count": Max("node_capacity_cpu_cores"),
@@ -389,7 +394,12 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
                         },
                         "capacity_aggregate": {
-                            "cluster": {"capacity": Max("cluster_capacity_memory_gigabyte_hours")},
+                            "cluster": {
+                                "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
+                                "capacity_count": Max("node_capacity_memory_gigabytes"),
+                                "capacity_count_units": Value("GB", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
                             "node": {
                                 "capacity": Max("node_capacity_memory_gigabyte_hours"),
                                 "capacity_count": Max("node_capacity_memory_gigabytes"),
@@ -481,6 +491,11 @@ class OCPProviderMap(ProviderMap):
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
+                            "cluster": {
+                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity_count_units": Value("GB", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
                             "node": {
                                 "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                                 "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),

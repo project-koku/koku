@@ -69,6 +69,17 @@ class CURAccountsDBTest(MasuTestCase):
             else:
                 self.fail("Unexpected provider")
 
+    def test_get_accounts_from_source_type(self):
+        """Test to get specific source type accounts."""
+        accounts = CURAccountsDB().get_accounts_from_source(provider_type="AWS")
+        expected_count = Provider.objects.filter(type=self.aws_provider.type).count()
+        self.assertEqual(len(accounts), expected_count)
+
+        for account in accounts:
+            self.assertEqual(account.get("credentials"), self.aws_provider.authentication.credentials)
+            self.assertEqual(account.get("data_source"), self.aws_provider.billing_source.data_source)
+            self.assertEqual(account.get("customer_name"), self.schema)
+
     def test_get_accounts_from_source_with_inactive(self):
         """Test to get all active accounts."""
         self.aws_provider.active = False

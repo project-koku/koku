@@ -61,7 +61,7 @@ class InsertAwsOrgTree:
                 org_unit_path=org_node["org_path"],
                 level=org_node["level"],
                 account_alias=None,
-                provider=self.provider,
+                provider_id=self.provider.uuid,
             )
             if created:
                 org_unit.created_timestamp = date
@@ -88,7 +88,7 @@ class InsertAwsOrgTree:
                 org_unit_path=org_node["org_path"],
                 level=org_node["level"],
                 account_alias=account_alias,
-                provider=self.provider,
+                provider_id=self.provider.uuid,
             )
             if created:
                 org_unit.created_timestamp = date

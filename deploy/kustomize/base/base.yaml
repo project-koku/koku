@@ -17,7 +17,7 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
-      dbResourceSize: medium
+      dbResourceSize: small
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
 
@@ -60,11 +60,11 @@ objects:
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
+            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
+            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
           requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
+            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
+            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
         args:
         - /bin/bash
         - -c
@@ -84,6 +84,10 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -249,6 +253,28 @@ parameters:
   name: _MIGRATION_DIRECTIVE
   required: false
   value: ""
+- displayName: Memory Request
+  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MIGRATIONS_CPU_REQUEST
+  required: true
+  value: "2"
+- displayName: CPU Limit
+  name: KOKU_MIGRATIONS_CPU_LIMIT
+  required: true
+  value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: True
+  value: "2"
 
 - displayName: App domain
   name: APP_DOMAIN
@@ -355,9 +381,21 @@ parameters:
 - name: QE_SCHEMA
   value: ""
 
-- description: Report download schedule
-  displayName: Report download schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+- description: Report download schedule GCP
+  displayName: Report download schedule GCP
+  name: REPORT_DOWNLOAD_SCHEDULE_GCP
+  value: "0 4,16 * * *"
+- description: Report download schedule AWS
+  displayName: Report download schedule AWS
+  name: REPORT_DOWNLOAD_SCHEDULE_AWS
+  value: "0 4,16 * * *"
+- description: Report download schedule AZURE
+  displayName: Report download schedule AZURE
+  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+  value: "0 4,16 * * *"
+- description: Report download schedule OCI
+  displayName: Report download schedule OCI
+  name: REPORT_DOWNLOAD_SCHEDULE_OCI
   value: "0 4,16 * * *"
 - description: Remove expired data on day
   displayName: Remove expired data on day
