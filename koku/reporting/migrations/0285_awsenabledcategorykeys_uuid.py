@@ -8,13 +8,13 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0282_insert_awscatkey_uuid"),
+        ("reporting", "0284_enable_tag_keys"),
     ]
 
     operations = [
-        migrations.AlterField(
+        migrations.AddField(
             model_name="awsenabledcategorykeys",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, editable=False, null=False, unique=True),
+            field=models.UUIDField(default=uuid.uuid4, editable=False, null=True),
         ),
     ]
