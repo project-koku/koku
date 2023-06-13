@@ -50,7 +50,7 @@ class GCPCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True, blank=True)
     finalized_datetime = models.DateTimeField(null=True, blank=True)
     derived_cost_datetime = models.DateTimeField(null=True, blank=True)
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
 
 
 class GCPCostEntryLineItemDailySummary(models.Model):

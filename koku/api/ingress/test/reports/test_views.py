@@ -29,13 +29,13 @@ class ReportsViewTest(MasuTestCase):
         self.schema = self.schema_name
         self.dh = DateHelper()
         self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
+        self.gcp_provider = Provider.objects.filter(type=Provider.PROVIDER_GCP_LOCAL).first()
         self.ingress_report_dict = {
             "uuid": str(uuid.uuid4()),
             "created_timestamp": self.start,
             "completed_timestamp": None,
             "reports_list": ["test"],
-            "source": self.aws_provider,
+            "source": self.gcp_provider,
             "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
         }
@@ -51,11 +51,11 @@ class ReportsViewTest(MasuTestCase):
 
     def test_get_source_view(self):
         """Test to get reports for a particular source."""
-        url = f"/api/v1/ingress/reports/{self.aws_provider.uuid}/"
+        url = f"/api/v1/ingress/reports/{self.gcp_provider.uuid}/"
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json().get("data")[0].get("source"), str(self.aws_provider.uuid))
+        self.assertEqual(response.json().get("data")[0].get("source"), str(self.gcp_provider.uuid))
 
     def test_get_invalid_uuid_reports(self):
         """Test to get reports for a invalid source."""

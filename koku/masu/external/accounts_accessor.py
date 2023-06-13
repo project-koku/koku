@@ -82,7 +82,7 @@ class AccountsAccessor:
             return True
         return False
 
-    def get_accounts(self, provider_uuid=None):
+    def get_accounts(self, provider_uuid=None, provider_type=None):
         """
         Return all of the CUR accounts setup in Koku.
 
@@ -96,7 +96,7 @@ class AccountsAccessor:
 
         """
         try:
-            accounts = self.source.get_accounts_from_source(provider_uuid)
+            accounts = self.source.get_accounts_from_source(provider_uuid, provider_type)
         except CURAccountsInterfaceError as error:
             raise AccountsAccessorError(str(error))
 

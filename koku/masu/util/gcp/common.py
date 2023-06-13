@@ -13,7 +13,7 @@ from django_tenants.utils import schema_context
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
-from masu.processor import disable_gcp_resource_matching
+from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
 
@@ -200,7 +200,7 @@ def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
     account = AccountsAccessor().get_accounts(gcp_provider_uuid)
     if account != []:
-        if disable_gcp_resource_matching(account[0].get("schema_name")):
+        if is_gcp_resource_matching_disabled(account[0].get("schema_name")):
             LOG.info(f"GCP resource matching disabled for {account[0].get('schema_name')}")
             return False
     else:
@@ -218,3 +218,19 @@ def check_resource_level(gcp_provider_uuid):
                 return True
         LOG.info("Defaulting to GCP tag matching")
         return False
+
+
+def add_label_columns(data_frame):
+    label_data = False
+    system_label_data = False
+    columns = list(data_frame)
+    for column in columns:
+        if "labels" == column:
+            label_data = True
+        if "system_labels" == column:
+            system_label_data = True
+    if not label_data:
+        data_frame["labels"] = ""
+    if not system_label_data:
+        data_frame["system_labels"] = ""
+    return data_frame

@@ -1090,10 +1090,16 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
-            for key, val in self.default_ordering.items():
-                order_field, order_direction = key, val
-            rank_annotations = {order_field: self.report_annotations.get(order_field)}
-            rank_orders.append(getattr(F(order_field), order_direction)())
+            if self.order_field not in self.report_annotations.keys():
+                for key, val in self.default_ordering.items():
+                    order_field, order_direction = key, val
+                rank_annotations = {order_field: self.report_annotations.get(order_field)}
+                rank_orders.append(getattr(F(order_field), order_direction)())
+            else:
+                rank_annotations = {
+                    self.order_field: self.report_annotations.get(self.order_field, self.order_direction)
+                }
+                rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
@@ -1137,7 +1143,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = {"cost_units", "source_uuid"}
+        drop_columns = {"source_uuid"}
         if self.is_openshift:
             drop_columns.add("clusters")
 
@@ -1146,17 +1152,18 @@ class ReportQueryHandler(QueryHandler):
         data_frame = pd.DataFrame(data_list)
 
         rank_data_frame = pd.DataFrame(ranks)
-        rank_data_frame.drop(columns=["cost_total", "usage"], inplace=True, errors="ignore")
+        rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
-        agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
-        if "costs" not in self._report_type:
-            agg_fields.update({"usage_units": ["max"]})
-            drop_columns.add("usage_units")
+
+        agg_fields = {}
+        for col in [col for col in self.report_annotations if "units" in col]:
+            drop_columns.add(col)
+            agg_fields[col] = ["max"]
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
