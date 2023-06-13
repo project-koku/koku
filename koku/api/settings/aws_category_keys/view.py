@@ -10,9 +10,11 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.provider.models import Provider
 from api.report.constants import URL_ENCODED_SAFE
 from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer
 from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeySerializer
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 
 LOG = logging.getLogger(__name__)
@@ -61,6 +63,8 @@ class SettingsAWSCategoryKeyUpdateView(APIView):
             data = AWSEnabledCategoryKeys.objects.filter(uuid__in=uuid_list)
             data.update(enabled=self.enabled)
             AWSEnabledCategoryKeys.objects.bulk_update(data, ["enabled"])
+            schema_name = self.request.user.customer.schema_name
+            invalidate_view_cache_for_tenant_and_source_type(schema_name, Provider.PROVIDER_AWS)
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
