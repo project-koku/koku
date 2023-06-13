@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0281_awsenabledcategorykeys_uuid"),
+        ("reporting", "0285_awsenabledcategorykeys_uuid"),
     ]
 
     operations = [migrations.RunSQL("UPDATE reporting_awsenabledcategorykeys SET uuid = uuid_generate_v4();")]

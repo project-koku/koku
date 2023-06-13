@@ -10,7 +10,7 @@ from api.provider.models import Provider
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0277_store_aws_amoritized_cost"),
+        ("reporting", "0283_auto_20230612_1841"),
     ]
 
     operations = [
