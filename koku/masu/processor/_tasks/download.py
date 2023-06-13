@@ -26,6 +26,7 @@ def _get_report_files(
     report_month,
     report_context,
     ingress_reports=None,
+    ingress_report_counter=None,
 ):
     """
     Task to download a Report.
@@ -81,6 +82,7 @@ def _get_report_files(
         provider_uuid=provider_uuid,
         report_name=None,
         ingress_reports=ingress_reports,
+        ingress_report_counter=ingress_report_counter,
         account=download_acct,
         tracing_id=tracing_id,
     )

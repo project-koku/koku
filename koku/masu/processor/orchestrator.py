@@ -63,6 +63,7 @@ class Orchestrator:
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
+        self.ingress_report_counter = kwargs.get("ingress_report_counter", {})
         self._accounts, self._polling_accounts = self.get_accounts(
             self.billing_source, self.provider_uuid, self.provider_type
         )
@@ -187,6 +188,7 @@ class Orchestrator:
             provider_uuid=provider_uuid,
             report_name=None,
             ingress_reports=self.ingress_reports,
+            ingress_report_counter=self.ingress_report_counter,
         )
         # only GCP and OCI return more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
@@ -272,6 +274,7 @@ class Orchestrator:
                         tracing_id=tracing_id,
                         ingress_reports=self.ingress_reports,
                         ingress_reports_uuid=self.ingress_report_uuid,
+                        ingress_report_counter=self.ingress_report_counter,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, msg="download queued", schema=schema_name))

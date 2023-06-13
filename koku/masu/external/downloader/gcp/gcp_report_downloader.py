@@ -59,6 +59,7 @@ def create_daily_archives(
     start_date,
     context={},
     ingress_reports=None,
+    ingress_report_counter=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -98,8 +99,8 @@ def create_daily_archives(
             date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
             partition_dates = invoice_month_data.partition_date.unique()
             for partition_date in partition_dates:
-                if ingress_reports and ingress_reports.partition_date_counter.get(partition_date) is None:
-                    ingress_reports.partition_date_counter[partition_date] = 0
+                if ingress_reports and ingress_report_counter and ingress_report_counter.get(partition_date) is None:
+                    ingress_report_counter.partition_date_counter[partition_date] = 0
                 partition_date_filter = invoice_month_data["partition_date"] == partition_date
                 invoice_partition_data = invoice_month_data[partition_date_filter]
                 start_of_invoice = dh.invoice_month_start(invoice_month)
@@ -107,13 +108,9 @@ def create_daily_archives(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
-                if ingress_reports:
-                    day_file = (
-                        f"{invoice_month}_{partition_date}_{ingress_reports.partition_date_counter[partition_date]}"
-                    )
-                    ingress_reports.partition_date_counter[partition_date] = (
-                        ingress_reports.partition_date_counter[partition_date] + 1
-                    )
+                if ingress_reports and ingress_report_counter and ingress_report_counter.get(partition_date):
+                    day_file = f"{invoice_month}_{partition_date}_{ingress_report_counter[partition_date]}"
+                    ingress_report_counter[partition_date] = ingress_report_counter[partition_date] + 1
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -131,7 +128,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://cloud.google.com/billing/docs/how-to/export-data-bigquery
     """
 
-    def __init__(self, customer_name, data_source, ingress_reports=None, **kwargs):
+    def __init__(self, customer_name, data_source, ingress_reports=None, ingress_report_counter=None, **kwargs):
         """
         Constructor.
 
@@ -139,6 +136,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             customer_name  (str): Name of the customer
             data_source    (dict): dict containing name of GCP storage bucket
             ingress_reports (List) List of reports from ingress post endpoint (optional)
+            ingress_report_counter (Dict) Dictionary of date to file counts being processed (optional)
         """
         super().__init__(**kwargs)
 
@@ -147,6 +145,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")
         self.ingress_reports = ingress_reports
+        self.ingress_report_counter = ingress_report_counter
         self.storage_only = self.data_source.get("storage_only")
         if not self.tracing_id or self.tracing_id == "no_tracing_id":
             self.tracing_id = str(self._provider_uuid)
@@ -537,6 +536,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
             self.ingress_reports,
+            self.ingress_report_counter,
         )
 
         return key, None, DateHelper().today, file_names, date_range

@@ -65,6 +65,7 @@ class ParquetReportProcessor:
         context=None,
         ingress_reports=None,
         ingress_reports_uuid=None,
+        ingress_report_counter=None,
     ):
         """initialize report processor."""
         if context is None:
@@ -83,6 +84,7 @@ class ParquetReportProcessor:
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
+        self.ingress_report_counter = ingress_report_counter
 
     @property
     def schema_name(self):

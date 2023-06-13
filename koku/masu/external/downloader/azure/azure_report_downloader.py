@@ -44,7 +44,16 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
+    def __init__(
+        self,
+        customer_name,
+        credentials,
+        data_source,
+        report_name=None,
+        ingress_reports=None,
+        ingress_report_counter=None,
+        **kwargs,
+    ):
         """
         Constructor.
 
@@ -54,10 +63,12 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_name      (String) Name of the Cost Usage Report to download (optional)
             data_source      (Dict) Dictionary containing Azure Storage blob details.
             ingress_reports  (List) List of reports from ingress post endpoint (optional)
+            ingress_report_counter (Dict) Dictionary of date to file counts being processed (optional)
         """
         super().__init__(**kwargs)
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
+        self.ingress_report_counter = ingress_report_counter
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap

@@ -23,10 +23,6 @@ class IngressReports(models.Model):
     bill_month = models.CharField(max_length=2, blank=False)
     status = models.TextField(default="pending")
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.partition_date_counter = {}
-
     def __str__(self):
         """Get the string representation."""
         return (

@@ -47,7 +47,16 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, ingress_reports=None, **kwargs):
+    def __init__(
+        self,
+        customer_name,
+        credentials,
+        data_source,
+        report_name=None,
+        ingress_reports=None,
+        ingress_report_counter=None,
+        **kwargs,
+    ):
         """
         Constructor.
 
@@ -57,6 +66,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             data_source (Dict) Billing source data like bucket
             report_name      (String) Name of the Cost Usage Report to download (optional)
             ingress_reports (List) List of reports from ingress post endpoint (optional)
+            ingress_report_counter (Dict) Dictionary of date to file counts being processed (optional)
 
         """
         super().__init__(**kwargs)
@@ -66,6 +76,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.bucket = bucket
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
+        self.ingress_report_counter = ingress_report_counter
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
