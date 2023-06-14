@@ -255,9 +255,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             return {}
 
         check_flags = {
-            Provider.PROVIDER_AWS.lower(): check_aws,
-            Provider.PROVIDER_AZURE.lower(): check_azure,
-            Provider.PROVIDER_GCP.lower(): check_gcp,
+            Provider.PROVIDER_AWS: check_aws,
+            Provider.PROVIDER_AZURE: check_azure,
+            Provider.PROVIDER_GCP: check_gcp,
         }
 
         if isinstance(start_date, str):
@@ -267,9 +267,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             db_results = {}
             if check_flag:
                 infra_sql = pkgutil.get_data(
-                    "masu.database", f"trino_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
+                    "masu.database", f"trino_sql/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql"
                 )
                 infra_sql = infra_sql.decode("utf-8")
+
+                if provider_type == Provider.PROVIDER_OCP:
+                    provider_type = source_type
 
                 infra_sql_params = {
                     "start_date": start_date,
