@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0284_update_enabled_keys"),
+        ("reporting", "0283_auto_20230612_1841"),
     ]
 
     operations = [

@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0286_insert_awscatkey_uuid"),
+        ("reporting", "0284_awsenabledcategorykeys_uuid"),
     ]
 
     operations = [
