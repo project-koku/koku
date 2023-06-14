@@ -72,7 +72,7 @@ pipeline {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
 
-                            if (grep -E 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null) {
+                            if (grep -E "aws-smoke-tests" ${LABELS_DIR}/github_labels.txt &>/dev/null) {
                                 env.IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
                             } else if (grep -E 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null) {
                                 env.IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
