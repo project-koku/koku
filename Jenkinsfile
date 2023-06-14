@@ -42,9 +42,6 @@ pipeline {
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
-
-        // Flags for labels
-        LGTM
     }
 
     stages {
