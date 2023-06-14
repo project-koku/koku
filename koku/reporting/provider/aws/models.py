@@ -283,6 +283,7 @@ class AWSEnabledCategoryKeys(models.Model):
         indexes = [models.Index(fields=["key", "enabled"], name="aws_enabled_category_key_index")]
         db_table = "reporting_awsenabledcategorykeys"
 
+    # TODO: remove uuid & migration since it will be handled in a separate PR.
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
     key = models.CharField(max_length=253, primary_key=True)
     enabled = models.BooleanField(default=True)
