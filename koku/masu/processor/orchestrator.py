@@ -31,6 +31,8 @@ from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.worker_cache import WorkerCache
+from subs.tasks import collect_subs_report_data_from_manifest
+from subs.tasks import SUBS_QUEUE
 
 LOG = logging.getLogger(__name__)
 
@@ -171,6 +173,7 @@ class Orchestrator:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
             HCS_Q = HCS_QUEUE
+            SUBS_Q = SUBS_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -274,10 +277,11 @@ class Orchestrator:
             if self._summarize_reports:
                 reports_tasks_queued = True
                 hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
+                subs_task = collect_subs_report_data_from_manifest.s().set(queue=SUBS_Q)
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                async_id = chord(report_tasks, group(summary_task, hcs_task))()
+                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))

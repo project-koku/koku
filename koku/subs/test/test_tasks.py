@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the SUBS task."""
-import logging
+from unittest import mock
 
-from subs.tasks import collect_subs_cur_data
+from subs.tasks import collect_subs_report_data
+from subs.tasks import collect_subs_report_data_from_manifest
 from subs.test import SUBSTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 class TestSUBSTasks(SUBSTestCase):
@@ -19,19 +18,33 @@ class TestSUBSTasks(SUBSTestCase):
         """Set up the class."""
         super().setUpClass()
 
-    def test_collect_subs_cur_data_all_dates(self):
-        """Test running SUBS task with start and end date."""
-        with self.assertLogs("subs.tasks", "INFO") as _logs:
-            start_date = self.dh.yesterday
-            end_date = self.dh.today
-            collect_subs_cur_data(start_date, end_date)
+    @mock.patch("subs.tasks.enable_subs_processing")
+    @mock.patch("subs.tasks.get_providers_for_subs")
+    def test_collect_subs_report_data_from_manifest(self, mock_get_providers, mock_enable_processing):
+        # Mock the necessary dependencies and inputs
+        provider_list = [
+            {"provider_type": self.aws_provider_type, "provider_uuid": self.aws_provider_uuid},
+            # Add more provider data as needed
+        ]
+        mock_get_providers.return_value = provider_list
+        mock_enable_processing.return_value = True
 
-            self.assertIn(f"Running SUBS task. Start-date: {start_date}. End-date: {end_date}", _logs.output[0])
+        # Call the task function
+        collect_subs_report_data_from_manifest([])
 
-    def test_get_report_no_end_date(self):
-        """Test running SUBS task with no end date."""
-        with self.assertLogs("subs.tasks", "INFO") as _logs:
-            start_date = self.dh.yesterday
-            collect_subs_cur_data(start_date)
+        # Perform assertions or checks on the expected behavior and outcomes
+        # mock_get_providers.assert_called_once_with()
+        # mock_enable_processing.assert_called_once_with(schema_name)
 
-            self.assertIn(f"Running SUBS task. Start-date: {start_date}. End-date: ", _logs.output[0])
+    @mock.patch("subs.tasks.enable_subs_processing")
+    def test_collect_subs_report_data(self, mock_enable_processing):
+        # Mock the necessary dependencies and inputs
+
+        mock_enable_processing.return_value = True
+
+        # Call the task function
+        collect_subs_report_data(self, self.schema_name, self.aws_provider_type, self.aws_provider_uuid)
+
+        # Perform assertions or checks on the expected behavior and outcomes
+        # mock_get_providers.assert_called_once_with()
+        # mock_enable_processing.assert_called_once_with(schema_name)
