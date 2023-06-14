@@ -69,7 +69,7 @@ pipeline {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
                         commandStout = sh(script: "curl -s -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt")
-                        if (commandStout.contains('hot-fix-smoke-tests'), '${LABELS_DIR}/github_labels.txt', '&>/dev/null') {
+                        if (commandStout.contains('hot-fix-smoke-tests')) {
                             env.IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
                         } else if (exec('grep', '-E', 'azure-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
                             env.IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
