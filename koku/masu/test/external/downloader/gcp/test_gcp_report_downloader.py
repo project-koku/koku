@@ -416,3 +416,33 @@ class GCPReportDownloaderTest(MasuTestCase):
         key = "ingress_report.csv"
         with self.assertRaises(GCPReportDownloaderError):
             self.gcp_ingress_report_downloader.download_file(key)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_ingress_reports(self, mock_s3):
+        """Test that we load daily files to S3."""
+        file_name = "2022-08-01_5.csv"
+        partition = "2022-08-01"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/202208_{partition}_0.csv",
+        ]
+        start_date = DateHelper().this_month_start
+        with patch(
+            "masu.external.downloader.gcp.gcp_report_downloader.get_ingress_manifest",
+            return_value=CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first(),
+        ):
+            daily_file_names, date_range = create_daily_archives(
+                "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None, "ingress_reports"
+            )
+            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            mock_s3.assert_called()
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)
