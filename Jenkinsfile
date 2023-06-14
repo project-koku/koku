@@ -165,6 +165,9 @@ pipeline {
             steps {
                 withVault([configuration: configuration, vaultSecrets: secrets]) {
                     sh '''
+                        echo $IQE_MARKER_EXPRESSION
+                        echo $IQE_FILTER_EXPRESSION
+
                         curl -s "$CICD_URL/bootstrap.sh" > .cicd_bootstrap.sh
                         source ./.cicd_bootstrap.sh
                         source ${CICD_ROOT}/_common_deploy_logic.sh
