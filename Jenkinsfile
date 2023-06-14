@@ -46,7 +46,7 @@ pipeline {
 
     stages {
         stage('Initial setup') {
-            step {
+            steps {
                 sh '''
                     mkdir -p $LABELS_DIR
                     mkdir -p $ARTIFACTS_DIR
