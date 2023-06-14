@@ -20,7 +20,10 @@ omit =
   *wsgi.py
   *migrations/*
   *test/*
+  */test/*
   */tests_*.py
+  */test_*.py
+  koku/api/migrations/*
   *provider_interface.py
   *dev_middleware.py
 

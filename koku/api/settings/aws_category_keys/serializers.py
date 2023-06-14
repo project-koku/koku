@@ -7,8 +7,6 @@ from rest_framework import serializers
 
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 
-# from api.provider.models import Provider
-
 
 class SettingsAWSCategoryKeySerializer(serializers.Serializer):
     """Serializer for Tag Settings."""
@@ -16,7 +14,6 @@ class SettingsAWSCategoryKeySerializer(serializers.Serializer):
     uuid = serializers.UUIDField()
     key = serializers.CharField()
     enabled = serializers.BooleanField()
-    # provider_type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
 
     class Meta:
         model = AWSEnabledCategoryKeys
