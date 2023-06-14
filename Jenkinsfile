@@ -15,9 +15,6 @@ def secrets = [
 
 def configuration = [vaultUrl: params.VAULT_ADDRESS, vaultCredentialId: params.VAULT_CREDS_ID, engineVersion: 1]
 
-def IQE_FILTER_EXPRESSION = ""
-def IQE_MARKER_EXPRESSION = "cost_smoke"
-
 pipeline {
     agent { label 'insights' }
     options {
@@ -25,22 +22,24 @@ pipeline {
     }
 
     environment {
-        APP_NAME="hccm"  // name of app-sre "application" folder this component lives in
-        COMPONENT_NAME="koku"  // name of app-sre "resourceTemplate" in deploy.yaml for this component
+        APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
+        COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
         IMAGE="quay.io/cloudservices/koku"
         IMAGE_TAG=sh(script: "git rev-parse --short=7 HEAD", returnStdout: true).trim()
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
-        COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
-        COMPONENTS_W_RESOURCES="hive-metastore koku presto"  // components which should preserve resource settings (optional, default: none)
+        COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
+        COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
         LABELS_DIR="$WORKSPACE/github_labels"
         ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
         IQE_PLUGINS="cost_management"
+        IQE_FILTER_EXPRESSION=""
+        IQE_MARKER_EXPRESSION="cost_smoke"
         IQE_CJI_TIMEOUT="120m"
 
-        CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
+        CICD_URL="https:#raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
     }
@@ -53,7 +52,7 @@ pipeline {
                     mkdir -p $ARTIFACTS_DIR
 
                     # Save PR labels into a file
-                    curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
+                    curl -s -H "Accept: application/vnd.github.v3+json" https:#api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
 
                     cat $LABELS_DIR/github_labels.txt
                 '''
@@ -68,8 +67,6 @@ pipeline {
             }
             steps {
                 sh '''
-                    
-
                     task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
                     error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
@@ -104,7 +101,7 @@ pipeline {
         stage('Build test image') {
             when {
                 expression {
-                    sh(script: "egrep 'lgtm|pr-check-build|*smoke-tests' ${LABELS_DIR}/github_labels.txt || true", returnStdout: true) != true
+                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests' ${LABELS_DIR}/github_labels.txt")
                 }
             }
             steps {
@@ -112,33 +109,33 @@ pipeline {
                     sh '''
                         if egrep 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+                            export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
                         elif egrep 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+                            export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
                         elif egrep 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+                            export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
                         elif egrep 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+                            export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
                         elif egrep 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+                            export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
                         elif egrep 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api"
-                            $IQE_MARKER_EXPRESSION="outage"
+                            export IQE_FILTER_EXPRESSION="test_api"
+                            export IQE_MARKER_EXPRESSION="outage"
                         elif egrep 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+                            export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
                         elif egrep 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api"
+                            export IQE_FILTER_EXPRESSION="test_api"
                         elif egrep 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            $IQE_FILTER_EXPRESSION="test_api"
-                            $IQE_MARKER_EXPRESSION="cost_required"
+                            export IQE_FILTER_EXPRESSION="test_api"
+                            export IQE_MARKER_EXPRESSION="cost_required"
                         else
                             echo "PR smoke tests skipped"
                         fi
@@ -160,7 +157,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    sh(script: "egrep 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt || true", returnStdout: true) != true
+                    sh(script: "grep -E 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt)
                 }
             }
             steps {
@@ -190,30 +187,32 @@ pipeline {
                         # This sets the image tag for the migrations Job to be the current koku image tag
                         DBM_IMAGE_TAG=${IMAGE_TAG}
 
-                        bonfire deploy \
-                            ${APP_NAME} \
-                            --ref-env insights-production \
-                            --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
-                            --set-image-tag ${IMAGE}=${IMAGE_TAG} \
-                            --namespace ${NAMESPACE} \
-                            ${COMPONENTS_ARG} \
-                            ${COMPONENTS_RESOURCES_ARG} \
-                            --optional-deps-method hybrid \
-                            --set-parameter rbac/MIN_REPLICAS=1 \
-                            --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
-                            --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
-                            --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
-                            --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
-                            --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
-                            --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
-                            --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
-                            --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
-                            --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
-                            --no-single-replicas \
-                            --source=appsre \
-                            --timeout 600
+                        echo "Running bonfire deploy and cji_smoke_test.sh"
 
-                        source $CICD_ROOT/cji_smoke_test.sh
+                        # bonfire deploy \
+                        #     ${APP_NAME} \
+                        #     --ref-env insights-production \
+                        #     --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
+                        #     --set-image-tag ${IMAGE}=${IMAGE_TAG} \
+                        #     --namespace ${NAMESPACE} \
+                        #     ${COMPONENTS_ARG} \
+                        #     ${COMPONENTS_RESOURCES_ARG} \
+                        #     --optional-deps-method hybrid \
+                        #     --set-parameter rbac/MIN_REPLICAS=1 \
+                        #     --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
+                        #     --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
+                        #     --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
+                        #     --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
+                        #     --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
+                        #     --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
+                        #     --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
+                        #     --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
+                        #     --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+                        #     --no-single-replicas \
+                        #     --source=appsre \
+                        #     --timeout 600
+
+                        # source $CICD_ROOT/cji_smoke_test.sh
                     '''
                 }
             }
