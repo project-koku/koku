@@ -232,7 +232,7 @@ class AzureCostSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -264,7 +264,7 @@ class AzureCostSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -297,7 +297,7 @@ class AzureCostSummaryByLocationP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -330,7 +330,7 @@ class AzureCostSummaryByServiceP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -367,7 +367,7 @@ class AzureComputeSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -402,7 +402,7 @@ class AzureStorageSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -437,7 +437,7 @@ class AzureNetworkSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -472,5 +472,5 @@ class AzureDatabaseSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
