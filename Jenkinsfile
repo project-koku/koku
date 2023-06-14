@@ -112,33 +112,33 @@ pipeline {
                     sh '''
                         if egrep 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+                            $IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
                         elif egrep 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+                            $IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
                         elif egrep 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+                            $IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
                         elif egrep 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+                            $IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
                         elif egrep 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+                            $IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
                         elif egrep 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api"
-                            export IQE_MARKER_EXPRESSION="outage"
+                            $IQE_FILTER_EXPRESSION="test_api"
+                            $IQE_MARKER_EXPRESSION="outage"
                         elif egrep 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+                            $IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
                         elif egrep 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api"
+                            $IQE_FILTER_EXPRESSION="test_api"
                         elif egrep 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
                         then
-                            export IQE_FILTER_EXPRESSION="test_api"
-                            export IQE_MARKER_EXPRESSION="cost_required"
+                            $IQE_FILTER_EXPRESSION="test_api"
+                            $IQE_MARKER_EXPRESSION="cost_required"
                         else
                             echo "PR smoke tests skipped"
                         fi
