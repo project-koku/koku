@@ -27,8 +27,8 @@ class AccountSettingsViewTest(IamTestCase):
         """Test grabbing a user settings"""
         url = reverse("account-settings")
         client = APIClient()
-        expected = {"cost_type": "savingsplan_effective_cost", "currency": "JPY"}
-        new_cost_type = "savingsplan_effective_cost"
+        expected = {"cost_type": "calculated_amortized_cost", "currency": "JPY"}
+        new_cost_type = "calculated_amortized_cost"
         new_currency = "JPY"
         with schema_context(self.schema_name):
             set_cost_type(self.schema_name, cost_type_code=new_cost_type)
