@@ -47,15 +47,15 @@ pipeline {
     stages {
         stage('Initial setup') {
             steps {
-                sh '''
+                script {
                     mkdir -p $LABELS_DIR
                     mkdir -p $ARTIFACTS_DIR
 
-                    # Save PR labels into a file
-                    curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
+                    // Save PR labels into a file
+                    curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels" | jq '.[].name' > $LABELS_DIR/github_labels.txt
 
                     cat $LABELS_DIR/github_labels.txt
-                '''
+                }
             }
         }
 
