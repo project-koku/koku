@@ -22,14 +22,14 @@ pipeline {
     }
 
     environment {
-        APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
-        COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
+        APP_NAME="hccm"  // name of app-sre "application" folder this component lives in
+        COMPONENT_NAME="koku"  // name of app-sre "resourceTemplate" in deploy.yaml for this component
         IMAGE="quay.io/cloudservices/koku"
         IMAGE_TAG=sh(script: "git rev-parse --short=7 HEAD", returnStdout: true).trim()
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
-        COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
-        COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
+        COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
+        COMPONENTS_W_RESOURCES="hive-metastore koku presto"  // components which should preserve resource settings (optional, default: none)
 
         LABELS_DIR="$WORKSPACE/github_labels"
         ARTIFACTS_DIR="$WORKSPACE/artifacts"
@@ -39,7 +39,7 @@ pipeline {
         IQE_MARKER_EXPRESSION="cost_smoke"
         IQE_CJI_TIMEOUT="120m"
 
-        CICD_URL="https:#raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
+        CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
     }
@@ -140,15 +140,19 @@ pipeline {
                             echo "PR smoke tests skipped"
                         fi
                         
+                        #####################################
+                        #   TODO: Remove placeholder
+                        #####################################
                         # Install bonfire repo/initialize
                         echo $IQE_MARKER_EXPRESSION
                         echo $IQE_FILTER_EXPRESSION
-                        curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh
-                        source ./.cicd_bootstrap.sh
+
+                        # curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh
+                        # source ./.cicd_bootstrap.sh
 
                         echo "creating PR image"
-                        export DOCKER_BUILDKIT=1
-                        source $CICD_ROOT/build.sh
+                        # export DOCKER_BUILDKIT=1
+                        # source $CICD_ROOT/build.sh
                     '''
                 }
             }
@@ -219,10 +223,13 @@ pipeline {
         }
     }
 
+    /*
+    TODO: Uncomment this code
     post {
         always {
             archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
             junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
         }
     }
+    */
 }
