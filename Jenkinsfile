@@ -72,27 +72,26 @@ pipeline {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
 
-                            if (exec('grep', '-E', 'aws-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-                            } else if (exec('grep', '-E', 'azure-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-                            } else if (exec('grep', '-E', 'gcp-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-                            } else if (exec('grep', '-E', 'oci-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-                            } else if (exec('grep', '-E', 'ocp-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-                            } else if (exec('grep', '-E', 'hot-fix-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api"
-                                env.IQE_MARKER_EXPRESSION="outage"
-                            } else if (exec('grep', '-E', 'cost-model-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-                            } else if (exec('grep', '-E', 'full-run-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api"
-                            } else if (exec('grep', '-E', 'smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
-                                env.IQE_FILTER_EXPRESSION="test_api"
-                                env.IQE_MARKER_EXPRESSION="cost_required"
-                            }
+                        if (exec('grep', '-E', 'aws-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+                        } else if (exec('grep', '-E', 'azure-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+                        } else if (exec('grep', '-E', 'gcp-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+                        } else if (exec('grep', '-E', 'oci-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+                        } else if (exec('grep', '-E', 'ocp-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+                        } else if (exec('grep', '-E', 'hot-fix-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api"
+                            env.IQE_MARKER_EXPRESSION="outage"
+                        } else if (exec('grep', '-E', 'cost-model-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+                        } else if (exec('grep', '-E', 'full-run-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api"
+                        } else if (exec('grep', '-E', 'smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
+                            env.IQE_FILTER_EXPRESSION="test_api"
+                            env.IQE_MARKER_EXPRESSION="cost_required"
                         }
 
                         echo "$IQE_MARKER_EXPRESSION"
