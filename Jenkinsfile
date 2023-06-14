@@ -161,7 +161,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    sh(script: "grep -E 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt)
+                    sh(script: "grep -E 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt")
                 }
             }
             steps {
