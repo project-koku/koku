@@ -70,7 +70,7 @@ pipeline {
                     task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
                     error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
-                    if [ ! $(egrep 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
+                    if [ ! $(grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
                         echo "PR check skipped; making skipped xml"
 
                         cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
@@ -81,7 +81,7 @@ pipeline {
                         </testsuite>
                         EOF
 
-                    elif [ $(egrep 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt ]; then
+                    elif [ $(grep -E 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
                         echo "smokes not required"
 
                         cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
