@@ -49,11 +49,23 @@ class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
 
+def get_ingress_manifest(manifest_id):
+    with ReportManifestDBAccessor() as manifest_accessor:
+        return manifest_accessor.get_manifest_by_id(manifest_id)
+
+
+def pd_read_csv(local_file_path):
+    try:
+        return pd.read_csv(local_file_path)
+    except Exception as error:
+        LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
+        raise GCPReportDownloaderError(error)
+
+
 def create_daily_archives(
     tracing_id,
     account,
     provider_uuid,
-    filename,
     local_file_paths,
     manifest_id,
     start_date,
@@ -67,7 +79,6 @@ def create_daily_archives(
         tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
-        filename (str): The OCP file name
         filepath (str): The full path name of the file
         manifest_id (int): The manifest identifier
         start_date (Datetime): The start datetime of incoming report
@@ -75,21 +86,11 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
-    manifest = None
-    try:
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-    except DataError as err:
-        raise GCPReportDownloaderError(err) from err
     for local_file_path in local_file_paths:
         file_name = os.path.basename(local_file_path).split("/")[-1]
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
-        try:
-            data_frame = pd.read_csv(local_file_path)
-        except Exception as error:
-            LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
-            raise GCPReportDownloaderError(error)
+        data_frame = pd_read_csv(local_file_path)
         data_frame = add_label_columns(data_frame)
         # putting it in for loop handles crossover data, when we have distinct invoice_month
         for invoice_month in data_frame["invoice.month"].unique():
@@ -107,11 +108,12 @@ def create_daily_archives(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
-                if ingress_reports and manifest and manifest.report_tracker:
+                if ingress_reports:
+                    manifest = get_ingress_manifest(manifest_id)
                     if not manifest.report_tracker.get(partition_date):
                         manifest.report_tracker[partition_date] = 0
                     counter = manifest.report_tracker[partition_date]
-                    day_file = f"{invoice_month}_{partition_date}_{counter}"
+                    day_file = f"{invoice_month}_{partition_date}_{counter}.csv"
                     manifest.report_tracker[partition_date] = counter + 1
                     manifest.save()
                 day_filepath = f"{directory}/{day_file}"
@@ -531,7 +533,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.tracing_id,
             self.account,
             self._provider_uuid,
-            key,
             paths_list,
             manifest_id,
             start_date,

@@ -22,6 +22,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import create_daily_arch
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
+from masu.external.downloader.gcp.gcp_report_downloader import get_ingress_manifest
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
@@ -76,6 +77,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Remove files and directories created during the test run."""
         super().tearDown()
         shutil.rmtree(DATA_DIR, ignore_errors=True)
+
+    def test_get_ingress_manifest(self):
+        """Test that given a manifest ID, this function returns a manifest"""
+        expected_manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first()
+        manifest = get_ingress_manifest(manifest_id=expected_manifest.id)
+        self.assertEqual(manifest, expected_manifest)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -211,7 +218,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
         )
         expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
         self.assertEqual(date_range, expected_date_range)
@@ -232,9 +239,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             err_msg = "bad_open"
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
-                create_daily_archives(
-                    "request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None
-                )
+                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""

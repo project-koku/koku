@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="costusagereportmanifest",
-            name="reports_tracker",
+            name="report_tracker",
             field=models.JSONField(default=dict, null=True),
         ),
     ]
