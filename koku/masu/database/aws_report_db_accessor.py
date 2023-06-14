@@ -92,9 +92,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            summary_sql = pkgutil.get_data("masu.database", f"sql/aws/{table_name}.sql")
-            summary_sql = summary_sql.decode("utf-8")
-            summary_sql_params = {
+            sql = pkgutil.get_data("masu.database", f"sql/aws/{table_name}.sql")
+            sql = sql.decode("utf-8")
+            sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
                 "schema": self.schema,
@@ -102,8 +102,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._prepare_and_execute_raw_sql_query(
                 table_name,
-                summary_sql,
-                summary_sql_params,
+                sql,
+                sql_params,
                 operation="DELETE/INSERT",
             )
 
@@ -118,10 +118,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
+        sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
-        summary_sql_params = {
+        sql_params = {
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
@@ -134,7 +134,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         self._execute_trino_raw_sql_query(
-            summary_sql, sql_params=summary_sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
+            sql, sql_params=sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
         )
 
     def mark_bill_as_finalized(self, bill_id):
@@ -275,9 +275,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
             "schema": self.schema,
             "start_date": start_date,
             "year": year,
@@ -292,8 +292,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "node_column": node_column,
         }
-        LOG.info(log_json(msg="running OCP on AWS SQL", **summary_sql_params))
-        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        ctx = self.extract_context_from_sql_params(sql_params)
+        LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
+        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
@@ -479,5 +480,4 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         results = self._execute_trino_raw_sql_query(sql, log_ref="check_for_invoice_id_trino")
 
-        invoice_ids = [result[0] for result in results if result[0] != ""]
-        return invoice_ids
+        return [result[0] for result in results if result[0] != ""]

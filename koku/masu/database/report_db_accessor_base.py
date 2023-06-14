@@ -33,16 +33,6 @@ from reporting_common import REPORT_COLUMN_MAP
 LOG = logging.getLogger(__name__)
 
 
-def extract_context_from_sql_params(sql_params):
-    return {
-        "schema": sql_params.get("schema"),
-        "start_date": sql_params.get("start") or sql_params.get("start_date"),
-        "end_date": sql_params.get("end") or sql_params.get("end_date"),
-        "provider_uuid": sql_params.get("source_uuid"),
-        "invoice_month": sql_params.get("invoice_month"),
-    }
-
-
 class ReportDBAccessorException(Exception):
     """An error in the DB accessor."""
 
@@ -123,10 +113,19 @@ class ReportDBAccessorBase(KokuDBAccess):
                 query = table.objects.all()
             return query
 
+    def extract_context_from_sql_params(self, sql_params):
+        return {
+            "schema": sql_params.get("schema"),
+            "start_date": sql_params.get("start") or sql_params.get("start_date"),
+            "end_date": sql_params.get("end") or sql_params.get("end_date"),
+            "provider_uuid": sql_params.get("source_uuid"),
+            "invoice_month": sql_params.get("invoice_month"),
+        }
+
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
         LOG.info(
-            log_json(msg=f"triggering {operation}", table=table, context=extract_context_from_sql_params(tmp_sql))
+            log_json(msg=f"triggering {operation}", table=table, context=self.extract_context_from_sql_params(tmp_sql))
         )
         if tmp_sql_params is None:
             tmp_sql_params = {}
@@ -164,7 +163,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             sql_params = {}
         if conn_params is None:
             conn_params = {}
-        ctx = extract_context_from_sql_params(sql_params)
+        ctx = self.extract_context_from_sql_params(sql_params)
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
