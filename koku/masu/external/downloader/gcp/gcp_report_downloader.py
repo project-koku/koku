@@ -58,7 +58,7 @@ def pd_read_csv(local_file_path):
     try:
         return pd.read_csv(local_file_path)
     except Exception as error:
-        LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
+        LOG.error(log_json(msg="file could not be parsed", file_path=local_file_path), exc_info=error)
         raise GCPReportDownloaderError(error)
 
 
