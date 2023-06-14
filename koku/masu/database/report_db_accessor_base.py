@@ -113,7 +113,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 query = table.objects.all()
             return query
 
-    def extract_context_from_sql_params(self, sql_params):
+    def extract_context_from_sql_params(self, sql_params: dict):
         return {
             "schema": sql_params.get("schema"),
             "start_date": sql_params.get("start") or sql_params.get("start_date"),
@@ -124,11 +124,11 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
+        if tmp_sql_params is None:
+            tmp_sql_params = {}
         LOG.info(
             log_json(msg=f"triggering {operation}", table=table, context=self.extract_context_from_sql_params(tmp_sql))
         )
-        if tmp_sql_params is None:
-            tmp_sql_params = {}
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
         return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
 
