@@ -62,7 +62,7 @@ pipeline {
         stage('Check PR check/smoke tests run') {
             when {
                 expression {
-                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt")
+                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt", returnStatus: true) == 0
                 }
             }
             steps {
@@ -101,7 +101,7 @@ pipeline {
         stage('Build test image') {
             when {
                 expression {
-                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests' ${LABELS_DIR}/github_labels.txt")
+                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests' ${LABELS_DIR}/github_labels.txt", returnStatus: true) == 0
                 }
             }
             steps {
@@ -161,7 +161,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    sh(script: "grep -E 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt")
+                    sh(script: "grep -E 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt", returnStatus: true) == 0
                 }
             }
             steps {
