@@ -223,13 +223,12 @@ pipeline {
         }
     }
 
-    /*
-    TODO: Uncomment this code
-    post {
-        always {
-            archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
-            junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
-        }
-    }
-    */
+    
+    // TODO: Uncomment this code
+    //post {
+    //    always {
+    //        archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
+    //        junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
+    //    }
+    //}
 }
