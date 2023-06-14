@@ -15,6 +15,9 @@ def secrets = [
 
 def configuration = [vaultUrl: params.VAULT_ADDRESS, vaultCredentialId: params.VAULT_CREDS_ID, engineVersion: 1]
 
+def IQE_FILTER_EXPRESSION = ""
+def IQE_MARKER_EXPRESSION = "cost_smoke"
+
 pipeline {
     agent { label 'insights' }
     options {
@@ -35,8 +38,6 @@ pipeline {
         ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
         IQE_PLUGINS="cost_management"
-        IQE_FILTER_EXPRESSION=""
-        IQE_MARKER_EXPRESSION="cost_smoke"
         IQE_CJI_TIMEOUT="120m"
 
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
