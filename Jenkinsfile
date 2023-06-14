@@ -42,6 +42,9 @@ pipeline {
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
+
+        // Flags for labels
+        LGTM
     }
 
     stages {
@@ -59,45 +62,6 @@ pipeline {
             }
         }
 
-        stage('Check PR check/smoke tests run') {
-            when {
-                expression {
-                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt", returnStatus: true) == 0
-                }
-            }
-            steps {
-                sh '''
-                    task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
-                    error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
-
-                    if [ ! $(grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
-                        echo "PR check skipped; making skipped xml"
-
-                        cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
-                        <?xml version="1.0" encoding="UTF-8" ?>
-                        <testsuite id="pr_check" name="PR Check" tests="1" failures="0">
-                            <testcase id="pr_check.skipped" name="Skipped">
-                            </testcase>
-                        </testsuite>
-                        EOF
-
-                    elif [ $(grep -E 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
-                        echo "smokes not required"
-
-                        cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
-                        <?xml version="1.0" encoding="UTF-8" ?>
-                        <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
-                            <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]}">
-                                <failure type="${task_arr[$exit_code]}">"${error_arr[$exit_code]}"</failure>
-                            </testcase>
-                        </testsuite>
-                        EOF
-
-                    exit 1
-                '''
-            }
-        }
-
         stage('Build test image') {
             when {
                 expression {
@@ -105,55 +69,42 @@ pipeline {
                 }
             }
             steps {
-                withVault([configuration: configuration, vaultSecrets: secrets]) {
-                    sh '''
-                        if egrep 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-                        elif egrep 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-                        elif egrep 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-                        elif egrep 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-                        elif egrep 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-                        elif egrep 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api"
-                            export IQE_MARKER_EXPRESSION="outage"
-                        elif egrep 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-                        elif egrep 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api"
-                        elif egrep 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null
-                        then
-                            export IQE_FILTER_EXPRESSION="test_api"
-                            export IQE_MARKER_EXPRESSION="cost_required"
-                        else
-                            echo "PR smoke tests skipped"
-                        fi
-                        
-                        #####################################
-                        #   TODO: Remove placeholder
-                        #####################################
-                        # Install bonfire repo/initialize
-                        echo $IQE_MARKER_EXPRESSION
-                        echo $IQE_FILTER_EXPRESSION
+                script {
+                    withVault([configuration: configuration, vaultSecrets: secrets]) {
+                        switch (true) {
+                            case grep -E 'aws-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+                            case grep -E 'azure-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+                            case grep -E 'gcp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+                            case grep -E 'oci-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+                            case grep -E 'ocp-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+                            case grep -E 'hot-fix-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api"
+                                export IQE_MARKER_EXPRESSION="outage"
+                            case grep -E 'cost-model-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+                            case grep -E 'full-run-smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api"
+                            case grep -E 'smoke-tests' ${LABELS_DIR}/github_labels.txt &>/dev/null:
+                                export IQE_FILTER_EXPRESSION="test_api"
+                                export IQE_MARKER_EXPRESSION="cost_required"
+                        }
 
-                        # curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh
-                        # source ./.cicd_bootstrap.sh
+                        echo "$IQE_MARKER_EXPRESSION"
+                        echo "$IQE_FILTER_EXPRESSION"
+                        
+                        echo "Install bonfire repo/initialize"
+                        // curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh
+                        // source ./.cicd_bootstrap.sh
 
                         echo "creating PR image"
-                        # export DOCKER_BUILDKIT=1
-                        # source $CICD_ROOT/build.sh
-                    '''
+                        //export DOCKER_BUILDKIT=1
+                        // source $CICD_ROOT/build.sh
+                    }
                 }
             }
         }
@@ -227,8 +178,17 @@ pipeline {
     // TODO: Uncomment this code
     //post {
     //    always {
-    //        archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
-    //        junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
+            // if [ ! $(grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
+            //     echo "PR check skipped; making skipped xml"
+            //     ./junit-report-generator.sh
+
+            // elif [ $(grep -E 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
+            //     ./junit-report-generator.sh
+
+            // fi
+
+    //      archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
+    //      junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
     //    }
     //}
 }
