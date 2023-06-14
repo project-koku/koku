@@ -127,7 +127,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         if tmp_sql_params is None:
             tmp_sql_params = {}
         LOG.info(
-            log_json(msg=f"triggering {operation}", table=table, context=self.extract_context_from_sql_params(tmp_sql))
+            log_json(
+                msg=f"triggering {operation}",
+                table=table,
+                context=self.extract_context_from_sql_params(tmp_sql_params),
+            )
         )
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
         return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
