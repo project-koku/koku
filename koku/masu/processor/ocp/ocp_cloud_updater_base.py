@@ -50,8 +50,10 @@ class OCPCloudUpdaterBase:
         with ProviderDBAccessor(self._provider.uuid) as provider_accessor:
             if self._provider.type == Provider.PROVIDER_OCP:
                 infra_type = provider_accessor.get_infrastructure_type()
-                infra_provider_uuid = provider_accessor.get_infrastructure_provider_uuid()
-                if infra_provider_uuid:
+                if infra_provider_uuid := provider_accessor.get_infrastructure_provider_uuid():
+                    if infra_type == Provider.PROVIDER_OCP:
+                        provider_accessor.delete_ocp_infra(infra_provider_uuid)
+                        return infra_map
                     infra_map[self._provider_uuid] = (infra_provider_uuid, infra_type)
             elif self._provider.type in Provider.CLOUD_PROVIDER_LIST:
                 associated_providers = provider_accessor.get_associated_openshift_providers()
