@@ -207,7 +207,7 @@ jobs:
       - name: Run unit tests
         if: needs.changed-files.outputs.run_tests == 'true'
         id: unit_tests_run
-        run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
+        run: pipenv run coverage run --parallel-mode --concurrency=multiprocessing ./koku/manage.py test --noinput --verbosity 2 --parallel 4 ./koku/
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
