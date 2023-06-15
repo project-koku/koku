@@ -94,6 +94,10 @@ HCS_BACKLOG = Gauge(
     "hcs_backlog", "Number of celery tasks in the HCS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
 )
 
+SUBS_BACKLOG = Gauge(
+    "subs_backlog", "Number of celery tasks in the SUBS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
+)
+
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,
     "summary": SUMMARY_BACKLOG,
@@ -103,6 +107,7 @@ QUEUES = {
     "celery": DEFAULT_BACKLOG,
     "ocp": OCP_BACKLOG,
     "hcs": HCS_BACKLOG,
+    "subs": SUBS_BACKLOG,
 }
 
 SOURCES_KAFKA_LOOP_RETRY = Counter(
