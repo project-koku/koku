@@ -169,6 +169,7 @@ class Orchestrator:
             SUMMARY_QUEUE = self.queue_name
             REPORT_QUEUE = self.queue_name
             HCS_Q = self.queue_name
+            SUBS_Q = self.queue_name
         else:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
