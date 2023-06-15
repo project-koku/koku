@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<testsuite id="pr_check" name="PR Check" tests="1" failures="##FAILURE_NUMBER##">
-    <testcase id="##TESTCASE_ID##" name="##TESTCASE_NAME##">
-        ##FAILURE_NODE##
-    </testcase>
-</testsuite>

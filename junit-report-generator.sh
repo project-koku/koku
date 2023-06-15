@@ -1,34 +1,24 @@
 #!/usr/bin/env bash
 
-WORKDIR=$(dirname "$(readlink -f "$0")")
-REPORT_TEMPLATE="${WORKDIR}/junit-report-template"
-FAILURE_TEMPLATE="${WORKDIR}/junit-failure-template"
+REPORT_TEMPLATE='
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite id="pr_check" name="PR Check" tests="1" failures="##FAILURE_NUMBER##">
+    <testcase id="##TESTCASE_ID##" name="##TESTCASE_NAME##">
+        ##FAILURE_NODE##
+    </testcase>
+</testsuite>
+'
+FAILURE_TEMPLATE='<failure type="##FAILURE_TYPE##">"##FAILURE_CONTENT##"</failure>'
 TASK_TYPE=''
 ERROR_TYPE=''
-
-setup() {
-
-    local CODE="$1"
-
-    if ! [[ -r "$REPORT_TEMPLATE" ]]; then
-        echo "cannot read report template: '$REPORT_TEMPLATE'"
-        return 1
-    fi
-
-    if ! [[ -r "$FAILURE_TEMPLATE" ]]; then
-        echo "cannot read failure template: '$FAILURE_TEMPLATE'"
-        return 1
-    fi
-
-    _set_task_and_error_type_from_code "$CODE"
-}
 
 _get_failure_node() {
 
     local FAILURE_TYPE="$1"
     local FAILURE_CONTENT="$2"
 
-    sed "s/##FAILURE_TYPE##/$FAILURE_TYPE/;s/##FAILURE_CONTENT##/$FAILURE_CONTENT/" "$FAILURE_TEMPLATE"
+    sed "s/##FAILURE_TYPE##/$FAILURE_TYPE/;\
+         s/##FAILURE_CONTENT##/$FAILURE_CONTENT/" <<< "$FAILURE_TEMPLATE"
 }
 
 get_junit_report() {
@@ -43,10 +33,13 @@ get_junit_report() {
         FAILURE_NUMBER=1
     fi
 
-    sed "s|##TESTCASE_ID##|$TESTCASE_ID|;s|##TESTCASE_NAME##|$TESTCASE_NAME|;s|##FAILURE_NODE##|${FAILURE_NODE}|;s|##FAILURE_NUMBER##|$FAILURE_NUMBER|" "$REPORT_TEMPLATE" | sed '/^\s*$/d'
+    sed "s|##TESTCASE_ID##|$TESTCASE_ID|;\
+         s|##TESTCASE_NAME##|$TESTCASE_NAME|;\
+         s|##FAILURE_NODE##|${FAILURE_NODE}|;\
+         s|##FAILURE_NUMBER##|$FAILURE_NUMBER|" <<< "$REPORT_TEMPLATE" | sed '/^\s*$/d'
 }
 
-_set_task_and_error_type_from_code() {
+set_task_and_error_type_from_code() {
 
     case "$1" in
         1)
@@ -68,10 +61,7 @@ _set_task_and_error_type_from_code() {
     esac
 }
 
-if ! setup "$@"; then
-    echo "Error doing initial check"
-    exit 1
-fi
+set_task_and_error_type_from_code "$1"
 
 if ! get_junit_report; then
     echo "Error generating junit report"
