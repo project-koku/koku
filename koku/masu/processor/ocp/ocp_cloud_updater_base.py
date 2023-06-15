@@ -52,6 +52,7 @@ class OCPCloudUpdaterBase:
                 infra_type = provider_accessor.get_infrastructure_type()
                 if infra_provider_uuid := provider_accessor.get_infrastructure_provider_uuid():
                     if infra_type == Provider.PROVIDER_OCP:
+                        # OCP infra is invalid, so delete these entries from the providerinframap
                         provider_accessor.delete_ocp_infra(infra_provider_uuid)
                         return infra_map
                     infra_map[self._provider_uuid] = (infra_provider_uuid, infra_type)
