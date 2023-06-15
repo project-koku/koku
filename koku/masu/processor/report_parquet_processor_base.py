@@ -14,6 +14,7 @@ from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.exceptions import TrinoUserError
 
+from api.common import log_json
 from api.models import Provider
 from koku.pg_partition import get_or_create_partition
 from masu.util.common import strip_characters_from_column_name
@@ -82,27 +83,27 @@ class ReportParquetProcessorBase:
 
     def schema_exists(self):
         """Check if schema exists."""
+        LOG.info(log_json(msg="Checking for schema", schema=self._schema_name))
         schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
         schema = self._execute_sql(schema_check_sql, "default")
-        LOG.info("Checking for schema")
         if schema:
             return True
         return False
 
     def table_exists(self):
         """Check if table exists."""
+        LOG.info(log_json(msg="Checking for table", table=self._table_name, schema=self._schema_name))
         table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
         table = self._execute_sql(table_check_sql, self._schema_name)
-        LOG.info("Checking for table")
         if table:
             return True
         return False
 
     def create_schema(self):
         """Create Trino schema."""
+        LOG.info(log_json(msg="Create Trino/Hive schema SQL", schema=self._schema_name))
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
         self._execute_sql(schema_create_sql, "default")
-        LOG.info(f"Create Trino/Hive schema SQL: {schema_create_sql}")
         return self._schema_name
 
     def _generate_column_list(self):
@@ -147,14 +148,14 @@ class ReportParquetProcessorBase:
                 f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
                 " partitioned_by=ARRAY['source', 'year', 'month'])"
             )
-        LOG.info(f"Create Parquet Table SQL: {sql}")
+        LOG.info(log_json("Create Parquet Table SQL", table=self._table_name, schema=self._schema_name, sql=sql))
         return sql
 
     def create_table(self, partition_map=None):
         """Create Trino SQL table."""
         sql = self._generate_create_table_sql(partition_map=partition_map)
         self._execute_sql(sql, self._schema_name)
-        LOG.info(f"Trino Table: {self._table_name} created.")
+        LOG.info(log_json("Trino Table created", self._table_name, self._schema_name))
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""
@@ -197,13 +198,25 @@ class ReportParquetProcessorBase:
             if _from == _bill_date:
                 created = _created
             if _created:
-                LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
+                LOG.info(
+                    log_json(
+                        f"Created a new partition for {record.partition_of_table_name}",
+                        schema=self._schema_name,
+                        table=record.table_name,
+                    )
+                )
 
         return created
 
     def sync_hive_partitions(self):
         """Sync hive partition metadata for new partitions."""
-        LOG.info("Syncing Trino/Hive partitions.")
+        LOG.info(
+            log_json(
+                "Syncing Trino/Hive partitions.",
+                schema=self._schema_name,
+                table=self._table_name,
+            )
+        )
         sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
         LOG.info(sql)
         self._execute_sql(sql, self._schema_name)
