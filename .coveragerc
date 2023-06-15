@@ -18,9 +18,10 @@ omit =
   *sentry.py
   *urls.py
   *wsgi.py
-  *migrations/*
-  *test/*
+  */migrations/*
+  */test/*
   */tests_*.py
+  */test_*.py
   *provider_interface.py
   *dev_middleware.py
 
