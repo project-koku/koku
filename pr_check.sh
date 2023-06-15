@@ -11,10 +11,25 @@ DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 WORKSPACE=${WORKSPACE:$PWD}
-LABELS_DIR="${WORKSPACE}/github_labels"
 ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 JUNIT_REPORT_GENERATOR="${WORKSPACE}/junit-report-generator.sh"
 EXIT_CODE=0
+GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
+
+PR_LABELS=''
+SKIP_PR_CHECK=''
+SKIP_SMOKE_TESTS=''
+SKIP_IMAGE_BUILD=''
+LABEL_NO_LABELS=''
+LABEL_AWS_SMOKE_TESTS=''
+LABEL_AZURE_SMOKE_TESTS=''
+LABEL_GCP_SMOKE_TESTS=''
+LABEL_OCI_SMOKE_TESTS=''
+LABEL_OCP_SMOKE_TESTS=''
+LABEL_HOT_FIX_SMOKE_TESTS=''
+LABEL_COST_MODEL_SMOKE_TESTS=''
+LABEL_FULL_RUN_SMOKE_TESTS=''
+LABEL_SMOKE_TESTS=''
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
@@ -22,19 +37,76 @@ export IQE_CJI_TIMEOUT="120m"
 
 set -ex
 
-mkdir -p "$LABELS_DIR" "$ARTIFACTS_DIR"
+mkdir -p "$ARTIFACTS_DIR"
 
 function check_for_labels() {
-    if [ -f $LABELS_DIR/github_labels.txt ]; then
-        egrep "$1" $LABELS_DIR/github_labels.txt &>/dev/null
+    grep -E "$1" <<< "$PR_LABELS" 
+}
+
+function set_label_flags() {
+
+    local LABELS_URL="${GITHUB_API_ROOT}/issues/$ghprbPullId/labels"
+    PR_LABELS=$(_github_api_request "issues/$ghprbPullId/labels" | jq '.[].name')
+
+    if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
+        LABEL_NO_LABELS='true'
+    elif check_for_labels 'ok-to-skip-smokes'; then
+        SKIP_SMOKE_TESTS='true'
+    fi
+
+    if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
+        echo "PR check skipped"
+        SKIP_PR_CHECK='true'
+        SKIP_SMOKE_TESTS='true'
+        SKIP_IMAGE_BUILD='true'
+        EXIT_CODE=2
+    elif check_for_labels 'ok-to-skip-smokes'; then
+        echo "smokes not required"
+        SKIP_SMOKE_TESTS='true'
+        EXIT_CODE=1
     else
-        null &>/dev/null
+        if _set_IQE_filter_expressions_for_smoke_labels; then
+            echo "Smoke tests will run"
+        else
+            echo "WARNING! No known smoke-tests labels found!, PR smoke tests will be skipped"
+            SKIP_SMOKE_TESTS='true'
+        fi
+    fi
+}
+
+function _set_IQE_filter_expressions() {
+    if check_for_labels "aws-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+    elif check_for_labels "azure-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+    elif check_for_labels "gcp-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+    elif check_for_labels "oci-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
+    elif check_for_labels "ocp-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+    elif check_for_labels "hot-fix-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="outage"
+    elif check_for_labels "cost-model-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+    elif check_for_labels "full-run-smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api"
+    elif check_for_labels "smoke-tests"; then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="cost_required"
+    else
+        return 1
     fi
 }
 
 function build_image() {
     export DOCKER_BUILDKIT=1
     source $CICD_ROOT/build.sh
+}
+
+function is_pull_request() {
+    [[ -n "$ghprbPullId" ]]
 }
 
 function run_smoke_tests() {
@@ -83,33 +155,24 @@ function run_smoke_tests() {
 }
 
 function run_test_filter_expression {
-    if check_for_labels "aws-smoke-tests"
-    then
+    if check_for_labels "aws-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-    elif check_for_labels "azure-smoke-tests"
-    then
+    elif check_for_labels "azure-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-    elif check_for_labels "gcp-smoke-tests"
-    then
+    elif check_for_labels "gcp-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-    elif check_for_labels "oci-smoke-tests"
-    then
+    elif check_for_labels "oci-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-    elif check_for_labels "ocp-smoke-tests"
-    then
+    elif check_for_labels "ocp-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-    elif check_for_labels "hot-fix-smoke-tests"
-    then
+    elif check_for_labels "hot-fix-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="outage"
-    elif check_for_labels "cost-model-smoke-tests"
-    then
+    elif check_for_labels "cost-model-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-    elif check_for_labels "full-run-smoke-tests"
-    then
+    elif check_for_labels "full-run-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api"
-    elif check_for_labels "smoke-tests"
-    then
+    elif check_for_labels "smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
     else
@@ -125,16 +188,27 @@ function generate_junit_report_from_code() {
     "${JUNIT_REPORT_GENERATOR}" "$CODE" > "${ARTIFACTS_DIR}/junit-pr_check.xml"
 }
 
+_github_api_request() {
+
+    local PATH="$1"
+    curl -s -H "Accept: application/vnd.github.v3+json" \
+        "${GITHUB_API_ROOT}/$PATH" 
+}
+
+function latest_commit_in_pr() {
+
+    local LATEST_COMMIT=$(_github_api_request "pulls/$ghprbPullId" | jq -r '.head.sha')
+    [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
+}
+
 # check if this commit is out of date with the branch
-latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/pulls/$ghprbPullId | jq -r '.head.sha')
-if [[ $latest_commit != $ghprbActualCommit ]]; then
+if ! latest_commit_in_pr; then
     EXIT_CODE=3
     generate_junit_report_from_code "$EXIT_CODE"
     exit $EXIT_CODE
 fi
 
-# Save PR labels into a file
-curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
+set_label_flags
 
 # check if this PR is labeled to build the test image
 if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
