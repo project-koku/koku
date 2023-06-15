@@ -1,3 +1,7 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import logging
 
 from django.utils.decorators import method_decorator

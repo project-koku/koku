@@ -1,3 +1,7 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
