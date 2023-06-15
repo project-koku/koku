@@ -86,8 +86,8 @@ def collect_subs_report_data(
         None
     """
 
-    start_date = DateAccessor().today() - datetime.timedelta(days=2)
-    end_date = DateAccessor().today()
+    start_date = start_date or DateAccessor().today() - datetime.timedelta(days=2)
+    end_date = end_date or DateAccessor().today()
     tracing_id = tracing_id or str(uuid.uuid4())
 
     context = {
