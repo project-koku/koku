@@ -182,6 +182,15 @@ function latest_commit_in_pr() {
     [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
 }
 
+function run_build_image() {
+
+    # Install bonfire repo/initialize
+    CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
+    echo "creating PR image"
+    build_image
+}
+
 function configure_stages() {
 
     # check if this commit is out of date with the branch
@@ -197,6 +206,8 @@ function configure_stages() {
     fi
 }
 
+configure_stages
+
 if ! [[ -z "$SKIP_PR_CHECK" ]]; then
 
     if ! [[ -z "$SKIP_IMAGE_BUILD" ]]; then
@@ -208,41 +219,7 @@ if ! [[ -z "$SKIP_PR_CHECK" ]]; then
     fi
 fi
 
-function run_build_image() {
-
-    # Install bonfire repo/initialize
-    CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
-    echo "creating PR image"
-    build_image
-}
-
 
 generate_junit_report_from_code "$EXIT_CODE"
 exit $EXIT_CODE
-
-fi
-
-
-if [[ $EXIT_CODE == 0 ]]; then
-    # check if this PR is labeled to run smoke tests
-    if ! check_for_labels 'lgtm|*smoke-tests'; then
-        echo "PR smoke tests skipped"
-        EXIT_CODE=2
-    else
-        echo "running PR smoke tests"
-        run_smoke_tests
-        source $CICD_ROOT/post_test_results.sh  # send test results to Ibutsu
-    fi
-fi
-
-if [[ $EXIT_CODE -gt 0 ]]; then
-    echo "PR check failed"
-    generate_junit_report_from_code "$EXIT_CODE"
-
-elif [[ $EXIT_CODE -lt 0 ]]; then
-    echo "PR check skipped"
-    generate_junit_report_from_code
-    EXIT_CODE=0
-fi
 
