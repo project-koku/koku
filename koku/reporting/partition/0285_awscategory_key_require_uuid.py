@@ -8,9 +8,14 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0284_awsenabledcategorykeys_uuid"),
+        ("reporting", "0285_set_awsenabledcategoryuuid"),
     ]
 
     operations = [
         migrations.RunSQL("UPDATE reporting_awsenabledcategorykeys SET uuid = uuid_generate_v4();"),
+        migrations.AlterField(
+            model_name="awsenabledcategorykeys",
+            name="uuid",
+            field=models.UUIDField(default=uuid.uuid4, editable=False, null=False, unique=True),
+        ),
     ]
