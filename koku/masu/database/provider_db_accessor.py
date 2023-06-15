@@ -283,6 +283,20 @@ class ProviderDBAccessor(KokuDBAccess):
         self.provider.save()
         invalidate_view_cache_for_tenant_and_cache_key(self.schema)
 
+    @transaction.atomic()
+    def delete_ocp_infra(self, infrastructure_provider_uuid):
+        """OCP is not a valid infra type, so remove it and reset the provider.infrastructure."""
+        mapping = ProviderInfrastructureMap.objects.filter(
+            infrastructure_provider_id=infrastructure_provider_uuid, infrastructure_type=Provider.PROVIDER_OCP
+        ).first()
+        if not mapping:
+            return
+
+        mapping.delete()
+        self.provider.infrastructure = None
+        self.provider.save()
+        invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+
     def get_associated_openshift_providers(self):
         """Return a list of OpenShift clusters associated with the cloud provider."""
         associated_openshift_providers = []
