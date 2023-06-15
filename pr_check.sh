@@ -43,33 +43,37 @@ function check_for_labels() {
     grep -E "$1" <<< "$PR_LABELS" 
 }
 
-function set_label_flags() {
+
+function get_pr_labels() {
 
     local LABELS_URL="${GITHUB_API_ROOT}/issues/$ghprbPullId/labels"
-    PR_LABELS=$(_github_api_request "issues/$ghprbPullId/labels" | jq '.[].name')
 
-    if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
-        LABEL_NO_LABELS='true'
-    elif check_for_labels 'ok-to-skip-smokes'; then
-        SKIP_SMOKE_TESTS='true'
+    _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
+}
+
+function set_label_flags() {
+
+    local LABELS
+
+    if ! LABELS=$(get_pr_labels); then
+        echo "Error retrieving PR labels"
+        return 1
     fi
 
     if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
-        echo "PR check skipped"
         SKIP_PR_CHECK='true'
-        SKIP_SMOKE_TESTS='true'
-        SKIP_IMAGE_BUILD='true'
-        EXIT_CODE=2
-    elif check_for_labels 'ok-to-skip-smokes'; then
-        echo "smokes not required"
-        SKIP_SMOKE_TESTS='true'
         EXIT_CODE=1
+        echo "PR check skipped"
+    elif check_for_labels 'ok-to-skip-smokes'; then
+        SKIP_PR_CHECK='true'
+        echo "smokes not required"
     else
         if _set_IQE_filter_expressions_for_smoke_labels; then
             echo "Smoke tests will run"
         else
             echo "WARNING! No known smoke-tests labels found!, PR smoke tests will be skipped"
             SKIP_SMOKE_TESTS='true'
+            EXIT_CODE=2
         fi
     fi
 }
@@ -151,34 +155,11 @@ function run_smoke_tests() {
         --source=appsre \
         --timeout 600
 
-    source $CICD_ROOT/cji_smoke_test.sh
-}
+    echo "Running E2E tests with IQE:"
+    echo "IQE_MARKER_EXPRESSION: '$IQE_MARKER_EXPRESSION'"
+    echo "IQE_FILTER_EXPRESSION: '$IQE_FILTER_EXPRESSION'"
 
-function run_test_filter_expression {
-    if check_for_labels "aws-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-    elif check_for_labels "azure-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-    elif check_for_labels "gcp-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-    elif check_for_labels "oci-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-    elif check_for_labels "ocp-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-    elif check_for_labels "hot-fix-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api"
-        export IQE_MARKER_EXPRESSION="outage"
-    elif check_for_labels "cost-model-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-    elif check_for_labels "full-run-smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api"
-    elif check_for_labels "smoke-tests"; then
-        export IQE_FILTER_EXPRESSION="test_api"
-        export IQE_MARKER_EXPRESSION="cost_required"
-    else
-        echo "PR smoke tests skipped"
-        EXIT_CODE=2
-    fi
+    source $CICD_ROOT/cji_smoke_test.sh
 }
 
 function generate_junit_report_from_code() {
@@ -201,31 +182,45 @@ function latest_commit_in_pr() {
     [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
 }
 
-# check if this commit is out of date with the branch
-if ! latest_commit_in_pr; then
-    EXIT_CODE=3
-    generate_junit_report_from_code "$EXIT_CODE"
-    exit $EXIT_CODE
+function configure_stages() {
+
+    # check if this commit is out of date with the branch
+    if ! latest_commit_in_pr; then
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=3
+    fi
+
+    if ! set_label_flags; then
+        echo "Error setting up workflow based on PR labels"
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=1
+    fi
+}
+
+if ! [[ -z "$SKIP_PR_CHECK" ]]; then
+
+    if ! [[ -z "$SKIP_IMAGE_BUILD" ]]; then
+        run_build_image
+    fi
+
+    if ! [[ -z "$SKIP_SMOKE_TESTS" ]]; then
+        run_smoke_tests
+    fi
 fi
 
-set_label_flags
+function run_build_image() {
 
-# check if this PR is labeled to build the test image
-if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
-    echo "PR check skipped"
-    EXIT_CODE=1
-elif check_for_labels 'ok-to-skip-smokes'; then
-    echo "smokes not required"
-    EXIT_CODE=-1
-else
     # Install bonfire repo/initialize
-    run_test_filter_expression
-    echo $IQE_MARKER_EXPRESSION
-    echo $IQE_FILTER_EXPRESSION
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
     curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
     echo "creating PR image"
     build_image
+}
+
+
+generate_junit_report_from_code "$EXIT_CODE"
+exit $EXIT_CODE
+
 fi
 
 
@@ -251,4 +246,3 @@ elif [[ $EXIT_CODE -lt 0 ]]; then
     EXIT_CODE=0
 fi
 
-exit $EXIT_CODE
