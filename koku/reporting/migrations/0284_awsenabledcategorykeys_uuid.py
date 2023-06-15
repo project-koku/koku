@@ -15,6 +15,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="awsenabledcategorykeys",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, editable=False, null=True),
+            field=models.UUIDField(default=uuid.uuid4, editable=False, null=True, unique=True),
+        ),
+        migrations.RunSQL("UPDATE reporting_awsenabledcategorykeys SET uuid = uuid_generate_v4();"),
+        migrations.AlterField(
+            model_name="awsenabledcategorykeys",
+            name="uuid",
+            field=models.UUIDField(default=uuid.uuid4, editable=False, null=False, unique=True),
         ),
     ]
