@@ -20,7 +20,7 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_handler import TruncDayString
-from api.report.aws.serializers import AWSQueryParamSerializer
+from api.report.constants import AWS_COST_TYPE_CHOICES
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 
@@ -1111,7 +1111,7 @@ class OCPAWSReportViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_cost_type(self):
-        cost_types = [choice[0] for choice in AWSQueryParamSerializer.COST_TYPE_CHOICE]
+        cost_types = [choice[0] for choice in AWS_COST_TYPE_CHOICES]
         bad_cost_types = ["shplended_cost"]
 
         client = APIClient()
