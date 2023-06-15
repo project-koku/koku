@@ -111,22 +111,30 @@ class OCPCloudUpdaterBase:
         if self._provider.type == Provider.PROVIDER_OCP:
             with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
-                    start_date, end_date, ocp_provider_uuid=self._provider_uuid, provider_type=self._provider.type
+                    start_date,
+                    end_date,
+                    ocp_provider_uuid=self._provider_uuid,
                 )
         elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
-                    start_date, end_date, aws_provider_uuid=self._provider_uuid, provider_type=self._provider.type
+                    start_date,
+                    end_date,
+                    aws_provider_uuid=self._provider_uuid,
                 )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
-                    start_date, end_date, azure_provider_uuid=self._provider_uuid, provider_type=self._provider.type
+                    start_date,
+                    end_date,
+                    azure_provider_uuid=self._provider_uuid,
                 )
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
-                    start_date, end_date, gcp_provider_uuid=self._provider_uuid, provider_type=self._provider.type
+                    start_date,
+                    end_date,
+                    gcp_provider_uuid=self._provider_uuid,
                 )
 
         # Save to DB

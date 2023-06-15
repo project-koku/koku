@@ -227,7 +227,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
         gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
-        provider_type = kwargs.get("provider_type")
 
         check_aws = False
         check_azure = False
@@ -271,9 +270,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
                 infra_sql = infra_sql.decode("utf-8")
 
-                if provider_type == Provider.PROVIDER_OCP:
-                    provider_type = source_type
-
                 infra_sql_params = {
                     "start_date": start_date,
                     "end_date": end_date,
@@ -284,7 +280,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "ocp_provider_uuid": ocp_provider_uuid,
                     "azure_provider_uuid": azure_provider_uuid,
                     "gcp_provider_uuid": gcp_provider_uuid,
-                    "provider_type": provider_type,
                     "resource_level": resource_level,
                 }
 
