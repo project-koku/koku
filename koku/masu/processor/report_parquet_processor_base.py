@@ -92,7 +92,7 @@ class ReportParquetProcessorBase:
 
     def table_exists(self):
         """Check if table exists."""
-        LOG.info(log_json(msg="Checking for table", table=self._table_name, schema=self._schema_name))
+        LOG.info(log_json(msg="checking for table", table=self._table_name, schema=self._schema_name))
         table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
         table = self._execute_sql(table_check_sql, self._schema_name)
         if table:
@@ -101,7 +101,7 @@ class ReportParquetProcessorBase:
 
     def create_schema(self):
         """Create Trino schema."""
-        LOG.info(log_json(msg="Create Trino/Hive schema SQL", schema=self._schema_name))
+        LOG.info(log_json(msg="create trino/hive schema sql", schema=self._schema_name))
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
         self._execute_sql(schema_create_sql, "default")
         return self._schema_name
@@ -148,14 +148,14 @@ class ReportParquetProcessorBase:
                 f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
                 " partitioned_by=ARRAY['source', 'year', 'month'])"
             )
-        LOG.info(log_json(msg="create parquet table", table=self._table_name, schema=self._schema_name))
+        LOG.info(log_json(msg="attempting to create parquet table", table=self._table_name, schema=self._schema_name))
         return sql
 
     def create_table(self, partition_map=None):
         """Create Trino SQL table."""
         sql = self._generate_create_table_sql(partition_map=partition_map)
         self._execute_sql(sql, self._schema_name)
-        LOG.info(log_json(msg="trino table created", table=self._table_name, schema=self._schema_name))
+        LOG.info(log_json(msg="trino parquet table created", table=self._table_name, schema=self._schema_name))
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""
