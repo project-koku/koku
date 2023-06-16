@@ -39,11 +39,11 @@ function set_label_flags() {
         return 1
     fi
 
-    if ! grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' "$PR_LABELS"; then
+    if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         EXIT_CODE=1
         echo "PR check skipped"
-    elif grep -E 'ok-to-skip-smokes' "$PR_LABELS"; then
+    elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         echo "smokes not required"
     else
@@ -153,16 +153,17 @@ function generate_junit_report_from_code() {
 
 _github_api_request() {
 
-    local PATH="$1"
-    curl -s -H "Accept: application/vnd.github.v3+json" \
-        "${GITHUB_API_ROOT}/$PATH" 
+    local API_PATH="$1"
+    curl -s -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_ROOT}/$API_PATH"
 }
 
 function latest_commit_in_pr() {
 
     local LATEST_COMMIT
 
-    LATEST_COMMIT=$(_github_api_request "pulls/$ghprbPullId" | jq -r '.head.sha')
+    if ! LATEST_COMMIT=$(_github_api_request "pulls/$ghprbPullId" | jq -r '.head.sha'); then
+        echo "Error retrieving PR information"
+    fi
 
     [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
 }
@@ -216,5 +217,7 @@ if [[ -z "$SKIP_PR_CHECK" ]]; then
     fi
 fi
 
-generate_junit_report_from_code "$EXIT_CODE"
+if [[ "$EXIT_CODE" -ne 0 ]] || [[ -n "$SKIP_PR_CHECK" ]]; then
+    generate_junit_report_from_code "$EXIT_CODE"
+fi
 exit $EXIT_CODE
