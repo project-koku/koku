@@ -3,11 +3,13 @@ pipeline {
     options {
         timestamps()
     }
-
     stages {
-        stage('no-op') {
+        stage('get-labels') {
             steps {
-                sh "echo 'Jenkinsfile placeholder'"
+                script {
+                    def response = httpRequest 'https://api.github.com/repos/project-koku/koku/issues/4470/labels'
+                    println("Status: "+response.status)
+               }
             }
         }
     }
