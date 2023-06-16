@@ -7,8 +7,16 @@ pipeline {
         stage('get-labels') {
             steps {
                 script {
-                    def response = httpRequest 'https://api.github.com/repos/project-koku/koku/issues/4470/labels'
-                    println("Status: "+response.status)
+                    PR_LABELS = sh (
+                        script: """
+                            curl -s -H "Accept: application/vnd.github.v3+json" \
+                            https://api.github.com/repos/project-koku/koku/issues/${ghprbPullId}/labels | jq '.[].name'
+                        """,
+                        returnStdout: true
+                    ).trim()
+               }
+               script {
+                    echo PR_LABELS
                }
             }
         }
