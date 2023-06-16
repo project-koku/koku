@@ -92,7 +92,7 @@ function is_pull_request() {
 function run_smoke_tests() {
     # Install bonfire repo/initialize
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
+    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source ./.cicd_bootstrap.sh
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
 
