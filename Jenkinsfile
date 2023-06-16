@@ -42,35 +42,50 @@ pipeline {
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
+
+        PR_LABELS=''
+        SKIP_PR_CHECK=''
+        SKIP_SMOKE_TESTS=''
+        SKIP_IMAGE_BUILD=''
+        LABEL_NO_LABELS=''
+        LABEL_AWS_SMOKE_TESTS=''
+        LABEL_AZURE_SMOKE_TESTS=''
+        LABEL_GCP_SMOKE_TESTS=''
+        LABEL_OCI_SMOKE_TESTS=''
+        LABEL_OCP_SMOKE_TESTS=''
+        LABEL_HOT_FIX_SMOKE_TESTS=''
+        LABEL_COST_MODEL_SMOKE_TESTS=''
+        LABEL_FULL_RUN_SMOKE_TESTS=''
+        LABEL_SMOKE_TESTS=''
     }
 
     stages {
         stage('Initial setup') {
             steps {
-                script {
-                    mkdir -p "${LABELS_DIR}"
-                    mkdir -p "${ARTIFACTS_DIR}"
+                sh '''
+                    source ./ci/functions.sh
 
-                    // Save PR labels into a file
-                    curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels" | jq '.[].name' > "$LABELS_DIR/github_labels.txt"
+                    mkdir -p $LABELS_DIR
+                    mkdir -p $ARTIFACTS_DIR
 
-                    cat "$LABELS_DIR/github_labels.txt"
-                }
+                    get_pr_labels
+
+                    set_label_flags
+
+                '''
             }
         }
 
         stage('Build test image') {
             when {
                 expression {
-                    sh(script: "grep -E 'lgtm|pr-check-build|*smoke-tests' ${LABELS_DIR}/github_labels.txt", returnStatus: true) == 0
+                    SKIP_PR_CHECK = 'true'
                 }
             }
             steps {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        commandStout = sh(script: "curl -s -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt", returnStdout: true)
-                        echo commandStout
-                        
+
                         if (commandStout.contains('hot-fix-smoke-tests')) {
                             env.IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
                         } else if (exec('grep', '-E', 'azure-smoke-tests', '${LABELS_DIR}/github_labels.txt', '&>/dev/null')) {
@@ -111,7 +126,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    sh(script: "grep -E 'lgtm|*smoke-tests' ${LABELS_DIR}/github_labels.txt", returnStatus: true) == 0
+                    SKIP_PR_CHECK != 'true'
                 }
             }
             steps {
