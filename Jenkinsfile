@@ -20,5 +20,13 @@ pipeline {
                }
             }
         }
+        stage('second stage') {
+            steps {
+                script {
+                    echo "second stage!"
+                    echo PR_LABELS
+                }
+            }
+        }
     }
 }
