@@ -46,14 +46,16 @@ function set_label_flags() {
     elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         echo "smokes not required"
+    elif ! grep -E '.*smoke-tests' <<< "$PR_LABELS"; then
+        echo "WARNING! No smoke-tests labels found!, PR smoke tests will be skipped"
+        SKIP_SMOKE_TESTS='true'
+        EXIT_CODE=2
+    elif _set_IQE_filter_expressions_for_smoke_labels "$PR_LABELS"; then
+        echo "Smoke tests will run"
     else
-        if _set_IQE_filter_expressions_for_smoke_labels "$PR_LABELS"; then
-            echo "Smoke tests will run"
-        else
-            echo "WARNING! No known smoke-tests labels found!, PR smoke tests will be skipped"
-            SKIP_SMOKE_TESTS='true'
-            EXIT_CODE=2
-        fi
+        echo "Error setting IQE filters from PR_LABELS: $PR_LABELS"
+        SKIP_SMOKE_TESTS='true'
+        EXIT_CODE=2
     fi
 }
 
