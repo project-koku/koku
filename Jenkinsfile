@@ -85,8 +85,10 @@ pipeline {
             steps {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        sh 'source ./ci/functions.sh'
-                        set_IQE_filter_expressions
+                        sh '''
+                            source ./ci/functions.sh
+                            set_IQE_filter_expressions
+                        '''
 
                         echo "$IQE_MARKER_EXPRESSION"
                         echo "$IQE_FILTER_EXPRESSION"
