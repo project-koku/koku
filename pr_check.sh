@@ -7,29 +7,18 @@ COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for t
 IMAGE="quay.io/cloudservices/koku"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 DBM_IMAGE=${IMAGE}
-DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
+DBM_INVOCATION=$(printf "%02d" $((RANDOM%100)))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
-WORKSPACE=${WORKSPACE:$PWD}
+WORKSPACE=${WORKSPACE:-$PWD}
 ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 JUNIT_REPORT_GENERATOR="${WORKSPACE}/junit-report-generator.sh"
 EXIT_CODE=0
 GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
 
-PR_LABELS=''
 SKIP_PR_CHECK=''
 SKIP_SMOKE_TESTS=''
 SKIP_IMAGE_BUILD=''
-LABEL_NO_LABELS=''
-LABEL_AWS_SMOKE_TESTS=''
-LABEL_AZURE_SMOKE_TESTS=''
-LABEL_GCP_SMOKE_TESTS=''
-LABEL_OCI_SMOKE_TESTS=''
-LABEL_OCP_SMOKE_TESTS=''
-LABEL_HOT_FIX_SMOKE_TESTS=''
-LABEL_COST_MODEL_SMOKE_TESTS=''
-LABEL_FULL_RUN_SMOKE_TESTS=''
-LABEL_SMOKE_TESTS=''
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
@@ -37,38 +26,28 @@ export IQE_CJI_TIMEOUT="120m"
 
 set -ex
 
-mkdir -p "$ARTIFACTS_DIR"
-
-function check_for_labels() {
-    grep -E "$1" <<< "$PR_LABELS" 
-}
-
-
 function get_pr_labels() {
-
-    local LABELS_URL="${GITHUB_API_ROOT}/issues/$ghprbPullId/labels"
-
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
 }
 
 function set_label_flags() {
 
-    local LABELS
+    local PR_LABELS
 
-    if ! LABELS=$(get_pr_labels); then
+    if ! PR_LABELS=$(get_pr_labels); then
         echo "Error retrieving PR labels"
         return 1
     fi
 
-    if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
+    if ! grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         EXIT_CODE=1
         echo "PR check skipped"
-    elif check_for_labels 'ok-to-skip-smokes'; then
+    elif grep -E 'ok-to-skip-smokes' "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         echo "smokes not required"
     else
-        if _set_IQE_filter_expressions_for_smoke_labels; then
+        if _set_IQE_filter_expressions_for_smoke_labels "$PR_LABELS"; then
             echo "Smoke tests will run"
         else
             echo "WARNING! No known smoke-tests labels found!, PR smoke tests will be skipped"
@@ -78,25 +57,28 @@ function set_label_flags() {
     fi
 }
 
-function _set_IQE_filter_expressions() {
-    if check_for_labels "aws-smoke-tests"; then
+function _set_IQE_filter_expressions_for_smoke_labels() {
+
+    local SMOKE_LABELS="$1"
+
+    if grep -E "aws-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
-    elif check_for_labels "azure-smoke-tests"; then
+    elif grep -E "azure-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
-    elif check_for_labels "gcp-smoke-tests"; then
+    elif grep -E "gcp-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-    elif check_for_labels "oci-smoke-tests"; then
+    elif grep -E "oci-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
-    elif check_for_labels "ocp-smoke-tests"; then
+    elif grep -E "ocp-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
-    elif check_for_labels "hot-fix-smoke-tests"; then
+    elif grep -E "hot-fix-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="outage"
-    elif check_for_labels "cost-model-smoke-tests"; then
+    elif grep -E "cost-model-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-    elif check_for_labels "full-run-smoke-tests"; then
+    elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
-    elif check_for_labels "smoke-tests"; then
+    elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
     else
@@ -113,7 +95,7 @@ function is_pull_request() {
     [[ -n "$ghprbPullId" ]]
 }
 
-function run_smoke_tests() {
+function run_smoke_tests_stage() {
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
 
@@ -178,11 +160,14 @@ _github_api_request() {
 
 function latest_commit_in_pr() {
 
-    local LATEST_COMMIT=$(_github_api_request "pulls/$ghprbPullId" | jq -r '.head.sha')
+    local LATEST_COMMIT
+
+    LATEST_COMMIT=$(_github_api_request "pulls/$ghprbPullId" | jq -r '.head.sha')
+
     [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
 }
 
-function run_build_image() {
+function run_build_image_stage() {
 
     # Install bonfire repo/initialize
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
@@ -193,10 +178,18 @@ function run_build_image() {
 
 function configure_stages() {
 
+    if ! is_pull_request; then
+        echo "Error, no PR information found, is this invoked from a PR?"
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=1
+        return
+    fi
+
     # check if this commit is out of date with the branch
     if ! latest_commit_in_pr; then
         SKIP_PR_CHECK='true'
         EXIT_CODE=3
+        return
     fi
 
     if ! set_label_flags; then
@@ -208,18 +201,20 @@ function configure_stages() {
 
 configure_stages
 
-if ! [[ -z "$SKIP_PR_CHECK" ]]; then
+if [[ -z "$SKIP_PR_CHECK" ]]; then
 
-    if ! [[ -z "$SKIP_IMAGE_BUILD" ]]; then
-        run_build_image
+    if [[ -z "$SKIP_IMAGE_BUILD" ]]; then
+        # TODO: remove mock
+        echo "MOCK: building image ...."
+        #run_build_image_stage
     fi
 
-    if ! [[ -z "$SKIP_SMOKE_TESTS" ]]; then
-        run_smoke_tests
+    if [[ -z "$SKIP_SMOKE_TESTS" ]]; then
+        # TODO: remove mock
+        echo "MOCK: running smoke tests ...."
+        #run_smoke_tests_stage
     fi
 fi
 
-
 generate_junit_report_from_code "$EXIT_CODE"
 exit $EXIT_CODE
-
