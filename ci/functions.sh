@@ -46,7 +46,7 @@ function set_label_flags() {
     fi
 }
 
-function _set_IQE_filter_expressions() {
+function set_IQE_filter_expressions() {
     if check_for_labels "aws-smoke-tests"; then
         export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
     elif check_for_labels "azure-smoke-tests"; then
