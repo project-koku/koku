@@ -79,7 +79,7 @@ pipeline {
         stage('Build test image') {
             when {
                 expression {
-                    return SKIP_PR_CHECK = 'true'
+                    return env.SKIP_PR_CHECK == 'true'
                 }
             }
             steps {
@@ -103,7 +103,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    return SKIP_PR_CHECK != 'true'
+                    return env.SKIP_PR_CHECK != 'true'
                 }
             }
             steps {
