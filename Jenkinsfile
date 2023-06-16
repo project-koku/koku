@@ -109,7 +109,6 @@ pipeline {
             steps {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        run_smoke_tests
                         sh '''
                             source ./ci/functions.sh
                             run_smoke_tests
