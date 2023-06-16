@@ -1,5 +1,11 @@
-List[String] getPrLabels() {
-    sh 'ls /'
+List<String> getPrLabels() {
+    return sh (
+        script: """
+            curl -s -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/project-koku/koku/issues/${ghprbPullId}/labels | jq '.[].name'
+        """,
+        returnStdout: true
+    ).trim().split('\n')
 }
 
 pipeline {
