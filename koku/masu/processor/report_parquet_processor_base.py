@@ -83,7 +83,7 @@ class ReportParquetProcessorBase:
 
     def schema_exists(self):
         """Check if schema exists."""
-        LOG.info(log_json(msg="Checking for schema", schema=self._schema_name))
+        LOG.info(log_json(msg="checking for schema", schema=self._schema_name))
         schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
         schema = self._execute_sql(schema_check_sql, "default")
         if schema:
@@ -148,14 +148,14 @@ class ReportParquetProcessorBase:
                 f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
                 " partitioned_by=ARRAY['source', 'year', 'month'])"
             )
-        LOG.info(log_json("Create Parquet Table SQL", table=self._table_name, schema=self._schema_name, sql=sql))
+        LOG.info(log_json(msg="create parquet table", table=self._table_name, schema=self._schema_name))
         return sql
 
     def create_table(self, partition_map=None):
         """Create Trino SQL table."""
         sql = self._generate_create_table_sql(partition_map=partition_map)
         self._execute_sql(sql, self._schema_name)
-        LOG.info(log_json("Trino Table created", self._table_name, self._schema_name))
+        LOG.info(log_json(msg="trino table created", table=self._table_name, schema=self._schema_name))
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""
@@ -200,9 +200,10 @@ class ReportParquetProcessorBase:
             if _created:
                 LOG.info(
                     log_json(
-                        f"Created a new partition for {record.partition_of_table_name}",
+                        msg="created a new partition",
                         schema=self._schema_name,
                         table=record.table_name,
+                        partition=record.partition_of_table_name,
                     )
                 )
 
@@ -212,7 +213,7 @@ class ReportParquetProcessorBase:
         """Sync hive partition metadata for new partitions."""
         LOG.info(
             log_json(
-                "Syncing Trino/Hive partitions.",
+                msg="syncing trino/hive partitions",
                 schema=self._schema_name,
                 table=self._table_name,
             )
