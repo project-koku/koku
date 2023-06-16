@@ -4,30 +4,34 @@ WHERE
   source = '{{provider_uuid | sqlsafe}}'
   AND year = '{{year | sqlsafe}}'
   AND month = '{{month | sqlsafe}}'
-  AND (
-    -- CCSP
-    publishertype = 'Azure'
-    AND (
-      strpos(metersubcategory, 'Red Hat') > 0
-      OR strpos(serviceinfo2, 'Red Hat') > 0
-    )
+  AND coalesce(date, usagedatetime) >= TIMESTAMP '{{date | sqlsafe}}'
+  AND coalesce(date, usagedatetime) < date_add(
+    'day', 1, TIMESTAMP '{{date | sqlsafe}}'
   )
-  OR (
-    publishertype = 'Marketplace'
-    AND (
-      strpos(publishername, 'Red Hat') > 0
-      OR (
-        -- Alternate CCSP
-        (
-          publishername = 'Microsoft'
-          OR publishername = 'Azure'
-        )
-        AND (
-          strpos(metersubcategory, 'Red Hat') > 0
-          OR strpos(serviceinfo2, 'Red Hat') > 0
+  AND (
+    (
+      -- CCSP
+      publishertype = 'Azure'
+      AND (
+        strpos(metersubcategory, 'Red Hat') > 0
+        OR strpos(serviceinfo2, 'Red Hat') > 0
+      )
+    )
+    OR (
+      publishertype = 'Marketplace'
+      AND (
+        strpos(publishername, 'Red Hat') > 0
+        OR (
+          -- Alternate CCSP
+          (
+            publishername = 'Microsoft'
+            OR publishername = 'Azure'
+          )
+          AND (
+            strpos(metersubcategory, 'Red Hat') > 0
+            OR strpos(serviceinfo2, 'Red Hat') > 0
+          )
         )
       )
     )
   )
-  AND coalesce(date, usagedatetime) >= TIMESTAMP '{{date | sqlsafe}}'
-  AND coalesce(date, usagedatetime) < date_add('day', 1, TIMESTAMP '{{date | sqlsafe}}')
