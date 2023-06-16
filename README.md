@@ -12,7 +12,7 @@ Koku's goal is to provide an open source solution for cost management of cloud a
 
 Full documentation is available in [docs folder](docs).
 
-To submit an issue please visit https://issues.redhat.com/projects/COST/.
+To submit an issue please visit [https://issues.redhat.com/projects/COST/]().
 
 ## Getting Started
 
@@ -20,16 +20,8 @@ This project is developed using Python 3.9. Make sure you have at least this ver
 
 ### Prerequisites
 
--   Docker
--   PostgreSQL
-
-#### For Mac OSX
-
--   [Install Docker for Mac](https://docs.docker.com/v17.12/docker-for-mac/install/)
--   [Install brew](https://brew.sh/)
--   Install PostgreSQL:
-
-        brew install postgresql
+- Docker
+- (macOS only) [Install Homebrew](https://brew.sh/)
 
 ## Development
 
@@ -51,21 +43,21 @@ do the following:
         AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-3.  (Mac Only) Install libraries for building wheels on ARM:
+3.  (macOS only) Install libraries for building wheels on ARM:
 
-        brew install openssl librdkafka
+        brew install openssl librdkafka postgresql@13
 
-4.  (Mac Only) Also add the following to your `.env` or shell profile:
+4.  (macOS only) Also add the following to your `.env` or shell profile:
 
-        LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
-        CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
+        LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib -L$(brew --prefix postgresql@13)/lib"
+        CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include -I$(brew --prefix postgresql@13)/include"
+        PATH="$PATH:$(brew --prefix postgresql@13)/bin"
 
-5.  Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip:
+5.  Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment and dependency management. To install `pipenv`:
 
-        pip3 install pipenv==2022.4.8
+        pip3 install pipenv
 
-6.  Then project dependencies and a virtual environment can be created
-    using:
+6.  Then project dependencies and a virtual environment can be created using:
 
         pipenv install --dev
 
@@ -79,7 +71,7 @@ do the following:
 
 ### Developing with Docker Compose
 
-This will explain how to start the server and its dependencies usin Docker, create AWS/OCP sources, and view reports. This will not cove all API or scenarios but should give you an end to end flow.
+This will explain how to start the server and its dependencies usin Docker, create AWS/OCP sources, and view reports. This will not cover all API or scenarios but should give you an end-to-end flow.
 
 #### Starting Koku using Docker Compose
 
@@ -87,13 +79,33 @@ This will explain how to start the server and its dependencies usin Docker, crea
 >
 > In order for the `koku_base` image to build correctly, buildkit must be enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file, but if you are having issues building the `koku_base` image, make sure buildkit is enabled.
 
-1.  Start the docker containers:
+1.  Start the containers:
 
-        make docker-up
+        make docker-up-min
 
-2.  Display log output from the docker containers. It is recommended that logs be kept in a second terminal:
+2.  Display log output from the containers. It is recommended that logs be kept in a second terminal:
 
-        docker compose logs -f koku-server koku-worker
+        make docker-logs
+
+With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+
+To add test sources and data:
+
+    make create-test-customer
+    make load-test-customer-data # Optional parameters: start={start_date} end={end_date} test_source=AWS
+
+The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials.
+
+The Trinio UI will be available at http://127.0.0.1:8080/ui/. Details can be found there on queries. This is particularly useful for troubleshooting failures.
+
+Access the Trino CLI using the following command:
+
+    docker exec -it trino trino --server 127.0.0.1:8080 --catalog hive --schema org1234567 --user admin --debug
+
+Example usage:
+
+    SHOW tables;
+    SELECT * from aws_line_items WHERE source='{source}' AND year='2023' AND month='02' LIMIT 100;
 
 #### Run AWS Scenario
 
@@ -163,13 +175,13 @@ To bring down all the docker containers, run the following command:
 
 #### Database
 
-PostgreSQL is used as the database backend for Koku. A docker compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run:
+PostgreSQL is used as the database backend for Koku. A docker compose file is provided for creating a local database container. Assuming the default `.env` file values are used, to access the database directly using psql run:
 
     PGPASSWORD=postgres psql postgres -U postgres -h 127.0.0.1 -p 15432
 
 > **Note**
 >
-> There is a known limitation with docker compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment:
+> There is a known limitation with Docker Compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment:
 >
 >       "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 >
@@ -216,53 +228,10 @@ Information about PostgreSQL statistics can be found here: https://www.postgresq
 
 Information about Grafana dashboards can be found here: https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/
 
-#### Using Trino and MinIO
-
-We have a special docker compose file specifically for running Trino with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
-
-Set the following environment variables:
-
-    S3_BUCKET_NAME=koku-bucket
-    S3_ENDPOINT=http://kokuminio:9000
-    S3_ACCESS_KEY=kokuminioaccess
-    S3_SECRET=kokuminiosecret
-
-To spin up the minimum targets for Trino use:
-
-    make docker-up-min-trino
-
-To skip building the koku image base:
-
-    make docker-up-min-trino-no-build
-
-To tear down containers:
-
-    make docker-trino-down-all
-
-With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
-
-To add test sources and data:
-
-    make create-test-customer
-    make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
-
-The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use
-the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
-
-The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as admin. Details can be found there on queries. This is particularly useful for troubleshooting failures.
-
-For command line interactions with Trino [install the CLI](https://trino.io/docs/current/client/cli.html) and use the following to login:
-
-    trino --server 127.0.0.1:8080 --catalog hive --schema org1234567 --user admin --debug
-
-Example usage:
-
-    SHOW tables;
-    SELECT * from aws_line_items WHERE source='{source}' AND year='2021' AND month='02' LIMIT 100;
 
 ### Developing with OpenShift
 
-Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to [Working with Openshift](docs/openshift.md).
+Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to [Working with OpenShift](docs/openshift.md).
 
 ### Testing
 
@@ -318,4 +287,4 @@ There is a stored procedure that helps create table partitions on-the-fly during
 
 ## Contributing
 
-Please refer to [Contributing](https://github.com/project-koku/koku/blob/main/CONTRIBUTING.rst).
+Please refer to [Contributing](https://github.com/project-koku/koku/blob/main/CONTRIBUTING.md).

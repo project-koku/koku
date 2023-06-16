@@ -41,9 +41,8 @@ class IngressReportDBAccessor(KokuDBAccess):
         completed_datetime = self.date_accessor.today_with_timezone("UTC")
         if ingress_report_uuid:
             ingress_report = self._get_db_obj_query().filter(uuid=ingress_report_uuid).first()
-            if not ingress_report.completed_timestamp:
-                ingress_report.completed_timestamp = completed_datetime
-                ingress_report.save()
+            ingress_report.completed_timestamp = completed_datetime
+            ingress_report.save()
             self.update_ingress_report_status(ingress_report_uuid, "Complete")
             LOG.info(
                 log_json(
