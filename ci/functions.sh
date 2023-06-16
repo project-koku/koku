@@ -150,7 +150,7 @@ function generate_junit_report_from_code() {
 
 _github_api_request() {
 
-    local PATH="$1"
+    PATH="$1"
     curl -s -H "Accept: application/vnd.github.v3+json" \
         "${GITHUB_API_ROOT}/$PATH" 
 }
