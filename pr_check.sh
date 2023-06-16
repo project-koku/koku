@@ -208,15 +208,11 @@ configure_stages
 if [[ -z "$SKIP_PR_CHECK" ]]; then
 
     if [[ -z "$SKIP_IMAGE_BUILD" ]]; then
-        # TODO: remove mock
-        echo "MOCK: building image ...."
-        #run_build_image_stage
+        run_build_image_stage
     fi
 
     if [[ -z "$SKIP_SMOKE_TESTS" ]]; then
-        # TODO: remove mock
-        echo "MOCK: running smoke tests ...."
-        #run_smoke_tests_stage
+        run_smoke_tests_stage
     fi
 fi
 
