@@ -79,7 +79,7 @@ pipeline {
         stage('Build test image') {
             when {
                 expression {
-                    SKIP_PR_CHECK = 'true'
+                    return SKIP_PR_CHECK = 'true'
                 }
             }
             steps {
@@ -88,13 +88,13 @@ pipeline {
                         sh '''
                             source ./ci/functions.sh
                             set_IQE_filter_expressions
-                        '''
+                            
+                            echo "$IQE_MARKER_EXPRESSION"
+                            echo "$IQE_FILTER_EXPRESSION"
 
-                        echo "$IQE_MARKER_EXPRESSION"
-                        echo "$IQE_FILTER_EXPRESSION"
-                        
-                        echo "Install bonfire repo/initialize, creating PR image"
-                        //run_build_image
+                            echo "Install bonfire repo/initialize, creating PR image"
+                            #run_build_image
+                        '''
                     }
                 }
             }
@@ -103,13 +103,17 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    SKIP_PR_CHECK != 'true'
+                    return SKIP_PR_CHECK != 'true'
                 }
             }
             steps {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
                         run_smoke_tests
+                        sh '''
+                            source ./ci/functions.sh
+                            run_smoke_tests
+                        '''
                     }
                 }
             }
