@@ -15,8 +15,16 @@ LABEL_COST_MODEL_SMOKE_TESTS=''
 LABEL_FULL_RUN_SMOKE_TESTS=''
 LABEL_SMOKE_TESTS=''
 
+set -ex
+
 function check_for_labels() {
     grep -E "$1" <<< "$PR_LABELS" 
+}
+
+
+function get_pr_labels() {
+
+    _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
 }
 
 function set_label_flags() {
@@ -72,16 +80,69 @@ function set_IQE_filter_expressions() {
     fi
 }
 
+function build_image() {
+    export DOCKER_BUILDKIT=1
+    source $CICD_ROOT/build.sh
+}
+
+function is_pull_request() {
+    [[ -n "$ghprbPullId" ]]
+}
+
+function run_smoke_tests() {
+    source ${CICD_ROOT}/_common_deploy_logic.sh
+    export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
+
+    oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
+    oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
+    oc get secret/koku-oci -o json -n ephemeral-base | jq -r '.data' > oci-creds.json
+
+    AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json | base64 -d)
+    AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | base64 -d)
+    GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
+    OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
+    OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
+    OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
+    OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
+
+    # This sets the image tag for the migrations Job to be the current koku image tag
+    DBM_IMAGE_TAG=${IMAGE_TAG}
+
+    bonfire deploy \
+        ${APP_NAME} \
+        --ref-env insights-production \
+        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
+        --set-image-tag ${IMAGE}=${IMAGE_TAG} \
+        --namespace ${NAMESPACE} \
+        ${COMPONENTS_ARG} \
+        ${COMPONENTS_RESOURCES_ARG} \
+        --optional-deps-method hybrid \
+        --set-parameter rbac/MIN_REPLICAS=1 \
+        --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
+        --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
+        --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
+        --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
+        --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
+        --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
+        --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
+        --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
+        --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+        --no-single-replicas \
+        --source=appsre \
+        --timeout 600
+
+    echo "Running E2E tests with IQE:"
+    echo "IQE_MARKER_EXPRESSION: '$IQE_MARKER_EXPRESSION'"
+    echo "IQE_FILTER_EXPRESSION: '$IQE_FILTER_EXPRESSION'"
+
+    source $CICD_ROOT/cji_smoke_test.sh
+}
+
 function generate_junit_report_from_code() {
 
     local CODE="$1"
 
     "${JUNIT_REPORT_GENERATOR}" "$CODE" > "${ARTIFACTS_DIR}/junit-pr_check.xml"
-}
-
-function get_pr_labels() {
-
-    _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
 }
 
 _github_api_request() {
@@ -95,4 +156,28 @@ function latest_commit_in_pr() {
 
     local LATEST_COMMIT=$(_github_api_request "pulls/$ghprbPullId" | jq -r '.head.sha')
     [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
+}
+
+function run_build_image() {
+
+    # Install bonfire repo/initialize
+    CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
+    echo "creating PR image"
+    build_image
+}
+
+function configure_stages() {
+
+    # check if this commit is out of date with the branch
+    if ! latest_commit_in_pr; then
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=3
+    fi
+
+    if ! set_label_flags; then
+        echo "Error setting up workflow based on PR labels"
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=1
+    fi
 }
