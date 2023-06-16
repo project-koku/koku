@@ -1,3 +1,7 @@
+List[String] getPrLabels() {
+    sh 'ls /'
+}
+
 pipeline {
     agent { label 'insights' }
     options {
@@ -13,7 +17,7 @@ pipeline {
                             https://api.github.com/repos/project-koku/koku/issues/${ghprbPullId}/labels | jq '.[].name'
                         """,
                         returnStdout: true
-                    ).trim()
+                    ).trim().split('\n')
                }
                script {
                     echo PR_LABELS
