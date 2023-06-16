@@ -26,7 +26,7 @@ pipeline {
                     ).trim().split('\n')
                }
                script {
-                    echo PR_LABELS
+                    print(PR_LABELS)
                }
             }
         }
@@ -34,7 +34,8 @@ pipeline {
             steps {
                 script {
                     echo "second stage!"
-                    echo PR_LABELS
+                    print(PR_LABELS)
+                    print(getPrLabels())
                 }
             }
         }
