@@ -148,7 +148,8 @@ function generate_junit_report_from_code() {
 
     local CODE="$1"
 
-    "${JUNIT_REPORT_GENERATOR}" "$CODE" > "${ARTIFACTS_DIR}/junit-pr_check.xml"
+    mkdir -p "$ARTIFACTS_DIR"
+    "$JUNIT_REPORT_GENERATOR" "$CODE" > "${ARTIFACTS_DIR}/junit-pr_check.xml"
 }
 
 _github_api_request() {
