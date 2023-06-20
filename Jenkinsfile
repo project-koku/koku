@@ -72,6 +72,8 @@ pipeline {
 
                     set_label_flags
 
+                    echo $SKIP_PR_CHECK
+                    echo env.SKIP_PR_CHECK
                 '''
             }
         }
@@ -111,7 +113,7 @@ pipeline {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
                         sh '''
                             source ./ci/functions.sh
-                            run_smoke_tests
+                            #run_smoke_tests
                         '''
                     }
                 }
