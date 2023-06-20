@@ -105,7 +105,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    return env.SKIP_PR_CHECK != 'true'
+                    return env.SKIP_SMOKE_TESTS != 'true'
                 }
             }
             steps {
