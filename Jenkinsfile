@@ -47,16 +47,6 @@ pipeline {
         SKIP_PR_CHECK=''
         SKIP_SMOKE_TESTS=''
         SKIP_IMAGE_BUILD=''
-        LABEL_NO_LABELS=''
-        LABEL_AWS_SMOKE_TESTS=''
-        LABEL_AZURE_SMOKE_TESTS=''
-        LABEL_GCP_SMOKE_TESTS=''
-        LABEL_OCI_SMOKE_TESTS=''
-        LABEL_OCP_SMOKE_TESTS=''
-        LABEL_HOT_FIX_SMOKE_TESTS=''
-        LABEL_COST_MODEL_SMOKE_TESTS=''
-        LABEL_FULL_RUN_SMOKE_TESTS=''
-        LABEL_SMOKE_TESTS=''
     }
 
     stages {
@@ -81,7 +71,7 @@ pipeline {
         stage('Build test image') {
             when {
                 expression {
-                    return env.SKIP_PR_CHECK == 'true'
+                    return env.SKIP_IMAGE_BUILD != 'true'
                 }
             }
             steps {
