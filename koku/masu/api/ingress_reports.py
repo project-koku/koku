@@ -53,14 +53,14 @@ def ingress_reports(request):
                 errmsg = "ingress_uuid must be supplied as a parameter for downloads."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             with schema_context(schema_name):
-                ingress_report = IngressReports.objects.filter(uuid=ingress_uuid)
-                async_result = check_report_updates.s(
+                ingress_report = IngressReports.objects.filter(uuid=ingress_uuid).first()
+                async_result = check_report_updates.delay(
                     provider_uuid=ingress_report.source_id,
                     bill_date=f"{ingress_report.bill_year}{ingress_report.bill_month}",
                     ingress_reports=ingress_report.reports_list,
                     ingress_report_uuid=ingress_uuid,
                 )
-            return Response({REPORT_DATA_KEY: async_result})
+            return Response({"Ingress Reports Download Request Task ID": str(async_result)})
 
         else:
             with schema_context(schema_name):
