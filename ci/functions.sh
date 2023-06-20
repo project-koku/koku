@@ -141,8 +141,7 @@ function generate_junit_report_from_code() {
 _github_api_request() {
 
     PATH="$1"
-    CURL_LOCATION=$(which curl)
-    CURL_LOCATION -s -H "Accept: application/vnd.github.v3+json" \
+    curl -s -H "Accept: application/vnd.github.v3+json" \
         "${GITHUB_API_ROOT}/$PATH" 
 }
 
