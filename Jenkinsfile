@@ -82,9 +82,9 @@ pipeline {
                         script {
                             withVault([configuration: configuration, vaultSecrets: secrets]) {
                                 sh '''
-                                    get_pr_labels
-
                                     source ./ci/functions.sh
+
+                                    get_pr_labels
                                     set_IQE_filter_expressions
                                     
                                     echo "$IQE_MARKER_EXPRESSION"
