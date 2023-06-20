@@ -61,9 +61,6 @@ pipeline {
                     get_pr_labels
 
                     set_label_flags
-
-                    echo $SKIP_PR_CHECK
-                    echo env.SKIP_PR_CHECK
                 '''
             }
         }
