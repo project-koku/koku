@@ -38,7 +38,8 @@ pipeline {
         IQE_FILTER_EXPRESSION=""
         IQE_MARKER_EXPRESSION="cost_smoke"
         IQE_CJI_TIMEOUT="120m"
-
+        
+        GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 
         EXIT_CODE=0
