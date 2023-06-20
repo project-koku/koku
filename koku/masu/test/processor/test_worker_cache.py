@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Cache of worker tasks currently running."""
-import logging
 from unittest.mock import patch
 
 from django.core.cache import cache
@@ -12,8 +11,6 @@ from django.test.utils import override_settings
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
-
-LOG = logging.getLogger(__name__)
 
 
 class WorkerCacheTest(MasuTestCase):

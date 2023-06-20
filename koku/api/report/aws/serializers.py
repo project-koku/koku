@@ -6,6 +6,7 @@
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from api.report.constants import AWS_COST_TYPE_CHOICES
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -98,15 +99,10 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
 
     # Tuples are (key, display_name)
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
-    COST_TYPE_CHOICE = (
-        ("blended_cost", "blended_cost"),
-        ("unblended_cost", "unblended_cost"),
-        ("savingsplan_effective_cost", "savingsplan_effective_cost"),
-    )
+    COST_TYPE_CHOICES = AWS_COST_TYPE_CHOICES
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
-    check_tags = serializers.BooleanField(required=False, default=False)
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICES, required=False)
 
     def validate(self, data):
         """Validate incoming data.

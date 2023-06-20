@@ -13,24 +13,23 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import enable_ocp_savings_plan_cost
+from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
-from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
-from reporting.provider.aws.models import AWSCostEntryLineItem
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
@@ -63,14 +62,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     @property
     def ocpall_line_item_project_daily_summary_table(self):
         return get_model("OCPAllCostLineItemProjectDailySummaryP")
-
-    @property
-    def line_item_table(self):
-        return AWSCostEntryLineItem
-
-    @property
-    def cost_entry_table(self):
-        return AWSCostEntry
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
@@ -170,6 +161,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
+    def populate_category_summary_table(self, bill_ids, start_date, end_date):
+        """Populate the category key values table."""
+        table_name = self._table_map["category_summary"]
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
@@ -178,21 +178,46 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
             self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
 
+    def populate_ocp_on_aws_ui_summary_tables_trino(
+        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, tables=OCPAWS_UI_SUMMARY_TABLES
+    ):
+        """Populate our UI summary tables (formerly materialized views)."""
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+
+        for table_name in tables:
+            summary_sql_params = {
+                "schema_name": self.schema,
+                "start_date": start_date,
+                "end_date": end_date,
+                "year": year,
+                "month": month,
+                "days": days_tup,
+                "aws_source_uuid": aws_provider_uuid,
+                "ocp_source_uuid": openshift_provider_uuid,
+            }
+            summary_sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            self._execute_trino_raw_sql_query(summary_sql, sql_params=summary_sql_params, log_ref=f"{table_name}.sql")
+
     def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpawscostlineitem_project_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
-        if self.table_exists_trino(table):
+        if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tAWS Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                ocp_source,
-                aws_source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions by day",
+                    schema=self.schema,
+                    ocp_source=ocp_source,
+                    aws_source=aws_source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):
@@ -243,6 +268,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_aws_hive_partition_by_day(days_tup, aws_provider_uuid, openshift_provider_uuid, year, month)
+        tables = [
+            "reporting_ocpawscostlineitem_project_daily_summary_temp",
+            "aws_openshift_daily_resource_matched_temp",
+            "aws_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
 
         pod_column = "pod_effective_usage_cpu_core_hours"
         node_column = "node_capacity_cpu_core_hours"
@@ -267,8 +299,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "node_column": node_column,
         }
-        LOG.info("Running OCP on AWS SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on AWS SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
@@ -276,7 +307,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         # Check if we're using the savingsplan unleash-gated feature
-        is_savingsplan_cost = enable_ocp_savings_plan_cost(self.schema)
+        is_savingsplan_cost = is_ocp_savings_plan_cost_enabled(self.schema)
 
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
@@ -314,6 +345,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_cost=(F("unblended_cost") * markup),
                     markup_cost_blended=(F("blended_cost") * markup),
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                    markup_cost_amortized=(F("calculated_amortized_cost") * markup),
                 )
 
                 OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
@@ -440,7 +472,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on AWS {self.schema}")
+                LOG.info(log_json(msg="no matching enabled keys for OCP on AWS", schema=self.schema))
                 return False
         return True
 

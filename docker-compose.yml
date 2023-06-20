@@ -40,9 +40,6 @@ services:
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
-      - USE_RABBIT=${USE_RABBIT-False}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
@@ -57,6 +54,7 @@ services:
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - OCI_CLI_USER=${OCI_CLI_USER}
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
@@ -102,9 +100,6 @@ services:
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
-      - USE_RABBIT=${USE_RABBIT-False}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
@@ -122,6 +117,7 @@ services:
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - OCI_CLI_USER=${OCI_CLI_USER}
@@ -130,8 +126,6 @@ services:
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
-      - PRESTO_HOST=${PRESTO_HOST-trino}
-      - PRESTO_PORT=${PRESTO_PORT-8080}
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
     ports:
@@ -164,9 +158,6 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
-      - USE_RABBIT=${USE_RABBIT-False}
       - DEVELOPMENT=${DEVELOPMENT-True}
       - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
       - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
@@ -181,7 +172,7 @@ services:
       - S3_ENDPOINT
       - S3_ACCESS_KEY
       - S3_SECRET
-      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - DATA_DIR=${DATA_DIR-/testing/data}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - KOKU_CELERY_ENABLE_SENTRY
       - KOKU_CELERY_SENTRY_DSN
@@ -191,8 +182,6 @@ services:
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
       - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
       - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
-      - PRESTO_HOST=${PRESTO_HOST-trino}
-      - PRESTO_PORT=${PRESTO_PORT-8080}
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
       - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
@@ -204,6 +193,7 @@ services:
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - OCI_CLI_USER=${OCI_CLI_USER}
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
@@ -251,9 +241,6 @@ services:
       - DATABASE_NAME=${DATABASE_NAME-postgres}
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
-      - USE_RABBIT=${USE_RABBIT-False}
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - REDIS_HOST=${REDIS_HOST-redis}
@@ -274,12 +261,11 @@ services:
       - S3_ENDPOINT
       - S3_ACCESS_KEY
       - S3_SECRET
-      - PRESTO_HOST=${PRESTO_HOST-trino}
-      - PRESTO_PORT=${PRESTO_PORT-8080}
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 7001-7020:9000
@@ -312,8 +298,6 @@ services:
       - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
       - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
       - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
       - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
@@ -334,6 +318,7 @@ services:
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - OCI_CLI_USER=${OCI_CLI_USER}
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
@@ -357,7 +342,7 @@ services:
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['celery', '--pidfile=', '-A', 'koku', 'beat', '-l', 'info']
+    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -370,18 +355,15 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
-      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-      - RABBITMQ_PORT=5672
-      - USE_RABBIT=${USE_RABBIT-False}
       - LOG_LEVEL=INFO
       - DJANGO_SETTINGS_MODULE=koku.settings
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - SCHEDULE_REPORT_CHECKS=True
-      - REPORT_DOWNLOAD_SCHEDULE="0 4,16 * * *"
       - SOURCE_STATUS_FREQUENCY_MINUTES
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
       - './koku:/koku/koku'
@@ -502,9 +484,9 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:3.9  # 3.9 to match clowder
+    image: unleashorg/unleash-server:4.21.0
     environment:
-      - AUTH_ENABLE_API_TOKEN=true
+      - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
       - CHECK_VERSION=false
       - DATABASE_HOST=db
       - DATABASE_NAME=unleash
@@ -576,7 +558,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/cloudservices/ubi-trino:latest
+    image: quay.io/cloudservices/ubi-trino:411-002
     user: root
     ports:
       - 8080:8080

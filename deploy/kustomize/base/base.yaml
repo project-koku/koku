@@ -17,7 +17,7 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
-      dbResourceSize: medium
+      dbResourceSize: small
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
 
@@ -34,9 +34,11 @@ objects:
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
+    - topicName: hccm.ros.events
 
     objectStore:
     - ${S3_BUCKET_NAME}
+    - ${S3_ROS_BUCKET_NAME}
 
     dependencies:
     - ingress
@@ -58,11 +60,11 @@ objects:
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
+            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
+            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
           requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
+            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
+            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
         args:
         - /bin/bash
         - -c
@@ -82,6 +84,10 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -186,9 +192,11 @@ objects:
           }
           location ^~/ {
             proxy_pass http://koku-api;
+            proxy_read_timeout 600s;
           }
           location /api/cost-management/v1/recommendations/ {
             proxy_pass http://ros-ocp-api;
+            proxy_read_timeout 600s;
           }
         }
       }
@@ -220,6 +228,8 @@ parameters:
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
+- name: S3_ROS_BUCKET_NAME
+  value: ros-eph-s3
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
@@ -243,6 +253,28 @@ parameters:
   name: _MIGRATION_DIRECTIVE
   required: false
   value: ""
+- displayName: Memory Request
+  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MIGRATIONS_CPU_REQUEST
+  required: true
+  value: "2"
+- displayName: CPU Limit
+  name: KOKU_MIGRATIONS_CPU_LIMIT
+  required: true
+  value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: True
+  value: "2"
 
 - displayName: App domain
   name: APP_DOMAIN
@@ -349,9 +381,21 @@ parameters:
 - name: QE_SCHEMA
   value: ""
 
-- description: Report download schedule
-  displayName: Report download schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+- description: Report download schedule GCP
+  displayName: Report download schedule GCP
+  name: REPORT_DOWNLOAD_SCHEDULE_GCP
+  value: "0 4,16 * * *"
+- description: Report download schedule AWS
+  displayName: Report download schedule AWS
+  name: REPORT_DOWNLOAD_SCHEDULE_AWS
+  value: "0 4,16 * * *"
+- description: Report download schedule AZURE
+  displayName: Report download schedule AZURE
+  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+  value: "0 4,16 * * *"
+- description: Report download schedule OCI
+  displayName: Report download schedule OCI
+  name: REPORT_DOWNLOAD_SCHEDULE_OCI
   value: "0 4,16 * * *"
 - description: Remove expired data on day
   displayName: Remove expired data on day
@@ -368,18 +412,6 @@ parameters:
 - description: Vacuum data utc time
   displayName: Vacuum data utc time
   name: VACUUM_DATA_UTC_TIME
-  value: "00:00"
-- description: Volume file retention length
-  displayName: Volume file retention length
-  name: VOLUME_FILE_RETENTION
-  value: "86400"
-- description: Clean volume on day
-  displayName: Clean volume on day
-  name: CLEAN_VOLUME_DAY_OF_WEEK
-  value: "sunday"
-- description: Clean volume utc time
-  displayName: Clean volume utc time
-  name: CLEAN_VOLUME_UTC_TIME
   value: "00:00"
 - displayName: Date overrider
   name: DATE_OVERRIDE
@@ -400,19 +432,6 @@ parameters:
   name: KAFKA_CONNECT
   value: "True"
 
-- description: Use rabbitmq as message broker
-  displayName: Use rabbitmq as message broker
-  name: USE_RABBIT
-  value: "False"
-- description: RabbitMQ host
-  displayName: RabbitMQ host
-  name: RABBITMQ_HOST
-  value: "rabbitmq"
-- description: RabbitMQ port
-  displayName: RabbitMQ port
-  name: RABBITMQ_PORT
-  value: "5672"
-
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -420,12 +439,6 @@ parameters:
   name: RBAC_CACHE_TTL
   value: "30"
 
-- displayName: Presto/Trino host
-  name: PRESTO_HOST
-  value: "trino-coordinator"
-- displayName: Presto/Trino port
-  name: PRESTO_PORT
-  value: "10000"
 - displayName: Trino host
   name: TRINO_HOST
   value: "trino-coordinator"

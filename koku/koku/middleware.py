@@ -27,10 +27,10 @@ from django.utils.deprecation import MiddlewareMixin
 from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
+from django_tenants.middleware import TenantMainMiddleware
+from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.middleware import BaseTenantMiddleware
-from tenant_schemas.utils import schema_exists
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
@@ -134,8 +134,8 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
             return paginator.get_paginated_response()
 
 
-class KokuTenantMiddleware(BaseTenantMiddleware):
-    """A subclass of the Django-tenant-schemas tenant middleware.
+class KokuTenantMiddleware(TenantMainMiddleware):
+    """A subclass of the Django-tenants middleware.
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
     """
@@ -152,7 +152,30 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             return HttpResponseFailedDependency({"source": "Database", "exception": exception})
 
     def process_request(self, request):
-        """Check before super."""
+        """Process the incoming request and set the appropriate tenant.
+
+        Args:
+            request (HttpRequest): The incoming request object.
+
+        Returns:
+            HttpResponse: The response object if tenant setup fails.
+
+        Raises:
+            PermissionDenied: If the user does not have permissions for Cost Management.
+
+        Explanation:
+            This method is responsible for processing the incoming request and setting the appropriate
+            tenant based on the user associated with the request.
+
+            The inherited line `connection.set_tenant(request.tenant)` is called to set the current tenant
+            for the request. This ensures that any subsequent database operations are performed within the
+            context of the correct schema associated with the tenant.
+
+            This method also performs several checks and operations such as authentication and permission checks
+            for the user, to ensure proper tenant setup.
+
+        """
+
         connection.set_schema_to_public()
 
         if not is_no_auth(request):
@@ -161,38 +184,90 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 if username not in USER_CACHE:
                     USER_CACHE[username] = request.user
                     LOG.debug(f"User added to cache: {username}")
-                if not request.user.admin and request.user.access is None:
-                    LOG.warning("User %s is does not have permissions for Cost Management.", username)
-                    # For /user-access we do not want to raise the exception since the API will
-                    # return a false boolean response that the platfrom frontend code is expecting.
-                    if request.path != reverse("user-access"):
-                        raise PermissionDenied()
+                self._check_user_has_access(request)
+
             else:
                 return HttpResponseUnauthorizedRequest()
+
         try:
-            super().process_request(request)
+            # Inherited from superclass. Set the tenant for the request
+            request.tenant = self._get_or_create_tenant(request)
+            connection.set_tenant(request.tenant)
+
         except OperationalError as err:
             LOG.error("Request resulted in OperationalError: %s", err)
             DB_CONNECTION_ERRORS_COUNTER.inc()
             return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
-    def get_tenant(self, model, hostname, request):
-        """Override the tenant selection logic."""
-        schema_name = "public"
+    def _check_user_has_access(self, request):
+        """Check if the user has access to Cost Management.
+
+        Args:
+            request (HttpRequest): The incoming request object.
+
+        Raises:
+            PermissionDenied: If the user does not have permissions for Cost Management.
+
+        """
+
+        username = request.user.username
+        if not request.user.admin and request.user.access is None:
+            msg = f"User {username} does not have permissions for Cost Management."
+            LOG.warning(msg)
+            # For /user-access we do not want to raise the exception since the API will
+            # return a false boolean response that the platfrom frontend code is expecting.
+            if request.path != reverse("user-access"):
+                raise PermissionDenied(msg)
+
+    def _get_or_create_tenant(self, request):
+        """Get or create tenant based on the user's schema.
+
+        Args:
+            request(HttpRquest): The incoming request object.
+
+        Returns:
+            Tenant: The tenant object.
+
+        """
+
+        if tenant := self._get_tenant_from_tenant_cache(request):
+            return tenant
+
+        tenant_username = request.user.username
+        schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
+
+        try:
+            return self._get_tenant_from_db(tenant_username, schema_name)
+        except Tenant.DoesNotExist:
+            LOG.info("No tenant found. Creating new tenant with public schema.")
+            return self._create_tenant()
+
+    def _get_tenant_from_tenant_cache(self, request):
+        """Get tenant from tenant cache."""
+
         tenant_username = request.user.username
         tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
-        if not tenant:
-            if not is_no_auth(request):
-                schema_name = request.user.customer.schema_name
+        return tenant
 
-            tenant = model.objects.filter(schema_name=schema_name).first()
-            if tenant and schema_name != "public":
-                with KokuTenantMiddleware.tenant_lock:
-                    KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
-                    LOG.debug(f"Tenant added to cache: {tenant_username}")
-            elif not tenant:
-                tenant, __ = model.objects.get_or_create(schema_name="public")
+    def _get_tenant_from_db(self, tenant_username, schema_name):
+        """Get tenant with the schema from the database."""
 
+        try:
+            tenant = Tenant.objects.get(schema_name=schema_name)
+        except Tenant.DoesNotExist:
+            LOG.info(f"Tenant does not exist. username: {tenant_username}. schema: {schema_name}.")
+            raise
+
+        if schema_name != "public":
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+                LOG.debug(f"Tenant added to cache: {tenant_username}")
+        return tenant
+
+    def _create_tenant(self):
+        """Create tenant"""
+
+        tenant, __ = Tenant.objects.get_or_create(schema_name="public")
         return tenant
 
 
@@ -363,7 +438,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             user.beta = False
             if request.META.get("HTTP_REFERER"):
                 referer = request.META["HTTP_REFERER"]
-                if "/beta/" in referer:
+                if "/beta/" in referer or "/preview/" in referer:
                     user.beta = True
             request.user = user
 

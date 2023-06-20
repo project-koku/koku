@@ -13,15 +13,16 @@ from itertools import product
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from api.currency.utils import exchange_dictionary
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
 from api.report.test.util.common import update_cost_category
+from api.report.test.util.constants import AWS_COST_CATEGORIES
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -62,6 +63,7 @@ class ModelBakeryDataLoader(DataLoader):
         self.tag_test_tag_key = "app"
         self.ocp_tag_keys = ["app", "storageclass", "environment", "version"]
         self._populate_enabled_tag_key_table()
+        self._populate_enabled_aws_category_key_table()
         self._populate_exchange_rates()
 
     def get_test_data_dates(self, num_days):
@@ -93,6 +95,15 @@ class ModelBakeryDataLoader(DataLoader):
                 baker.make("OCPEnabledTagKeys", key=key, enabled=True)
             baker.make("OCPEnabledTagKeys", key="disabled", enabled=False)
 
+    def _populate_enabled_aws_category_key_table(self):
+        """Insert records for aws category keys."""
+        for item in AWS_COST_CATEGORIES:
+            if isinstance(item, dict):
+                keys = item.keys()
+                for key in keys:
+                    with schema_context(self.schema):
+                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+
     def _populate_exchange_rates(self):
         rates = [
             {"code": "USD", "currency_type": "usd", "exchange_rate": 1},
@@ -122,6 +133,14 @@ class ModelBakeryDataLoader(DataLoader):
                 data["billing_source__data_source"] = billing_source
 
             provider = baker.make("Provider", **data)
+            with schema_context(self.schema):
+                baker.make(
+                    "TenantAPIProvider",
+                    uuid=provider.uuid,
+                    type=provider.type,
+                    name=provider.name,
+                    provider=provider,
+                )
             if linked_openshift_provider:
                 infra_map = baker.make(
                     "ProviderInfrastructureMap", infrastructure_type=provider_type, infrastructure_provider=provider
@@ -147,7 +166,7 @@ class ModelBakeryDataLoader(DataLoader):
         with schema_context(self.schema):
             model_str = BILL_MODELS[provider_type]
             month_end = self.dh.month_end(bill_date)
-            data = {"provider": provider}
+            data = {"provider_id": provider.uuid}
             if provider_type == Provider.PROVIDER_OCP:
                 data["report_period_start"] = bill_date
                 data["report_period_end"] = month_end + timedelta(days=1)
@@ -157,12 +176,6 @@ class ModelBakeryDataLoader(DataLoader):
                 data["billing_period_start"] = bill_date
                 data["billing_period_end"] = month_end
             return baker.make(model_str, **data, **kwargs, _fill_optional=False)
-
-    def create_cost_entry(self, bill_date, bill):
-        """Create a cost entry object for the provider"""
-        with schema_context(self.schema):
-            month_end = self.dh.month_end(bill_date)
-            baker.make("AWSCostEntry", interval_start=bill_date, interval_end=month_end, bill=bill)
 
     def create_cost_model(self, provider):
         """Create a cost model and map entry."""
@@ -215,7 +228,6 @@ class ModelBakeryDataLoader(DataLoader):
                 self.create_manifest(provider, bill_date)
                 bill = self.create_bill(provider_type, provider, bill_date, payer_account_id=payer_account_id)
                 bills.append(bill)
-                self.create_cost_entry(bill_date, bill)
                 days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(  # Storage data_source
@@ -232,6 +244,7 @@ class ModelBakeryDataLoader(DataLoader):
                     )
         bill_ids = [bill.id for bill in bills]
         with AWSReportDBAccessor(self.schema) as accessor:
+            accessor.populate_category_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return bills

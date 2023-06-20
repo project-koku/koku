@@ -109,7 +109,7 @@ def process_cr(report_meta):
             channel: (str or None)
             errors: (Dict or None)
     """
-    LOG.info(log_json(report_meta.get("tracing_id"), "Processing the manifest"))
+    LOG.info(log_json(report_meta.get("tracing_id"), msg="Processing the manifest"))
     operator_versions = {
         "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
         "77ec351f8d332796dc522e5623f1200c2fab4042": "costmanagement-metrics-operator:1.1.4",
@@ -185,7 +185,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dates = utils.month_date_range(date_time)
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
         msg = f"Looking for manifest at {directory}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         report_meta = utils.get_report_details(directory)
         self.context["version"] = report_meta.get("version")
         return report_meta
@@ -239,10 +239,10 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.remove(manifest_path)
             msg = f"Deleted manifest file at {directory}"
-            LOG.debug(log_json(self.tracing_id, msg, self.context))
+            LOG.debug(log_json(self.tracing_id, msg=msg, context=self.context))
         except OSError:
             msg = f"Could not delete manifest file at {directory}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         return None
 
@@ -259,12 +259,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         dates = utils.month_date_range(date_time)
         msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
-        LOG.debug(log_json(self.tracing_id, msg, self.context))
+        LOG.debug(log_json(self.tracing_id, msg=msg, context=self.context))
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
 
         manifest = self._get_manifest(date_time)
         msg = f"manifest found: {str(manifest)}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         reports = []
         for file in manifest.get("files", []):
@@ -301,7 +301,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_creation_date = None
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
@@ -330,7 +330,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_str = date_range.split("-")[0]
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
         manifest_timestamp = manifest.get("date")
-        num_of_files = len(manifest.get("files", []))
+        num_of_files = len(manifest.get("files") or [])
         manifest_info = process_cr(manifest)
         return self._process_manifest_db_record(
             assembly_id, billing_start, num_of_files, manifest_timestamp, **manifest_info

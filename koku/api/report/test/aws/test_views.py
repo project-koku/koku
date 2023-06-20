@@ -4,7 +4,6 @@
 #
 """Test the AWS Report views."""
 import copy
-import logging
 
 from django.urls import reverse
 from rest_framework import status
@@ -14,8 +13,6 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.utils import DateHelper
-
-LOG = logging.getLogger(__name__)
 
 
 def _calculate_accounts_and_subous(data):
@@ -597,3 +594,9 @@ class AWSReportViewTest(IamTestCase):
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_aws_category_key(self):
+        """Test invalid aws category key."""
+        url = reverse("reports-aws-costs") + "?group_by[aws_categroy:invalid]=value"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

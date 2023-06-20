@@ -69,3 +69,15 @@ class KafkaUtilsTest(TestCase):
             with self.subTest(test=test):
                 result = utils.extract_from_header(test["test"], test["key"])
                 self.assertEqual(result, test["expected"])
+
+
+class ProducerSingletonTest(TestCase):
+    def test_producer_singleton(self):
+        """Tests that the ID of two created ProducerSingletons are in fact the same whereas two Producers are not."""
+        # no provided bootstrap.servers create a producer that doesn't connect to anything.
+        pfake = utils.Producer({})
+        pfake2 = utils.Producer({})
+        self.assertNotEqual(id(pfake), id(pfake2))
+        p1 = utils.ProducerSingleton({})
+        p2 = utils.ProducerSingleton({})
+        self.assertEqual(id(p1), id(p2))

@@ -5,6 +5,7 @@
 """Masu Processor."""
 import logging
 
+from api.common import log_json
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
@@ -17,104 +18,118 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
-def enable_purge_trino_files(account):
+def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
     account = convert_account(account)
-
     context = {"schema": account}
-    LOG.info(f"enable_purge_trino_files context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-purge-turnpike", context))
+    LOG.debug(f"is_purge_trino_files_enabled context: {context}")
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-purge-turnpike", context)
 
 
-def disable_cloud_source_processing(account):
+def is_cloud_source_processing_disabled(account):  # pragma: no cover
     """Disable processing for a cloud source."""
     account = convert_account(account)
-
     context = {"schema": account}
-    LOG.info(f"Processing UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cloud-source-processing", context))
-    LOG.info(f"    Processing {'disabled' if res else 'enabled'} {account}")
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cloud-source-processing", context)
+    if res:
+        LOG.info(log_json(msg="processing disabled", context=context))
 
     return res
 
 
-def disable_summary_processing(account):
+def is_summary_processing_disabled(account):  # pragma: no cover
     """Disable summary processing."""
     account = convert_account(account)
-
     context = {"schema": account}
-    LOG.info(f"Summary UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-summary-processing", context))
-    LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-summary-processing", context)
+    if res:
+        LOG.info(log_json(msg="summary processing disabled", context=context))
 
     return res
 
 
-def disable_ocp_on_cloud_summary(account):
+def is_ocp_on_cloud_summary_disabled(account):  # pragma: no cover
     """Disable OCP on Cloud summary."""
     account = convert_account(account)
-
     context = {"schema": account}
-    LOG.info(f"OCP on Cloud Summary UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context))
-    LOG.info(f"    OCP on Cloud Summary {'disabled' if res else 'enabled'} {account}")
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context)
+    if res:
+        LOG.info(log_json(msg="OCP-on-Cloud summary processing disabled", context=context))
 
     return res
 
 
-def disable_gcp_resource_matching(account):
+def is_gcp_resource_matching_disabled(account):  # pragma: no cover
     """Disable GCP resource matching for OCP on GCP."""
     account = convert_account(account)
-
     context = {"schema": account}
-    LOG.info(f"GCP resource matching UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context))
-    LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context)
+    if res:
+        LOG.info(log_json(msg="GCP resource matching is disabled", context=context))
 
     return res
 
 
-def summarize_ocp_on_gcp_by_node(account):
+def is_summarize_ocp_on_gcp_by_node_enabled(account):  # pragma: no cover
     """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
     account = convert_account(account)
-
     context = {"schema": account}
-    LOG.info(f"OCP on GCP Summary by Node UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context))
-    LOG.info(f"    Summarize by Node for OCP on GCP {'enabled' if res else 'disabled'} {account}")
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context)
+    if res:
+        LOG.info(log_json(msg="OCP on GCP summarize by node is enabled", context=context))
 
     return res
 
 
-def is_large_customer(account):
+def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
-
     context = {"schema": account}
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context))
-
-    return res
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
 
 
-def enable_ocp_savings_plan_cost(account):
+def is_ocp_savings_plan_cost_enabled(account):  # pragma: no cover
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     account = convert_account(account)
-
     context = {"schema": account}
-    res = bool(
-        UNLEASH_CLIENT.is_enabled(
-            "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
-        )
+    return UNLEASH_CLIENT.is_enabled(
+        "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
     )
 
+
+def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
+    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
+
+
+def is_aws_category_settings_enabled(account):  # pragma: no cover
+    """Enable aws category settings."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(
+        "cost-management.backend.enable_aws_category_settings", context, fallback_development_true
+    )
+
+
+def is_source_disabled(source_uuid):  # pragma: no cover
+    """
+    Disable source processing
+
+    params:
+        source_uuid: unique identifer of source or provider
+    """
+    context = {"source_uuid": source_uuid}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-source", context)
+    if res:
+        LOG.info(log_json(msg="processing disabled for source", context=context))
     return res
 
 
-def enable_ocp_amortized_monthly_cost(account):
-    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
-    account = convert_account(account)
-
-    context = {"schema": account}
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context))
-
+def is_ingress_rate_limiting_disabled():  # pragma: no cover
+    """Disable ingress rate limiting"""
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ingress-rate-limit")
+    if res:
+        LOG.info(log_json(msg="ingress rate limiting disabled"))
     return res

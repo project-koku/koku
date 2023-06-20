@@ -29,6 +29,7 @@ class SourceSerializerTest(MasuTestCase):
                 "auth_header": "abc1234",
                 "offset": i,
                 "account_id": self.acct,
+                "org_id": self.org_id,
                 "source_type": provider.type,
                 "authentication": provider.authentication.credentials,
                 "billing_source": provider.billing_source.data_source,

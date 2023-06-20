@@ -3,7 +3,7 @@ import logging
 
 import ciso8601
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -53,22 +53,6 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date, **kwargs):
-        """Populate the daily tables for reporting.
-
-        Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
-
-        Returns
-            (str, str): A start date and end date.
-
-        """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
-
-        return start_date, end_date
-
     def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
@@ -95,6 +79,11 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
+
+            if current_bill_id is None:
+                msg = f"No bill was found for {start_date}. Skipping summarization"
+                LOG.info(msg)
+                return start_date, end_date
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(

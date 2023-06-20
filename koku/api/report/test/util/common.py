@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common Test utilities."""
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from reporting.provider.ocp.models import OCPCluster
@@ -20,7 +20,7 @@ def populate_ocp_topology(schema, provider, cluster_id):
             .values_list("node", "resource_id")
             .distinct()
         )
-        cluster = OCPCluster(cluster_id=cluster_id, provider=provider)
+        cluster = OCPCluster(cluster_id=cluster_id, provider_id=provider.uuid)
         cluster.save()
         for node in nodes:
             if node[0]:

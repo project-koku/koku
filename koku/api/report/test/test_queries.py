@@ -78,13 +78,21 @@ class ReportQueryUtilsTest(TestCase):
                     {"account": "a1", "service": "s2", "units": "USD", "total": 5},
                     {"account": "a2", "service": "s1", "units": "USD", "total": 6},
                     {"account": "a2", "service": "s2", "units": "USD", "total": 5},
+                    {"account": "a1", "service": "s1", "units": "USD", "total": 9},
+                    {"account": "a1", "service": "s2", "units": "USD", "total": 7},
                     {"account": "a1", "service": "s3", "units": "USD", "total": 5},
                 ]
                 out_data = handler._group_data_by_list(group_by, 0, data)
                 expected = {
                     "a1": {
-                        "s1": [{"account": "a1", "service": "s1", "units": "USD", "total": 4}],
-                        "s2": [{"account": "a1", "service": "s2", "units": "USD", "total": 5}],
+                        "s1": [
+                            {"account": "a1", "service": "s1", "units": "USD", "total": 9},
+                            {"account": "a1", "service": "s1", "units": "USD", "total": 4},
+                        ],
+                        "s2": [
+                            {"account": "a1", "service": "s2", "units": "USD", "total": 7},
+                            {"account": "a1", "service": "s2", "units": "USD", "total": 5},
+                        ],
                         "s3": [{"account": "a1", "service": "s3", "units": "USD", "total": 5}],
                     },
                     "a2": {
@@ -538,6 +546,17 @@ class ReportQueryHandlerTest(IamTestCase):
             data = query_output.get("data")
             self.assertIsNotNone(data)
             self.assertNotIn("Platform", data)
+
+    def test_apply_group_null_label_empty_string(self):
+        """Test adding group label for empty string values."""
+        url = "?"
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        groups = ["gcp_project"]
+        data = {"gcp_project": "", "units": "USD"}
+        expected = {"gcp_project": "No-gcp_project", "units": "USD"}
+        out_data = handler._apply_group_null_label(data, groups)
+        self.assertEqual(expected, out_data)
 
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label

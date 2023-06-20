@@ -3,14 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
-import logging
 import random
 from decimal import Decimal
 from uuid import uuid4
 
 import faker
+from django_tenants.utils import tenant_context
 from rest_framework import serializers
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
@@ -22,8 +21,6 @@ from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import RateSerializer
 from cost_models.serializers import UUIDKeyRelatedField
-
-LOG = logging.getLogger(__name__)
 
 
 def format_tag_value(**kwarg_dict):

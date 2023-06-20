@@ -7,9 +7,9 @@ import datetime
 import uuid
 
 import django
-import pytz
+from django.conf import settings
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database import AWS_CUR_TABLE_MAP
@@ -17,7 +17,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleanerError
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from reporting.models import PartitionedTable
 
 
@@ -46,13 +45,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
         super().setUpClass()
         cls.accessor = AWSReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
-            AWS_CUR_TABLE_MAP["product"],
-            AWS_CUR_TABLE_MAP["pricing"],
-            AWS_CUR_TABLE_MAP["reservation"],
         ]
 
     def test_initializer(self):
@@ -106,8 +101,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
             self.assertTrue(table_exists(self.schema, test_part.table_name))
 
-            report_period_start = datetime.datetime(2017, 1, 1, tzinfo=pytz.UTC)
-            report_period_end = datetime.datetime(2017, 1, 31, tzinfo=pytz.UTC)
+            report_period_start = datetime.datetime(2017, 1, 1, tzinfo=settings.UTC)
+            report_period_end = datetime.datetime(2017, 1, 31, tzinfo=settings.UTC)
             cluster_id = "aws-test-cluster-0001"
             report_period = report_period_model(
                 billing_resource=cluster_id,
@@ -123,7 +118,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
             )
             lids_rec.save()
 
-            cutoff_date = datetime.datetime(2017, 12, 31, tzinfo=pytz.UTC)
+            cutoff_date = datetime.datetime(2017, 12, 31, tzinfo=settings.UTC)
             cleaner = AWSReportDBCleaner(self.schema)
             removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 

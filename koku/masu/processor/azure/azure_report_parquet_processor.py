@@ -3,11 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Azure Parquet files."""
-import logging
-
 import ciso8601
-import pytz
-from tenant_schemas.utils import schema_context
+from django.conf import settings
+from django_tenants.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util import common as utils
@@ -15,8 +13,6 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
@@ -64,12 +60,14 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
         report_date_range = utils.month_date_range(bill_date)
         start_date, end_date = report_date_range.split("-")
 
-        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
 
         provider = self._get_provider()
 
         with schema_context(self._schema_name):
             AzureCostEntryBill.objects.get_or_create(
-                billing_period_start=start_date_utc, billing_period_end=end_date_utc, provider=provider
+                billing_period_start=start_date_utc,
+                billing_period_end=end_date_utc,
+                provider_id=provider.uuid,
             )

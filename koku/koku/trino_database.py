@@ -35,19 +35,13 @@ def connect(**connect_args):
         trino.dbapi.Connection : connection to trino if successful
     """
     trino_connect_args = {
-        "host": (connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "trino"),
-        "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or os.environ.get("PRESTO_PORT") or 8080),
-        "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or os.environ.get("PRESTO_USER") or "admin"),
-        "catalog": (
-            connect_args.get("catalog")
-            or os.environ.get("TRINO_DEFAULT_CATALOG")
-            or os.environ.get("PRESTO_DEFAULT_CATALOG")
-            or "hive"
-        ),
+        "host": (connect_args.get("host") or os.environ.get("TRINO_HOST") or "trino"),
+        "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or 8080),
+        "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or "admin"),
+        "catalog": (connect_args.get("catalog") or os.environ.get("TRINO_DEFAULT_CATALOG") or "hive"),
         "isolation_level": (
             connect_args.get("isolation_level")
             or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
-            or os.environ.get("PRESTO_DEFAULT_ISOLATION_LEVEL")
             or IsolationLevel.AUTOCOMMIT
         ),
         "schema": connect_args["schema"],
@@ -78,7 +72,7 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     for stmt_num, p_stmt in enumerate(sqlparse.split(sqlscript)):
         stmt_count = stmt_count + 1
         if p_stmt := str(p_stmt).strip():
-            # A semicolon statement terminator is invalid in the Presto dbapi interface
+            # A semicolon statement terminator is invalid in the Trino dbapi interface
             p_stmt = p_stmt.removesuffix(";")
             # This is typically for jinjasql templated sql
             if preprocessor and params:

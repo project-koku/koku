@@ -22,8 +22,6 @@ from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
-LOG = logging.getLogger(__name__)
-
 
 class FakeDownloader:
     """Fake Downloader for tests."""
@@ -148,12 +146,12 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch(
-        "masu.processor.orchestrator.disable_cloud_source_processing",
+        "masu.processor.orchestrator.is_cloud_source_processing_disabled",
         return_value=True,
     )
-    def test_unleash_disable_cloud_source_processing(self, mock_processing, mock_inspect):
-        """Test the disable_cloud_source_processing."""
-        expected_result = "Cloud source processing disabled for "
+    def test_unleash_is_cloud_source_processing_disabled(self, mock_processing, mock_inspect):
+        """Test the is_cloud_source_processing_disabled."""
+        expected_result = "processing disabled"
         orchestrator = Orchestrator()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
             orchestrator.get_accounts()

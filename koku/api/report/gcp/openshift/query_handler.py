@@ -4,21 +4,18 @@
 #
 """OCP Query Handling for Reports."""
 import copy
-import logging
 
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.gcp.openshift.provider_map import OCPGCPProviderMap
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.queries import is_grouped_by_project
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPGCPReportQueryHandler(GCPReportQueryHandler):

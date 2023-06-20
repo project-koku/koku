@@ -50,7 +50,7 @@ def trino_query(request):
         LOG.info(msg)
 
         with trino.dbapi.connect(
-            host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
+            host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
         ) as conn:
             cur = conn.cursor()
             cur.execute(query)
@@ -77,7 +77,7 @@ def trino_ui(request):
         params = request.query_params
         api_service = params.get("api_service", "")
         if api_service in trino_ui_api_services:
-            api_str = f"http://{settings.PRESTO_HOST}:{settings.PRESTO_PORT}/ui/api/{api_service}"
+            api_str = f"http://{settings.TRINO_HOST}:{settings.TRINO_PORT}/ui/api/{api_service}"
             LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
             response = requests.get(api_str)
             return Response({"api_service_name": api_service, "trino_response": response.json()})

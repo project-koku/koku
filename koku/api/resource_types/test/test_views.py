@@ -8,10 +8,10 @@ import random
 
 from django.test import RequestFactory
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
@@ -75,7 +75,7 @@ class ResourceTypesViewTest(IamTestCase):
     """Tests the resource types views."""
 
     ENDPOINTS_RTYPE = ["resource-types"]
-    ENDPOINTS_AWS = ["aws-accounts", "aws-regions", "aws-services", "aws-organizational-units"]
+    ENDPOINTS_AWS = ["aws-accounts", "aws-regions", "aws-services", "aws-organizational-units", "aws-categories"]
     ENDPOINTS_GCP = ["gcp-accounts", "gcp-projects", "gcp-regions", "gcp-services"]
     ENDPOINTS_AZURE = ["azure-subscription-guids", "azure-services", "azure-regions"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", "openshift-nodes", "openshift-projects"]

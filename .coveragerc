@@ -1,5 +1,6 @@
 # .coveragerc to control coverage.py
 [run]
+relative_files = True
 branch = True
 omit =
   .tox/*
@@ -17,9 +18,11 @@ omit =
   *sentry.py
   *urls.py
   *wsgi.py
-  *migrations/*
+  */migrations/*
+  */test/*
   *test/*
   */tests_*.py
+  */test_*.py
   *provider_interface.py
   *dev_middleware.py
 

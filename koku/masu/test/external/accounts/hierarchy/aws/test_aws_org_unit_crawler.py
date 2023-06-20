@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -27,7 +27,6 @@ BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
 P_TYPE = Provider.PROVIDER_AWS
 GEN_NUM_ACT_DEFAULT = 2
-LOG = logging.getLogger(__name__)
 
 
 def _generate_act_for_parent_side_effect(schema, parent_id, num_of_accounts=GEN_NUM_ACT_DEFAULT):
@@ -96,7 +95,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test AWSOrgUnitCrawler initializer."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         result_auth_cred = unit_crawler._auth_cred
-        expected_auth_cred = self.account.get("credentials", {}).get("role_arn")
+        expected_auth_cred = self.account.get("credentials", {})
         self.assertEqual(result_auth_cred, expected_auth_cred)
         self.assertIsNone(unit_crawler._client)
 

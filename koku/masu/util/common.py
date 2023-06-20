@@ -13,13 +13,14 @@ from datetime import timedelta
 from itertools import groupby
 from os import remove
 from tempfile import gettempdir
+from threading import RLock
 from uuid import uuid4
 
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
-from pytz import UTC
-from tenant_schemas.utils import schema_context
+from django.conf import settings
+from django_tenants.utils import schema_context
 
 import koku.trino_database as trino_db
 from api.models import Provider
@@ -29,115 +30,6 @@ from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 
 LOG = logging.getLogger(__name__)
-
-CSV_REQUIRED_COLUMNS = {
-    "AWS": (
-        "bill/BillingEntity",
-        "bill/BillType",
-        "bill/PayerAccountId",
-        "bill/BillingPeriodStartDate",
-        "bill/BillingPeriodEndDate",
-        "bill/InvoiceId",
-        "lineItem/LineItemType",
-        "lineItem/UsageAccountId",
-        "lineItem/UsageStartDate",
-        "lineItem/UsageEndDate",
-        "lineItem/ProductCode",
-        "lineItem/UsageType",
-        "lineItem/Operation",
-        "lineItem/AvailabilityZone",
-        "lineItem/ResourceId",
-        "lineItem/UsageAmount",
-        "lineItem/NormalizationFactor",
-        "lineItem/NormalizedUsageAmount",
-        "lineItem/CurrencyCode",
-        "lineItem/UnblendedRate",
-        "lineItem/UnblendedCost",
-        "lineItem/BlendedRate",
-        "lineItem/BlendedCost",
-        "savingsPlan/SavingsPlanEffectiveCost",
-        "lineItem/TaxType",
-        "pricing/publicOnDemandCost",
-        "pricing/publicOnDemandRate",
-        "reservation/AmortizedUpfrontFeeForBillingPeriod",
-        "reservation/AmortizedUpfrontCostForUsage",
-        "reservation/RecurringFeeForUsage",
-        "reservation/UnusedQuantity",
-        "reservation/UnusedRecurringFee",
-        "pricing/term",
-        "pricing/unit",
-        "product/sku",
-        "product/ProductName",
-        "product/productFamily",
-        "product/servicecode",
-        "product/region",
-        "product/instanceType",
-        "product/memory",
-        "product/vcpu",
-        "reservation/ReservationARN",
-        "reservation/NumberOfReservations",
-        "reservation/UnitsPerReservation",
-        "reservation/StartTime",
-        "reservation/EndTime",
-    ),
-    "Azure": (
-        "SubscriptionGuid",
-        "ResourceGroup",
-        "ResourceLocation",
-        "UsageDateTime",
-        "MeterCategory",
-        "MeterSubcategory",
-        "MeterId",
-        "MeterName",
-        "MeterRegion",
-        "UsageQuantity",
-        "ResourceRate",
-        "PreTaxCost",
-        "ConsumedService",
-        "ResourceType",
-        "InstanceId",
-        "Tags",
-        "OfferId",
-        "AdditionalInfo",
-        "ServiceInfo1",
-        "ServiceInfo2",
-        "ServiceName",
-        "ServiceTier",
-        "Currency",
-        "UnitOfMeasure",
-    ),
-    "GCP": (
-        "billing_account_id",
-        "service.id",
-        "service.description",
-        "sku.id",
-        "sku.description",
-        "usage_start_time",
-        "usage_end_time",
-        "project.id",
-        "project.name",
-        "project.labels",
-        "project.ancestry_numbers",
-        "labels",
-        "system_labels",
-        "location.location",
-        "location.country",
-        "location.region",
-        "location.zone",
-        "export_time",
-        "cost",
-        "currency",
-        "currency_conversion_rate",
-        "usage.amount",
-        "usage.unit",
-        "usage.amount_in_pricing_units",
-        "usage.pricing_unit",
-        "credits",
-        "invoice.month",
-        "cost_type",
-        "partition_date",
-    ),
-}
 
 
 def extract_uuids_from_string(source_string):
@@ -327,11 +219,11 @@ def date_range_pair(start_date, end_date, step=5):
     if isinstance(start_date, str):
         start_date = parser.parse(start_date)
     elif isinstance(start_date, datetime.date):
-        start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC)
+        start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=settings.UTC)
     if isinstance(end_date, str):
         end_date = parser.parse(end_date)
     elif isinstance(end_date, datetime.date):
-        end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC)
+        end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, tzinfo=settings.UTC)
 
     dates = list(rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step))
     # Special case with only 1 period
@@ -433,24 +325,29 @@ def batch(iterable, start=0, stop=None, _slice=1):
 
 
 def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
-    LOG.info("Creating enabled tag key records")
+    """
+    Creates enabled key records.
+    """
+
+    if not enabled_keys:
+        LOG.info("No enabled keys found")
+        return
+    LOG.info(f"Creating enabled key records: {str(enabled_keys_model._meta.model_name)}.")
     changed = False
 
-    if enabled_keys:
-        with schema_context(schema):
-            new_keys = list(set(enabled_keys) - {k.key for k in enabled_keys_model.objects.all()})
-            if new_keys:
-                changed = True
-                # Processing in batches for increased efficiency
-                for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
-                    batch_size = len(new_batch)
-                    LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
-                    for ix in range(batch_size):
-                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
-                    enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
-
+    with schema_context(schema):
+        new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
+        if new_keys:
+            changed = True
+            # Processing in batches for increased efficiency
+            for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                batch_size = len(new_batch)
+                LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                for ix in range(batch_size):
+                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
     if not changed:
-        LOG.info("No enabled keys added.")
+        LOG.info("No enabled keys added")
 
     return changed
 
@@ -519,3 +416,28 @@ def convert_account(account):
 def filter_dictionary(dictionary, keys_to_keep):
     """Filter a dictionary to only include the keys specified."""
     return {key: value for key, value in dictionary.items() if key in keys_to_keep}
+
+
+class SingletonMeta(type):
+    """
+    This is a thread-safe implementation of Singleton.
+    """
+
+    _instances = {}
+    _lock: RLock = RLock()
+
+    def __call__(cls, *args, **kwargs):
+        """
+        Possible changes to the value of the `__init__` argument do not affect
+        the returned instance.
+        """
+        with cls._lock:
+            # The first thread to acquire the lock, reaches this conditional,
+            # goes inside and creates the Singleton instance. Once it leaves the
+            # lock block, a thread that might have been waiting for the lock
+            # release may then enter this section. But since the Singleton field
+            # is already initialized, the thread won't create a new object.
+            if cls not in cls._instances:
+                instance = super().__call__(*args, **kwargs)
+                cls._instances[cls] = instance
+        return cls._instances[cls]

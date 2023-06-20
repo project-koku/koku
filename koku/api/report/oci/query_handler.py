@@ -4,19 +4,16 @@
 #
 """OCI Query Handling for Reports."""
 import copy
-import logging
 
 from django.db.models import CharField
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.oci.provider_map import OCIProviderMap
 from api.report.queries import ReportQueryHandler
-
-LOG = logging.getLogger(__name__)
 
 
 class OCIReportQueryHandler(ReportQueryHandler):

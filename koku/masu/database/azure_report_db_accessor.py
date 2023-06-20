@@ -12,9 +12,10 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -228,21 +229,46 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
             self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
 
+    def populate_ocp_on_azure_ui_summary_tables_trino(
+        self, start_date, end_date, openshift_provider_uuid, azure_provider_uuid, tables=OCPAZURE_UI_SUMMARY_TABLES
+    ):
+        """Populate our UI summary tables (formerly materialized views)."""
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+
+        for table_name in tables:
+            summary_sql_params = {
+                "schema_name": self.schema,
+                "start_date": start_date,
+                "end_date": end_date,
+                "year": year,
+                "month": month,
+                "days": days_tup,
+                "azure_source_uuid": azure_provider_uuid,
+                "ocp_source_uuid": openshift_provider_uuid,
+            }
+            summary_sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            self._execute_trino_raw_sql_query(summary_sql, sql_params=summary_sql_params, log_ref=f"{table_name}.sql")
+
     def delete_ocp_on_azure_hive_partition_by_day(self, days, az_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpazurecostlineitem_project_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
-        if self.table_exists_trino(table):
+        if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tAzure Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                ocp_source,
-                az_source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions by day",
+                    schema=self.schema,
+                    ocp_source=ocp_source,
+                    azure_source=az_source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):
@@ -280,6 +306,13 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
+        tables = [
+            "reporting_ocpazurecostlineitem_project_daily_summary_temp",
+            "azure_openshift_daily_resource_matched_temp",
+            "azure_openshift_daily_tag_matched_temp",
+        ]
+        for table in tables:
+            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_azure_hive_partition_by_day(
@@ -311,8 +344,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "node_column": node_column,
         }
-        LOG.info("Running OCP on Azure SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on Azure SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
@@ -431,6 +463,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on Azure {self.schema}")
+                LOG.info(log_json(msg="no matching enabled keys for OCP on Azure", schema=self.schema))
                 return False
         return True

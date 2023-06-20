@@ -2,23 +2,23 @@
     "version": 1,
     "features": [
         {
-            "name": "cost-management.backend.cost-enable-negative-filtering",
-            "description": "Toggle to enable negative filtering in query",
+            "name": "cost-management.backend.disable-source",
+            "description": "Toggle to disable processing for a source",
             "type": "permission",
             "project": "default",
             "enabled": true,
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "source-strategy",
                     "parameters": {
-                        "schema-name": "acct1234567"
+                        "source-uuid": ""
                     },
                     "constraints": []
                 }
             ],
             "variants": [],
-            "createdAt": "2022-09-08T11:50:00.756Z"
+            "createdAt": "2023-05-03T11:50:00.756Z"
         },
         {
             "name": "cost-management.backend.cost-trino-processor",
@@ -225,6 +225,25 @@
             ],
             "variants": [],
             "createdAt": "2022-09-08T09:48:54.492Z"
+        },
+        {
+            "name": "cost-management.backend.enable_aws_category_settings",
+            "description": "any account listed in this strategy will be allowed to enable AWS Category settings.",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-04-06T09:40:54.492Z"
         }
     ],
     "strategies": [
@@ -236,6 +255,18 @@
                     "name": "schema-name",
                     "type": "list",
                     "description": "values must begin with `acct` or `org`",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "name": "source-strategy",
+            "description": "Enablement based on source uuid",
+            "parameters": [
+                {
+                    "name": "source-uuid",
+                    "type": "list",
+                    "description": "UUID of the source.",
                     "required": false
                 }
             ]

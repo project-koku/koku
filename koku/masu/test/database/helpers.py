@@ -9,14 +9,15 @@ import io
 import random
 import uuid
 from decimal import Decimal
+from decimal import InvalidOperation
 
 import django.apps
 from dateutil import parser
 from dateutil import relativedelta
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from koku.database import get_model
 from masu.config import Config
@@ -24,7 +25,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.account_alias_accessor import AccountAliasAccessor
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -47,6 +47,74 @@ class ReportObjectCreator:
         self.schema = schema
         self.report_schema = ReportSchema(django.apps.apps.get_models())
         self.column_types = self.report_schema.column_types
+
+    def create_db_object(self, table_name, data):
+        """Instantiate a populated database object.
+
+        Args:
+            table_name (str): The name of the table to create
+            data (dict): A dictionary of data to insert into the object
+
+        Returns:
+            (Table): A populated SQLAlchemy table object specified by table_name
+
+        """
+        table = getattr(self.report_schema, table_name)
+        data = self.clean_data(data, table_name)
+
+        with schema_context(self.schema):
+            model_object = table(**data)
+            model_object.save()
+            return model_object
+
+    def clean_data(self, data, table_name):
+        """Clean data for insertion into database.
+
+        Args:
+            data (dict): The data to be cleaned
+            table_name (str): The table name the data is associated with
+
+        Returns:
+            (dict): The data with values converted to required types
+
+        """
+        column_types = self.report_schema.column_types[table_name]
+
+        for key, value in data.items():
+            if value is None or value == "":
+                data[key] = None
+                continue
+            if column_types.get(key) in [int, "BigIntegerField"]:
+                data[key] = self._convert_value(value, int)
+            elif column_types.get(key) == float:
+                data[key] = self._convert_value(value, float)
+            elif column_types.get(key) == Decimal:
+                data[key] = self._convert_value(value, Decimal)
+
+        return data
+
+    def _convert_value(self, value, column_type):
+        """Convert a single value to the specified column type.
+
+        Args:
+            value (var): A value of any type
+            column_type (type) A Python type
+
+        Returns:
+            (var): The variable converted to type or None if conversion fails.
+
+        """
+        if column_type == Decimal:
+            try:
+                value = Decimal(value).quantize(Decimal(self.decimal_precision))
+            except InvalidOperation:
+                value = None
+        else:
+            try:
+                value = column_type(value)
+            except ValueError:
+                value = None
+        return value
 
     def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
@@ -73,51 +141,6 @@ class ReportObjectCreator:
         with schema_context(self.schema):
             return baker.make(model, provider_id=provider_uuid, finalized_datetime=None, **data, _fill_optional=True)
 
-    def create_cost_entry_pricing(self):
-        """Create a cost entry pricing database object for test."""
-        table_name = AWS_CUR_TABLE_MAP["pricing"]
-        model = get_model(table_name)
-        with schema_context(self.schema):
-            return baker.make(model, _fill_optional=True)
-
-    def create_cost_entry_product(self, product_family=None):
-        """Create a cost entry product database object for test."""
-        table_name = AWS_CUR_TABLE_MAP["product"]
-        model = get_model(table_name)
-        with schema_context(self.schema):
-            return baker.make(
-                model, product_family=product_family or random.choice(AWS_PRODUCT_FAMILY), _fill_optional=True
-            )
-
-    def create_cost_entry_reservation(self, schema=None):
-        """Create a cost entry reservation database object for test."""
-        table_name = AWS_CUR_TABLE_MAP["reservation"]
-        model = get_model(table_name)
-        with schema_context(self.schema):
-            return baker.make(model, _fill_optional=True)
-
-    def create_cost_entry_line_item(self, bill, cost_entry, product, pricing, reservation, resource_id=None):
-        """Create a cost entry line item database object for test."""
-        table_name = AWS_CUR_TABLE_MAP["line_item"]
-        model = get_model(table_name)
-        with schema_context(self.schema):
-            return baker.make(
-                model,
-                cost_entry_bill_id=bill.id,
-                cost_entry_id=cost_entry.id,
-                cost_entry_product_id=product.id,
-                cost_entry_pricing_id=pricing.id,
-                cost_entry_reservation_id=reservation.id,
-                usage_start=cost_entry.interval_start,
-                usage_end=cost_entry.interval_end,
-                resource_id=resource_id,
-                tags={
-                    "environment": random.choice(["dev", "qa", "prod"]),
-                    self.fake.pystr()[:8]: self.fake.pystr()[:8],
-                },
-                _fill_optional=True,
-            )
-
     def create_ocp_report_period(self, provider_uuid, period_date=None, cluster_id=None):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
@@ -140,82 +163,6 @@ class ReportObjectCreator:
             data["report_period_end"] = period_end
         with schema_context(self.schema):
             return baker.make(model, **data, _fill_optional=True)
-
-    def create_ocp_report(self, reporting_period, report_datetime=None):
-        """Create an OCP reporting period database object for test."""
-        table_name = OCP_REPORT_TABLE_MAP["report"]
-        model = get_model(table_name)
-
-        data = {"report_period_id": reporting_period.id}
-        start_datetime = report_datetime or self.fake.past_datetime(start_date="-60d")
-        data["interval_start"] = start_datetime
-        data["interval_end"] = start_datetime + relativedelta.relativedelta(hours=+1)
-        with schema_context(self.schema):
-            return baker.make(model, **data, _fill_optional=True)
-
-    def create_ocp_usage_line_item(
-        self, report_period, report, resource_id=None, pod=None, namespace=None, node=None, null_cpu_usage=False
-    ):
-        """Create an OCP usage line item database object for test."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item"]
-        model = get_model(table_name)
-        data = {
-            "pod_usage_cpu_core_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "pod_request_cpu_core_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "pod_limit_cpu_core_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "pod_usage_memory_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "pod_request_memory_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "pod_limit_memory_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "node_capacity_cpu_cores": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "node_capacity_cpu_core_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "node_capacity_memory_bytes": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "node_capacity_memory_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-        }
-        if resource_id:
-            data["resource_id"] = resource_id
-        if pod:
-            data["pod"] = pod
-        if namespace:
-            data["namespace"] = namespace
-        if node:
-            data["node"] = node
-        if null_cpu_usage:
-            data["pod_usage_cpu_core_seconds"] = None
-        with schema_context(self.schema):
-            return baker.make(
-                model, report_period_id=report_period.id, report_id=report.id, **data, _fill_optional=True
-            )
-
-    def create_ocp_storage_line_item(self, report_period, report, pod=None, namespace=None):
-        """Create an OCP storage line item database object for test."""
-        table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
-        model = get_model(table_name)
-        data = {
-            "persistentvolumeclaim_capacity_bytes": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "persistentvolumeclaim_capacity_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "volume_request_storage_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-            "persistentvolumeclaim_usage_byte_seconds": self.fake.pydecimal(left_digits=5, right_digits=5),
-        }
-        if pod:
-            data["pod"] = pod
-        if namespace:
-            data["namespace"] = namespace
-        with schema_context(self.schema):
-            return baker.make(
-                model, report_period_id=report_period.id, report_id=report.id, **data, _fill_optional=True
-            )
-
-    def create_ocp_node_label_line_item(self, report_period, report, node=None):
-        """Create an OCP node label line item database object for test."""
-        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
-        model = get_model(table_name)
-        data = {}
-        if node:
-            data["node"] = node
-        with schema_context(self.schema):
-            return baker.make(
-                model, report_period_id=report_period.id, report_id=report.id, **data, _fill_optional=True
-            )
 
     def create_columns_for_table_with_bakery(self, table, data={}):
         """Generate data for a table."""
@@ -248,8 +195,12 @@ class ReportObjectCreator:
             return dt
         return timezone.make_aware(dt)
 
-    def create_cost_model(self, provider_uuid, source_type, rates=[], markup={}):
+    def create_cost_model(self, provider_uuid, source_type, rates=None, markup=None):
         """Create an OCP rate database object for test."""
+        if rates is None:
+            rates = []
+        if markup is None:
+            markup = {}
         table_name = OCP_REPORT_TABLE_MAP["cost_model"]
         cost_model_map = OCP_REPORT_TABLE_MAP["cost_model_map"]
 
@@ -266,11 +217,11 @@ class ReportObjectCreator:
 
         with ProviderDBAccessor(provider_uuid) as accessor:
             provider_obj = accessor.get_provider()
-        with OCPReportDBAccessor(self.schema) as accessor:
-            cost_model_obj = accessor.create_db_object(table_name, data)
-            data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
-            accessor.create_db_object(cost_model_map, data)
-            return cost_model_obj
+
+        cost_model_obj = self.create_db_object(table_name, data)
+        data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
+        self.create_db_object(cost_model_map, data)
+        return cost_model_obj
 
     def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
         """Create an ocpawscostlineitem_project_daily_summary object for test."""
@@ -320,48 +271,6 @@ class ReportObjectCreator:
 
         with schema_context(self.schema):
             return baker.make(model, provider_id=provider_uuid, **data, _fill_optional=True)
-
-    def create_azure_cost_entry_product(self, provider_uuid, instance_id=None):
-        """Create an Azure cost entry product database object for test."""
-        table_name = AZURE_REPORT_TABLE_MAP["product"]
-        model = get_model(table_name)
-        data = {}
-        if instance_id:
-            data["instance_id"] = instance_id
-
-        with schema_context(self.schema):
-            return baker.make(model, provider_id=provider_uuid, **data, _fill_optional=True)
-
-    def create_azure_meter(self, provider_uuid):
-        """Create an Azure meter database object for test."""
-        table_name = AZURE_REPORT_TABLE_MAP["meter"]
-        model = get_model(table_name)
-        with schema_context(self.schema):
-            return baker.make(model, provider_id=provider_uuid, _fill_optional=True)
-
-    def create_azure_cost_entry_line_item(self, bill, product, meter, usage_date=None):
-        """Create an Azure cost entry line item database object for test."""
-        table_name = AZURE_REPORT_TABLE_MAP["line_item"]
-        model = get_model(table_name)
-
-        if usage_date:
-            usage_date = usage_date.date() if isinstance(usage_date, datetime.datetime) else usage_date
-        else:
-            usage_date = (bill.billing_period_start + relativedelta.relativedelta(days=random.randint(1, 15))).date()
-
-        with schema_context(self.schema):
-            return baker.make(
-                model,
-                cost_entry_bill_id=bill.id,
-                cost_entry_product_id=product.id,
-                meter_id=meter.id,
-                usage_date=usage_date,
-                tags={
-                    "environment": random.choice(["dev", "qa", "prod"]),
-                    self.fake.pystr()[:8]: self.fake.pystr()[:8],
-                },
-                _fill_optional=True,
-            )
 
 
 class ManifestCreationHelper:

@@ -11,7 +11,7 @@ from functools import reduce
 from django.db.models import F
 from django.db.models import Q
 from django.db.models.functions import Coalesce
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -129,7 +129,7 @@ class OrgQueryHandler(QueryHandler):
         for filter_option in filter_list:
             if filter_option:
                 if final_filters is not None:
-                    final_filters & filter_option
+                    final_filters = final_filters & filter_option
                 else:
                     final_filters = filter_option
 

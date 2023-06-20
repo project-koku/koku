@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 from json import JSONDecodeError
+from zoneinfo import ZoneInfo
 
 from boto3.session import Session
 from botocore.exceptions import ClientError
@@ -71,6 +72,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_extensions",
     "django_filters",
+    "django_tenants",
     "corsheaders",
     "querystring_parser",
     "django_prometheus",
@@ -82,13 +84,12 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
-    "tenant_schemas",
 ]
 
-SILENCED_SYSTEM_CHECKS = ["tenant_schemas.W001"]
+SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 
 SHARED_APPS = (
-    "tenant_schemas",
+    "django_tenants",
     "api",
     "masu",
     "reporting_common",
@@ -101,8 +102,10 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = ("reporting", "cost_models")
+TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
+TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
 
-DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
+DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
 ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
@@ -218,8 +221,8 @@ if "test" in sys.argv:
         "default": {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         },
         "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
@@ -229,8 +232,8 @@ else:
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -261,7 +264,7 @@ if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
     CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
-DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 
 # Hive DB variables
 HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
@@ -271,6 +274,7 @@ HIVE_PARTITION_DELETE_RETRIES = 5
 
 #
 TENANT_MODEL = "api.Tenant"
+TENANT_DOMAIN_MODEL = "api.Domain"
 
 PROMETHEUS_EXPORT_MIGRATIONS = False
 
@@ -291,6 +295,8 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
+
+UTC = ZoneInfo("UTC")
 
 USE_I18N = True
 
@@ -453,20 +459,14 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_HEADERS = default_headers + ("x-rh-identity", "HTTP_X_RH_IDENTITY")
 
-APPEND_SLASH = False
-
 DISABLE_LOGGING = ENVIRONMENT.bool("DISABLE_LOGGING", default=False)
 # disable log messages less than CRITICAL when running unit tests.
 if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
     logging.disable(logging.CRITICAL)
 
-# AMQP Message Broker
-RABBITMQ_HOST = ENVIRONMENT.get_value("RABBITMQ_HOST", default="localhost")
-RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
-
-
 # AWS S3 Bucket Settings
 REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
+REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
@@ -474,6 +474,10 @@ S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
 S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
 S3_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
+S3_ROS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_ROS_BUCKET)
+S3_ROS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_ROS_BUCKET)
+S3_ROS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_ROS_BUCKET)
+S3_ROS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_ROS_BUCKET)
 SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=False)
 
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
@@ -487,8 +491,6 @@ OCI_CONFIG = {
 }
 
 # Trino Settings
-PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
-PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
@@ -530,9 +532,6 @@ ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", defa
 
 # Set Broker
 CELERY_BROKER_URL = REDIS_URL
-USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
-if USE_RABBIT:
-    CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
 
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 400
 CELERY_BROKER_CONNECTION_RETRY = True

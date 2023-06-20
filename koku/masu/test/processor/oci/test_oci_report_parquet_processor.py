@@ -5,7 +5,7 @@
 """Test the OCIReportParquetProcessor."""
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
@@ -61,7 +61,7 @@ class OCIReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_tenant_id=payer_tenant_id,
-                provider=self.oci_provider,
+                provider=self.oci_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -80,7 +80,7 @@ class OCIReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_tenant_id=payer_tenant_id,
-                provider=self.oci_provider,
+                provider=self.oci_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 

@@ -97,3 +97,35 @@ class SourcesViewSetTests(MasuTestCase):
         body = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body.get("meta").get("count"), self.provider_count)
+
+    def test_source_patch(self, mock_masu):
+        """Test that only AWS credentials can be patched."""
+
+        url = reverse("sources-detail", kwargs={"pk": self.aws_provider_uuid})
+        data = {
+            "authentication": {
+                "credentials": {
+                    "role_arn": "arn:aws:iam::1234567890:role/CostWithExternalID",
+                    "external_id": "1234567890",
+                }
+            }
+        }
+        response = self.client.patch(
+            url, data=data, content_type="application/json", **self.request_context["request"].META
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Test with an Azure source ID
+        url = reverse("sources-detail", kwargs={"pk": self.azure_provider_uuid})
+        response = self.client.patch(
+            url, data=data, content_type="application/json", **self.request_context["request"].META
+        )
+        self.assertEqual(response.status_code, 400)
+
+        # Test a key other than credentials
+        bad_data = {"billing_source": {"data_source": {"bucket": "shiny-new-bucket"}}}
+        url = reverse("sources-detail", kwargs={"pk": self.aws_provider_uuid})
+        response = self.client.patch(
+            url, data=bad_data, content_type="application/json", **self.request_context["request"].META
+        )
+        self.assertEqual(response.status_code, 400)

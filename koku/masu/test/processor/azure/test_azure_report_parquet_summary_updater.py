@@ -7,7 +7,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -58,23 +58,6 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
-    def test_update_daily_tables(self):
-        """Test that this is a placeholder method."""
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
-
-        expected_log = (
-            "INFO:masu.processor.azure.azure_report_parquet_summary_updater:"
-            f"update_daily_tables for: {expected_start}-{expected_end}"
-        )
-
-        with self.assertLogs("masu.processor.azure.azure_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str)
-            self.assertIn(expected_log, logger.output)
-        self.assertEqual(start, expected_start)
-        self.assertEqual(end, expected_end)
-
     @patch(
         "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
@@ -114,3 +97,22 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
+
+    def test_update_summary_tables_no_bills(self):
+        """Test that summarization is skipped if no bill id found."""
+
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, end = self.updater._get_sql_inputs(start_str, end_str)
+
+        with patch(
+            "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.bills_for_provider_uuid",
+            return_value=[],
+        ):
+            with self.assertLogs("masu.processor.azure.azure_report_parquet_summary_updater", level="INFO") as logs:
+                start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
+                expected_log_msg = f"No bill was found for {start_return}. Skipping summarization"
+
+        self.assertEqual(start_return, start)
+        self.assertEqual(end_return, end)
+        self.assertIn(expected_log_msg, logs.output[-1])

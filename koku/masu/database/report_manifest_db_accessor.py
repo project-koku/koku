@@ -14,8 +14,9 @@ from django.db.models import Value
 from django.db.models.expressions import Window
 from django.db.models.functions import Cast
 from django.db.models.functions import RowNumber
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
@@ -49,15 +50,16 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Update the updated timestamp."""
         if manifest:
             updated_datetime = self.date_accessor.today_with_timezone("UTC")
-            msg = (
-                f"Marking manifest {manifest.id} "
-                f"\nassembly_id {manifest.assembly_id} "
-                f"\nfor provider {manifest.provider_id} "
-                f"\nmanifest_updated_datetime: {updated_datetime}."
-            )
-            LOG.info(msg)
+            ctx = {
+                "manifest_id": manifest.id,
+                "assembly_id": manifest.assembly_id,
+                "provider_uuid": manifest.provider_id,
+                "manifest_updated_datetime": updated_datetime,
+            }
+            LOG.info(log_json(msg="marking manifest updated", context=ctx))
             manifest.manifest_updated_datetime = updated_datetime
             manifest.save()
+            LOG.info(log_json(msg="manifest marked updated", context=ctx))
 
     def mark_manifests_as_completed(self, manifest_list):
         """Update the completed timestamp."""
@@ -65,15 +67,16 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest_list:
             bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
+                ctx = {
+                    "manifest_id": manifest.id,
+                    "assembly_id": manifest.assembly_id,
+                    "provider_uuid": manifest.provider_id,
+                    "manifest_completed_datetime": completed_datetime,
+                }
+                LOG.info(log_json(msg="marking manifest complete", context=ctx))
                 manifest.manifest_completed_datetime = completed_datetime
                 manifest.save()
-                msg = (
-                    f"Marking manifest {manifest.id} "
-                    f"\nassembly_id {manifest.assembly_id} "
-                    f"\nfor provider {manifest.provider_id} "
-                    f"\nmanifest_completed_datetime: {manifest.manifest_completed_datetime}."
-                )
-                LOG.info(msg)
+                LOG.info(log_json(msg="manifest marked complete", context=ctx))
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""

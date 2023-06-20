@@ -9,19 +9,17 @@ import logging
 from datetime import timedelta
 
 import ciso8601
-import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.user_settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from reporting.user_settings.models import UserSettings
 
 
@@ -86,7 +84,7 @@ class DateHelper:
     def __init__(self, utc=False):
         """Initialize when now is."""
         if utc:
-            self._now = datetime.datetime.now(tz=pytz.UTC)
+            self._now = datetime.datetime.now(tz=settings.UTC)
         else:
             self._now = timezone.now()
 
@@ -98,7 +96,7 @@ class DateHelper:
     @property
     def now_utc(self):
         """Return current time at timezone."""
-        return datetime.datetime.now(tz=pytz.UTC)
+        return datetime.datetime.now(tz=settings.UTC)
 
     @property
     def midnight(self):
@@ -401,7 +399,7 @@ class DateHelper:
             (datetime.datetime)
         """
         if isinstance(bill_date, str):
-            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=pytz.UTC)
+            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=settings.UTC)
         date_obj = bill_date.strftime("%Y%m")
         return date_obj
 
@@ -409,7 +407,7 @@ class DateHelper:
         """Find the year from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=pytz.UTC)
+            date = ciso8601.parse_datetime(date).replace(tzinfo=settings.UTC)
         date_obj = date.strftime("%Y")
         return date_obj
 
@@ -417,7 +415,7 @@ class DateHelper:
         """Find the month from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=pytz.UTC)
+            date = ciso8601.parse_datetime(date).replace(tzinfo=settings.UTC)
         date_obj = date.strftime("%m")
         return date_obj
 
@@ -450,54 +448,88 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_months_in_date_range(report=None, start=None, end=None, invoice_month=None):
+def get_months_in_date_range(
+    report: dict[str, str] = None, start: str = None, end: str = None, invoice_month: str = None
+) -> list[tuple[str, str]]:
     """returns the month periods in a given date range from report"""
+
     dh = DateHelper()
+    date_format = "%Y-%m-%d"
+    invoice_date_format = "%Y%m"
+
+    # Converting inputs to datetime objects
+    dt_start = parser.parse(start).astimezone(tz=settings.UTC) if start else None
+    dt_end = parser.parse(end).astimezone(tz=settings.UTC) if end else None
+    # invoice_date_format not supported by dateutil parser
+    dt_invoice_month = (
+        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=settings.UTC)
+        if invoice_month
+        else None
+    )
+
     if report:
-        if report.get("start") and report.get("end"):
-            LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
-            start_date = report.get("start")
-            end_date = report.get("end")
-            if report.get("invoice_month"):
-                LOG.info(f"using invoice_month: {report.get('invoice_month')}")
-                invoice_month = report.get("invoice_month")
+        manifest_start = report.get("start")
+        manifest_end = report.get("end")
+        manifest_invoice_month = report.get("invoice_month")
+
+        if manifest_start and manifest_end:
+            LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
+            dt_start = parser.parse(manifest_start).astimezone(tz=settings.UTC)
+            dt_end = parser.parse(manifest_end).astimezone(tz=settings.UTC)
+            if manifest_invoice_month:
+                LOG.info(f"using invoice_month: {manifest_invoice_month}")
+                dt_invoice_month = datetime.datetime.strptime(manifest_invoice_month, invoice_date_format).replace(
+                    tzinfo=settings.UTC
+                )
         else:
             LOG.info("generating start and end dates for manifest")
-            start_date = DateAccessor().today() - datetime.timedelta(days=2)
-            start_date = start_date.strftime("%Y-%m-%d")
-            end_date = DateAccessor().today().strftime("%Y-%m-%d")
-    elif invoice_month:
-        if not end:
-            end = dh.today.date().strftime("%Y-%m-%d")
-        return [(start, end, invoice_month)]  # For report_data masu api
-    else:
-        start_date = start
-        end_date = end
+            dt_start = dh.today - datetime.timedelta(days=2)
+            dt_end = dh.today
+
+    elif dt_invoice_month:
+        dt_start = dh.today if not dt_start else dt_start
+        dt_end = dh.today if not dt_end else dt_end
+
+        # For report_data masu API
+        return [
+            (
+                dt_start.strftime(date_format),
+                dt_end.strftime(date_format),
+                dt_invoice_month.strftime(invoice_date_format),
+            )
+        ]
 
     # Grabbing ingest delta for initial ingest/summary
-    summary_month = dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)
-    if start_date < summary_month.strftime("%Y-%m-01"):
-        start_date = summary_month.strftime("%Y-%m-01")
+    summary_month = (dh.today - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
+    if not dt_start or dt_start < summary_month:
+        dt_start = summary_month.replace(day=1)
+
+    if not dt_end or dt_end < summary_month:
+        dt_end = dh.today
 
     if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-        return [(start_date, end_date, invoice_month)]
+        return [
+            (
+                dt_start.strftime(date_format),
+                dt_end.strftime(date_format),
+                dt_invoice_month.strftime(invoice_date_format) if dt_invoice_month else None,
+            )
+        ]
 
-    start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
-    end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else dh.today
-    months = dh.list_month_tuples(start_date, end_date)
-
-    num_months = len(months)
+    months = dh.list_month_tuples(dt_start, dt_end)
+    # The order is fragile here. For one item lists, months[0] == months[-1].
     first_month = months[0]
-    months[0] = (start_date, first_month[1])
+    months[0] = (dt_start, first_month[1])
 
-    last_month = months[num_months - 1]
-    months[num_months - 1] = (last_month[0], end_date)
+    last_month = months[-1]
+    months[-1] = (last_month[0], dt_end)
 
-    # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
-    for i, month in enumerate(months):
-        start, end = month
-        start_date = start.date().strftime("%Y-%m-%d")
-        end_date = end.date().strftime("%Y-%m-%d")
-        months[i] = (start_date, end_date, invoice_month)  # Invoice month is really only for GCP
-
-    return months
+    # Format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
+    return [
+        (
+            start.strftime(date_format),
+            end.strftime(date_format),
+            invoice_month,  # Invoice month is really only for GCP
+        )
+        for start, end in months
+    ]

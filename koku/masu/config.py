@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration loader for Masu application."""
+from tempfile import mkdtemp
+
 from django.conf import settings
 
 from koku.configurator import CONFIGURATOR
@@ -10,8 +12,7 @@ from koku.env import ENVIRONMENT
 
 
 DEFAULT_ACCOUNT_ACCCESS_TYPE = "db"
-DEFAULT_PVC_DIR = "/var/tmp/masu"
-DEFAULT_VOLUME_FILE_RETENTION = 60 * 60 * 24
+DEFAULT_TMP_DIR = mkdtemp()
 DEFAULT_REPORT_PROCESSING_BATCH_SIZE = 100000
 DEFAULT_MASU_DATE_OVERRIDE = None
 DEFAULT_MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = 1
@@ -31,17 +32,14 @@ class Config:
     # Set method for retreiving CUR accounts. 'db' or 'network'
     ACCOUNT_ACCESS_TYPE = ENVIRONMENT.get_value("ACCOUNT_ACCESS_TYPE", default=DEFAULT_ACCOUNT_ACCCESS_TYPE)
 
-    # Data directory for processing incoming data.  This is the OCP PVC mount point.
-    PVC_DIR = ENVIRONMENT.get_value("PVC_DIR", default=DEFAULT_PVC_DIR)
-
-    # File retention time for cleaning out the volume (in seconds) # defaults to 1 day
-    VOLUME_FILE_RETENTION = ENVIRONMENT.int("VOLUME_FILE_RETENTION", default=DEFAULT_VOLUME_FILE_RETENTION)
+    # Data directory for processing incoming data
+    DATA_DIR = ENVIRONMENT.get_value("DATA_DIR", default=DEFAULT_TMP_DIR)
 
     # OCP intermediate report storage
-    INSIGHTS_LOCAL_REPORT_DIR = f"{PVC_DIR}/insights_local"
+    INSIGHTS_LOCAL_REPORT_DIR = f"{DATA_DIR}/insights_local"
 
     # Processing intermediate report storage
-    TMP_DIR = f"{PVC_DIR}/processing"
+    TMP_DIR = f"{DATA_DIR}/processing"
 
     # S3 path root for warehoused data
     WAREHOUSE_PATH = "data"
@@ -87,6 +85,7 @@ class Config:
     UPLOAD_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.announce")
     VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
     NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")
+    ROS_TOPIC = CONFIGURATOR.get_kafka_topic("hccm.ros.events")
 
     # Flag to signal whether or not to connect to upload service
     KAFKA_CONNECT = ENVIRONMENT.bool("KAFKA_CONNECT", default=DEFAULT_KAFKA_CONNECT)

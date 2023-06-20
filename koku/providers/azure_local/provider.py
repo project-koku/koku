@@ -3,16 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure-local service provider implementation to be used by Koku."""
-import logging
-
 from rest_framework.serializers import ValidationError
 
 from ..azure.provider import AzureProvider
 from ..provider_errors import ProviderErrors
 from api.common import error_obj
 from api.models import Provider
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureLocalProvider(AzureProvider):

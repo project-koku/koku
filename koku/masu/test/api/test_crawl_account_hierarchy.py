@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 from django.test.utils import override_settings
 from django.urls import reverse
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -173,11 +173,9 @@ class crawlAccountHierarchyTest(MasuTestCase):
         params = {"provider_uuid": self.aws_test_provider_uuid}
         query_string = urlencode(params)
         url = reverse("crawl_account_hierarchy") + "?" + query_string
-        schema = "org3333333"
-        self.tree_json["schema"] = schema
         response = self.client.post(url, self.tree_json, content_type="application/json")
         self.assertEqual(response.status_code, 200)
-        with schema_context(schema):
+        with schema_context(self.tree_json["schema"]):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertNotEqual(cur_count, 0)
             root_node = AWSOrganizationalUnit.objects.filter(org_unit_id=self.root_id).first()

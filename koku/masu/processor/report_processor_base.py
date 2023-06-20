@@ -11,6 +11,7 @@ import logging
 import ciso8601
 from dateutil.relativedelta import relativedelta
 
+from api.common import log_json
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -51,6 +52,14 @@ class ReportProcessorBase:
         self._manifest_id = manifest_id
         self.processed_report = processed_report
         self.date_accessor = DateAccessor()
+        self._context = {
+            "schema": self._schema,
+            "report_path": self._report_path,
+            "compression": self._compression,
+            "provider_uuid": self._provider_uuid,
+            "manifest_id": self._manifest_id,
+            "data_cutoff_date": self.data_cutoff_date,
+        }
 
     @property
     def data_cutoff_date(self):
@@ -109,13 +118,6 @@ class ReportProcessorBase:
 
         return file_obj
 
-    def _save_to_db(self, temp_table, report_db_accessor):
-        """Save current batch of records to the database."""
-        columns = tuple(self.processed_report.line_items[0].keys())
-        csv_file = self._write_processed_rows_to_csv()
-
-        report_db_accessor.bulk_insert_rows(csv_file, temp_table, columns)
-
     def _should_process_row(self, row, date_column, is_full_month, is_finalized=None):
         """Determine if we want to process this row.
 
@@ -141,14 +143,12 @@ class ReportProcessorBase:
     def _should_process_full_month(self):
         """Determine if we should process the full month of data."""
         if not self._manifest_id:
-            log_statement = (
-                f"No manifest provided, processing as a new billing period.\n"
-                f" Processing entire month.\n"
-                f" schema_name: {self._schema},\n"
-                f" provider_uuid: {self._provider_uuid},\n"
-                f" manifest_id: {self._manifest_id}"
+            LOG.info(
+                log_json(
+                    msg="no manifest provided, processing as a new billing period and entire month",
+                    ctx=self._context,
+                )
             )
-            LOG.info(log_statement)
             return True
 
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -156,18 +156,14 @@ class ReportProcessorBase:
             bill_date = manifest.billing_period_start_datetime.date()
             provider_uuid = manifest.provider_id
 
-        log_statement = (
-            f"Processing bill starting on {bill_date}.\n"
-            f" Processing entire month.\n"
-            f" schema_name: {self._schema},\n"
-            f" provider_uuid: {self._provider_uuid},\n"
-            f" manifest_id: {self._manifest_id}"
-        )
-
-        if (bill_date.month != self.data_cutoff_date.month) or (
-            bill_date.year != self.data_cutoff_date.year and bill_date.month == self.data_cutoff_date.month
-        ):
-            LOG.info(log_statement)
+        if bill_date.month != self.data_cutoff_date.month or bill_date.year != self.data_cutoff_date.year:
+            LOG.info(
+                log_json(
+                    msg=f"processing entire month starting on {bill_date}",
+                    ctx=self._context,
+                    bill_date=bill_date,
+                )
+            )
             return True
 
         manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(provider_uuid, bill_date)
@@ -175,20 +171,25 @@ class ReportProcessorBase:
         if len(manifest_list) == 1:
             # This is the first manifest for this bill and we are currently
             # processing it
-            LOG.info(log_statement)
+            LOG.info(
+                log_json(
+                    msg=f"processing entire month starting on {bill_date}",
+                    ctx=self._context,
+                    bill_date=bill_date,
+                )
+            )
             return True
 
         for manifest in manifest_list:
             with ReportManifestDBAccessor() as manifest_accessor:
                 if manifest_accessor.manifest_ready_for_summary(manifest.id):
-                    log_statement = (
-                        f"Processing bill starting on {bill_date}.\n"
-                        f" Processing data on or after {self.data_cutoff_date}.\n"
-                        f" schema_name: {self._schema},\n"
-                        f" provider_uuid: {self._provider_uuid},\n"
-                        f" manifest_id: {self._manifest_id}"
+                    LOG.info(
+                        log_json(
+                            msg=f"processing bill starting on {bill_date}, on or after {self.data_cutoff_date}",
+                            ctx=self._context,
+                            bill_date=bill_date,
+                        )
                     )
-                    LOG.info(log_statement)
                     # We have fully processed a manifest for this provider
                     return False
 
@@ -196,9 +197,9 @@ class ReportProcessorBase:
 
     def get_date_column_filter(self):
         """Return a filter using the provider-appropriate column."""
+        result = {"usage_start__gte": self.data_cutoff_date}
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-            type = provider_accessor.get_type()
-        if type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return {"usage_date__gte": self.data_cutoff_date}
-        else:
-            return {"usage_start__gte": self.data_cutoff_date}
+            provider_type = provider_accessor.get_type()
+        if provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            result = {"usage_date__gte": self.data_cutoff_date}
+        return result

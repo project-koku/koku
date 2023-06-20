@@ -227,6 +227,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @method_decorator(cache_page(settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=SOURCES_CACHE_PREFIX))
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
+
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:

@@ -13,7 +13,7 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
@@ -23,7 +23,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from masu.util.azure.common import get_bills_from_provider
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureEnabledTagKeys
@@ -40,14 +39,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
         cls.dh = DateHelper()
 
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AZURE_REPORT_TABLE_MAP["bill"],
-            AZURE_REPORT_TABLE_MAP["product"],
-            AZURE_REPORT_TABLE_MAP["meter"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -64,10 +60,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.azure_provider_uuid,
         }
-        product_id = self.creator.create_azure_cost_entry_product(provider_uuid=self.azure_provider_uuid)
-        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
-        meter_id = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
-        self.creator.create_azure_cost_entry_line_item(bill_id, product_id, meter_id)
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
@@ -198,6 +190,21 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, self.azure_provider_uuid, current_bill_id, markup_value
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_azure_ui_summary_tables_trino(self, mock_trino):
+        """Test that Trino is used to populate UI summary."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_ocp_on_azure_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.azure_provider_uuid,
         )
         mock_trino.assert_called()
 
@@ -362,10 +369,19 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.schema_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist):
+    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
         """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_azure_hive_partition_by_day(
+            [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+        )
+        mock_trino.assert_not_called()
+
+        mock_schema_exists.return_value = True
+        mock_trino.reset_mock()
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):
@@ -390,3 +406,30 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)
+
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_delete_azure_hive_partition_by_month(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        table = "reporting_ocpazurecostlineitem_project_daily_summary_temp"
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
+        ):
+            with self.assertRaises(TrinoExternalError):
+                self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_called()
+            # Confirms that the error log would be logged on last attempt
+            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+            self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        # Test that deletions short circuit if the schema does not exist
+        mock_trino.reset_mock()
+        mock_table_exist.reset_mock()
+        with patch(
+            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
+        ):
+            self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
+            mock_trino.assert_not_called()
+            mock_table_exist.assert_not_called()

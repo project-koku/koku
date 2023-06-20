@@ -17,8 +17,8 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
@@ -130,13 +130,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "schema": self.schema,
                 "source_uuid": source_uuid,
             }
-            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
                 table_name,
-                summary_sql,
+                sql,
                 start_date,
                 end_date,
-                bind_params=list(summary_sql_params),
+                bind_params=sql_params,
                 operation="DELETE/INSERT",
             )
 
@@ -160,10 +160,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_ids": report_period_ids,
             "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        )
+        sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=sql_params)
 
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
@@ -229,7 +227,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
         gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
-        provider_type = kwargs.get("provider_type")
 
         check_aws = False
         check_azure = False
@@ -257,9 +254,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             return {}
 
         check_flags = {
-            Provider.PROVIDER_AWS.lower(): check_aws,
-            Provider.PROVIDER_AZURE.lower(): check_azure,
-            Provider.PROVIDER_GCP.lower(): check_gcp,
+            Provider.PROVIDER_AWS: check_aws,
+            Provider.PROVIDER_AZURE: check_azure,
+            Provider.PROVIDER_GCP: check_gcp,
         }
 
         if isinstance(start_date, str):
@@ -269,7 +266,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             db_results = {}
             if check_flag:
                 infra_sql = pkgutil.get_data(
-                    "masu.database", f"trino_sql/{source_type}/reporting_ocpinfrastructure_provider_map.sql"
+                    "masu.database", f"trino_sql/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql"
                 )
                 infra_sql = infra_sql.decode("utf-8")
 
@@ -283,7 +280,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "ocp_provider_uuid": ocp_provider_uuid,
                     "azure_provider_uuid": azure_provider_uuid,
                     "gcp_provider_uuid": gcp_provider_uuid,
-                    "provider_type": provider_type,
                     "resource_level": resource_level,
                 }
 
@@ -306,16 +302,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpusagelineitem_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
-        if self.table_exists_trino(table):
+        if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions by day",
+                    schema=self.schema,
+                    ocp_source=source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):
@@ -342,39 +339,33 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_hive_partitions_by_source(self, table, partition_column, provider_uuid):
         """Deletes partitions individually for each day in days list."""
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
-        if self.table_exists_trino(table):
-            LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s " "\n\tOCP Source: %s \n\tTable: %s",
-                self.schema,
-                provider_uuid,
-                table,
-            )
-            for i in range(retries):
-                try:
-                    sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                    WHERE {partition_column} = '{provider_uuid}'
-                    """
-                    self._execute_trino_raw_sql_query(
-                        sql,
-                        log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
-                        attempts_left=(retries - 1) - i,
-                    )
-                    break
-                except TrinoExternalError as err:
-                    if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                        continue
-                    else:
-                        raise err
-            LOG.info(
-                "Successfully deleted Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tTable: %s",
-                self.schema,
-                provider_uuid,
-                table,
-            )
-            return True
-        return False
+        if not self.schema_exists_trino() or not self.table_exists_trino(table):
+            return False
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "table": table,
+        }
+        LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
+        for i in range(retries):
+            try:
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                WHERE {partition_column} = '{provider_uuid}'
+                """
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
+                    attempts_left=(retries - 1) - i,
+                )
+                break
+            except TrinoExternalError as err:
+                if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                    continue
+                else:
+                    raise err
+        LOG.info(log_json(msg="successfully deleted Hive partitions", context=ctx))
+        return True
 
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
@@ -439,13 +430,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
         }
-        if start_date and end_date:
-            msg = f"Updating {table_name} from {start_date} to {end_date}"
-        else:
-            msg = f"Updating {table_name}"
-        LOG.info(msg)
+        LOG.info(log_json(msg=f"updating {table_name}", **agg_sql_params))
         self._execute_processing_script("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql", agg_sql_params)
-        LOG.info(f"Finished updating {table_name}")
+        LOG.info(log_json(msg=f"finished updating {table_name}", **agg_sql_params))
 
     def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the OCP volume label summary table."""
@@ -458,15 +445,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
         }
-        if start_date and end_date:
-            msg = f"Updating {table_name} from {start_date} to {end_date}"
-        else:
-            msg = f"Updating {table_name}"
-        LOG.info(msg)
+        LOG.info(log_json(msg=f"updating {table_name}", **agg_sql_params))
         self._execute_processing_script(
             "masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql", agg_sql_params
         )
-        LOG.info(f"Finished updating {table_name}")
+        LOG.info(log_json(msg=f"finished updating {table_name}", **agg_sql_params))
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
@@ -524,52 +507,59 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         distribute_mapping = {}
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-        if distribution_info.get("platform_cost"):
-            distribute_mapping["distribute_platform_cost.sql"] = "platform"
-        if distribution_info.get("worker_cost"):
-            distribute_mapping["distribute_worker_cost.sql"] = "worker unallocated"
-        if not distribute_mapping:
-            return
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            msg = "No report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update."
-            context = {"provider_uuid": provider_uuid, "start_date": start_date}
+            msg = "no report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update"
+            context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
             # TODO: Figure out a way to pass the tracing id down here
             # in a separate PR. For now I am just going to use the
             # provider_uuid
-            LOG.info(log_json(provider_uuid, msg, context))
+            LOG.info(log_json(provider_uuid, msg=msg, context=context))
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
-        default_sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "schema": self.schema,
-            "report_period_id": report_period_id,
-            "distribution": distribution,
-            "source_uuid": provider_uuid,
+
+        distribute_mapping = {
+            "platform_cost": {
+                "sql_file": "distribute_platform_cost.sql",
+                "log_msg": {
+                    True: "distributing platform cost",
+                    False: "removing platform_distributed cost model rate type",
+                },
+            },
+            "worker_cost": {
+                "sql_file": "distribute_worker_cost.sql",
+                "log_msg": {
+                    True: "distributing worker unallocated cost",
+                    False: "removing worker_distributed cost model rate type",
+                },
+            },
         }
 
-        LOG.debug(default_sql_params)
-        for sql_file, log_msg in distribute_mapping.items():
-            templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{sql_file}")
-            templated_sql = templated_sql.decode("utf-8")
-            templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, default_sql_params)
-            log_msg = f"Distributing {log_msg} cost."
-            context = {
-                "provider_uuid": provider_uuid,
+        for cost_model_key, metadata in distribute_mapping.items():
+            populate = distribution_info.get(cost_model_key, False)
+            # if populate is false we only execute the delete sql.
+            sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
-                "report_period": report_period_id,
+                "schema": self.schema,
+                "report_period_id": report_period_id,
+                "distribution": distribution,
+                "source_uuid": provider_uuid,
+                "populate": populate,
             }
-            LOG.info(log_json(provider_uuid, log_msg, context))
+
+            templated_sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{metadata['sql_file']}")
+            templated_sql = templated_sql.decode("utf-8")
+            templated_sql, templated_sql_params = self.jinja_sql.prepare_query(templated_sql, sql_params)
+            LOG.info(log_json(provider_uuid, msg=metadata["log_msg"][populate], context=sql_params))
             self._execute_raw_sql_query(
                 table_name,
                 templated_sql,
                 start_date,
                 end_date,
-                bind_params=list(templated_sql_params),
+                bind_params=templated_sql_params,
                 operation="INSERT",
             )
 
@@ -590,18 +580,26 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period": report_period,
+        }
         if not report_period:
             LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
-                " skipping populate_monthly_cost_sql update."
+                log_json(
+                    msg="no report period for OCP provider, skipping populate_monthly_cost_sql update",
+                    context=ctx,
+                )
             )
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
 
         if not rate:
-            msg = f"Removing monthly costs for source {provider_uuid} from {start_date} to {end_date}"
-            LOG.info(msg)
+            LOG.info(log_json(msg="removing monthly costs", context=ctx))
             self.delete_line_item_daily_summary_entries_for_date_range_raw(
                 provider_uuid,
                 start_date,
@@ -634,14 +632,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "rate_type": rate_type,
             "distribution": distribution,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        LOG.info("Populating monthly %s %s cost from %s to %s.", rate_type, cost_type, start_date, end_date)
+        sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info(log_json(msg="populating monthly costs", **summary_sql_params))
         self._execute_raw_sql_query(
             table_name,
-            summary_sql,
+            sql,
             start_date,
             end_date,
-            bind_params=list(summary_sql_params),
+            bind_params=sql_params,
             operation="INSERT",
         )
 
@@ -656,10 +654,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period": report_period,
+        }
         if not report_period:
             LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
-                " skipping populate_monthly_tag_cost_sql update."
+                log_json(
+                    msg="no report period for OCP provider, skipping populate_monthly_tag_cost_sql update",
+                    context=ctx,
+                )
             )
             return
         with schema_context(self.schema):
@@ -698,14 +705,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
             summary_sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
 
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        LOG.info("Populating monthly %s %s tag cost from %s to %s.", rate_type, cost_type, start_date, end_date)
+        sql, sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info(log_json(msg="populating monthly tag costs", **summary_sql_params))
         self._execute_raw_sql_query(
             table_name,
-            summary_sql,
+            sql,
             start_date,
             end_date,
-            bind_params=list(summary_sql_params),
+            bind_params=sql_params,
             operation="INSERT",
         )
 
@@ -740,24 +747,32 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=daily_sql_params)
 
     def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period": report_period,
+        }
         if not report_period:
             LOG.info(
-                f"No report period for OCP provider {provider_uuid} with start date {start_date},"
-                " skipping populate_usage_costs_new_columns update."
+                log_json(
+                    msg="no report period for OCP provider, skipping populate_usage_costs_new_columns update",
+                    context=ctx,
+                )
             )
             return
         with schema_context(self.schema):
             report_period_id = report_period.id
 
         if not rates:
-            msg = f"Removing usage costs for source {provider_uuid} from {start_date} to {end_date}"
-            LOG.info(msg)
+            LOG.info(log_json(msg="removing usage costs", context=ctx))
             self.delete_line_item_daily_summary_entries_for_date_range_raw(
                 provider_uuid,
                 start_date,
@@ -791,13 +806,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         cost_model_usage_sql, cost_model_usage_sql_params = self.jinja_sql.prepare_query(
             cost_model_usage_sql, usage_sql_params
         )
-        LOG.info("Populating %s usage cost from %s to %s.", rate_type, start_date, end_date)
+        LOG.info(log_json(msg=f"populating {rate_type} usage costs", **usage_sql_params))
         self._execute_raw_sql_query(
             table_name,
             cost_model_usage_sql,
             start_date,
             end_date,
-            bind_params=list(cost_model_usage_sql_params),
+            bind_params=cost_model_usage_sql_params,
             operation="INSERT",
         )
 
@@ -877,14 +892,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             "k_v_pair": key_value_pair,
                             "labels_field": labels_field,
                         }
-                        tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
-                            tag_rates_sql, tag_rates_sql_params
-                        )
-                        msg = f"Running populate_tag_usage_costs SQL with params: {tag_rates_sql_params}"
-                        LOG.info(msg)
-                        self._execute_raw_sql_query(
-                            table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
-                        )
+                        sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
+                        LOG.info(log_json(msg="running populate_tag_usage_costs SQL", **tag_rates_sql_params))
+                        self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=sql_params)
 
     def populate_tag_usage_default_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
@@ -972,14 +982,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         "k_v_pair": key_value_pair,
                         "labels_field": labels_field,
                     }
-                    tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
-                        tag_rates_sql, tag_rates_sql_params
-                    )
-                    msg = f"Running populate_tag_usage_default_costs SQL with params: {tag_rates_sql_params}"
-                    LOG.info(msg)
-                    self._execute_raw_sql_query(
-                        table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
-                    )
+                    sql, sql_params = self.jinja_sql.prepare_query(tag_rates_sql, tag_rates_sql_params)
+                    LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", **tag_rates_sql_params))
+                    self._execute_raw_sql_query(table_name, sql, start_date, end_date, bind_params=sql_params)
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
@@ -1001,18 +1006,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get or create an entry in the OCP cluster table."""
         with schema_context(self.schema):
             cluster, created = OCPCluster.objects.get_or_create(
-                cluster_id=cluster_id, cluster_alias=cluster_alias, provider=provider
+                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
             )
 
-        if created:
-            msg = f"Add entry in reporting_ocp_clusters for {cluster_id}/{cluster_alias}"
-            LOG.info(msg)
-
+        LOG.info(
+            log_json(
+                msg=f"created entry in reporting_ocp_clusters: {created}",
+                cluster_id=cluster_id,
+                cluster_alias=cluster_alias,
+                provider=provider,
+            )
+        )
         return cluster
 
     def populate_node_table(self, cluster, nodes):
         """Get or create an entry in the OCP node table."""
-        LOG.info("Populating reporting_ocp_nodes table.")
+        LOG.info(
+            log_json(msg="populating reporting_ocp_nodes table", schema=self.schema, cluster=cluster, nodes=nodes)
+        )
         with schema_context(self.schema):
             for node in nodes:
                 tmp_node = OCPNode.objects.filter(
@@ -1033,14 +1044,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info("Populating reporting_ocp_pvcs table.")
+        LOG.info(log_json(msg="populating reporting_ocp_pvcs table", schema=self.schema, cluster=cluster, pvcs=pvcs))
         with schema_context(self.schema):
             for pvc in pvcs:
                 OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info("Populating reporting_ocp_projects table.")
+        LOG.info(
+            log_json(
+                msg="populating reporting_ocp_projects table", schema=self.schema, cluster=cluster, projects=projects
+            )
+        )
         with schema_context(self.schema):
             for project in projects:
                 OCPProject.objects.get_or_create(project=project, cluster=cluster)
@@ -1164,10 +1179,37 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return topology_list
 
+    def get_filtered_openshift_topology_for_multiple_providers(self, provider_uuids, start_date, end_date):
+        """Return a dictionary with 1 or more Clusters topology."""
+        topology_list = []
+        for provider_uuid in provider_uuids:
+            cluster = self.get_cluster_for_provider(provider_uuid)
+            nodes_tuple = self.get_nodes_trino(provider_uuid, start_date, end_date)
+            pvc_tuple = self.get_pvcs_trino(provider_uuid, start_date, end_date)
+            topology_list.append(
+                {
+                    "cluster_id": cluster.cluster_id,
+                    "cluster_alias": cluster.cluster_alias,
+                    "provider_uuid": provider_uuid,
+                    "nodes": [node[0] for node in nodes_tuple],
+                    "resource_ids": [node[1] for node in nodes_tuple],
+                    "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
+                }
+            )
+
+        return topology_list
+
     def delete_infrastructure_raw_cost_from_daily_summary(self, provider_uuid, report_period_id, start_date, end_date):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        msg = f"Removing infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
-        LOG.info(msg)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "table_name": table_name,
+            "report_period_id": report_period_id,
+        }
+        LOG.info(log_json(msg="removing infrastructure raw cast from daily summary", context=ctx))
         sql = f"""
             DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
             WHERE usage_start >= '{start_date}'::date
@@ -1183,10 +1225,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, provider_uuid, report_period_id, start_date, end_date
     ):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        msg = (
-            f"Removing all cost excluding infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
-        )
-        LOG.info(msg)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "table_name": table_name,
+            "report_period_id": report_period_id,
+        }
+        LOG.info(log_json(msg="removing all cost excluding infrastructure_raw_cost from daily summary", context=ctx))
         sql = f"""
             DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
             WHERE usage_start >= '{start_date}'::date
@@ -1198,20 +1245,26 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._execute_raw_sql_query(table_name, sql, start_date, end_date)
 
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
-        LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
+        LOG.info(
+            log_json(
+                msg=f"populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary", **sql_params
+            )
+        )
         script_file_name = f"reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
         script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def populate_ocp_on_all_daily_summary(self, platform, sql_params):
-        LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
+        LOG.info(
+            log_json(msg=f"populating {platform.upper()} records for ocpallcostlineitem_daily_summary", **sql_params)
+        )
         script_file_name = f"reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
         script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def populate_ocp_on_all_ui_summary_tables(self, sql_params):
         for perspective in OCP_ON_ALL_PERSPECTIVES:
-            LOG.info(f"Populating {perspective._meta.db_table} data using {sql_params}")
+            LOG.info(log_json(msg=f"populating {perspective._meta.db_table}", **sql_params))
             script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{perspective._meta.db_table}.sql"
             self._execute_processing_script("masu.database", script_file_path, sql_params)
 

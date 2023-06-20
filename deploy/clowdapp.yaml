@@ -9,7 +9,7 @@ objects:
     name: koku
   spec:
     database:
-      dbResourceSize: medium
+      dbResourceSize: small
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
     dependencies:
@@ -197,8 +197,6 @@ objects:
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -255,8 +253,6 @@ objects:
           name: koku-api-nginx-conf
       replicas: ${{NGINX_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -303,6 +299,8 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -321,22 +319,12 @@ objects:
               optional: true
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -420,8 +408,6 @@ objects:
             secretName: koku-oci
       replicas: ${{LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -547,10 +533,6 @@ objects:
           value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -613,8 +595,6 @@ objects:
             secretName: koku-oci
       replicas: ${{MASU_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -679,8 +659,14 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE
-          value: ${REPORT_DOWNLOAD_SCHEDULE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
+          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
+          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -693,12 +679,6 @@ objects:
           value: ${VACUUM_DATA_DAY_OF_WEEK}
         - name: VACUUM_DATA_UTC_TIME
           value: ${VACUUM_DATA_UTC_TIME}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -707,10 +687,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -721,12 +697,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -794,8 +764,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: false
         private:
           enabled: false
         public:
@@ -960,8 +928,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: true
         public:
@@ -1133,8 +1099,6 @@ objects:
             secretName: koku-oci
       replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1201,12 +1165,6 @@ objects:
           value: ${WORKER_CELERY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1215,10 +1173,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1229,12 +1183,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1320,8 +1268,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1388,12 +1334,6 @@ objects:
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1402,10 +1342,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1416,12 +1352,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1509,8 +1439,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1577,12 +1505,6 @@ objects:
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1591,10 +1513,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1605,12 +1523,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1696,8 +1608,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1764,12 +1674,6 @@ objects:
           value: ${WORKER_OCP_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1778,10 +1682,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1792,12 +1692,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -1885,8 +1779,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -1953,12 +1845,6 @@ objects:
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1967,10 +1853,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1981,12 +1863,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2025,6 +1901,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2072,8 +1952,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2140,12 +2018,6 @@ objects:
           value: ${WORKER_REFRESH_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2154,10 +2026,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2168,12 +2036,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2261,8 +2123,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2329,12 +2189,6 @@ objects:
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2343,10 +2197,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2357,12 +2207,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2450,8 +2294,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2520,12 +2362,6 @@ objects:
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2534,10 +2370,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2548,12 +2380,6 @@ objects:
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
@@ -2641,8 +2467,6 @@ objects:
             secretName: koku-oci
       replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
-        metrics:
-          enabled: true
         private:
           enabled: false
         public:
@@ -2672,22 +2496,28 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
+            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
+            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
           requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
+            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
+            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
+    - topicName: hccm.ros.events
     objectStore:
     - ${S3_BUCKET_NAME}
+    - ${S3_ROS_BUCKET_NAME}
     optionalDependencies: []
     testing:
       iqePlugin: cost-management
@@ -2782,9 +2612,11 @@ objects:
           }
           location ^~/ {
             proxy_pass http://koku-api;
+            proxy_read_timeout 600s;
           }
           location /api/cost-management/v1/recommendations/ {
             proxy_pass http://ros-ocp-api;
+            proxy_read_timeout 600s;
           }
         }
       }
@@ -2814,6 +2646,8 @@ parameters:
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
+- name: S3_ROS_BUCKET_NAME
+  value: ros-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -2836,6 +2670,28 @@ parameters:
   name: _MIGRATION_DIRECTIVE
   required: false
   value: ""
+- displayName: Memory Request
+  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MIGRATIONS_CPU_REQUEST
+  required: true
+  value: "2"
+- displayName: CPU Limit
+  name: KOKU_MIGRATIONS_CPU_LIMIT
+  required: true
+  value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: true
+  value: "2"
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
@@ -2936,9 +2792,21 @@ parameters:
   value: "True"
 - name: QE_SCHEMA
   value: ""
-- description: Report download schedule
-  displayName: Report download schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+- description: Report download schedule GCP
+  displayName: Report download schedule GCP
+  name: REPORT_DOWNLOAD_SCHEDULE_GCP
+  value: 0 4,16 * * *
+- description: Report download schedule AWS
+  displayName: Report download schedule AWS
+  name: REPORT_DOWNLOAD_SCHEDULE_AWS
+  value: 0 4,16 * * *
+- description: Report download schedule AZURE
+  displayName: Report download schedule AZURE
+  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+  value: 0 4,16 * * *
+- description: Report download schedule OCI
+  displayName: Report download schedule OCI
+  name: REPORT_DOWNLOAD_SCHEDULE_OCI
   value: 0 4,16 * * *
 - description: Remove expired data on day
   displayName: Remove expired data on day
@@ -2955,18 +2823,6 @@ parameters:
 - description: Vacuum data utc time
   displayName: Vacuum data utc time
   name: VACUUM_DATA_UTC_TIME
-  value: "00:00"
-- description: Volume file retention length
-  displayName: Volume file retention length
-  name: VOLUME_FILE_RETENTION
-  value: "86400"
-- description: Clean volume on day
-  displayName: Clean volume on day
-  name: CLEAN_VOLUME_DAY_OF_WEEK
-  value: sunday
-- description: Clean volume utc time
-  displayName: Clean volume utc time
-  name: CLEAN_VOLUME_UTC_TIME
   value: "00:00"
 - displayName: Date overrider
   name: DATE_OVERRIDE
@@ -2986,30 +2842,12 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
-- description: Use rabbitmq as message broker
-  displayName: Use rabbitmq as message broker
-  name: USE_RABBIT
-  value: "False"
-- description: RabbitMQ host
-  displayName: RabbitMQ host
-  name: RABBITMQ_HOST
-  value: rabbitmq
-- description: RabbitMQ port
-  displayName: RabbitMQ port
-  name: RABBITMQ_PORT
-  value: "5672"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
-- displayName: Presto/Trino host
-  name: PRESTO_HOST
-  value: trino-coordinator
-- displayName: Presto/Trino port
-  name: PRESTO_PORT
-  value: "10000"
 - displayName: Trino host
   name: TRINO_HOST
   value: trino-coordinator

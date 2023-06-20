@@ -4,9 +4,6 @@
 #
 """IBM utility functions and vars."""
 import hashlib
-import logging
-
-LOG = logging.getLogger(__name__)
 
 
 def generate_etag(param):

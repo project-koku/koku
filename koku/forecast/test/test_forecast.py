@@ -48,8 +48,6 @@ from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
-LOG = logging.getLogger(__name__)
-
 
 class MockQuerySet:
     def __init__(self, data):

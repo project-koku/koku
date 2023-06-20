@@ -1,6 +1,5 @@
 """Test GCP Provider."""
 import copy
-import logging
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -19,8 +18,6 @@ from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import GCPReportExistsError
 from providers.gcp.provider import REQUIRED_IAM_PERMISSIONS
 from providers.provider_errors import SkipStatusPush
-
-LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
 

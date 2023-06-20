@@ -3,11 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCI Parquet files."""
-import logging
-
 import ciso8601
-import pytz
-from tenant_schemas.utils import schema_context
+from django.conf import settings
+from django_tenants.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util import common as utils
@@ -15,8 +13,6 @@ from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import TRINO_LINE_ITEM_DAILY_TABLE_MAP
 from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
-
-LOG = logging.getLogger(__name__)
 
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
@@ -61,8 +57,8 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         report_date_range = utils.month_date_range(bill_date)
         start_date, end_date = report_date_range.split("-")
 
-        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
 
         sql = f"""
             SELECT DISTINCT lineitem_tenantid
@@ -75,11 +71,13 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         payer_tenant_id = None
         if rows:
             payer_tenant_id = rows[0][0]
+
         provider = self._get_provider()
+
         with schema_context(self._schema_name):
             OCICostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc,
                 payer_tenant_id=payer_tenant_id,
-                provider=provider,
+                provider_id=provider.uuid,
             )

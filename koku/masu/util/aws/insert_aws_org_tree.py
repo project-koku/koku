@@ -8,7 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import ciso8601
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from reporting.provider.aws.models import AWSAccountAlias
@@ -61,7 +61,7 @@ class InsertAwsOrgTree:
                 org_unit_path=org_node["org_path"],
                 level=org_node["level"],
                 account_alias=None,
-                provider=self.provider,
+                provider_id=self.provider.uuid,
             )
             if created:
                 org_unit.created_timestamp = date
@@ -88,7 +88,7 @@ class InsertAwsOrgTree:
                 org_unit_path=org_node["org_path"],
                 level=org_node["level"],
                 account_alias=account_alias,
-                provider=self.provider,
+                provider_id=self.provider.uuid,
             )
             if created:
                 org_unit.created_timestamp = date

@@ -9,6 +9,7 @@ import pyarrow.parquet as pq
 import trino
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.exceptions import TrinoUserError
@@ -17,6 +18,7 @@ from api.models import Provider
 from koku.pg_partition import get_or_create_partition
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
+from reporting.models import TenantAPIProvider
 
 LOG = logging.getLogger(__name__)
 
@@ -51,7 +53,7 @@ class ReportParquetProcessorBase:
         rows = []
         try:
             with trino.dbapi.connect(
-                host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
+                host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
             ) as conn:
                 cur = conn.cursor()
                 cur.execute(sql)
@@ -72,6 +74,11 @@ class ReportParquetProcessorBase:
     def _get_provider(self):
         """Retrieve the postgres provider id."""
         return Provider.objects.get(uuid=self._provider_uuid)
+
+    def _get_tenant_provider(self):
+        """Retrieve the postgres provider id."""
+        with schema_context(self._account):
+            return TenantAPIProvider.objects.get(uuid=self._provider_uuid)
 
     def schema_exists(self):
         """Check if schema exists."""

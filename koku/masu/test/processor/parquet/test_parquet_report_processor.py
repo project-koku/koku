@@ -7,14 +7,13 @@ import logging
 import os
 import shutil
 from datetime import timedelta
-from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 import faker
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -31,20 +30,11 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
-from masu.util.aws.common import aws_generate_daily_data
-from masu.util.aws.common import aws_post_processor
-from masu.util.azure.common import azure_generate_daily_data
-from masu.util.azure.common import azure_post_processor
-from masu.util.gcp.common import gcp_generate_daily_data
-from masu.util.gcp.common import gcp_post_processor
-from masu.util.oci.common import oci_generate_daily_data
-from masu.util.oci.common import oci_post_processor
-from masu.util.ocp.common import ocp_generate_daily_data
-from reporting.provider.aws.models import AWSEnabledTagKeys
-from reporting.provider.azure.models import AzureEnabledTagKeys
-from reporting.provider.gcp.models import GCPEnabledTagKeys
-from reporting.provider.oci.models import OCIEnabledTagKeys
-from reporting.provider.ocp.models import OCPEnabledTagKeys
+from masu.util.aws.aws_post_processor import AWSPostProcessor
+from masu.util.azure.azure_post_processor import AzurePostProcessor
+from masu.util.gcp.gcp_post_processor import GCPPostProcessor
+from masu.util.oci.oci_post_processor import OCIPostProcessor
+from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 
 
 class TestParquetReportProcessor(MasuTestCase):
@@ -99,34 +89,6 @@ class TestParquetReportProcessor(MasuTestCase):
             ingress_reports_uuid=ingress_uuid,
             context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
-
-    def test_resolve_enabled_tag_keys_model(self):
-        """
-        Test that the expected enabled tag keys model is resolved from each provider type.
-        """
-        test_matrix = (
-            (Provider.PROVIDER_AWS, AWSEnabledTagKeys),
-            (Provider.PROVIDER_AWS_LOCAL, AWSEnabledTagKeys),
-            (Provider.PROVIDER_AZURE, AzureEnabledTagKeys),
-            (Provider.PROVIDER_AZURE_LOCAL, AzureEnabledTagKeys),
-            (Provider.PROVIDER_GCP, GCPEnabledTagKeys),
-            (Provider.PROVIDER_GCP_LOCAL, GCPEnabledTagKeys),
-            (Provider.PROVIDER_OCI, OCIEnabledTagKeys),
-            (Provider.PROVIDER_OCI_LOCAL, OCIEnabledTagKeys),
-            (Provider.PROVIDER_OCP, OCPEnabledTagKeys),
-            (Provider.PROVIDER_IBM, None),
-            (Provider.PROVIDER_IBM_LOCAL, None),
-        )
-        for provider_type, expected_tag_keys_model in test_matrix:
-            prp = ParquetReportProcessor(
-                schema_name="self.schema",
-                report_path="self.report_path",
-                provider_uuid="self.aws_provider_uuid",
-                provider_type=provider_type,
-                manifest_id="self.manifest_id",
-                context={"start_date": self.start_date, "tracing_id": "1"},
-            )
-            self.assertEqual(prp.enabled_tags_model, expected_tag_keys_model)
 
     def test_tracing_id(self):
         """Test that the tracing_id property is handled."""
@@ -210,22 +172,27 @@ class TestParquetReportProcessor(MasuTestCase):
             {
                 "provider_uuid": str(self.aws_provider_uuid),
                 "provider_type": Provider.PROVIDER_AWS,
-                "expected": aws_post_processor,
+                "expected": AWSPostProcessor,
             },
             {
                 "provider_uuid": str(self.azure_provider_uuid),
                 "provider_type": Provider.PROVIDER_AZURE,
-                "expected": azure_post_processor,
+                "expected": AzurePostProcessor,
             },
             {
                 "provider_uuid": str(self.gcp_provider_uuid),
                 "provider_type": Provider.PROVIDER_GCP,
-                "expected": gcp_post_processor,
+                "expected": GCPPostProcessor,
             },
             {
                 "provider_uuid": str(self.oci_provider_uuid),
                 "provider_type": Provider.PROVIDER_OCI,
-                "expected": oci_post_processor,
+                "expected": OCIPostProcessor,
+            },
+            {
+                "provider_uuid": str(self.ocp_provider_uuid),
+                "provider_type": Provider.PROVIDER_OCP,
+                "expected": OCPPostProcessor,
             },
         ]
 
@@ -238,8 +205,11 @@ class TestParquetReportProcessor(MasuTestCase):
                 manifest_id=self.manifest_id,
                 context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
             )
-
-            self.assertEqual(report_processor.post_processor, test.get("expected"))
+            with patch(
+                "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type",
+                return_value="pod_usage",
+            ):
+                self.assertIsInstance(report_processor.set_post_processor(), test.get("expected"))
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -252,6 +222,21 @@ class TestParquetReportProcessor(MasuTestCase):
                     mock_cols.columns.return_value = {"columns"}
                     _, __, result = self.report_processor_ingress.convert_csv_to_parquet("csv_filename.csv.gz")
                     self.assertFalse(result)
+
+    def test_unknown_provider_post_processor(self):
+        """Test that nothing is returned"""
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid="123456",
+            provider_type="unknown_provider",
+            manifest_id=self.manifest_id,
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        dataframe, daily, success = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+        self.assertIsNone(dataframe)
+        self.assertIsNone(daily)
+        self.assertFalse(success)
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -408,32 +393,35 @@ class TestParquetReportProcessor(MasuTestCase):
 
     def test_convert_csv_to_parquet_report_type_already_processed(self):
         """Test that we don't re-create a table when we already have created this run."""
-        with patch("masu.processor.parquet.parquet_report_processor.Path"):
-            with patch("masu.processor.parquet.parquet_report_processor.pd"):
-                with patch("masu.processor.parquet.parquet_report_processor.open"):
-                    with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"):
-                        with patch(
-                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
-                            "create_parquet_table"
-                        ) as mock_create_table:
-                            with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
-                                mock_os.path.split.return_value = ("path", "file.csv")
-                                report_processor = ParquetReportProcessor(
-                                    schema_name=self.schema,
-                                    report_path="pod_usage.csv",
-                                    provider_uuid=self.ocp_provider_uuid,
-                                    provider_type=Provider.PROVIDER_OCP,
-                                    manifest_id=self.manifest_id,
-                                    context={
-                                        "tracing_id": self.tracing_id,
-                                        "start_date": DateHelper().today,
-                                        "create_table": True,
-                                    },
-                                )
-                                report_processor.trino_table_exists["pod_usage"] = True
-                                result = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
-                                self.assertTrue(result)
-                                mock_create_table.assert_not_called()
+        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
+            "masu.processor.parquet.parquet_report_processor.pd"
+        ), patch("masu.processor.parquet.parquet_report_processor.open"), patch(
+            "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
+        ), patch(
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.set_post_processor",
+            return_value=OCPPostProcessor(self.schema, "pod_usage"),
+        ):
+            with patch(
+                "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "create_parquet_table"
+            ) as mock_create_table:
+                with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
+                    mock_os.path.split.return_value = ("path", "file.csv")
+                    report_processor = ParquetReportProcessor(
+                        schema_name=self.schema,
+                        report_path="pod_usage.csv",
+                        provider_uuid=self.ocp_provider_uuid,
+                        provider_type=Provider.PROVIDER_OCP,
+                        manifest_id=self.manifest_id,
+                        context={
+                            "tracing_id": self.tracing_id,
+                            "start_date": DateHelper().today,
+                            "create_table": True,
+                        },
+                    )
+                    report_processor.trino_table_exists["pod_usage"] = True
+                    result = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+                    self.assertTrue(result)
+                    mock_create_table.assert_not_called()
 
     @patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock)
     @patch.object(ReportParquetProcessorBase, "sync_hive_partitions")
@@ -639,81 +627,6 @@ class TestParquetReportProcessor(MasuTestCase):
         self.assertFalse(os.path.exists(report_path))
         for path in file_list:
             self.assertFalse(os.path.exists(report_path))
-
-    def test_daily_data_processor(self):
-        """Test that the daily data processor is returned."""
-        processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=self.report_path,
-            provider_uuid=self.aws_provider_uuid,
-            provider_type=Provider.PROVIDER_AWS_LOCAL,
-            manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-        )
-        daily_data_processor = processor.daily_data_processor
-        self.assertEqual(daily_data_processor, aws_generate_daily_data)
-
-        processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=self.report_path,
-            provider_uuid=self.azure_provider_uuid,
-            provider_type=Provider.PROVIDER_AZURE_LOCAL,
-            manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-        )
-        daily_data_processor = processor.daily_data_processor
-        self.assertEqual(daily_data_processor, azure_generate_daily_data)
-
-        processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=self.report_path,
-            provider_uuid=self.gcp_provider_uuid,
-            provider_type=Provider.PROVIDER_GCP_LOCAL,
-            manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-        )
-        daily_data_processor = processor.daily_data_processor
-        self.assertEqual(daily_data_processor, gcp_generate_daily_data)
-
-        processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=self.report_path,
-            provider_uuid=self.oci_provider_uuid,
-            provider_type=Provider.PROVIDER_OCI_LOCAL,
-            manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-        )
-        daily_data_processor = processor.daily_data_processor
-        self.assertEqual(daily_data_processor, oci_generate_daily_data)
-
-        with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
-            report_type = "pod_usage"
-            mock_report_type.return_value = report_type
-            processor = ParquetReportProcessor(
-                schema_name=self.schema,
-                report_path=self.report_path,
-                provider_uuid=self.ocp_provider_uuid,
-                provider_type=Provider.PROVIDER_OCP,
-                manifest_id=self.manifest_id,
-                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-            )
-            daily_data_processor = processor.daily_data_processor
-            expected = partial(ocp_generate_daily_data, report_type=report_type)
-            self.assertEqual(daily_data_processor.func, expected.func)
-
-        with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
-            report_type = "usage"
-            mock_report_type.return_value = report_type
-            processor = ParquetReportProcessor(
-                schema_name=self.schema,
-                report_path=self.report_path,
-                provider_uuid=self.oci_provider_uuid,
-                provider_type=Provider.PROVIDER_OCI,
-                manifest_id=self.manifest_id,
-                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-            )
-            daily_data_processor = processor.daily_data_processor
-            self.assertEqual(daily_data_processor, oci_generate_daily_data)
 
     @patch.object(ParquetReportProcessor, "create_parquet_table")
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")

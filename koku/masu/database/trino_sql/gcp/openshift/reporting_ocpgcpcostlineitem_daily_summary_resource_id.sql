@@ -21,8 +21,10 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_resource_mat
     unblended_cost double,
     labels varchar,
     ocp_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp
@@ -47,8 +49,10 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_
     unblended_cost double,
     labels varchar,
     matched_tag varchar,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
@@ -102,8 +106,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     project_rank integer,
     data_source_rank integer,
     ocp_matched boolean,
-    ocp_source varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source'])
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
 -- Now create our proper table if it does not exist
@@ -163,10 +169,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['gcp_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
-;
-
 INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
@@ -188,7 +190,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp 
     unblended_cost,
     labels,
     ocp_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT cast(uuid() as varchar),
     gcp.usage_start_time as usage_start,
@@ -210,7 +214,9 @@ SELECT cast(uuid() as varchar),
     cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
     gcp.labels,
     max(gcp.ocp_matched) as ocp_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
@@ -226,10 +232,6 @@ GROUP BY gcp.usage_start_time,
     gcp.location_region,
     gcp.invoice_month,
     gcp.labels
-;
-
-DELETE FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp
-WHERE ocp_source = {{ocp_source_uuid}}
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
@@ -253,7 +255,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
     unblended_cost,
     labels,
     matched_tag,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 WITH cte_enabled_tag_keys AS (
     SELECT
@@ -292,7 +296,9 @@ SELECT cast(uuid() as varchar),
         )
     ) as labels,
     gcp.matched_tag,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE gcp.source = {{gcp_source_uuid}}
@@ -307,13 +313,8 @@ GROUP BY gcp.usage_start_time,
     gcp.service_id,
     gcp.location_region,
     gcp.invoice_month,
-    19,
+    19, -- label matching
     gcp.matched_tag
-;
-
-
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
 ;
 
 -- Direct resource_id matching
@@ -365,7 +366,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     tags,
     cost_category_id,
     ocp_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -376,7 +379,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
     max(nullif(ocp.persistentvolume, '')) as persistentvolume,
     max(nullif(ocp.storageclass, '')) as storageclass,
-    max(ocp.pod_labels) as pod_labels,
+    ocp.pod_labels,
     max(ocp.resource_id) as resource_id,
     max(gcp.usage_start) as usage_start,
     max(gcp.usage_start) as usage_end,
@@ -410,11 +413,13 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-    NULL as volume_labels,
+    ocp.volume_labels,
     max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     max(gcp.ocp_matched) as ocp_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
@@ -428,7 +433,9 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.day IN {{days | inclause}}
     AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     AND gcp.ocp_source = {{ocp_source_uuid}}
-GROUP BY gcp.uuid, ocp.namespace, ocp.data_source
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
+GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
 -- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
@@ -480,7 +487,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     tags,
     cost_category_id,
     ocp_matched,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_id) as cluster_id,
@@ -529,7 +538,9 @@ SELECT gcp.uuid as gcp_uuid,
     max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     FALSE as ocp_matched,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
@@ -537,8 +548,8 @@ JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
                 (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
                 OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
                 OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
-                -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
-                -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
     AND ocp.namespace != 'Worker unallocated'
     AND ocp.namespace != 'Platform unallocated'
@@ -548,6 +559,8 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days | inclause}}
     AND gcp.ocp_source = {{ocp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
@@ -690,7 +703,7 @@ SELECT pds.gcp_uuid,
 FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
     ON pds.gcp_uuid = r.gcp_uuid
-WHERE pds.ocp_source = {{ocp_source_uuid}}
+WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (
@@ -775,10 +788,4 @@ WHERE gcp_source = {{gcp_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN {{days | inclause}}
-;
-
-
-
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
 ;

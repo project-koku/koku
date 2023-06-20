@@ -7,7 +7,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -59,24 +59,6 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         start, end = updater._get_sql_inputs(start_str, end_str)
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
-
-    def test_update_daily_tables(self):
-        """Test that this is a placeholder method."""
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(expected_start, expected_end)
-
-        expected_log = (
-            "INFO:masu.processor.gcp.gcp_report_parquet_summary_updater:"
-            f"update_daily_tables for: {expected_start}-{expected_end}"
-        )
-
-        with self.assertLogs("masu.processor.gcp.gcp_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str, invoice_month=invoice_month)
-            self.assertIn(expected_log, logger.output)
-        self.assertEqual(start, expected_start)
-        self.assertEqual(end, expected_end)
 
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_gcp_topology_information_tables"  # noqa: E501

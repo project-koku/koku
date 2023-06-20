@@ -4,8 +4,8 @@
 #
 """Processor for GCP Parquet files."""
 import ciso8601
-import pytz
-from tenant_schemas.utils import schema_context
+from django.conf import settings
+from django_tenants.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util import common as utils
@@ -61,12 +61,14 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
         report_date_range = utils.month_date_range(bill_date)
         start_date, end_date = report_date_range.split("-")
 
-        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
 
         provider = self._get_provider()
 
         with schema_context(self._schema_name):
             GCPCostEntryBill.objects.get_or_create(
-                billing_period_start=start_date_utc, billing_period_end=end_date_utc, provider=provider
+                billing_period_start=start_date_utc,
+                billing_period_end=end_date_utc,
+                provider_id=provider.uuid,
             )

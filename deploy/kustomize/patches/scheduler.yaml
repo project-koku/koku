@@ -8,8 +8,6 @@
         enabled: false
       private:
         enabled: false
-      metrics:
-        enabled: false
     podSpec:
       metadata:
         annotations:
@@ -76,8 +74,14 @@
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE
-          value: ${REPORT_DOWNLOAD_SCHEDULE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
+          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
+          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -90,12 +94,6 @@
           value: ${VACUUM_DATA_DAY_OF_WEEK}
         - name: VACUUM_DATA_UTC_TIME
           value: ${VACUUM_DATA_UTC_TIME}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -104,10 +102,6 @@
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: PRESTO_HOST
-          value: ${PRESTO_HOST}
-        - name: PRESTO_PORT
-          value: ${PRESTO_PORT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -118,12 +112,6 @@
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
-        - name: USE_RABBIT
-          value: ${USE_RABBIT}
-        - name: RABBITMQ_HOST
-          value: ${RABBITMQ_HOST}
-        - name: RABBITMQ_PORT
-          value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA

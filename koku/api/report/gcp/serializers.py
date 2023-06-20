@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Report Serializers."""
-import logging
-
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
@@ -13,8 +11,6 @@ from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
-
-LOG = logging.getLogger(__name__)
 
 
 class GCPGroupBySerializer(GroupSerializer):
@@ -75,4 +71,3 @@ class GCPQueryParamSerializer(ReportQueryParamSerializer):
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    check_tags = serializers.BooleanField(required=False, default=False)

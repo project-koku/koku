@@ -21,6 +21,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     blended_rate,
     blended_cost,
     savingsplan_effective_cost,
+    calculated_amortized_cost,
     public_on_demand_cost,
     public_on_demand_rate,
     tags,
@@ -30,7 +31,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     source_uuid,
     markup_cost,
     markup_cost_blended,
-    markup_cost_savingsplan
+    markup_cost_savingsplan,
+    markup_cost_amortized
 )
 with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
@@ -59,6 +61,7 @@ SELECT uuid() as uuid,
     cast(blended_rate AS decimal(24,9)),
     cast(blended_cost AS decimal(24,9)),
     cast(savingsplan_effective_cost AS decimal(24,9)),
+    cast(calculated_amortized_cost AS decimal(33, 9)),
     cast(public_on_demand_cost AS decimal(24,9)),
     cast(public_on_demand_rate AS decimal(24,9)),
     cast(
@@ -73,7 +76,8 @@ SELECT uuid() as uuid,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost,
     cast(blended_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_blended,
-    cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan
+    cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan,
+    cast(calculated_amortized_cost * {{markup | sqlsafe}} AS decimal(33,9)) as markup_cost_amortized
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
         date(lineitem_usagestartdate) as usage_end,
@@ -98,6 +102,14 @@ FROM (
         max(lineitem_blendedrate) as blended_rate,
         sum(lineitem_blendedcost) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='Tax'
+                OR   lineitem_lineitemtype='Usage'
+                THEN lineitem_unblendedcost
+                ELSE savingsplan_savingsplaneffectivecost
+            END
+        ) as calculated_amortized_cost,
         sum(pricing_publicondemandcost) as public_on_demand_cost,
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test view caching functions."""
-import logging
 import random
 
 from django.core.cache import caches
@@ -28,8 +27,6 @@ from koku.cache import set_cached_infra_map
 from koku.cache import set_cached_matching_tags
 
 
-LOG = logging.getLogger(__name__)
-
 CACHE_PREFIXES = (
     AWS_CACHE_PREFIX,
     AZURE_CACHE_PREFIX,
@@ -45,8 +42,8 @@ CACHE_PREFIXES = (
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "unique-snowflake",
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         }
     }
 )

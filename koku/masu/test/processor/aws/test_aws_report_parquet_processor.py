@@ -5,7 +5,7 @@
 """Test the AWSReportParquetProcessor."""
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
@@ -68,7 +68,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_account_id=account_id,
-                provider=self.aws_provider,
+                provider=self.aws_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -87,7 +87,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_account_id=account_id,
-                provider=self.aws_provider,
+                provider=self.aws_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 

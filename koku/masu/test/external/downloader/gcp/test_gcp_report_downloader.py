@@ -1,6 +1,5 @@
 """Test the GCPReportDownloader class."""
 import datetime
-import logging
 import os
 import shutil
 import tempfile
@@ -9,9 +8,9 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
-from pytz import timezone
 from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
@@ -23,11 +22,10 @@ from masu.external.downloader.gcp.gcp_report_downloader import create_daily_arch
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
+from masu.external.downloader.gcp.gcp_report_downloader import get_ingress_manifest
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
-
-LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
 
@@ -79,6 +77,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Remove files and directories created during the test run."""
         super().tearDown()
         shutil.rmtree(DATA_DIR, ignore_errors=True)
+
+    def test_get_ingress_manifest(self):
+        """Test that given a manifest ID, this function returns a manifest"""
+        expected_manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first()
+        manifest = get_ingress_manifest(manifest_id=expected_manifest.id)
+        self.assertEqual(manifest, expected_manifest)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -214,7 +218,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
         )
         expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
         self.assertEqual(date_range, expected_date_range)
@@ -235,9 +239,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             err_msg = "bad_open"
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
-                create_daily_archives(
-                    "request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None
-                )
+                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
@@ -300,7 +302,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test GCP error retrieving partition data."""
         downloader = self.downloader
         err_msg = "GCP Error"
-        expected_error_msg = "Could not query table for partition date information."
+        expected_error_msg = "could not query table for partition date information"
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, expected_error_msg):
@@ -309,7 +311,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_bigquery_export_to_partition_mapping_success(self):
         """Test GCP error retrieving partition data."""
         key = datetime.date.today()
-        now_utc = datetime.datetime.now(timezone("UTC"))
+        now_utc = datetime.datetime.now(tz=settings.UTC)
         mocked_result = [[key, now_utc]]
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.bigquery", new_callable=PropertyMock
@@ -368,19 +370,17 @@ class GCPReportDownloaderTest(MasuTestCase):
             self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
             self.assertEqual(manifest_metadata["files"], [expected_filename])
 
-    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._generate_monthly_pseudo_manifest")
-    def test_generate_pseudo_manifest(self, mock_pseudo_manifest):
+    def test_generate_pseudo_manifest(self):
         """Test Generating pseudo manifest for storage only."""
         mock_datetime = DateAccessor().today()
+        mock_date_str = mock_datetime.strftime("%Y-%m-%d")
         expected_manifest_data = {
-            "assembly_id": "1234",
-            "compression": UNCOMPRESSED,
-            "start_date": mock_datetime,
-            "file_names": self.ingress_reports,
+            "bill_date": mock_date_str,
+            "files": self.ingress_reports,
         }
-        mock_pseudo_manifest.return_value = expected_manifest_data
-        result_manifest = self.gcp_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
-        self.assertEqual(result_manifest, expected_manifest_data)
+        result_manifest = self.gcp_ingress_report_downloader.collect_pseudo_manifests(mock_datetime)
+        self.assertDictContainsSubset(expected_manifest_data, result_manifest)
+        self.assertIn(mock_date_str, result_manifest["assembly_id"])
 
     def test_get_storage_only_manifest_file(self):
         """Test _get_manifest method w storage only."""
@@ -416,3 +416,33 @@ class GCPReportDownloaderTest(MasuTestCase):
         key = "ingress_report.csv"
         with self.assertRaises(GCPReportDownloaderError):
             self.gcp_ingress_report_downloader.download_file(key)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_ingress_reports(self, mock_s3):
+        """Test that we load daily files to S3."""
+        file_name = "2022-08-01_5.csv"
+        partition = "2022-08-01"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/202208_{partition}_0.csv",
+        ]
+        start_date = DateHelper().this_month_start
+        with patch(
+            "masu.external.downloader.gcp.gcp_report_downloader.get_ingress_manifest",
+            return_value=CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first(),
+        ):
+            daily_file_names, date_range = create_daily_archives(
+                "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None, "ingress_reports"
+            )
+            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            mock_s3.assert_called()
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)

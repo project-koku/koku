@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
-import logging
 import random
 from decimal import Decimal
 from unittest import skip
@@ -11,7 +10,7 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Sum
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
@@ -21,8 +20,6 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.test import MasuTestCase
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from reporting.models import OCPUsageLineItemDailySummary
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):

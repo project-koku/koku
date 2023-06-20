@@ -13,8 +13,8 @@ import boto3
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from masu.config import Config
@@ -29,7 +29,6 @@ from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSes
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
-from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -72,11 +71,13 @@ class TestAWSUtils(MasuTestCase):
         super().setUp()
         self.account_id = fake_aws_account_id()
         self.arn = fake_arn(account_id=self.account_id, region=REGION, service="iam")
+        self.credentials = {"role_arn": self.arn}
+        self.aws_arn = utils.AwsArn(self.credentials)
 
     @patch("masu.util.aws.common.boto3.client", return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):
         """Test get_assume_role_session is successful."""
-        session = utils.get_assume_role_session(self.arn)
+        session = utils.get_assume_role_session(self.aws_arn)
         self.assertIsInstance(session, boto3.Session)
 
     def test_get_available_regions(self):
@@ -115,43 +116,32 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(out, expected_string)
 
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket is successful."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, BUCKET, session)
-        self.assertIn(NAME, report_names)
-
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=REPORT_DEFS)
-    def test_cur_report_names_in_bucket_malformed(self, fake_report_defs):
-        """Test get_cur_report_names_in_bucket fails for bad bucket name."""
-        session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id, "wrong-bucket", session)
-        self.assertNotIn(NAME, report_names)
-
     def test_get_cur_report_definitions(self):
         """Test get_cur_report_definitions is successful."""
         session = FakeSession()
-        defs = utils.get_cur_report_definitions(self.arn, session)
+        cur_client = session.client("cur")
+        defs = utils.get_cur_report_definitions(cur_client)
         self.assertEqual(len(defs), 1)
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_cur_report_definitions_no_session(self, fake_session):
         """Test get_cur_report_definitions for no sessions."""
-        defs = utils.get_cur_report_definitions(self.arn)
+        defs = utils.get_cur_report_definitions(None, role_arn=self.aws_arn)
         self.assertEqual(len(defs), 1)
 
     def test_get_account_alias_from_role_arn(self):
         """Test get_account_alias_from_role_arn is functional."""
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
         mock_alias = "test-alias"
 
         session = Mock()
         mock_client = Mock()
         mock_client.list_account_aliases.return_value = {"AccountAliases": [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
@@ -164,8 +154,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, mock_session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, mock_session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -178,8 +170,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -187,6 +181,8 @@ class TestAWSUtils(MasuTestCase):
         """Test get_account_names_by_organization is functional."""
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
         mock_alias = "test-alias"
         expected = [{"id": mock_account_id, "name": mock_alias}]
 
@@ -197,7 +193,7 @@ class TestAWSUtils(MasuTestCase):
         mock_paginator.paginate.return_value = paginated_results
         mock_client.get_paginator.return_value = mock_paginator
         session.client.return_value = mock_client
-        accounts = utils.get_account_names_by_organization(role_arn, session)
+        accounts = utils.get_account_names_by_organization(arn, session)
         self.assertEqual(accounts, expected)
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -209,8 +205,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(role_arn, mock_session)
+        accounts = utils.get_account_names_by_organization(arn, mock_session)
         self.assertEqual(accounts, [])
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -222,8 +220,10 @@ class TestAWSUtils(MasuTestCase):
 
         mock_account_id = "111111111111"
         role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+        credentials = {"role_arn": role_arn}
+        arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(role_arn)
+        accounts = utils.get_account_names_by_organization(arn)
         self.assertEqual(accounts, [])
 
     def test_get_assembly_id_from_cur_key(self):
@@ -272,7 +272,7 @@ class TestAWSUtils(MasuTestCase):
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
 
-            end_date = date_accessor.today_with_timezone("utc").replace(day=1)
+            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -296,7 +296,7 @@ class TestAWSUtils(MasuTestCase):
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
 
-            end_date = date_accessor.today_with_timezone("utc").replace(day=1)
+            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -320,7 +320,7 @@ class TestAWSUtils(MasuTestCase):
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
 
-            end_date = date_accessor.today_with_timezone("utc").replace(day=1)
+            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -348,7 +348,7 @@ class TestAWSUtils(MasuTestCase):
         self.assertEqual(removed, [])
 
         date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("utc").replace(day=1)
+        start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
         s3_csv_path = get_path_prefix(
             "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
@@ -387,147 +387,6 @@ class TestAWSUtils(MasuTestCase):
             mock_s3.side_effect = ClientError({}, "Error")
             upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
             self.assertEqual(upload, None)
-
-    def test_aws_post_processor(self):
-        """Test that missing columns in a report end up in the data frame."""
-        column_one = "column_one"
-        column_two = "column_two"
-        column_three = "column-three"
-        column_four = "resourceTags/User:key"
-        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
-        data_frame = pd.DataFrame.from_dict(data)
-
-        processed_data_frame = utils.aws_post_processor(data_frame)
-        if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
-            self.assertIsInstance(df_tag_keys, set)
-
-        columns = list(processed_data_frame)
-
-        self.assertIn(column_one, columns)
-        self.assertIn(column_two, columns)
-        self.assertIn(column_three.replace("-", "_"), columns)
-        self.assertNotIn(column_four, columns)
-        self.assertIn("resourcetags", columns)
-        for column in TRINO_REQUIRED_COLUMNS:
-            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
-
-    def test_aws_generate_daily_data(self):
-        """Test that we aggregate data at a daily level."""
-        lineitem_usageamount = random.randint(1, 10)
-        lineitem_unblendedcost = random.randint(1, 10)
-        lineitem_unblendedrate = random.randint(1, 10)
-        data = [
-            {
-                "lineitem_resourceid": "id1",
-                "lineitem_usagestartdate": datetime(2021, 6, 7, 11, 24, 0),
-                "bill_invoiceid": 123,
-                "bill_payeraccountid": 1,
-                "lineitem_usageaccountid": 1,
-                "lineitem_legalentity": "Red Hat",
-                "lineitem_lineitemdescription": "Red Hat",
-                "lineitem_productcode": "ec2",
-                "lineitem_availabilityzone": "us-east-1a",
-                "bill_billingentity": "AWS Marketplace",
-                "product_productfamily": "compute",
-                "product_productname": "AmazonEC2",
-                "product_instancetype": "t2.micro",
-                "product_region": "us-east-1",
-                "pricing_unit": "hours",
-                "resourcetags": '{"key": "value"}',
-                "costcategory": '{"cat": "egory"}',
-                "lineitem_usageamount": lineitem_usageamount,
-                "lineitem_normalizationfactor": 1,
-                "lineitem_normalizedusageamount": 1,
-                "lineitem_currencycode": "USD",
-                "lineitem_unblendedrate": lineitem_unblendedrate,
-                "lineitem_unblendedcost": lineitem_unblendedcost,
-                "lineitem_blendedrate": 1,
-                "lineitem_blendedcost": 1,
-                "savingsplan_savingsplaneffectivecost": 1,
-                "pricing_publicondemandcost": 1,
-                "pricing_publicondemandrate": 1,
-            },
-            {
-                "lineitem_resourceid": "id1",
-                "lineitem_usagestartdate": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
-                "bill_invoiceid": 123,
-                "bill_payeraccountid": 1,
-                "lineitem_usageaccountid": 1,
-                "lineitem_legalentity": "Red Hat",
-                "lineitem_lineitemdescription": "Red Hat",
-                "lineitem_productcode": "ec2",
-                "lineitem_availabilityzone": "us-east-1a",
-                "bill_billingentity": "AWS Marketplace",
-                "product_productfamily": "compute",
-                "product_productname": "AmazonEC2",
-                "product_instancetype": "t2.micro",
-                "product_region": "us-east-1",
-                "pricing_unit": "hours",
-                "resourcetags": '{"key": "value"}',
-                "costcategory": '{"cat": "egory"}',
-                "lineitem_usageamount": lineitem_usageamount,
-                "lineitem_normalizationfactor": 1,
-                "lineitem_normalizedusageamount": 1,
-                "lineitem_currencycode": "USD",
-                "lineitem_unblendedrate": lineitem_unblendedrate,
-                "lineitem_unblendedcost": lineitem_unblendedcost,
-                "lineitem_blendedrate": 1,
-                "lineitem_blendedcost": 1,
-                "savingsplan_savingsplaneffectivecost": 1,
-                "pricing_publicondemandcost": 1,
-                "pricing_publicondemandrate": 1,
-            },
-            {
-                "lineitem_resourceid": "id1",
-                "lineitem_usagestartdate": datetime(2021, 6, 8, 12, 24, 0),  # different day
-                "bill_invoiceid": 123,
-                "bill_payeraccountid": 1,
-                "lineitem_usageaccountid": 1,
-                "lineitem_legalentity": "Red Hat",
-                "lineitem_lineitemdescription": "Red Hat",
-                "lineitem_productcode": "ec2",
-                "lineitem_availabilityzone": "us-east-1a",
-                "bill_billingentity": "AWS Marketplace",
-                "product_productfamily": "compute",
-                "product_productname": "AmazonEC2",
-                "product_instancetype": "t2.micro",
-                "product_region": "us-east-1",
-                "pricing_unit": "hours",
-                "resourcetags": '{"key": "value"}',
-                "costcategory": '{"cat": "egory"}',
-                "lineitem_usageamount": lineitem_usageamount,
-                "lineitem_normalizationfactor": 1,
-                "lineitem_normalizedusageamount": 1,
-                "lineitem_currencycode": "USD",
-                "lineitem_unblendedrate": lineitem_unblendedrate,
-                "lineitem_unblendedcost": lineitem_unblendedcost,
-                "lineitem_blendedrate": 1,
-                "lineitem_blendedcost": 1,
-                "savingsplan_savingsplaneffectivecost": 1,
-                "pricing_publicondemandcost": 1,
-                "pricing_publicondemandrate": 1,
-            },
-        ]
-
-        df = pd.DataFrame(data)
-
-        daily_df = utils.aws_generate_daily_data(df)
-
-        first_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-07"]
-        second_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-08"]
-
-        # Assert that there is only 1 record per day
-        self.assertEqual(first_day.shape[0], 1)
-        self.assertEqual(second_day.shape[0], 1)
-
-        self.assertTrue((first_day["lineitem_usageamount"] == lineitem_usageamount * 2).bool())
-        self.assertTrue((first_day["lineitem_unblendedcost"] == lineitem_unblendedcost * 2).bool())
-        self.assertTrue((first_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
-
-        self.assertTrue((second_day["lineitem_usageamount"] == lineitem_usageamount).bool())
-        self.assertTrue((second_day["lineitem_unblendedcost"] == lineitem_unblendedcost).bool())
-        self.assertTrue((second_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
 
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
@@ -613,22 +472,6 @@ class TestAWSUtils(MasuTestCase):
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
 
-    def test_aws_post_processor_empty_tags(self):
-        """Test that missing columns in a report end up in the data frame."""
-        column_one = "column_one"
-        column_two = "column_two"
-        column_three = "column-three"
-        column_four = "resourceTags/System:key"
-        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
-        data_frame = pd.DataFrame.from_dict(data)
-
-        processed_data_frame = utils.aws_post_processor(data_frame)
-        if isinstance(processed_data_frame, tuple):
-            processed_data_frame, df_tag_keys = processed_data_frame
-            self.assertIsInstance(df_tag_keys, set)
-
-        self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())
-
 
 class AwsArnTest(TestCase):
     """AwnArn class test case."""
@@ -639,8 +482,9 @@ class AwsArnTest(TestCase):
         """Assert successful account ID parsing from a well-formed ARN."""
         mock_account_id = fake_aws_account_id()
         mock_arn = fake_arn(account_id=mock_account_id, region="test-region-1")
+        credentials = {"role_arn": mock_arn}
 
-        arn_object = utils.AwsArn(mock_arn)
+        arn_object = utils.AwsArn(credentials)
 
         partition = arn_object.partition
         self.assertIsNotNone(partition)
@@ -684,7 +528,8 @@ class AwsArnTest(TestCase):
     def test_parse_arn_without_region_or_account(self):
         """Assert successful ARN parsing without a region or an account id."""
         mock_arn = fake_arn()
-        arn_object = utils.AwsArn(mock_arn)
+        credentials = {"role_arn": mock_arn}
+        arn_object = utils.AwsArn(credentials)
 
         region = arn_object.region
         self.assertEqual(region, None)
@@ -695,7 +540,8 @@ class AwsArnTest(TestCase):
     def test_parse_arn_with_slash_separator(self):
         """Assert successful ARN parsing with a slash separator."""
         mock_arn = fake_arn(resource_separator="/")
-        arn_object = utils.AwsArn(mock_arn)
+        credentials = {"role_arn": mock_arn}
+        arn_object = utils.AwsArn(credentials)
 
         resource_type = arn_object.resource_type
         self.assertIsNotNone(resource_type)
@@ -709,7 +555,8 @@ class AwsArnTest(TestCase):
     def test_parse_arn_with_custom_resource_type(self):
         """Assert valid ARN when resource type contains extra characters."""
         mock_arn = "arn:aws:fakeserv:test-reg-1:012345678901:test.res type:foo"
-        arn_object = utils.AwsArn(mock_arn)
+        credentials = {"role_arn": mock_arn}
+        arn_object = utils.AwsArn(credentials)
 
         resource_type = arn_object.resource_type
         self.assertIsNotNone(resource_type)
@@ -720,5 +567,18 @@ class AwsArnTest(TestCase):
     def test_error_from_invalid_arn(self):
         """Assert error in account ID parsing from a badly-formed ARN."""
         mock_arn = self.fake.text()
+        credentials = {"role_arn": mock_arn}
         with self.assertRaises(SyntaxError):
-            utils.AwsArn(mock_arn)
+            utils.AwsArn(credentials)
+
+    def test_arn_and_external_id(self):
+        """Assert that the AwsArn processes an ExternalId."""
+        mock_arn = fake_arn()
+        credentials = {"role_arn": mock_arn}
+        arn = utils.AwsArn(credentials)
+        self.assertIsNone(arn.external_id)
+
+        external_id = "1234567"
+        credentials = {"role_arn": mock_arn, "external_id": external_id}
+        arn = utils.AwsArn(credentials)
+        self.assertIsNotNone(arn.external_id)

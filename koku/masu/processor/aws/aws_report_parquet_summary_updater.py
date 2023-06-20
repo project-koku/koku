@@ -9,7 +9,7 @@ import logging
 import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -78,22 +78,6 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start_date = end_date - relativedelta(days=2)
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date, **kwargs):
-        """Populate the daily tables for reporting.
-
-        Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
-
-        Returns
-            (str, str): A start date and end date.
-
-        """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
-
-        return start_date, end_date
-
     def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
@@ -121,6 +105,11 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
+            if current_bill_id is None:
+                msg = f"No bill was found for {start_date}. Skipping summarization"
+                LOG.info(msg)
+                return start_date, end_date
+
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating AWS report summary tables from parquet: \n\tSchema: %s"
@@ -142,6 +131,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
                 # accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
+            accessor.populate_category_summary_table(bill_ids, start_date, end_date)
 
             # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:

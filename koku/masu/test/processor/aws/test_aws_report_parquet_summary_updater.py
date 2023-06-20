@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -102,24 +102,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, end_date)
 
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
-    def test_update_daily_tables(self, _):
-        """Test that this is a placeholder method."""
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
-
-        expected_log = (
-            "INFO:masu.processor.aws.aws_report_parquet_summary_updater:"
-            f"update_daily_tables for: {expected_start}-{expected_end}"
-        )
-
-        with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str)
-            self.assertIn(expected_log, logger.output)
-        self.assertEqual(start, expected_start)
-        self.assertEqual(end, expected_end)
-
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_category_summary_table")
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
@@ -128,8 +111,8 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _):
-        """Test that we run Presto summary."""
+    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _, mock_category_update):
+        """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
@@ -156,6 +139,30 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_category_update.assert_called_with(bill_ids, start, end)
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
+
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
+    )
+    def test_update_summary_tables_no_bills(self, *args):
+        """Test that summarization is skipped if no bill id found."""
+
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, end = self.updater._get_sql_inputs(start_str, end_str)
+
+        with patch(
+            "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.bills_for_provider_uuid",
+            return_value=[],
+        ):
+            with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logs:
+                start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
+                expected_log_msg = f"No bill was found for {start_return}. Skipping summarization"
+
+        self.assertEqual(start_return, start)
+        self.assertEqual(end_return, end)
+        self.assertIn(expected_log_msg, logs.output[-1])

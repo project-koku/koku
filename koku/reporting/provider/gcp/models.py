@@ -50,100 +50,7 @@ class GCPCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True, blank=True)
     finalized_datetime = models.DateTimeField(null=True, blank=True)
     derived_cost_datetime = models.DateTimeField(null=True, blank=True)
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-
-
-class GCPProject(models.Model):
-    """The per Project information for GCP."""
-
-    account_id = models.CharField(max_length=20)
-    project_id = models.CharField(unique=True, max_length=256)
-    project_name = models.CharField(max_length=256)
-    project_labels = models.CharField(max_length=256, null=True, blank=True)
-
-
-class GCPCostEntryProductService(models.Model):
-    """The product service and sku information."""
-
-    class Meta:
-        """Meta for GCPCostEntryProductService."""
-
-        unique_together = ("service_id", "service_alias", "sku_id", "sku_alias")
-        db_table = "reporting_gcpcostentryproductservice"
-
-    id = models.BigAutoField(primary_key=True)
-    service_id = models.CharField(max_length=256, null=True)
-    service_alias = models.CharField(max_length=256, null=True, blank=True)
-    sku_id = models.CharField(max_length=256, null=True)
-    sku_alias = models.CharField(max_length=256, null=True)
-
-
-class GCPCostEntryLineItem(models.Model):
-    """GCP cost entry daily line item."""
-
-    class Meta:
-        """Meta for GCPCostEntryLineItem."""
-
-        db_table = "reporting_gcpcostentrylineitem"
-
-    id = models.BigAutoField(primary_key=True)
-    usage_start = models.DateTimeField()
-    usage_end = models.DateTimeField()
-    partition_date = models.DateTimeField(null=True)
-    tags = JSONField(null=True)
-    usage_type = models.CharField(max_length=50, null=True)
-    location = models.CharField(max_length=256, null=True, blank=True)
-    country = models.CharField(max_length=256, null=True, blank=True)
-    region = models.CharField(max_length=256, null=True, blank=True)
-    zone = models.CharField(max_length=256, null=True, blank=True)
-    export_time = models.CharField(max_length=256, null=True, blank=True)
-    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-    currency = models.CharField(max_length=256, null=True, blank=True)
-    conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_to_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
-    credits = models.CharField(max_length=256, null=True, blank=True)
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    cost_type = models.CharField(max_length=256, null=True, blank=True)
-    line_item_type = models.CharField(max_length=256, null=True)
-    cost_entry_product = models.ForeignKey(
-        GCPCostEntryProductService, null=True, on_delete=models.CASCADE, db_constraint=False
-    )
-    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE, db_constraint=False)
-    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE, db_constraint=False)
-
-
-class GCPCostEntryLineItemDaily(models.Model):
-    """GCP cost entry daily line item."""
-
-    class Meta:
-        """Meta for GCPCostEntryLineItem."""
-
-        db_table = "reporting_gcpcostentrylineitem_daily"
-        indexes = [
-            models.Index(fields=["usage_start"], name="gcp_usage_start_idx"),
-            GinIndex(fields=["tags"], name="gcp_cost_entry"),
-        ]
-
-    id = models.BigAutoField(primary_key=True)
-
-    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE)
-    cost_entry_product = models.ForeignKey(GCPCostEntryProductService, null=True, on_delete=models.CASCADE)
-    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE)
-    line_item_type = models.CharField(max_length=256, null=True)
-    usage_start = models.DateField(null=False)
-    usage_end = models.DateField(null=True)
-    tags = JSONField(null=True)
-    usage_type = models.CharField(max_length=50, null=True)
-    region = models.CharField(max_length=256, null=True, blank=True)
-    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-    currency = models.CharField(max_length=256, null=True, blank=True)
-    conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    tax_type = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
 
 
 class GCPCostEntryLineItemDailySummary(models.Model):
@@ -300,7 +207,7 @@ class GCPCostSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -335,7 +242,7 @@ class GCPCostSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -369,7 +276,7 @@ class GCPCostSummaryByProjectP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     project_id = models.CharField(unique=False, max_length=256)
     project_name = models.CharField(max_length=256)
@@ -408,7 +315,7 @@ class GCPCostSummaryByRegionP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -443,7 +350,7 @@ class GCPCostSummaryByServiceP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
@@ -482,7 +389,7 @@ class GCPComputeSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -520,7 +427,7 @@ class GCPComputeSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     account_id = models.CharField(max_length=50, null=False)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
@@ -556,7 +463,7 @@ class GCPStorageSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
@@ -593,7 +500,7 @@ class GCPStorageSummaryByProjectP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     project_id = models.CharField(unique=False, max_length=256)
     project_name = models.CharField(max_length=256)
@@ -633,7 +540,7 @@ class GCPStorageSummaryByServiceP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
@@ -672,7 +579,7 @@ class GCPStorageSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     account_id = models.CharField(max_length=50, null=False)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
@@ -709,7 +616,7 @@ class GCPStorageSummaryByRegionP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     account_id = models.CharField(max_length=50, null=False)
     region = models.CharField(max_length=50, null=True)
@@ -747,7 +654,7 @@ class GCPNetworkSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
@@ -785,7 +692,7 @@ class GCPDatabaseSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)

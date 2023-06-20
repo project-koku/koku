@@ -93,6 +93,7 @@ create unique index ix_cte_kv_cluster_agg_{{uuid | sqlsafe}}
        (key, value)
 ;
 
+
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ls
 WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
@@ -103,18 +104,25 @@ WHERE uuid IN (
             AND ls.key = etk.key
     )
     ORDER BY ls.uuid
-    FOR SHARE
+    FOR UPDATE
 )
 ;
 
-UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary x
-   SET "values" = y."values"
-  FROM {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} y
- WHERE y.key = x.key
-   AND y.report_period_id = x.report_period_id
-   AND y.namespace = x.namespace
-   AND y.node = x.node
-   AND y.values != x.values
+
+UPDATE {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x
+SET values = upd.values
+FROM (
+    SELECT x.uuid, y.values
+    FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS x, {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} AS y
+    WHERE y.key = x.key
+        AND y.report_period_id = x.report_period_id
+        AND y.namespace = x.namespace
+        AND y.node = x.node
+        AND y.values != x.values
+    ORDER BY x.uuid
+    FOR UPDATE OF x
+) upd
+WHERE x.uuid = upd.uuid
 ;
 
 
@@ -134,23 +142,30 @@ WHERE NOT EXISTS (
              AND y.namespace = x.namespace
              AND y.node = x.node
       )
+ON CONFLICT DO NOTHING
 ;
 
 
-UPDATE {{schema | sqlsafe}}.reporting_ocptags_values ov
-   SET cluster_ids = ca.cluster_ids,
-       cluster_aliases = ca.cluster_aliases,
-       namespaces = ca.namespaces,
-       nodes = ca.nodes
-  FROM {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} ca
- WHERE ca.key = ov.key
-   AND ca.value = ov.value
-   AND (
-         ca.cluster_ids != ov.cluster_ids OR
-         ca.cluster_aliases != ov.cluster_aliases OR
-         ca.namespaces != ov.namespaces OR
-         ca.nodes != ov.nodes
-       )
+UPDATE {{schema | sqlsafe}}.reporting_ocptags_values AS ov
+   SET cluster_ids = upd.cluster_ids,
+       cluster_aliases = upd.cluster_aliases,
+       namespaces = upd.namespaces,
+       nodes = upd.nodes
+FROM (
+    SELECT ov.uuid, ca.cluster_ids, ca.cluster_aliases, ca.namespaces, ca.nodes
+    FROM {{schema | sqlsafe}}.reporting_ocptags_values AS ov, {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} AS ca
+    WHERE ca.key = ov.key
+    AND ca.value = ov.value
+    AND (
+        ca.cluster_ids != ov.cluster_ids OR
+        ca.cluster_aliases != ov.cluster_aliases OR
+        ca.namespaces != ov.namespaces OR
+        ca.nodes != ov.nodes
+    )
+    ORDER BY ov.uuid
+    FOR UPDATE OF ov
+) upd
+WHERE ov. uuid = upd.uuid
 ;
 
 
