@@ -68,43 +68,52 @@ pipeline {
             }
         }
 
-        stage('Build test image') {
+        stage('Run PR check') {
             when {
                 expression {
-                    return env.SKIP_IMAGE_BUILD != 'true'
+                    return env.SKIP_PR_CHECK != 'true'
                 }
             }
-            steps {
-                script {
-                    withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        sh '''
-                            source ./ci/functions.sh
-                            set_IQE_filter_expressions
-                            
-                            echo "$IQE_MARKER_EXPRESSION"
-                            echo "$IQE_FILTER_EXPRESSION"
-
-                            echo "Install bonfire repo/initialize, creating PR image"
-                            #run_build_image
-                        '''
+            stages {
+                stage('Build test image') {
+                    when {
+                        expression {
+                            return env.SKIP_IMAGE_BUILD != 'true'
+                        }
                     }
-                }
-            }
-        }   
+                    steps {
+                        script {
+                            withVault([configuration: configuration, vaultSecrets: secrets]) {
+                                sh '''
+                                    source ./ci/functions.sh
+                                    set_IQE_filter_expressions
+                                    
+                                    echo "$IQE_MARKER_EXPRESSION"
+                                    echo "$IQE_FILTER_EXPRESSION"
 
-        stage('Run Smoke Tests') {
-            when {
-                expression {
-                    return env.SKIP_SMOKE_TESTS != 'true'
-                }
-            }
-            steps {
-                script {
-                    withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        sh '''
-                            source ./ci/functions.sh
-                            #run_smoke_tests
-                        '''
+                                    echo "Install bonfire repo/initialize, creating PR image"
+                                    #run_build_image
+                                '''
+                            }
+                        }
+                    }
+                }   
+
+                stage('Run Smoke Tests') {
+                    when {
+                        expression {
+                            return env.SKIP_SMOKE_TESTS != 'true'
+                        }
+                    }
+                    steps {
+                        script {
+                            withVault([configuration: configuration, vaultSecrets: secrets]) {
+                                sh '''
+                                    source ./ci/functions.sh
+                                    #run_smoke_tests
+                                '''
+                            }
+                        }
                     }
                 }
             }
