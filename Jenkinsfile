@@ -82,6 +82,8 @@ pipeline {
                         script {
                             withVault([configuration: configuration, vaultSecrets: secrets]) {
                                 sh '''
+                                    get_pr_labels
+
                                     source ./ci/functions.sh
                                     set_IQE_filter_expressions
                                     
