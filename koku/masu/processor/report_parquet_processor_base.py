@@ -202,8 +202,8 @@ class ReportParquetProcessorBase:
                     log_json(
                         msg="created a new partition",
                         schema=self._schema_name,
-                        table=record.table_name,
-                        partition=record.partition_of_table_name,
+                        table=record.partition_of_table_name,
+                        partition=record.table_name,
                     )
                 )
 
