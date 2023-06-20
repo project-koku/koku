@@ -92,7 +92,7 @@ class AWSProviderTestCase(TestCase):
         mock_boto3_client.return_value = sts_client
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         credentials = {"role_arn": iam_arn}
-        with self.assertLogs(level=logging.CRITICAL):
+        with self.assertLogs(level=logging.WARNING):
             aws_credentials = _get_sts_access(credentials)
             self.assertIn("aws_access_key_id", aws_credentials)
             self.assertIn("aws_secret_access_key", aws_credentials)
