@@ -84,7 +84,6 @@ pipeline {
                                 sh '''
                                     source ./ci/functions.sh
 
-                                    get_pr_labels
                                     set_IQE_filter_expressions
                                     
                                     echo "$IQE_MARKER_EXPRESSION"
