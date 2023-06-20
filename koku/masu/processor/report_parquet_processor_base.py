@@ -148,12 +148,12 @@ class ReportParquetProcessorBase:
                 f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
                 " partitioned_by=ARRAY['source', 'year', 'month'])"
             )
-        LOG.info(log_json(msg="attempting to create parquet table", table=self._table_name, schema=self._schema_name))
         return sql
 
     def create_table(self, partition_map=None):
         """Create Trino SQL table."""
         sql = self._generate_create_table_sql(partition_map=partition_map)
+        LOG.info(log_json(msg="attempting to create parquet table", table=self._table_name, schema=self._schema_name))
         self._execute_sql(sql, self._schema_name)
         LOG.info(log_json(msg="trino parquet table created", table=self._table_name, schema=self._schema_name))
 
