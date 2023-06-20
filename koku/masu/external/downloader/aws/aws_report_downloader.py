@@ -62,10 +62,15 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
 
         arn = credentials.get("role_arn")
-        bucket = data_source.get("bucket")
-        self.bucket = bucket
+        self.region_name = data_source.get("bucket_region")
+        self.bucket = data_source.get("bucket")
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
+
+        region_kwargs = {}
+        if self.region_name:
+            region_kwargs["region_name"] = self.region_name
+
         # Existing schema will start with acct and we strip that prefix new customers
         # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
@@ -80,8 +85,14 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.customer_name = customer_name.replace(" ", "_")
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
-                self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
+                self.report = {
+                    "S3Bucket": self.bucket,
+                    "S3Prefix": demo_info.get("report_prefix"),
+                    "Compression": "GZIP",
+                }
+                session = utils.get_assume_role_session(
+                    utils.AwsArn(credentials), "MasuDownloaderSession", **region_kwargs
+                )
                 self.s3_client = session.client("s3")
                 return
 
@@ -89,7 +100,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._provider_uuid = kwargs.get("provider_uuid")
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
+        session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession", **region_kwargs)
 
         # Checking for storage only source
         if self.storage_only:
@@ -101,7 +112,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if not report_name:
                 report_names = []
                 for report in defs.get("ReportDefinitions", []):
-                    if bucket == report.get("S3Bucket"):
+                    if self.bucket == report.get("S3Bucket"):
                         report_names.append(report["ReportName"])
 
                 # FIXME: Get the first report in the bucket until Koku can specify
@@ -115,7 +126,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 raise MasuProviderError("Cost and Usage Report definition not found.")
 
         self.report = report.pop()
-        self.s3_client = session.client("s3")
+        self.s3_client = session.client("s3", **region_kwargs)
 
     @property
     def manifest_date_format(self):

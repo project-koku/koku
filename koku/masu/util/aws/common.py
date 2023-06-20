@@ -95,7 +95,7 @@ class AwsArn:
 
 
 def get_assume_role_session(
-    arn: AwsArn, session: str = "MasuSession", region: str = "us-east-1"
+    arn: AwsArn, session: str = "MasuSession", region_name: str = "us-east-1"
 ) -> boto3.session.Session:
     """
     Assume a Role and obtain session credentials for the given role.
@@ -112,7 +112,7 @@ def get_assume_role_session(
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
 
     """
-    client = boto3.client("sts")
+    client = boto3.client("sts", region_name=region_name)
     if arn.external_id:
         response = client.assume_role(RoleArn=str(arn), RoleSessionName=session, ExternalId=arn.external_id)
     else:
@@ -121,7 +121,7 @@ def get_assume_role_session(
         aws_access_key_id=response["Credentials"]["AccessKeyId"],
         aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
         aws_session_token=response["Credentials"]["SessionToken"],
-        region_name=region,
+        region_name=region_name,
     )
 
 
