@@ -5,6 +5,7 @@
 """Test the OCPReportDBAccessor utility object."""
 import pkgutil
 import random
+import logging
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -39,7 +40,7 @@ from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
-
+LOG = logging.getLogger(__name__)
 
 class OCPReportDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPReportDBAccessor object."""
@@ -781,6 +782,19 @@ select * from eek where val1 in {{report_period_id}} ;
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertEqual(node.node_role, node_info[3])
+
+    def test_populate_cluster_table_update_cluster_alias(self):
+        """Test that populating the cluster table for an entry that previously existed fills the cluster alias correctly."""
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "cluster_alias"
+        new_cluster_alias = "new_cluster_alias"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            cluster = OCPCluster.objects.filter(provider_id=self.aws_provider).first()
+            self.assertEqual(cluster.cluster_alias, cluster_alias)
+            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            cluster = OCPCluster.objects.filter(provider_id=self.aws_provider).first()
+            self.assertEqual(cluster.cluster_alias, new_cluster_alias)
 
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""
