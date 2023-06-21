@@ -18,10 +18,10 @@ from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
-SUBS_QUEUE = "subs"
+SUBS_EXTRACTION_QUEUE = "subs_extraction"
 
 # any additional queues should be added to this list
-QUEUE_LIST = [SUBS_QUEUE]
+QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
 
 SUBS_ACCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS,
@@ -47,11 +47,11 @@ def enable_subs_processing(schema_name: str) -> bool:
     return bool(context) or settings.ENABLE_SUBS_DEBUG
 
 
-@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", queue=SUBS_QUEUE)
+@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", queue=SUBS_EXTRACTION_QUEUE)
 def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
     """Implement the functionality of the new task"""
 
-    # TODO: Implement the functionality of the new task
+    # TODO: Implement the functionality of the new task for SUBS data extraction from manifest
 
     LOG.info("collect subs report data from manifest")
 
@@ -67,7 +67,7 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
     bind=True,
     autoretry_for=(ClientError,),
     max_retries=settings.MAX_UPDATE_RETRIES,
-    queue=SUBS_QUEUE,
+    queue=SUBS_EXTRACTION_QUEUE,
 )
 def collect_subs_report_data(
     self, schema_name, provider_type, provider_uuid, start_date=None, end_date=None, tracing_id=None, finalize=False
@@ -85,6 +85,8 @@ def collect_subs_report_data(
     Returns:
         None
     """
+
+    # TODO: Implement the functionality of the new task for SUBS data extraction
 
     start_date = start_date or DateAccessor().today() - datetime.timedelta(days=2)
     end_date = end_date or DateAccessor().today()

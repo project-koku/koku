@@ -32,7 +32,7 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.worker_cache import WorkerCache
 from subs.tasks import collect_subs_report_data_from_manifest
-from subs.tasks import SUBS_QUEUE
+from subs.tasks import SUBS_EXTRACTION_QUEUE
 
 LOG = logging.getLogger(__name__)
 
@@ -174,7 +174,7 @@ class Orchestrator:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
             HCS_Q = HCS_QUEUE
-            SUBS_Q = SUBS_QUEUE
+            SUBS_Q = SUBS_EXTRACTION_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
