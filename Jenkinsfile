@@ -45,9 +45,9 @@ pipeline {
         EXIT_CODE=0
 
         PR_LABELS=''
-        SKIP_PR_CHECK=''
-        SKIP_SMOKE_TESTS=''
-        SKIP_IMAGE_BUILD=''
+        RUN_PR_CHECK='true'
+        RUN_IMAGE_BUILD='true'
+        RUN_SMOKE_TESTS='true'
     }
 
     stages {
@@ -66,7 +66,7 @@ pipeline {
         stage('Build test image') {
             when {
                 expression {
-                    return env.SKIP_PR_CHECK == '' && env.SKIP_IMAGE_BUILD == ''
+                    return (env.RUN_PR_CHECK) && (env.RUN_IMAGE_BUILD)
                 }
             }
             steps {
@@ -89,7 +89,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    return env.SKIP_PR_CHECK != 'true' && env.SKIP_SMOKE_TESTS != 'true'
+                    return (env.RUN_PR_CHECK) && (env.RUN_SMOKE_TESTS)
                 }
             }
             steps {
