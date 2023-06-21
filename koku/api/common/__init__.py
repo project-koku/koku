@@ -1,4 +1,6 @@
 # noqa
+from uuid import UUID
+
 from django.utils.translation import ugettext as _
 
 RH_IDENTITY_HEADER = "HTTP_X_RH_IDENTITY"
@@ -14,6 +16,9 @@ def error_obj(key, message):
 
 def log_json(tracing_id="", *, msg, context=None, **kwargs):
     """Create JSON object for logging data."""
+    for key, value in kwargs.items():
+        if isinstance(value, UUID):
+            kwargs[key] = str(value)
     stmt = {"message": msg, "tracing_id": tracing_id}
     if context:
         stmt |= context
