@@ -14,21 +14,21 @@ function set_label_flags() {
     fi
 
     if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes' <<< "$PR_LABELS"; then
-        RUN_PR_CHECK='true'
+        RUN_PR_CHECK=''
         EXIT_CODE=1
         echo "PR check skipped"
     elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
-        RUN_PR_CHECK='true'
+        RUN_PR_CHECK=''
         echo "smokes not required"
     elif ! grep -E '.*smoke-tests' <<< "$PR_LABELS"; then
         echo "WARNING! No smoke-tests labels found!, PR smoke tests will be skipped"
-        RUN_SMOKE_TESTS='true'
+        RUN_SMOKE_TESTS=''
         EXIT_CODE=2
     elif _set_IQE_filter_expressions_for_smoke_labels "$PR_LABELS"; then
         echo "Smoke tests will run"
     else
         echo "Error setting IQE filters from PR_LABELS: $PR_LABELS"
-        RUN_SMOKE_TESTS='true'
+        RUN_SMOKE_TESTS=''
         EXIT_CODE=2
     fi
 }
