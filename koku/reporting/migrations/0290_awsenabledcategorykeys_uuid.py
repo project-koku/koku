@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0288_auto_20230615_1658"),
+        ("reporting", "0289_alter_awsorganizationalunit_provider"),
     ]
 
     operations = [
