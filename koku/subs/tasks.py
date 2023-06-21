@@ -19,9 +19,10 @@ from masu.external.date_accessor import DateAccessor
 LOG = logging.getLogger(__name__)
 
 SUBS_EXTRACTION_QUEUE = "subs_extraction"
+SUBS_TRANSMISSION_QUEUE = "subs_transmission"
 
 # any additional queues should be added to this list
-QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
+QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
 
 SUBS_ACCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS,
@@ -102,3 +103,23 @@ def collect_subs_report_data(
 def get_providers_for_subs():
     # Implement the logic to fetch and filter providers for SUBS processing
     pass
+
+
+@celery_app.task(name="subs.tasks.collect_subs_data_for_transmission", queue=SUBS_TRANSMISSION_QUEUE)
+def collect_subs_data_for_transmission(schema_name=None, tracing_id=None):
+    """Implement the logic for SUBS Data Transmission
+    Args:
+        schema_name:        (Str) db schema name
+        tracing_id:         (uuid) for log tracing
+
+    Returns:
+        None
+    """
+
+    # TODO: Implement the functionality of the new task for SUBS data transmission
+
+    tracing_id = tracing_id or str(uuid.uuid4())
+    schema_name = check_schema_name(schema_name)
+    context = {"schema_name": schema_name}
+
+    LOG.info(log_json(tracing_id, msg="prepare subs data for transmission", context=context))
