@@ -110,10 +110,14 @@ pipeline {
     // TODO: Uncomment this code
     post {
        always {
-            sh 'generate_junit_report_from_code $EXIT_CODE'
+            sh '''
+                if [[ "$EXIT_CODE" -ne 0 ]] || [[ -z "$RUN_PR_CHECK" ]]; then
+                    generate_junit_report_from_code "$EXIT_CODE"
+                fi
+            '''
 
-         archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
-         junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
+            archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
+            junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
        }
     }
 }
