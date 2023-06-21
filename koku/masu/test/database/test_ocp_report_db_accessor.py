@@ -783,7 +783,7 @@ select * from eek where val1 in {{report_period_id}} ;
             self.assertEqual(node.node_role, node_info[3])
 
     def test_populate_cluster_table_update_cluster_alias(self):
-        """Test that populating the cluster table for an entry that previously existed fills the cluster alias correctly."""
+        """Test updating cluster alias for entry in the cluster table."""
         cluster_id = str(uuid.uuid4())
         cluster_alias = "cluster_alias"
         new_cluster_alias = "new_cluster_alias"
