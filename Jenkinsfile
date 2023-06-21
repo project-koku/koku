@@ -87,7 +87,7 @@ pipeline {
                                     echo "$IQE_FILTER_EXPRESSION"
 
                                     echo "Install bonfire repo/initialize, creating PR image"
-                                    run_build_image
+                                    run_build_image_stage
                                 '''
                             }
                         }
