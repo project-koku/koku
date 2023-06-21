@@ -30,10 +30,9 @@ pipeline {
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
         COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
         COMPONENTS_W_RESOURCES="hive-metastore koku presto"  // components which should preserve resource settings (optional, default: none)
-        WORKSPACE="${WORKSPACE:-$PWD}"
 
-        LABELS_DIR="$WORKSPACE/github_labels"
-        ARTIFACTS_DIR="$WORKSPACE/artifacts"
+        LABELS_DIR="${WORKSPACE}/github_labels"
+        ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 
         IQE_PLUGINS="cost_management"
         IQE_FILTER_EXPRESSION=""
