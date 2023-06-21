@@ -104,18 +104,21 @@ pipeline {
             }
         }
 
-    }
+        stage('Generate JUnit Report') {
+            when {
+                expression {
+                    return (env.EXIT_CODE != 0) || ($RUN_PR_CHECK == '')
+                }
+            }
+            steps {
+                sh 'generate_junit_report_from_code "$EXIT_CODE"'
+            }
+        }
 
+    }
     
-    // TODO: Uncomment this code
     post {
        always {
-            sh '''
-                if [[ "$EXIT_CODE" -ne 0 ]] || [[ -z "$RUN_PR_CHECK" ]]; then
-                    generate_junit_report_from_code "$EXIT_CODE"
-                fi
-            '''
-
             archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
             junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
        }
