@@ -18,7 +18,7 @@ from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
-SUBS_EXTRACTION_QUEUE = "subs_extraction"
+SUBS_EXTRACTION_QUEUE = "subs"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
