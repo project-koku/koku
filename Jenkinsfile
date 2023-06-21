@@ -59,10 +59,7 @@ pipeline {
                     mkdir -p $LABELS_DIR
                     mkdir -p $ARTIFACTS_DIR
 
-                    get_pr_labels
-
-                    set_label_flags
-                    set_IQE_filter_expressions
+                    configure_stages
                 '''
             }
         }

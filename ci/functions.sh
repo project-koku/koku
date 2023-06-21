@@ -160,3 +160,26 @@ function run_build_image_stage() {
     echo "creating PR image"
     build_image
 }
+
+function configure_stages() {
+
+    if ! is_pull_request; then
+        echo "Error, no PR information found, is this invoked from a PR?"
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=1
+        return
+    fi
+
+    # check if this commit is out of date with the branch
+    if ! latest_commit_in_pr; then
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=3
+        return
+    fi
+
+    if ! set_label_flags; then
+        echo "Error setting up workflow based on PR labels"
+        SKIP_PR_CHECK='true'
+        EXIT_CODE=1
+    fi
+}
