@@ -158,21 +158,21 @@ function configure_stages() {
 
     if ! is_pull_request; then
         echo "Error, no PR information found, is this invoked from a PR?"
-        RUN_PR_CHECK='true'
+        RUN_PR_CHECK=''
         EXIT_CODE=1
         return
     fi
 
     # check if this commit is out of date with the branch
     if ! latest_commit_in_pr; then
-        RUN_PR_CHECK='true'
+        RUN_PR_CHECK=''
         EXIT_CODE=3
         return
     fi
 
     if ! set_label_flags; then
         echo "Error setting up workflow based on PR labels"
-        RUN_PR_CHECK='true'
+        RUN_PR_CHECK=''
         EXIT_CODE=1
     fi
 }
