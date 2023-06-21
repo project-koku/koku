@@ -16,11 +16,11 @@ def error_obj(key, message):
 
 def log_json(tracing_id="", *, msg, context=None, **kwargs):
     """Create JSON object for logging data."""
-    for key, value in kwargs.items():
-        if isinstance(value, UUID):
-            kwargs[key] = str(value)
     stmt = {"message": msg, "tracing_id": tracing_id}
     if context:
         stmt |= context
     stmt |= kwargs
+    for key, value in stmt.items():
+        if isinstance(value, UUID):
+            stmt[key] = str(value)
     return stmt
