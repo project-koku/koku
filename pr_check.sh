@@ -16,9 +16,9 @@ JUNIT_REPORT_GENERATOR="${WORKSPACE}/junit-report-generator.sh"
 EXIT_CODE=0
 GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
 
-RUN_PR_CHECK=''
-RUN_SMOKE_TESTS=''
-RUN_IMAGE_BUILD=''
+RUN_PR_CHECK='true'
+RUN_SMOKE_TESTS='true'
+RUN_IMAGE_BUILD='true'
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
@@ -30,18 +30,18 @@ source "${WORKSPACE}/ci/functions.sh"
 
 configure_stages
 
-if [[ -z "$RUN_PR_CHECK" ]]; then
+if [[ -n "$RUN_PR_CHECK" ]]; then
 
-    if [[ -z "$RUN_IMAGE_BUILD" ]]; then
+    if [[ -n "$RUN_IMAGE_BUILD" ]]; then
         run_build_image_stage
     fi
 
-    if [[ -z "$RUN_SMOKE_TESTS" ]]; then
+    if [[ -n "$RUN_SMOKE_TESTS" ]]; then
         run_smoke_tests_stage
     fi
 fi
 
-if [[ "$EXIT_CODE" -ne 0 ]] || [[ -n "$RUN_PR_CHECK" ]]; then
+if [[ "$EXIT_CODE" -ne 0 ]] || [[ -z "$RUN_PR_CHECK" ]]; then
     generate_junit_report_from_code "$EXIT_CODE"
 fi
 exit $EXIT_CODE
