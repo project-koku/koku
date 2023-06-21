@@ -31,8 +31,8 @@ pipeline {
         COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
         COMPONENTS_W_RESOURCES="hive-metastore koku presto"  // components which should preserve resource settings (optional, default: none)
 
-        LABELS_DIR="${WORKSPACE}/github_labels"
-        ARTIFACTS_DIR="${WORKSPACE}/artifacts"
+        LABELS_DIR="$WORKSPACE/github_labels"
+        ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
         IQE_PLUGINS="cost_management"
         IQE_FILTER_EXPRESSION=""
