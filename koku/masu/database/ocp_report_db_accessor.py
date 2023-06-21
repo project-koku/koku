@@ -1001,8 +1001,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
         with schema_context(self.schema):
+            LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
             cluster = OCPCluster.objects.filter(provider_id=provider.uuid).first()
-            msg = f"Fetching entry in reporting_ocp_clusters for provider: {provider.uuid}"
+            msg = "fetched entry in reporting_ocp_cluster"
             if not cluster:
                 cluster, created = OCPCluster.objects.get_or_create(
                     cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
@@ -1012,14 +1013,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             elif not cluster.cluster_alias == cluster_alias:
                 cluster.cluster_alias = cluster_alias
                 cluster.save()
-                msg = "Updated cluster entry with new cluster alias in reporting_ocp_clusters"
+                msg = "updated cluster entry with new cluster alias in reporting_ocp_clusters"
 
             LOG.info(
                 log_json(
                     msg=msg,
                     cluster_id=cluster_id,
                     cluster_alias=cluster_alias,
-                    provider=provider,
+                    provider_uuid=provider.uuid,
                 )
             )
         return cluster
