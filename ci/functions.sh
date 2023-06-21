@@ -140,9 +140,9 @@ function generate_junit_report_from_code() {
 
 _github_api_request() {
 
-    PATH="$1"
+    local API_PATH="$1"
     curl -s -H "Accept: application/vnd.github.v3+json" \
-        "${GITHUB_API_ROOT}/$PATH" 
+        "${GITHUB_API_ROOT}/${API_PATH}"
 }
 
 function latest_commit_in_pr() {
@@ -155,7 +155,7 @@ function run_build_image() {
 
     # Install bonfire repo/initialize
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source ./.cicd_bootstrap.sh
+    curl -s "${CICD_URL}/bootstrap.sh" > .cicd_bootstrap.sh && source ./.cicd_bootstrap.sh
     echo "creating PR image"
     build_image
 }
