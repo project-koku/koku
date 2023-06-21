@@ -72,6 +72,7 @@ function is_pull_request() {
 }
 
 function run_smoke_tests_stage() {
+    _install_bonfire_tools
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
 
@@ -145,11 +146,15 @@ function latest_commit_in_pr() {
     [[ "$LATEST_COMMIT" == "$ghprbActualCommit" ]]
 }
 
-function run_build_image_stage() {
+function _install_bonfire_tools() {
 
-    # Install bonfire repo/initialize
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
     curl -s "${CICD_URL}/bootstrap.sh" > .cicd_bootstrap.sh && source "${WORKSPACE}/.cicd_bootstrap.sh"
+}
+
+function run_build_image_stage() {
+    
+    _install_bonfire_tools
     echo "creating PR image"
     build_image
 }
