@@ -653,7 +653,7 @@ select * from eek where val1 in {{report_period_id}} ;
         end_date = dh.this_month_end.date()
 
         self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
         with schema_context(self.schema):
@@ -790,10 +790,10 @@ select * from eek where val1 in {{report_period_id}} ;
         new_cluster_alias = "new_cluster_alias"
         cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
         with schema_context(self.schema):
-            cluster = OCPCluster.objects.filter(provider_id=self.aws_provider).first()
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, cluster_alias)
             self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
-            cluster = OCPCluster.objects.filter(provider_id=self.aws_provider).first()
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, new_cluster_alias)
 
     def test_populate_node_table_second_time_no_change(self):
