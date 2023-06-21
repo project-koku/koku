@@ -10,13 +10,11 @@ import uuid
 from dateutil.parser import parse
 from django.db.models import F
 from django_tenants.utils import schema_context
-from jinjasql import JinjaSql
 
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.external.date_accessor import DateAccessor
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
@@ -35,8 +33,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.OCI_DATETIME_STR_FORMAT
-        self.date_accessor = DateAccessor()
-        self.jinja_sql = JinjaSql()
         self._table_map = OCI_CUR_TABLE_MAP
 
     @property
