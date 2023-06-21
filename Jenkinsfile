@@ -57,79 +57,63 @@ pipeline {
                     source ./ci/functions.sh
 
                     mkdir -p $LABELS_DIR
-                    mkdir -p $ARTIFACTS_DIR
 
                     configure_stages
                 '''
             }
         }
 
-        stage('Run PR check') {
+        stage('Build test image') {
             when {
                 expression {
-                    return env.SKIP_PR_CHECK != 'true'
+                    return env.SKIP_PR_CHECK == '' && env.SKIP_IMAGE_BUILD == ''
                 }
             }
-            stages {
-                stage('Build test image') {
-                    when {
-                        expression {
-                            return env.SKIP_IMAGE_BUILD != 'true'
-                        }
-                    }
-                    steps {
-                        script {
-                            withVault([configuration: configuration, vaultSecrets: secrets]) {
-                                sh '''
-                                    source ./ci/functions.sh
+            steps {
+                script {
+                    withVault([configuration: configuration, vaultSecrets: secrets]) {
+                        sh '''
+                            source ./ci/functions.sh
 
-                                    echo "$IQE_MARKER_EXPRESSION"
-                                    echo "$IQE_FILTER_EXPRESSION"
+                            echo "$IQE_MARKER_EXPRESSION"
+                            echo "$IQE_FILTER_EXPRESSION"
 
-                                    echo "Install bonfire repo/initialize, creating PR image"
-                                    run_build_image_stage
-                                '''
-                            }
-                        }
+                            echo "Install bonfire repo/initialize, creating PR image"
+                            run_build_image_stage
+                        '''
                     }
-                }   
+                }
+            }
+        }   
 
-                stage('Run Smoke Tests') {
-                    when {
-                        expression {
-                            return env.SKIP_SMOKE_TESTS != 'true'
-                        }
-                    }
-                    steps {
-                        script {
-                            withVault([configuration: configuration, vaultSecrets: secrets]) {
-                                sh '''
-                                    source ./ci/functions.sh
-                                    run_smoke_tests_stage
-                                '''
-                            }
-                        }
+        stage('Run Smoke Tests') {
+            when {
+                expression {
+                    return env.SKIP_PR_CHECK != 'true' && env.SKIP_SMOKE_TESTS != 'true'
+                }
+            }
+            steps {
+                script {
+                    withVault([configuration: configuration, vaultSecrets: secrets]) {
+                        sh '''
+                            source ./ci/functions.sh
+                            run_smoke_tests_stage
+                        '''
                     }
                 }
             }
         }
+
     }
 
     
     // TODO: Uncomment this code
-    //post {
-    //    always {
-            // if [ ! $(grep -E 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
-            //     echo "PR check skipped; making skipped xml"
-            //     ./junit-report-generator.sh
+    post {
+       always {
+            sh 'generate_junit_report_from_code $EXIT_CODE'
 
-            // elif [ $(grep -E 'ok-to-skip-smokes' ${LABELS_DIR}/github_labels.txt) ]; then
-            //     ./junit-report-generator.sh
-
-            // fi
-
-    //      archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
-    //      junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
-    //    }
-    //}
+         archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true
+         junit skipPublishingChecks: true, testResults: 'artifacts/junit-*.xml'
+       }
+    }
 }
