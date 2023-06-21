@@ -1012,7 +1012,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             elif not cluster.cluster_alias == cluster_alias:
                 cluster.cluster_alias = cluster_alias
                 cluster.save()
-                msg = f"Updated cluster entry with new cluster alias in reporting_ocp_clusters"
+                msg = "Updated cluster entry with new cluster alias in reporting_ocp_clusters"
 
             LOG.info(
                 log_json(
