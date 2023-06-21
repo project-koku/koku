@@ -5,7 +5,6 @@
 """Test the OCPReportDBAccessor utility object."""
 import pkgutil
 import random
-import logging
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -40,7 +39,7 @@ from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
-LOG = logging.getLogger(__name__)
+
 
 class OCPReportDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPReportDBAccessor object."""
