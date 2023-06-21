@@ -18,13 +18,11 @@ from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django_tenants.utils import schema_context
-from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
-from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -75,8 +73,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
-        self.jinja_sql = JinjaSql()
-        self.date_helper = DateHelper()
         self._table_map = OCP_REPORT_TABLE_MAP
         self._aws_table_map = AWS_CUR_TABLE_MAP
 
