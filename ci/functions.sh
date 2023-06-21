@@ -1,12 +1,5 @@
 #!/bin/bash
 
-PR_LABELS=''
-SKIP_PR_CHECK=''
-SKIP_SMOKE_TESTS=''
-SKIP_IMAGE_BUILD=''
-
-set -ex
-
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
 }
