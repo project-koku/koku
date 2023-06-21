@@ -149,7 +149,7 @@ function run_build_image_stage() {
 
     # Install bonfire repo/initialize
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-    curl -s "${CICD_URL}/bootstrap.sh" > .cicd_bootstrap.sh && source "${CICD_URL}/bootstrap.sh"
+    curl -s "${CICD_URL}/bootstrap.sh" > .cicd_bootstrap.sh && source "${WORKSPACE}/bootstrap.sh"
     echo "creating PR image"
     build_image
 }
