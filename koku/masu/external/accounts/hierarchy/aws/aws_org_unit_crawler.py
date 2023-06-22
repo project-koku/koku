@@ -290,7 +290,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             # we need to add a bit of self healing here to repair the
             # nodes that are currently in customer's databases.
             if not org_unit.provider and self.provider:
-                org_unit.provider = self.provider
+                org_unit.provider_id = self.provider.uuid
                 org_unit.save()
             return org_unit
 
