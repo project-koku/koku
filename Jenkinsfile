@@ -14,6 +14,34 @@ pipeline {
         timestamps()
     }
     stages {
+        stage('setting variables') {
+            steps {
+                sh '''
+                    FOO='foo'
+                    export BAR='bar'
+                '''
+                script {
+                    FOO = sh(script: 'echo -n "$FOO"', returnStdout: true).trim()
+                    BAR = sh(script: 'echo -n "$BAR"', returnStdout: true).trim()
+                }
+            }
+        }
+        stage('Using variables') {
+            steps {
+                sh '''
+                    echo "From within script"
+                    echo "FOO:$FOO"
+                    echo "BAR:$BAR"
+                '''
+
+                sh '''
+                    echo "From outside script"
+                    echo "FOO:${FOO}"
+                    echo "BAR:${BAR}"
+                '''
+            }
+        }
+/*
         stage('get-labels') {
             steps {
                 script {
@@ -39,5 +67,6 @@ pipeline {
                 }
             }
         }
+*/
     }
 }
