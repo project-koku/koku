@@ -180,8 +180,9 @@ class AWSProvider(ProviderInterface):
         """Verify that report files are accessible in S3."""
         credentials = source.authentication.credentials
         bucket = source.billing_source.data_source.get("bucket")
+        region_name = source.billing_source.data_source.get("bucket_region")
         creds = _get_sts_access(credentials)
-        s3_client = boto3.client("s3", **creds)
+        s3_client = boto3.client("s3", region_name=region_name, **creds)
         for report in reports_list:
             try:
                 s3_client.get_object(Bucket=bucket, Key=report)
