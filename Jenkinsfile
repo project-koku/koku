@@ -2,6 +2,9 @@ def secrets = [
     [path: params.VAULT_PATH_SVC_ACCOUNT_EPHEMERAL, engineVersion: 1, secretValues: [
         [envVar: 'OC_LOGIN_TOKEN', vaultKey: 'oc-login-token'],
         [envVar: 'OC_LOGIN_SERVER', vaultKey: 'oc-login-server']]],
+    [path: params.VAULT_PATH_SVC_ACCOUNT_EPHEMERAL, engineVersion: 1, secretValues: [
+        [envVar: 'OC_LOGIN_TOKEN_DEV', vaultKey: 'oc-login-token-dev'],
+        [envVar: 'OC_LOGIN_SERVER_DEV', vaultKey: 'oc-login-server-dev']]],
     [path: params.VAULT_PATH_QUAY_PUSH, engineVersion: 1, secretValues: [
         [envVar: 'QUAY_USER', vaultKey: 'user'],
         [envVar: 'QUAY_TOKEN', vaultKey: 'token']]],
@@ -9,8 +12,11 @@ def secrets = [
         [envVar: 'RH_REGISTRY_USER', vaultKey: 'user'],
         [envVar: 'RH_REGISTRY_TOKEN', vaultKey: 'token']]],
     [path: params.VAULT_PATH_QUAY_TOKEN, engineVersion: 1, secretValues: [
-        [envVar: 'QUAY_API_TOKEN', vaultKey: 'api-token']]]
-
+        [envVar: 'QUAY_API_TOKEN', vaultKey: 'api-token']]],
+    [path: params.VAULT_PATH_APP_INTERFACE_CREDS, engineVersion: 1, secretValues: [
+        [envVar: 'APP_INTERFACE_BASE_URL', vaultKey: 'base_url'],
+        [envVar: 'APP_INTERFACE_USERNAME', vaultKey: 'username'],
+        [envVar: 'APP_INTERFACE_PASSWORD', vaultKey: 'password']]]
 ]
 
 def configuration = [vaultUrl: params.VAULT_ADDRESS, vaultCredentialId: params.VAULT_CREDS_ID, engineVersion: 1]
