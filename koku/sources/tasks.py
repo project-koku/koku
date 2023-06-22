@@ -54,11 +54,11 @@ def source_status_beat():
     """Source Status push."""
     sources_query = Sources.objects.filter(source_id__isnull=False).all()
     for source in sources_query:
+        ctx = {"provider_uuid": source.koku_uuid, "source_id": source.source_id}
         try:
+            LOG.info(log_json(msg="delivering source status", context=ctx))
             status_pusher = SourceStatus(source.source_id)
-            LOG.info(
-                log_json(msg="delivering source status", provider_uuid=source.koku_uuid, source_id=source.source_id)
-            )
             status_pusher.push_status()
+            LOG.info(log_json(msg="delivered source status", context=ctx))
         except ObjectDoesNotExist:
-            LOG.info(log_json(msg="source status not pushed, unable to find source", source_id=source.source_id))
+            LOG.info(log_json(msg="source status not pushed, unable to find source", context=ctx))
