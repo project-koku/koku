@@ -1008,7 +1008,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     if cluster_iter.cluster_alias != provider.name:
                         LOG.info(
                             log_json(
-                                msg="Atempting to delete duplicate entry in reporting_ocp_cluster",
+                                msg="attempting to delete duplicate entry in reporting_ocp_cluster",
                                 provider_uuid=provider.uuid,
                             )
                         )
