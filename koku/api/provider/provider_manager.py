@@ -14,6 +14,7 @@ from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django_tenants.utils import tenant_context
 
+from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
@@ -278,8 +279,11 @@ class ProviderManager:
         # The model delete uses transaction.atomic calls
         try:
             self.model.delete()
-            LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
+            LOG.info(log_json(msg="provider removed", provider_uuid=str(self.model.uuid), user=current_user.username))
         except IntegrityError as err:
+            LOG.warning(
+                log_json(msg="IntegrityError during provider delete", provider_uuid=str(self.model.uuid)), exc_info=err
+            )
             if retry_count is None or retry_count >= settings.MAX_SOURCE_DELETE_RETRIES:
                 raise err
             err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
