@@ -102,6 +102,7 @@ def add_operator_specified_fields(fields, field_list):
     for field in field_list:
         fields[f"and:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
         fields[f"or:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
+        fields[f"exact:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
     return fields
 
 

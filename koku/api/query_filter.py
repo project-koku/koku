@@ -50,7 +50,9 @@ class QueryFilter(UserDict):
         self.composition_key = composition_key
         self.logical_operator = "or"
         if logical_operator:
-            self.logical_operator = logical_operator
+            self.logical_operator == logical_operator
+        if logical_operator == "exact":
+            self.operation = "exact"
 
     def composed_query_string(self):
         """Return compiled query string."""
