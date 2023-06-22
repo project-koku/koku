@@ -357,7 +357,7 @@ class OCPCostSummaryP(models.Model):
     supplementary_usage_cost = JSONField(null=True)
     supplementary_monthly_cost_json = JSONField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
@@ -404,7 +404,7 @@ class OCPCostSummaryByProjectP(models.Model):
     supplementary_usage_cost = JSONField(null=True)
     supplementary_project_monthly_cost = JSONField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
@@ -450,7 +450,7 @@ class OCPCostSummaryByNodeP(models.Model):
     supplementary_usage_cost = JSONField(null=True)
     supplementary_monthly_cost_json = JSONField(null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
@@ -505,7 +505,7 @@ class OCPPodSummaryP(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
@@ -564,7 +564,7 @@ class OCPPodSummaryByProjectP(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
@@ -612,7 +612,7 @@ class OCPVolumeSummaryP(models.Model):
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
@@ -664,7 +664,7 @@ class OCPVolumeSummaryByProjectP(models.Model):
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)

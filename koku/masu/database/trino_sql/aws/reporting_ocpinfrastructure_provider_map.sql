@@ -29,7 +29,9 @@ cte_ocp_resource_ids AS (
 )
 SELECT DISTINCT ocp.source as ocp_uuid,
     aws.source as infra_uuid,
-    {{provider_type}} as type
+    api_provider.type as type
 FROM cte_aws_resource_ids AS aws
 JOIN cte_ocp_resource_ids AS ocp
     ON strpos(aws.lineitem_resourceid, ocp.resource_id) != 0
+JOIN postgres.{{schema | sqlsafe}}.reporting_tenant_api_provider as api_provider
+    ON aws.source = cast(api_provider.uuid as varchar)
