@@ -1006,6 +1006,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             if len(clusters) > 1:
                 for cluster_iter in clusters:
                     if cluster_iter.cluster_alias != provider.name:
+                        LOG.info(
+                            log_json(
+                                msg="Atempting to delete duplicate entry in reporting_ocp_cluster",
+                                provider_uuid=provider.uuid,
+                            )
+                        )
                         cluster_iter.delete()
                     else:
                         cluster = cluster_iter

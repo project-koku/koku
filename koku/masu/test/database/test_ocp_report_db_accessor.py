@@ -800,9 +800,9 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         new_cluster_alias = "new_cluster_alias"
         cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
-        # Forcefully create a second entry
-        OCPCluster.objects.get_or_create(cluster_id, "cluster_alias", self.aws_provider)
         with schema_context(self.schema):
+            # Forcefully create a second entry
+            OCPCluster.objects.get_or_create(cluster_id, "cluster_alias", self.aws_provider)
             self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id)
             self.assertEqual(len(cluster), 1)
