@@ -108,7 +108,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report = [""]
         else:
             # fetch details about the report from the cloud provider
-            defs = utils.get_cur_report_definitions(session.client("cur"))
+            defs = utils.get_cur_report_definitions(session.client("cur", region_name="us-east-1"))
             if not report_name:
                 report_names = []
                 for report in defs.get("ReportDefinitions", []):

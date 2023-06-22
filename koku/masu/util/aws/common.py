@@ -158,7 +158,7 @@ def get_cur_report_definitions(cur_client, role_arn=None, retries=7, max_wait_ti
     """
     if role_arn:
         session = get_assume_role_session(role_arn)
-        cur_client = session.client("cur")
+        cur_client = session.client("cur", region_name="us-east-1")
     for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
         try:
             defs = cur_client.describe_report_definitions()
