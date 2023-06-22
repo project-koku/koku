@@ -1002,7 +1002,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get or create an entry in the OCP cluster table."""
         with schema_context(self.schema):
             LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
-            cluster = OCPCluster.objects.filter(provider_id=provider.uuid).first()
+            clusters = OCPCluster.objects.filter(provider_id=provider.uuid)
+            if len(clusters) > 1:
+                for cluster_iter in clusters:
+                    if cluster_iter.cluster_alias != provider.name:
+                        cluster_iter.delete()
+                    else:
+                        cluster = cluster_iter
+            else:
+                cluster = clusters.first()
             msg = "fetched entry in reporting_ocp_cluster"
             if not cluster:
                 cluster, created = OCPCluster.objects.get_or_create(

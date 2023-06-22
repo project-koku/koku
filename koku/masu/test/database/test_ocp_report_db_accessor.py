@@ -795,6 +795,19 @@ select * from eek where val1 in {{report_period_id}} ;
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, new_cluster_alias)
 
+    def test_populate_cluster_table_delete_duplicates(self):
+        """Test updating cluster alias for duplicate entry in the cluster table."""
+        cluster_id = str(uuid.uuid4())
+        new_cluster_alias = "new_cluster_alias"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
+        # Forcefully create a second entry
+        OCPCluster.objects.get_or_create(cluster_id, "cluster_alias", self.aws_provider)
+        with schema_context(self.schema):
+            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id)
+            self.assertEqual(len(cluster), 1)
+            self.assertEqual(cluster.cluster_alias, new_cluster_alias)
+
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""
         node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
