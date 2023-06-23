@@ -59,25 +59,34 @@ pipeline {
         stage('Initial setup') {
             steps {
                 sh '''
-                    #source ./ci/functions.sh
+                    source ./ci/functions.sh
 
-                    #mkdir -p $LABELS_DIR
-
-                    #configure_stages
-                    EXIT_CODE=5
+                    configure_stages
 
                     > stage_flags
                     echo "SKIP_PR_CHECK:$SKIP_PR_CHECK" >> stage_flags
                     echo "SKIP_SMOKE_TESTS:$SKIP_SMOKE_TESTS" >> stage_flags
                     echo "EXIT_CODE:$EXIT_CODE" >> stage_flags
-
-                    cat stage_flags
+                    echo "IQE_FILTER_EXPRESSION:$IQE_FILTER_EXPRESSION" >> stage_flags
+                    echo "IQE_MARKER_EXPRESSION:$IQE_MARKER_EXPRESSION" >> stage_flags
                 '''
                 script {
-                    FILE_CONTENTS=readFile('stage_flags')
-                }
+                    FILE_CONTENTS = readFile('stage_flags')
+                    my_var_map = [:]
+                    my_vars = FILE_CONTENTS.split()
+                    for (i in my_vars) { s=i.split(':'); my_var_map[s[0]] = s[1] }
 
-                sh("exit 99")
+                    for (v in ['SKIP_PR_CHECK', 'SKIP_SMOKE_TESTS', 'EXIT_CODE', 'IQE_MARKER_EXPRESSION', 'IQE_MARKER_EXPRESSION']) {
+                        env[v] = my_var_map[v]
+                    }
+                    /*
+                    env.SKIP_PR_CHECK = my_var_map['SKIP_PR_CHECK']
+                    env.SKIP_SMOKE_TESTS = my_var_map['SKIP_SMOKE_TESTS']
+                    env.EXIT_CODE = my_var_map['EXIT_CODE']
+                    env.IQE_FILTER_EXPRESSION = my_var_map['IQE_FILTER_EXPRESSION']
+                    env.IQE_MARKER_EXPRESSION = my_var_map['IQE_MARKER_EXPRESSION']
+                    */
+                }
             }
         }
 
