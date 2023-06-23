@@ -1451,11 +1451,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
-    # @patch("masu.processor.tasks.update_summary_tables.s")
-    # @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    # @patch("masu.processor.tasks.chain")
-    # @patch("masu.processor.tasks.mark_manifest_complete")
-    # @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
