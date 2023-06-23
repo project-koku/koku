@@ -14,7 +14,7 @@ def create_uuid(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0289_alter_awsorganizationalunit_provider"),
+        ("reporting", "0290_update_settings"),
     ]
 
     operations = [
