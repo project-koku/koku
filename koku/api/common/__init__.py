@@ -1,4 +1,6 @@
 # noqa
+from uuid import UUID
+
 from django.utils.translation import ugettext as _
 
 RH_IDENTITY_HEADER = "HTTP_X_RH_IDENTITY"
@@ -18,4 +20,7 @@ def log_json(tracing_id="", *, msg, context=None, **kwargs):
     if context:
         stmt |= context
     stmt |= kwargs
+    for key, value in stmt.items():
+        if isinstance(value, UUID):
+            stmt[key] = str(value)
     return stmt
