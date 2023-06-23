@@ -14,21 +14,21 @@ function set_label_flags() {
     fi
 
     if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes' <<< "$PR_LABELS"; then
-        RUN_PR_CHECK=''
+        SKIP_PR_CHECK='true'
         EXIT_CODE=1
         echo "PR check skipped"
     elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
-        RUN_PR_CHECK=''
+        SKIP_PR_CHECK='true'
         echo "smokes not required"
     elif ! grep -E '.*smoke-tests' <<< "$PR_LABELS"; then
         echo "WARNING! No smoke-tests labels found!, PR smoke tests will be skipped"
-        RUN_SMOKE_TESTS=''
+        SKIP_SMOKE_TESTS='true'
         EXIT_CODE=2
     elif _set_IQE_filter_expressions_for_smoke_labels "$PR_LABELS"; then
         echo "Smoke tests will run"
     else
         echo "Error setting IQE filters from PR_LABELS: $PR_LABELS"
-        RUN_SMOKE_TESTS=''
+        SKIP_SMOKE_TESTS='true'
         EXIT_CODE=2
     fi
 }
@@ -163,21 +163,21 @@ function configure_stages() {
 
     if ! is_pull_request; then
         echo "Error, no PR information found, is this invoked from a PR?"
-        RUN_PR_CHECK=''
+        SKIP_PR_CHECK='true'
         EXIT_CODE=1
         return
     fi
 
     # check if this commit is out of date with the branch
     if ! latest_commit_in_pr; then
-        RUN_PR_CHECK=''
+        SKIP_PR_CHECK='true'
         EXIT_CODE=3
         return
     fi
 
     if ! set_label_flags; then
         echo "Error setting up workflow based on PR labels"
-        RUN_PR_CHECK=''
+        SKIP_PR_CHECK='true'
         EXIT_CODE=1
     fi
 }
