@@ -140,10 +140,12 @@ pipeline {
                 }
             }
             steps {
-                sh 'generate_junit_report_from_code "$EXIT_CODE"'
+                sh '''
+                   source ./ci/functions.sh
+                   generate_junit_report_from_code "$EXIT_CODE"
+                '''
             }
         }
-
     }
     
     post {
