@@ -28,7 +28,7 @@ class CURAccountsDB(CURAccountsInterface):
             "provider_uuid": provider.uuid,
         }
 
-    def source_is_pollable(self, provider):
+    def is_source_pollable(self, provider):
         """checks to see if a source is pollable."""
         if is_source_disabled(provider.uuid):
             return False
@@ -65,21 +65,20 @@ class CURAccountsDB(CURAccountsInterface):
                 LOG.info(log_json(msg="provider does not exist", provider_uuid=provider_uuid))
                 return []
             elif provider_uuid and provider:
-                if self.source_is_pollable(provider):
+                if self.is_source_pollable(provider):
                     return [self.get_account_information(provider)]
                 return []
-
-            for _, provider in all_providers.items():
-                if provider_type and provider_type not in provider.type:
-                    continue
-                if self.source_is_pollable(provider):
-                    accounts.append(self.get_account_information(provider))
 
             LOG.info(
                 log_json(
                     msg="looping through providers polling for accounts",
-                    provider_uuid=provider_uuid,
                     provider_type=provider_type,
                 )
             )
+
+            for _, provider in all_providers.items():
+                if provider_type and provider_type not in provider.type:
+                    continue
+                if self.is_source_pollable(provider):
+                    accounts.append(self.get_account_information(provider))
         return accounts
