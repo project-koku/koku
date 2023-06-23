@@ -1004,7 +1004,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
             clusters = OCPCluster.objects.filter(provider_id=provider.uuid)
             if clusters.count() > 1:
-                clusters_to_delete = clusters.exclude(cluster_alias=provider.name)
+                clusters_to_delete = clusters.exclude(cluster_alias=cluster_alias)
                 LOG.info(
                     log_json(
                         msg="attempting to delete duplicate entries in reporting_ocp_cluster",
