@@ -12,7 +12,6 @@ COMPONENTS="hive-metastore koku presto"  # specific components to deploy (option
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 WORKSPACE=${WORKSPACE:-$PWD}
 ARTIFACTS_DIR="${WORKSPACE}/artifacts"
-JUNIT_REPORT_GENERATOR="${WORKSPACE}/junit-report-generator.sh"
 EXIT_CODE=0
 GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
 

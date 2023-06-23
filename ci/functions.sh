@@ -1,5 +1,8 @@
 #!/bin/bash
 
+WORKSPACE=${WORKSPACE:-$PWD}
+JUNIT_REPORT_GENERATOR="${WORKSPACE}/junit-report-generator.sh"
+
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
 }
