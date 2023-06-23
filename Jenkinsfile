@@ -51,28 +51,40 @@ pipeline {
         EXIT_CODE=0
 
         PR_LABELS=''
-        RUN_PR_CHECK='true'
-        RUN_IMAGE_BUILD='true'
-        RUN_SMOKE_TESTS='true'
+        SKIP_PR_CHECK='true'
+        SKIP_SMOKE_TESTS='true'
     }
 
     stages {
         stage('Initial setup') {
             steps {
                 sh '''
-                    source ./ci/functions.sh
+                    #source ./ci/functions.sh
 
-                    mkdir -p $LABELS_DIR
+                    #mkdir -p $LABELS_DIR
 
-                    configure_stages
+                    #configure_stages
+                    EXIT_CODE=5
+
+                    > stage_flags
+                    echo "SKIP_PR_CHECK:$SKIP_PR_CHECK" >> stage_flags
+                    echo "SKIP_SMOKE_TESTS:$SKIP_SMOKE_TESTS" >> stage_flags
+                    echo "EXIT_CODE:$EXIT_CODE" >> stage_flags
+
+                    cat stage_flags
                 '''
+                script {
+                    FILE_CONTENTS=readFile('stage_flags')
+                }
+
+                sh("exit 99")
             }
         }
 
         stage('Build test image') {
             when {
                 expression {
-                    return (env.RUN_PR_CHECK) && (env.RUN_IMAGE_BUILD)
+                    return (! env.SKIP_PR_CHECK)
                 }
             }
             steps {
@@ -95,7 +107,7 @@ pipeline {
         stage('Run Smoke Tests') {
             when {
                 expression {
-                    return (env.RUN_PR_CHECK) && (env.RUN_SMOKE_TESTS)
+                    return (! env.SKIP_PR_CHECK && ! env.SKIP_SMOKE_TESTS)
                 }
             }
             steps {
@@ -113,7 +125,7 @@ pipeline {
         stage('Generate JUnit Report') {
             when {
                 expression {
-                    return (env.EXIT_CODE != 0) || ($RUN_PR_CHECK == '')
+                    return ((env.EXIT_CODE != 0) || env.SKIP_PR_CHECK)
                 }
             }
             steps {
