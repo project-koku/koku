@@ -72,22 +72,22 @@ pipeline {
                 '''
                 script {
                     FILE_CONTENTS = readFile('stage_flags')
-                    my_var_map = [:]
-                    my_vars = FILE_CONTENTS.split()
-                    for (i in my_vars) {
+                    flags_map = [:]
+                    flags = FILE_CONTENTS.split()
+                    for (i in flags) {
                         s=i.split(':')
                         if (s.length == 2) { 
-                            my_var_map[s[0]] = s[1]
+                            flags_map[s[0]] = s[1]
                         } else { 
-                            my_var_map[s[0]] = ""
+                            flags_map[s[0]] = ""
                         }
                     }
 
-                    env.SKIP_PR_CHECK = my_var_map['SKIP_PR_CHECK']
-                    env.SKIP_SMOKE_TESTS = my_var_map['SKIP_SMOKE_TESTS']
-                    env.EXIT_CODE = my_var_map['EXIT_CODE']
-                    env.IQE_FILTER_EXPRESSION = my_var_map['IQE_FILTER_EXPRESSION']
-                    env.IQE_MARKER_EXPRESSION = my_var_map['IQE_MARKER_EXPRESSION']
+                    env.SKIP_PR_CHECK = flags_map['SKIP_PR_CHECK']
+                    env.SKIP_SMOKE_TESTS = flags_map['SKIP_SMOKE_TESTS']
+                    env.EXIT_CODE = flags_map['EXIT_CODE']
+                    env.IQE_FILTER_EXPRESSION = flags_map['IQE_FILTER_EXPRESSION']
+                    env.IQE_MARKER_EXPRESSION = flags_map['IQE_MARKER_EXPRESSION']
                 }
             }
         }
