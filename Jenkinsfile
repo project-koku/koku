@@ -83,16 +83,11 @@ pipeline {
                         }
                     }
 
-                    for (v in ['SKIP_PR_CHECK', 'SKIP_SMOKE_TESTS', 'EXIT_CODE', 'IQE_MARKER_EXPRESSION', 'IQE_MARKER_EXPRESSION']) {
-                        env[v] = my_var_map[v]
-                    }
-                    /*
                     env.SKIP_PR_CHECK = my_var_map['SKIP_PR_CHECK']
                     env.SKIP_SMOKE_TESTS = my_var_map['SKIP_SMOKE_TESTS']
                     env.EXIT_CODE = my_var_map['EXIT_CODE']
                     env.IQE_FILTER_EXPRESSION = my_var_map['IQE_FILTER_EXPRESSION']
                     env.IQE_MARKER_EXPRESSION = my_var_map['IQE_MARKER_EXPRESSION']
-                    */
                 }
             }
         }
