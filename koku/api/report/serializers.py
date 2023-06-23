@@ -98,7 +98,7 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 
 
 def add_operator_specified_fields(fields, field_list):
-    """Add the specified and: and or: fields to the serialzer."""
+    """Add the specified and:, or: and exact: fields to the serialzer."""
     for field in field_list:
         fields[f"and:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
         fields[f"or:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
