@@ -74,7 +74,14 @@ pipeline {
                     FILE_CONTENTS = readFile('stage_flags')
                     my_var_map = [:]
                     my_vars = FILE_CONTENTS.split()
-                    for (i in my_vars) { s=i.split(':'); my_var_map[s[0]] = s[1] }
+                    for (i in my_vars) {
+                        s=i.split(':')
+                        if (s.length == 2) { 
+                            my_var_map[s[0]] = s[1]
+                        } else { 
+                            my_var_map[s[0]] = ""
+                        }
+                    }
 
                     for (v in ['SKIP_PR_CHECK', 'SKIP_SMOKE_TESTS', 'EXIT_CODE', 'IQE_MARKER_EXPRESSION', 'IQE_MARKER_EXPRESSION']) {
                         env[v] = my_var_map[v]
