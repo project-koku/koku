@@ -41,8 +41,6 @@ pipeline {
         ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 
         IQE_PLUGINS="cost_management"
-        IQE_FILTER_EXPRESSION=""
-        IQE_MARKER_EXPRESSION="cost_smoke"
         IQE_CJI_TIMEOUT="120m"
         
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
