@@ -146,27 +146,34 @@ def get_available_regions(service_name: str = "ec2") -> list[str]:
     return session.get_available_regions(service_name)
 
 
-def get_cur_report_definitions(cur_client, role_arn=None):
+def get_cur_report_definitions(cur_client, role_arn=None, retries=7, max_wait_time=10):
     """
     Get Cost Usage Reports associated with a given RoleARN.
 
     Args:
-        role_arn     (String) RoleARN for AWS session
+        role_arn      (str) RoleARN for AWS session
+        retries       (int) Number of times to retry if the connection fails
+        max_wait_time (int) Max amount of time to wait between retries
 
     """
     if role_arn:
         session = get_assume_role_session(role_arn)
         cur_client = session.client("cur")
-    retries = 5
     for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
         try:
             defs = cur_client.describe_report_definitions()
             return defs
         except ClientError:
             if i < (retries - 1):
-                LOG.info("AWS client error while describing report definitions; retrying")
-                time.sleep(10)
+                delay = min(2**i, max_wait_time)
+                LOG.info(
+                    "AWS client error while describing report definitions. "
+                    f"Attempt {i + 1} of {retries}. Retrying in {delay}s..."
+                )
+                time.sleep(delay)
                 continue
+            else:
+                raise
 
 
 def month_date_range(for_date_time):
