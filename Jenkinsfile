@@ -51,8 +51,8 @@ pipeline {
         EXIT_CODE=0
 
         PR_LABELS=''
-        SKIP_PR_CHECK='true'
-        SKIP_SMOKE_TESTS='true'
+        SKIP_PR_CHECK=''
+        SKIP_SMOKE_TESTS=''
     }
 
     stages {
