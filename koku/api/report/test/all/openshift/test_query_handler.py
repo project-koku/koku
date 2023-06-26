@@ -300,6 +300,8 @@ class OCPAllQueryHandlerTest(IamTestCase):
         exclude_opts.remove("source_type")
         exclude_opts.remove("account")
         exclude_opts.remove("az")
+        exclude_opts.remove("instance_type")
+        exclude_opts.remove("storage_type")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPAllCostView, OCPAllStorageView, OCPAllInstanceTypeView]:
