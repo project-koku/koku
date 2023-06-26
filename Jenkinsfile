@@ -47,12 +47,6 @@ pipeline {
         
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
-
-        EXIT_CODE=0
-
-        PR_LABELS=''
-        SKIP_PR_CHECK=''
-        SKIP_SMOKE_TESTS=''
     }
 
     stages {
