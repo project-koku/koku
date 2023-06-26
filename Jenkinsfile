@@ -31,8 +31,7 @@ pipeline {
 
                     env.SKIP_PR_CHECK = flags_map['SKIP_PR_CHECK']
                     env.SKIP_SMOKE_TESTS = flags_map['SKIP_SMOKE_TESTS']
-                    env.EXIT_CODE = flags_map['EXIT_CODE']
-                    //env.EXIT_CODE = flags_map['EXIT_CODE'].toInteger()
+                    env.EXIT_CODE = flags_map['EXIT_CODE'].toInteger()
                     env.IQE_FILTER_EXPRESSION = flags_map['IQE_FILTER_EXPRESSION']
                     env.IQE_MARKER_EXPRESSION = flags_map['IQE_MARKER_EXPRESSION']
                 }
