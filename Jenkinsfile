@@ -34,6 +34,7 @@ pipeline {
                     env.EXIT_CODE = flags_map['EXIT_CODE'].toInteger()
                     env.IQE_FILTER_EXPRESSION = flags_map['IQE_FILTER_EXPRESSION']
                     env.IQE_MARKER_EXPRESSION = flags_map['IQE_MARKER_EXPRESSION']
+                    println("Type of env.EXIT_CODE is: ${env.EXIT_CODE.class}")
                 }
             }
         }
