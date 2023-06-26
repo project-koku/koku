@@ -113,7 +113,7 @@ pipeline {
                     }
                 }
             }
-        }   
+        }
 
         stage('Run Smoke Tests') {
             when {
