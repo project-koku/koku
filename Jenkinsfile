@@ -101,6 +101,9 @@ pipeline {
             steps {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
+                        script {
+                            echo env.SKIP_PR_CHECK
+                        }
                         sh '''
                             source ./ci/functions.sh
 
