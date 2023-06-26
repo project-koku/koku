@@ -4,6 +4,7 @@
 #
 """Masu Processor."""
 import logging
+from uuid import UUID
 
 from api.common import log_json
 from koku.feature_flags import fallback_development_true
@@ -120,6 +121,8 @@ def is_source_disabled(source_uuid):  # pragma: no cover
     params:
         source_uuid: unique identifer of source or provider
     """
+    if isinstance(source_uuid, UUID):
+        source_uuid = str(source_uuid)
     context = {"source_uuid": source_uuid}
     res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-source", context)
     if res:
