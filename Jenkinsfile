@@ -52,7 +52,6 @@ pipeline {
             steps {
                 sh '''
                     source ./ci/functions.sh
-
                     configure_stages
 
                     > stage_flags
