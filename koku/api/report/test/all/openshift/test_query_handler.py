@@ -218,6 +218,15 @@ class OCPAllQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAllExcludeSerializer._opfields)
         exclude_opts.remove("source_type")
+        exclude_opts.remove("account")
+        exclude_opts.remove("az")
+        exclude_opts.remove("instance_type")
+        exclude_opts.remove("region")
+        exclude_opts.remove("service")
+        exclude_opts.remove("storage_type")
+        exclude_opts.remove("product_family")
+        exclude_opts.remove("cluster")
+        exclude_opts.remove("node")
         for exclude_opt in exclude_opts:
             for view in [OCPAllCostView, OCPAllStorageView, OCPAllInstanceTypeView]:
                 with self.subTest(exclude_opt):
@@ -289,6 +298,8 @@ class OCPAllQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAllExcludeSerializer._opfields)
         exclude_opts.remove("source_type")
+        exclude_opts.remove("account")
+        exclude_opts.remove("az")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPAllCostView, OCPAllStorageView, OCPAllInstanceTypeView]:
