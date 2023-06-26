@@ -179,12 +179,15 @@ create-test-customer: run-migrations docker-up-koku
 create-test-customer-no-sources: run-migrations docker-up-koku
 	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
+remove-test-sources: delete-test-sources
 delete-test-sources:
 	$(PYTHON) $(SCRIPTDIR)/delete_test_sources.py
 
+remove-cost-models: delete-cost-models
 delete-cost-models:
 	$(PYTHON) $(SCRIPTDIR)/delete_cost_models.py
 
+remove-test-customer-data: delete-test-customer-data
 delete-test-customer-data: delete-test-sources delete-cost-models
 
 test_source=all
@@ -208,9 +211,11 @@ collect-static:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
+delete-db: remove-db
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
+delete-test-db: remove-test-db
 remove-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
