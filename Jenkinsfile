@@ -77,7 +77,7 @@ pipeline {
                     for (i in flags) {
                         s=i.split(':')
                         if (s.length == 2) { 
-                            flags_map[s[0]] = s[1]
+                            flags_map[s[0]] = "${s[1]}"
                         } else { 
                             flags_map[s[0]] = ""
                         }
@@ -101,9 +101,6 @@ pipeline {
             steps {
                 script {
                     withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        script {
-                            echo env.SKIP_PR_CHECK
-                        }
                         sh '''
                             source ./ci/functions.sh
 
