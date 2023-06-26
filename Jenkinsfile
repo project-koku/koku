@@ -65,7 +65,7 @@ pipeline {
         stage('should not run') {
             when {
                 expression {
-                    return (! env.SKIP_PR_CHECK && ! env.SKIP_SMOKE_TESTS)
+                    return ((env.EXIT_CODE != 0) || env.SKIP_PR_CHECK)
                 }
             }
             steps {
