@@ -127,7 +127,7 @@ pipeline {
         stage('Generate JUnit Report') {
             when {
                 expression {
-                    return ((env.EXIT_CODE != 0) || env.SKIP_PR_CHECK)
+                    return ((env.EXIT_CODE as int != 0) || env.SKIP_PR_CHECK)
                 }
             }
             steps {
