@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="awsenabledcategorykeys",
             name="key",
-            field=models.CharField(max_length=253),
+            field=models.CharField(max_length=253, unique=True),
         ),
         migrations.AlterField(
             model_name="awsenabledcategorykeys",

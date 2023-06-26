@@ -284,7 +284,7 @@ class AWSEnabledCategoryKeys(models.Model):
         db_table = "reporting_awsenabledcategorykeys"
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, primary_key=True)
-    key = models.CharField(max_length=253)
+    key = models.CharField(max_length=253, unique=True)
     enabled = models.BooleanField(default=True)
 
 
