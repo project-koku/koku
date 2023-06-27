@@ -1,26 +1,21 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: clowder-scheduler
-    replicas: ${{SCHEDULER_REPLICAS}}
+    name: clowder-worker-download-xl
+    replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
     webServices:
       public:
         enabled: false
       private:
         enabled: false
     podSpec:
-      metadata:
-        annotations:
-          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently scheduling is a singleton
-          ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery beat which does not easily support readiness checks
-          ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery beat which does not easily support liveness checks
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
         - -c
         - > # ${APP_HOME} is `/opt/koku/koku` which is defined in the Dockerfile
           PYTHONPATH=${APP_HOME}
-          celery -A koku beat -l $CELERY_LOG_LEVEL
+          celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -73,27 +68,9 @@
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
-          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
-        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
-          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
-        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
-          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
-        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
-          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
-        - name: SCHEDULE_REPORT_CHECKS
-          value: ${SCHEDULE_REPORT_CHECKS}
-        - name: SOURCE_STATUS_FREQUENCY_MINUTES
-          value: ${SOURCE_STATUS_FREQUENCY_MINUTES}
-        - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
-          value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
-        - name: REMOVE_EXPIRED_REPORT_UTC_TIME
-          value: ${REMOVE_EXPIRED_REPORT_UTC_TIME}
-        - name: VACUUM_DATA_DAY_OF_WEEK
-          value: ${VACUUM_DATA_DAY_OF_WEEK}
-        - name: VACUUM_DATA_UTC_TIME
-          value: ${VACUUM_DATA_UTC_TIME}
+          value: ${WORKER_DOWNLOAD_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -112,6 +89,8 @@
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -137,14 +116,36 @@
           value: 'true'
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+      livenessProbe:
+        httpGet:
+          path: /livez
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${SCHEDULER_CPU_LIMIT}
-          memory: ${SCHEDULER_MEMORY_LIMIT}
+          cpu: ${WORKER_DOWNLOAD_XL_CPU_LIMIT}
+          memory: ${WORKER_DOWNLOAD_XL_MEMORY_LIMIT}
         requests:
-          cpu: ${SCHEDULER_CPU_REQUEST}
-          memory: ${SCHEDULER_MEMORY_REQUEST}
+          cpu: ${WORKER_DOWNLOAD_XL_CPU_REQUEST}
+          memory: ${WORKER_DOWNLOAD_XL_MEMORY_REQUEST}
       volumeMounts:
+      - mountPath: /var/tmp/masu/
+        name: koku-worker-data
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
@@ -155,6 +156,8 @@
         mountPath: ${TMP_DIR}
       volumes:
       - name: tmp-data
+        emptyDir: {}
+      - name: koku-worker-data
         emptyDir: {}
       - name: gcp-credentials
         secret:
@@ -173,53 +176,41 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: SCHEDULER_REPLICAS
+    name: WORKER_DOWNLOAD_XL_REPLICAS
     required: true
-    value: '1'
+    value: '2'
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: SCHEDULER_MEMORY_REQUEST
+    name: WORKER_DOWNLOAD_XL_MEMORY_REQUEST
     required: true
-    value: 200Mi
+    value: 512Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: SCHEDULER_MEMORY_LIMIT
+    name: WORKER_DOWNLOAD_XL_MEMORY_LIMIT
     required: true
-    value: 400Mi
+    value: 1Gi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: SCHEDULER_CPU_REQUEST
+    name: WORKER_DOWNLOAD_XL_CPU_REQUEST
     required: true
-    value: 50m
+    value: 200m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: SCHEDULER_CPU_LIMIT
+    name: WORKER_DOWNLOAD_XL_CPU_LIMIT
     required: true
-    value: 100m
+    value: 400m
 - op: add
   path: /parameters/-
   value:
     displayName: Worker Queue
-    name: SCHEDULER_WORKER_QUEUE
+    name: WORKER_DOWNLOAD_XL_WORKER_QUEUE
     required: true
-    value: 'cost_model,cost_model_xl,download,download_xl,hcs,ocp,ocp_xl,priority,priority_xl,refresh,refresh_xl,summary,summary_xl'
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Scheduler report checks
-    name: SCHEDULE_REPORT_CHECKS
-    value: "True"
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Frequency to check sources availability (minutes)
-    name: SOURCE_STATUS_FREQUENCY_MINUTES
-    value: '60'
+    value: 'download_xl'
