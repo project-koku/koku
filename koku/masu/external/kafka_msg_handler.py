@@ -37,10 +37,12 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.ros_report_shipper import ROSReportShipper
+from masu.processor import is_customer_large
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
+from masu.processor.tasks import OCP_QUEUE_XL
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
@@ -509,6 +511,9 @@ def summarize_manifest(report_meta, manifest_uuid):
     end_date = report_meta.get("end")
 
     context = {"account": schema_name, "provider_uuid": str(provider_uuid), "schema": schema_name}
+    ocp_processing_queue = OCP_QUEUE
+    if is_customer_large(schema_name):
+        ocp_processing_queue = OCP_QUEUE_XL
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
@@ -548,7 +553,9 @@ def summarize_manifest(report_meta, manifest_uuid):
                 new_report_meta["start"] = start_date
                 new_report_meta["end"] = end_date
                 new_report_meta["manifest_uuid"] = manifest_uuid
-            async_id = summarize_reports.s([new_report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
+            async_id = summarize_reports.s([new_report_meta], ocp_processing_queue).apply_async(
+                queue=ocp_processing_queue
+            )
     return async_id
 
 
