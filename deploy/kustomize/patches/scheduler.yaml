@@ -210,7 +210,7 @@
     displayName: Worker Queue
     name: SCHEDULER_WORKER_QUEUE
     required: true
-    value: 'cost_model,download,hcs,ocp,priority,refresh,summary'
+    value: 'cost_model,cost_model_xl,download,download_xl,hcs,ocp,ocp_xl,priority,priority_xl,refresh,refresh_xl,summary,summary_xl'
 - op: add
   path: /parameters/-
   value:

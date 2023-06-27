@@ -19,7 +19,9 @@ from rest_framework.settings import api_settings
 from api.models import Provider
 from api.utils import get_months_in_date_range
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
@@ -47,10 +49,13 @@ def report_data(request):
         end_date = params.get("end_date")
         invoice_month = params.get("invoice_month")
         provider = None
+        fallback_queue = PRIORITY_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = PRIORITY_QUEUE_XL
 
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
         ocp_on_cloud = ocp_on_cloud == "true"
-        queue_name = params.get("queue") or PRIORITY_QUEUE
+        queue_name = params.get("queue") or fallback_queue
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -110,7 +115,7 @@ def report_data(request):
                     invoice_month=month[2],
                     queue_name=queue_name,
                     ocp_on_cloud=ocp_on_cloud,
-                ).apply_async(queue=queue_name or PRIORITY_QUEUE)
+                ).apply_async(queue=queue_name or fallback_queue)
                 async_results.append({str(month): str(async_result)})
         else:
             # TODO: when DEVELOPMENT=False, disable resummarization for all providers to prevent burning the db.

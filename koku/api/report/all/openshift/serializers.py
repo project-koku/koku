@@ -38,7 +38,18 @@ class OCPAllOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySeri
 class OCPAllFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("source_type",)
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "cluster",
+        "node",
+        "source_type",
+    )
 
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
@@ -46,7 +57,18 @@ class OCPAllFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSeriali
 class OCPAllExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("source_type",)
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "cluster",
+        "node",
+        "source_type",
+    )
 
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
