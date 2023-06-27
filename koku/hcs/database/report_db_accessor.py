@@ -6,15 +6,12 @@
 import logging
 import pkgutil
 
-from jinjasql import JinjaSql
-
 from api.common import log_json
 from api.iam.models import Customer
 from api.provider.models import Provider
 from hcs.csv_file_handler import CSVFileHandler
 from hcs.exceptions import HCSTableNotFoundError
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.external.date_accessor import DateAccessor
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
@@ -40,8 +37,6 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         hcs_cust = Customer.objects.filter(schema_name=schema).first()
         self._ebs_acct_num = hcs_cust.account_id
         self._org_id = hcs_cust.org_id
-        self.date_accessor = DateAccessor()
-        self.jinja_sql = JinjaSql()
 
     def get_hcs_daily_summary(self, date, provider, provider_uuid, sql_summary_file, tracing_id, finalize=False):
         """Build HCS daily report.

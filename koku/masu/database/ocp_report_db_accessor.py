@@ -18,13 +18,11 @@ from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django_tenants.utils import schema_context
-from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
-from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -75,8 +73,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
-        self.jinja_sql = JinjaSql()
-        self.date_helper = DateHelper()
         self._table_map = OCP_REPORT_TABLE_MAP
         self._aws_table_map = AWS_CUR_TABLE_MAP
 
@@ -1005,18 +1001,38 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
         with schema_context(self.schema):
-            cluster, created = OCPCluster.objects.get_or_create(
-                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
-            )
+            LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
+            clusters = OCPCluster.objects.filter(provider_id=provider.uuid)
+            if clusters.count() > 1:
+                clusters_to_delete = clusters.exclude(cluster_alias=cluster_alias)
+                LOG.info(
+                    log_json(
+                        msg="attempting to delete duplicate entries in reporting_ocp_cluster",
+                        provider_uuid=provider.uuid,
+                    )
+                )
+                clusters_to_delete.delete()
+            cluster = clusters.first()
+            msg = "fetched entry in reporting_ocp_cluster"
+            if not cluster:
+                cluster, created = OCPCluster.objects.get_or_create(
+                    cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
+                )
+                msg = f"created entry in reporting_ocp_clusters: {created}"
+            # if the cluster entry already exists and cluster alias does not match, update the cluster alias
+            elif not cluster.cluster_alias == cluster_alias:
+                cluster.cluster_alias = cluster_alias
+                cluster.save()
+                msg = "updated cluster entry with new cluster alias in reporting_ocp_clusters"
 
-        LOG.info(
-            log_json(
-                msg=f"created entry in reporting_ocp_clusters: {created}",
-                cluster_id=cluster_id,
-                cluster_alias=cluster_alias,
-                provider=provider,
+            LOG.info(
+                log_json(
+                    msg=msg,
+                    cluster_id=cluster_id,
+                    cluster_alias=cluster_alias,
+                    provider_uuid=provider.uuid,
+                )
             )
-        )
         return cluster
 
     def populate_node_table(self, cluster, nodes):

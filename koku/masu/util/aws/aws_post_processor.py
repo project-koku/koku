@@ -137,6 +137,11 @@ class AWSPostProcessor:
         "reservation_end_time",
     }
 
+    SUBS_COLUMNS = {
+        "identity/TimeInterval",
+        "product/physicalCores",
+    }
+
     COL_TRANSLATION = {
         "bill_billing_entity": "bill/BillingEntity",
         "bill_bill_type": "bill/BillType",
@@ -184,6 +189,8 @@ class AWSPostProcessor:
         "reservation_units_per_reservation": "reservation/UnitsPerReservation",
         "reservation_start_time": "reservation/StartTime",
         "reservation_end_time": "reservation/EndTime",
+        "product_physical_cores": "product/physicalCores",
+        "identity_time_interval": "identity/TimeInterval",
     }
 
     CSV_COLUMN_PREFIX = (
@@ -249,7 +256,7 @@ class AWSPostProcessor:
             col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
         }
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        csv_columns = self.INGRESS_REQUIRED_COLUMNS | self.INGRESS_ALT_COLUMNS
+        csv_columns = self.INGRESS_REQUIRED_COLUMNS.union(self.INGRESS_ALT_COLUMNS).union(self.SUBS_COLUMNS)
         panda_kwargs["usecols"] = [
             col for col in col_names if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
         ]
