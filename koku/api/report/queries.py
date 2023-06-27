@@ -319,16 +319,18 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        # TODO: find a better name for ou_or_operator and ou_or_filter
-        ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
-        if ou_or_operator:
-            ou_or_filters = filters.compose()
+
+        aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
+        if aws_use_or_operator:
+            aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+
         if self._category:
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
         composed_exclusions = None
+
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -386,12 +388,12 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters
+        if aws_use_or_operator and aws_or_filter_collections:
+            composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
-            if ou_or_operator:
+            if aws_use_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
-                composed_filters = ou_or_filters & composed_access_filters
+                composed_filters = aws_or_filter_collections & composed_access_filters
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
