@@ -34,13 +34,35 @@ class OCPAWSOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySeri
 class OCPAWSFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
 class OCPAWSExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
 class OCPAWSQueryParamSerializer(awsser.AWSQueryParamSerializer):

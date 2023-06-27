@@ -69,6 +69,7 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
+from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
@@ -388,6 +389,23 @@ class ProcessReportFileTests(MasuTestCase):
 
                 summarize_reports(reports_to_summarize)
                 mock_update_summary.s.assert_called()
+
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_summarize_reports_processing_with_XL_queue(self, mock_update_summary):
+        """Test that the summarize_reports task is called with XL queue."""
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
+        provider_type = Provider.PROVIDER_OCP
+        provider_uuid = self.ocp_test_provider_uuid
+        report_meta = {}
+        report_meta["start_date"] = test_date.strftime("%Y-%m-%d")
+        report_meta["schema_name"] = self.schema
+        report_meta["provider_type"] = provider_type
+        report_meta["provider_uuid"] = provider_uuid
+        report_meta["manifest_id"] = 1
+        reports_to_summarize = [report_meta]
+        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+            summarize_reports(reports_to_summarize)
+            mock_update_summary.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
@@ -923,8 +941,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test GET report_data endpoint with provider_uuid=*."""
         start_date = date.today()
         update_all_summary_tables(start_date)
-
         mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, queue_name=ANY)
+
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_get_report_data_for_provider_with_XL_queue(self, mock_update):
+        """Test GET report_data endpoint with provider and XL queue"""
+        start_date = date.today()
+        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+            update_all_summary_tables(start_date)
+            mock_update.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):

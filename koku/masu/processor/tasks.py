@@ -69,26 +69,43 @@ LOG = logging.getLogger(__name__)
 
 DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
+GET_REPORT_FILES_QUEUE_XL = "download_xl"
 OCP_QUEUE = "ocp"
+OCP_QUEUE_XL = "ocp_xl"
 PRIORITY_QUEUE = "priority"
+PRIORITY_QUEUE_XL = "priority_xl"
 MARK_MANIFEST_COMPLETE_QUEUE = "priority"
+MARK_MANIFEST_COMPLETE_QUEUE_XL = "priority_xl"
 REMOVE_EXPIRED_DATA_QUEUE = "summary"
+REMOVE_EXPIRED_DATA_QUEUE_XL = "summary_xl"
 SUMMARIZE_REPORTS_QUEUE = "summary"
+SUMMARIZE_REPORTS_QUEUE_XL = "summary_xl"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
+UPDATE_COST_MODEL_COSTS_QUEUE_XL = "cost_model_xl"
 UPDATE_SUMMARY_TABLES_QUEUE = "summary"
+UPDATE_SUMMARY_TABLES_QUEUE_XL = "summary_xl"
 DELETE_TRUNCATE_QUEUE = "refresh"
+DELETE_TRUNCATE_QUEUE_XL = "refresh_xl"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [
     DEFAULT,
     GET_REPORT_FILES_QUEUE,
+    GET_REPORT_FILES_QUEUE_XL,
     OCP_QUEUE,
+    OCP_QUEUE_XL,
     PRIORITY_QUEUE,
+    PRIORITY_QUEUE_XL,
     MARK_MANIFEST_COMPLETE_QUEUE,
+    MARK_MANIFEST_COMPLETE_QUEUE_XL,
     REMOVE_EXPIRED_DATA_QUEUE,
+    REMOVE_EXPIRED_DATA_QUEUE_XL,
     SUMMARIZE_REPORTS_QUEUE,
+    SUMMARIZE_REPORTS_QUEUE_XL,
     UPDATE_COST_MODEL_COSTS_QUEUE,
+    UPDATE_COST_MODEL_COSTS_QUEUE_XL,
     UPDATE_SUMMARY_TABLES_QUEUE,
+    UPDATE_SUMMARY_TABLES_QUEUE_XL,
 ]
 
 
@@ -285,8 +302,10 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
     _remove_expired_data(schema_name, provider, simulate, provider_uuid)
 
 
-@celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None):
+@celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)  # noqa: C901
+def summarize_reports(  # noqa: C901
+    reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None
+):
     """
     Summarize reports returned from line summary task.
 
@@ -346,6 +365,9 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
         # Updater classes for when full-month summarization is
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
+            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
+            if is_customer_large(report.get("schema_name")):
+                fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
 
             if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
@@ -368,7 +390,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
                     invoice_month=month[2],
-                ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+                ).apply_async(queue=queue_name or fallback_queue)
 
 
 @celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
@@ -420,12 +442,22 @@ def update_summary_tables(  # noqa: C901
         cache_arg_date = start_date.strftime("%Y-%m")
     cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
+    is_large_customer = is_customer_large(schema)
+    fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE
+    fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE
+    fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE
+    fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE
+    if is_large_customer:
+        fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+        fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE_XL
+        fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
+        fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE_XL
 
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        if is_customer_large(schema):
+        if is_large_customer:
             rate_limited = rate_limit_tasks(task_name, schema)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
@@ -446,7 +478,7 @@ def update_summary_tables(  # noqa: C901
                 queue_name=queue_name,
                 tracing_id=tracing_id,
                 ocp_on_cloud=ocp_on_cloud,
-            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+            ).apply_async(queue=queue_name or fallback_update_summary_tables_queue)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
@@ -517,7 +549,7 @@ def update_summary_tables(  # noqa: C901
                     operation,
                     manifest_id=manifest_id,
                     tracing_id=tracing_id,
-                ).set(queue=queue_name or DELETE_TRUNCATE_QUEUE)
+                ).set(queue=queue_name or fallback_delete_truncate_queue)
             )
 
     signature_list = []
@@ -536,7 +568,7 @@ def update_summary_tables(  # noqa: C901
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-            ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+            ).set(queue=queue_name or fallback_update_summary_tables_queue)
         )
 
     # Apply OCP on Cloud tasks
@@ -557,10 +589,10 @@ def update_summary_tables(  # noqa: C901
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
+        ).set(queue=queue_name or fallback_update_cost_model_queue) | mark_manifest_complete.si(
             schema, provider_type, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(
-            queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
+            queue=queue_name or fallback_mark_manifest_complete_queue
         )
     else:
         LOG.info(log_json(tracing_id, msg="skipping cost model updates", context=context))
@@ -571,7 +603,7 @@ def update_summary_tables(  # noqa: C901
             manifest_list=manifest_list,
             ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
-        ).set(queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE)
+        ).set(queue=queue_name or fallback_mark_manifest_complete_queue)
 
     chain(linked_tasks).apply_async()
 
@@ -634,9 +666,11 @@ def update_openshift_on_cloud(
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
+        fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
         if is_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
@@ -653,7 +687,7 @@ def update_openshift_on_cloud(
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+            ).apply_async(queue=queue_name or fallback_queue)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
@@ -721,10 +755,15 @@ def update_all_summary_tables(start_date, end_date=None):
             schema_name = account.get("schema_name")
             provider = account.get("provider_type")
             provider_uuid = account.get("provider_uuid")
-            queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
+            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
+            ocp_process_queue = OCP_QUEUE
+            if is_customer_large(schema_name):
+                fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+                ocp_process_queue = OCP_QUEUE_XL
+            queue_name = ocp_process_queue if provider and provider.lower() == "ocp" else None
             update_summary_tables.s(
                 schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
-            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+            ).apply_async(queue=queue_name or fallback_queue)
     except AccountsAccessorError as error:
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
@@ -755,6 +794,9 @@ def update_cost_model_costs(
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
+        fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.debug(log_json(tracing_id, msg=msg))
@@ -766,7 +808,7 @@ def update_cost_model_costs(
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-            ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
+            ).apply_async(queue=queue_name or fallback_queue)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
 
