@@ -885,6 +885,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1221,6 +1225,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1392,6 +1400,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1736,6 +1748,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2080,6 +2096,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2772,6 +2792,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -3118,6 +3142,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -3466,6 +3494,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
