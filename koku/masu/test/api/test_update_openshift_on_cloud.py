@@ -10,6 +10,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from api.utils import DateHelper
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import QUEUE_LIST
 from masu.test import MasuTestCase
 
@@ -118,3 +119,25 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
         mock_update.delay.assert_not_called()
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.update_openshift_on_cloud.chain")
+    def test_get_update_openshift_on_cloud_with_XL_queue(self, mock_update, _):
+        """Test GET update_openshift_on_cloud with XL queue."""
+        params = {
+            "schema": self.schema,
+            "provider_uuid": self.ocpaws_provider_uuid,
+            "start_date": "2022-01-01",
+        }
+        response = self.client.get(reverse("update_openshift_on_cloud"), params)
+        response.json()
+        with patch("masu.api.update_openshift_on_cloud.is_customer_large", return_value=True):
+            response = self.client.get(reverse("update_cost_model_costs"), params)
+            response.json()
+            mock_update.s.assert_called_with(
+                params["schema"],
+                params["provider_uuid"],
+                params["start_date"],
+                DateHelper().today.date().strftime("%Y-%m-%d"),
+                queue_name=PRIORITY_QUEUE_XL,
+            )
