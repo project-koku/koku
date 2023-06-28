@@ -1,8 +1,8 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: clowder-worker-cost-model
-    replicas: ${{WORKER_COST_MODEL_REPLICAS}}
+    name: clowder-worker-priority-xl
+    replicas: ${{WORKER_PRIORITY_XL_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -71,7 +71,7 @@
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${WORKER_COST_MODEL_WORKER_QUEUE}
+          value: ${WORKER_PRIORITY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: DATE_OVERRIDE
@@ -96,8 +96,6 @@
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
-        - name: WORKER_CACHE_TIMEOUT
-          value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
@@ -143,11 +141,11 @@
         timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${WORKER_COST_MODEL_CPU_LIMIT}
-          memory: ${WORKER_COST_MODEL_MEMORY_LIMIT}
+          cpu: ${WORKER_PRIORITY_XL_CPU_LIMIT}
+          memory: ${WORKER_PRIORITY_XL_MEMORY_LIMIT}
         requests:
-          cpu: ${WORKER_COST_MODEL_CPU_REQUEST}
-          memory: ${WORKER_COST_MODEL_MEMORY_REQUEST}
+          cpu: ${WORKER_PRIORITY_XL_CPU_REQUEST}
+          memory: ${WORKER_PRIORITY_XL_MEMORY_REQUEST}
       volumeMounts:
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
@@ -181,41 +179,41 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_COST_MODEL_REPLICAS
+    name: WORKER_PRIORITY_XL_REPLICAS
     required: true
     value: '2'
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: WORKER_COST_MODEL_MEMORY_REQUEST
+    name: WORKER_PRIORITY_XL_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 400Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: WORKER_COST_MODEL_MEMORY_LIMIT
+    name: WORKER_PRIORITY_XL_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 750Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: WORKER_COST_MODEL_CPU_REQUEST
+    name: WORKER_PRIORITY_XL_CPU_REQUEST
     required: true
-    value: 100m
+    value: 150m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: WORKER_COST_MODEL_CPU_LIMIT
+    name: WORKER_PRIORITY_XL_CPU_LIMIT
     required: true
-    value: 200m
+    value: 300m
 - op: add
   path: /parameters/-
   value:
     displayName: Worker Queue
-    name: WORKER_COST_MODEL_WORKER_QUEUE
+    name: WORKER_PRIORITY_XL_WORKER_QUEUE
     required: true
-    value: 'cost_model'
+    value: 'priority_xl'
