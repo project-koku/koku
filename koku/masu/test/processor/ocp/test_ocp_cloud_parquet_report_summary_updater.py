@@ -333,7 +333,10 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_nodes_for_cluster"  # noqa: E501
     )
-    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.summarize_ocp_on_gcp_by_node", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.is_summarize_ocp_on_gcp_by_node_enabled",
+        return_value=True,
+    )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
     )

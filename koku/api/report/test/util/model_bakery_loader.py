@@ -97,12 +97,15 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_aws_category_key_table(self):
         """Insert records for aws category keys."""
+        deduplicate_keys = []
         for item in AWS_COST_CATEGORIES:
             if isinstance(item, dict):
                 keys = item.keys()
                 for key in keys:
-                    with schema_context(self.schema):
-                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                    if key not in deduplicate_keys:
+                        with schema_context(self.schema):
+                            baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                        deduplicate_keys.append(key)
 
     def _populate_exchange_rates(self):
         rates = [
@@ -133,6 +136,14 @@ class ModelBakeryDataLoader(DataLoader):
                 data["billing_source__data_source"] = billing_source
 
             provider = baker.make("Provider", **data)
+            with schema_context(self.schema):
+                baker.make(
+                    "TenantAPIProvider",
+                    uuid=provider.uuid,
+                    type=provider.type,
+                    name=provider.name,
+                    provider=provider,
+                )
             if linked_openshift_provider:
                 infra_map = baker.make(
                     "ProviderInfrastructureMap", infrastructure_type=provider_type, infrastructure_provider=provider
@@ -158,7 +169,7 @@ class ModelBakeryDataLoader(DataLoader):
         with schema_context(self.schema):
             model_str = BILL_MODELS[provider_type]
             month_end = self.dh.month_end(bill_date)
-            data = {"provider": provider}
+            data = {"provider_id": provider.uuid}
             if provider_type == Provider.PROVIDER_OCP:
                 data["report_period_start"] = bill_date
                 data["report_period_end"] = month_end + timedelta(days=1)

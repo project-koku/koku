@@ -146,27 +146,34 @@ def get_available_regions(service_name: str = "ec2") -> list[str]:
     return session.get_available_regions(service_name)
 
 
-def get_cur_report_definitions(cur_client, role_arn=None):
+def get_cur_report_definitions(cur_client, role_arn=None, retries=7, max_wait_time=10):
     """
     Get Cost Usage Reports associated with a given RoleARN.
 
     Args:
-        role_arn     (String) RoleARN for AWS session
+        role_arn      (str) RoleARN for AWS session
+        retries       (int) Number of times to retry if the connection fails
+        max_wait_time (int) Max amount of time to wait between retries
 
     """
     if role_arn:
         session = get_assume_role_session(role_arn)
         cur_client = session.client("cur")
-    retries = 5
     for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
         try:
             defs = cur_client.describe_report_definitions()
             return defs
         except ClientError:
             if i < (retries - 1):
-                LOG.info("AWS client error while describing report definitions; retrying")
-                time.sleep(10)
+                delay = min(2**i, max_wait_time)
+                LOG.info(
+                    "AWS client error while describing report definitions. "
+                    f"Attempt {i + 1} of {retries}. Retrying in {delay}s..."
+                )
+                time.sleep(delay)
                 continue
+            else:
+                raise
 
 
 def month_date_range(for_date_time):
@@ -400,7 +407,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg=msg, context=context))
     return upload
 
 
@@ -431,7 +438,7 @@ def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False,
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg=msg, context=context))
     return upload
 
 
@@ -467,10 +474,10 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
                     removed.append(key)
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
-                LOG.info(log_json(request_id, msg, context))
+                LOG.info(log_json(request_id, msg=msg, context=context))
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.info(log_json(request_id, msg, context))
+            LOG.info(log_json(request_id, msg=msg, context=context))
     return removed
 
 

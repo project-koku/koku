@@ -21,15 +21,18 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
-from masu.processor import disable_cloud_source_processing
-from masu.processor import disable_source
+from masu.processor import is_cloud_source_processing_disabled
+from masu.processor import is_customer_large
+from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
+from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
@@ -45,7 +48,9 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None, **kwargs):
+    def __init__(
+        self, billing_source=None, provider_uuid=None, provider_type=None, bill_date=None, queue_name=None, **kwargs
+    ):
         """
         Orchestrator for processing.
 
@@ -57,14 +62,17 @@ class Orchestrator:
         self.billing_source = billing_source
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
+        self.provider_type = provider_type
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
+        self._accounts, self._polling_accounts = self.get_accounts(
+            self.billing_source, self.provider_uuid, self.provider_type
+        )
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None):
+    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None):
         """
         Prepare a list of accounts for the orchestrator to get CUR from.
 
@@ -75,6 +83,8 @@ class Orchestrator:
 
         Args:
             billing_source (String): Individual account to retrieve.
+            provider_uuid  (String): Individual provider UUID.
+            provider_type  (String): Specific provider type.
 
         Returns:
             [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
@@ -83,7 +93,7 @@ class Orchestrator:
         all_accounts = []
         polling_accounts = []
         try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid)
+            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type)
         except AccountsAccessorError as error:
             LOG.error("Unable to get accounts. Error: %s", str(error))
 
@@ -94,14 +104,14 @@ class Orchestrator:
 
         for account in all_accounts:
             schema_name = account.get("schema_name")
-            if disable_cloud_source_processing(schema_name) and not provider_uuid:
-                LOG.info(log_json("get_accounts", "processing disabled for schema", schema=schema_name))
+            if is_cloud_source_processing_disabled(schema_name) and not provider_uuid:
+                LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
                 continue
-            if disable_source(provider_uuid):
+            if is_source_disabled(provider_uuid):
                 LOG.info(
                     log_json(
                         "get_accounts",
-                        "processing disabled for source",
+                        msg="processing disabled for source",
                         schema=schema_name,
                         provider_uuid=provider_uuid,
                     )
@@ -171,6 +181,9 @@ class Orchestrator:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
             HCS_Q = HCS_QUEUE
+            if is_customer_large(schema_name):
+                SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE_XL
+                REPORT_QUEUE = GET_REPORT_FILES_QUEUE_XL
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -189,7 +202,7 @@ class Orchestrator:
             report_files = manifest.get("files", [])
             filenames = [file.get("local_file") for file in report_files]
             LOG.info(
-                log_json(tracing_id, f"manifest {tracing_id} contains the files: {filenames}", schema=schema_name)
+                log_json(tracing_id, msg=f"manifest {tracing_id} contains the files: {filenames}", schema=schema_name)
             )
 
             if manifest:
@@ -200,7 +213,7 @@ class Orchestrator:
                     tracing_id,
                 )
 
-            LOG.info(log_json(tracing_id, "found manifests", context=manifest, schema=schema_name))
+            LOG.info(log_json(tracing_id, msg="found manifests", context=manifest, schema=schema_name))
 
             last_report_index = len(report_files) - 1
             for i, report_file_dict in enumerate(report_files):
@@ -210,14 +223,16 @@ class Orchestrator:
                 # Check if report file is complete or in progress.
                 if record_report_status(manifest["manifest_id"], local_file, "no_request"):
                     LOG.info(
-                        log_json(tracing_id, "file was already processed", filename=local_file, schema=schema_name)
+                        log_json(tracing_id, msg="file was already processed", filename=local_file, schema=schema_name)
                     )
                     continue
 
                 cache_key = f"{provider_uuid}:{report_file}"
                 if self.worker_cache.task_is_running(cache_key):
                     LOG.info(
-                        log_json(tracing_id, "file processing is in progress", filename=local_file, schema=schema_name)
+                        log_json(
+                            tracing_id, msg="file processing is in progress", filename=local_file, schema=schema_name
+                        )
                     )
                     continue
 
@@ -249,7 +264,7 @@ class Orchestrator:
                         report_month = assembly_id.split("|")[0]
                 # add the tracing id to the report context
                 # This defaults to the celery queue
-                LOG.info(log_json(tracing_id, "queueing download", schema=schema_name))
+                LOG.info(log_json(tracing_id, msg="queueing download", schema=schema_name))
                 report_tasks.append(
                     get_report_files.s(
                         customer_name,
@@ -265,7 +280,7 @@ class Orchestrator:
                         ingress_reports_uuid=self.ingress_report_uuid,
                     ).set(queue=REPORT_QUEUE)
                 )
-                LOG.info(log_json(tracing_id, "download queued", schema=schema_name))
+                LOG.info(log_json(tracing_id, msg="download queued", schema=schema_name))
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
         if report_tasks:
@@ -278,7 +293,7 @@ class Orchestrator:
                 async_id = chord(report_tasks, group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
-            LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}", schema=schema_name))
+            LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))
 
         return manifest_list, reports_tasks_queued
 
@@ -318,7 +333,7 @@ class Orchestrator:
             LOG.info(
                 log_json(
                     tracing_id,
-                    f"getting {month.strftime('%B %Y')} report files",
+                    msg=f"getting {month.strftime('%B %Y')} report files",
                     schema=schema,
                     provider_uuid=provider_uuid,
                 )
@@ -326,13 +341,15 @@ class Orchestrator:
             account["report_month"] = month
             try:
                 LOG.info(
-                    log_json(tracing_id, "starting manifest processing", schema=schema, provider_uuid=provider_uuid)
+                    log_json(
+                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid
+                    )
                 )
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
                 LOG.info(
                     log_json(
                         tracing_id,
-                        f"manifest processing tasks queued: {reports_tasks_queued}",
+                        msg=f"manifest processing tasks queued: {reports_tasks_queued}",
                         schema=schema,
                         provider_uuid=provider_uuid,
                     )
@@ -343,7 +360,7 @@ class Orchestrator:
                     LOG.info(
                         log_json(
                             tracing_id,
-                            "running AccountLabel to get account aliases",
+                            msg="running AccountLabel to get account aliases",
                             schema=schema,
                             provider_uuid=provider_uuid,
                         )
@@ -359,7 +376,7 @@ class Orchestrator:
                         LOG.info(
                             log_json(
                                 tracing_id,
-                                "account labels updated",
+                                msg="account labels updated",
                                 schema=schema,
                                 provider_uuid=provider_uuid,
                                 account=account_number,
@@ -386,7 +403,7 @@ class Orchestrator:
         """
         tracing_id = provider_uuid
         schema = account.get("schema_name")
-        LOG.info(log_json(tracing_id, "getting latest report files", schema=schema, provider_uuid=provider_uuid))
+        LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider_uuid))
         dh = DateHelper()
         if self.ingress_reports:
             start_date = DateAccessor().get_billing_month_start(f"{self.bill_date}01")
@@ -394,12 +411,14 @@ class Orchestrator:
             start_date = dh.today
         account["report_month"] = start_date
         try:
-            LOG.info(log_json(tracing_id, "starting manifest processing", schema=schema, provider_uuid=provider_uuid))
+            LOG.info(
+                log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid)
+            )
             _, reports_tasks_queued = self.start_manifest_processing(**account)
             LOG.info(
                 log_json(
                     tracing_id,
-                    f"manifest processing tasks queued: {reports_tasks_queued}",
+                    msg=f"manifest processing tasks queued: {reports_tasks_queued}",
                     schema=schema,
                     provider_uuid=provider_uuid,
                 )

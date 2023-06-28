@@ -618,7 +618,7 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
         expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
-        with patch("masu.util.gcp.common.disable_gcp_resource_matching", return_value=True):
+        with patch("masu.util.gcp.common.is_gcp_resource_matching_disabled", return_value=True):
             with self.assertLogs("masu", level="INFO") as logger:
                 self.accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
@@ -652,7 +652,7 @@ select * from eek where val1 in {{report_period_id}} ;
         end_date = dh.this_month_end.date()
 
         self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
         with schema_context(self.schema):
@@ -715,7 +715,7 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider])
+            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider_uuid])
             self.assertEqual(len(topology), 1)
             topo = topology[0]
             self.assertEqual(topo.get("cluster_id"), cluster_id)
@@ -781,6 +781,35 @@ select * from eek where val1 in {{report_period_id}} ;
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertEqual(node.node_role, node_info[3])
+
+    def test_populate_cluster_table_update_cluster_alias(self):
+        """Test updating cluster alias for entry in the cluster table."""
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "cluster_alias"
+        new_cluster_alias = "new_cluster_alias"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
+            self.assertEqual(cluster.cluster_alias, cluster_alias)
+            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
+            self.assertEqual(cluster.cluster_alias, new_cluster_alias)
+
+    def test_populate_cluster_table_delete_duplicates(self):
+        """Test updating cluster alias for duplicate entry in the cluster table."""
+        cluster_id = str(uuid.uuid4())
+        new_cluster_alias = "new_cluster_alias"
+        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
+        with schema_context(self.schema):
+            # Forcefully create a second entry
+            OCPCluster.objects.get_or_create(
+                cluster_id=cluster_id, cluster_alias=self.aws_provider.name, provider_id=self.aws_provider_uuid
+            )
+            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            clusters = OCPCluster.objects.filter(cluster_id=cluster_id)
+            self.assertEqual(len(clusters), 1)
+            cluster = clusters.first()
+            self.assertEqual(cluster.cluster_alias, new_cluster_alias)
 
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""
@@ -984,37 +1013,25 @@ select * from eek where val1 in {{report_period_id}} ;
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping populate_monthly_cost_sql update."
-        )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_monthly_cost_sql("", "", "", start_date, end_date, "", self.provider_uuid)
-            self.assertIn(expected, logger.output)
+            self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_monthly_cost_tag_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping populate_monthly_tag_cost_sql update."
-        )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_monthly_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
-            self.assertIn(expected, logger.output)
+            self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_usage_costs_new_columns_no_report_period(self):
         """Test that updating new column usage costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        expected = (
-            "INFO:masu.database.ocp_report_db_accessor:No report period for OCP provider"
-            f" {self.provider_uuid} with start date {start_date}, skipping populate_usage_costs_new_columns update."
-        )
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             self.accessor.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
-            self.assertIn(expected, logger.output)
+            self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_platform_and_worker_distributed_cost_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""

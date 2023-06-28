@@ -8,7 +8,6 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from botocore.exceptions import ClientError
-from botocore.exceptions import ParamValidationError
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
@@ -75,6 +74,15 @@ class AWSProviderTestCase(TestCase):
         self.assertEqual(aws_credentials.get("aws_secret_access_key"), expected_secret_access_key)
         self.assertEqual(aws_credentials.get("aws_session_token"), expected_session_token)
 
+    def test_get_sts_access_invalid_arn(self):
+        """Test _get_sts_access with invalid arn."""
+        iam_arn = "random_resource_name"
+        credentials = {"role_arn": iam_arn}
+        aws_credentials = _get_sts_access(credentials)
+        self.assertIsNone(aws_credentials.get("aws_access_key_id"))
+        self.assertIsNone(aws_credentials.get("aws_secret_access_key"))
+        self.assertIsNone(aws_credentials.get("aws_session_token"))
+
     @patch("providers.aws.provider.boto3.client")
     def test_get_sts_access_fail(self, mock_boto3_client):
         """Test _get_sts_access fail."""
@@ -85,24 +93,6 @@ class AWSProviderTestCase(TestCase):
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         credentials = {"role_arn": iam_arn}
         with self.assertLogs(level=logging.CRITICAL):
-            aws_credentials = _get_sts_access(credentials)
-            self.assertIn("aws_access_key_id", aws_credentials)
-            self.assertIn("aws_secret_access_key", aws_credentials)
-            self.assertIn("aws_session_token", aws_credentials)
-            self.assertIsNone(aws_credentials.get("aws_access_key_id"))
-            self.assertIsNone(aws_credentials.get("aws_secret_access_key"))
-            self.assertIsNone(aws_credentials.get("aws_session_token"))
-
-    @patch("providers.aws.provider.boto3.client")
-    def test_parm_val_exception(self, mock_boto3_client):
-        """Test _get_sts_access fail."""
-        logging.disable(logging.NOTSET)
-        sts_client = Mock()
-        sts_client.assume_role.side_effect = ParamValidationError(report="test")
-        mock_boto3_client.return_value = sts_client
-        iam_arn = "BAD"
-        credentials = {"role_arn": iam_arn}
-        with self.assertRaises(SyntaxError):
             aws_credentials = _get_sts_access(credentials)
             self.assertIn("aws_access_key_id", aws_credentials)
             self.assertIn("aws_secret_access_key", aws_credentials)

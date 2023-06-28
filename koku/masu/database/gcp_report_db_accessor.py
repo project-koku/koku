@@ -18,6 +18,7 @@ from django.db.models import F
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
+from api.common import log_json
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -265,8 +266,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_gcp_topology_information_tables(self, provider, start_date, end_date, invoice_month_date):
         """Populate the GCP topology table."""
-        msg = f"Populating GCP topology for {provider.uuid} from {start_date} to {end_date}"
-        LOG.info(msg)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider.uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+        LOG.info(log_json(msg="populating GCP topology table", context=ctx))
         topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date, invoice_month_date)
 
         with schema_context(self.schema):
@@ -290,7 +296,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         service_alias=record[5],
                         region=record[6],
                     )
-        LOG.info("Finished populating GCP topology")
+        LOG.info(log_json(msg="finished populating GCP topology table", context=ctx))
 
     def get_gcp_topology_trino(self, source_uuid, start_date, end_date, invoice_month_date):
         """Get the account topology for a GCP source."""
@@ -334,8 +340,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         invoice_month = start_date.strftime("%Y%m")
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table} from {start_date} to {end_date} for invoice_month {invoice_month}"
-        LOG.info(msg)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": source_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "table": table,
+            "invoice_month": invoice_month,
+        }
+        LOG.info(log_json(msg="deleting records", context=ctx))
         select_query = table.objects.filter(
             source_uuid=source_uuid,
             usage_start__gte=start_date,
@@ -344,8 +357,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         with schema_context(self.schema):
             count, _ = mini_transaction_delete(select_query)
-        msg = f"Deleted {count} records from {table}"
-        LOG.info(msg)
+        LOG.info(log_json(msg=f"deleted {count} records", context=ctx))
 
     def populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
         self,
@@ -421,8 +433,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "node_count": node_count,
         }
 
-        LOG.info("Running OCP on GCP SQL with params (BY NODE):")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP SQL (by node)", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
@@ -503,8 +514,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "matching_type": matching_type,
         }
-        LOG.info("Running OCP on GCP SQL with params:")
-        LOG.info(summary_sql_params)
+        LOG.info(log_json(msg="running OCP on GCP SQL (not by node)", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
@@ -556,15 +566,16 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tGCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-                self.schema,
-                ocp_source,
-                gcp_source,
-                table,
-                year,
-                month,
-                days,
+                log_json(
+                    msg="deleting Hive partitions by day",
+                    schema=self.schema,
+                    ocp_source=ocp_source,
+                    gcp_source=gcp_source,
+                    table=table,
+                    year=year,
+                    month=month,
+                    days=days,
+                )
             )
             for day in days:
                 for i in range(retries):
@@ -673,6 +684,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cursor.execute(match_sql)
             results = cursor.fetchall()
             if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
+                LOG.info(log_json(msg="no matching enabled keys for OCP on GCP", schema=self.schema))
                 return False
         return True

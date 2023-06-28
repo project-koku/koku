@@ -12,4 +12,10 @@ if __name__ == "__main__":
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+
+    if "migrate_schemas" in sys.argv:
+        import multiprocessing
+
+        multiprocessing.set_start_method("fork")
+
     execute_from_command_line(sys.argv)
