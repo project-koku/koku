@@ -27,6 +27,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
+from masu.processor.tasks import OCP_QUEUE_XL
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
 
@@ -878,3 +879,23 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
         self.assertEqual(reports, [])
+
+    def test_summarize_manifest_called_with_XL_queue(self):
+        """Test report summarization."""
+        report_meta = {
+            "schema": "test_schema",
+            "schema_name": "test_schema",
+            "provider_type": "OCP",
+            "provider_uuid": uuid.uuid4(),
+            "manifest_id": "1",
+        }
+
+        # Check when manifest is done
+        mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
+
+        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
+            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+            with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
+                with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
+                    msg_handler.summarize_manifest(report_meta, self.manifest_id)
+                    mock_summarize_reports.assert_called_with([report_meta], OCP_QUEUE_XL)

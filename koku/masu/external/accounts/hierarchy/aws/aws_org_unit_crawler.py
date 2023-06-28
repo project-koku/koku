@@ -54,7 +54,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         error_message = (
             "Unable to crawl AWS organizational structure with ARN {} and "
             "provider_uuid: {} and account_id: {}".format(
-                self.account, self.account.get("provider_uud"), self.account_id
+                self.account, self.account.get("provider_uuid"), self.account_id
             )
         )
         try:
@@ -73,8 +73,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 if not self.errors_raised:
                     self._mark_nodes_deleted()
         except ParamValidationError as param_error:
-            LOG.warn(msg=error_message)
-            LOG.warn(param_error)
+            LOG.warn(msg=error_message, exc_info=param_error)
         except ClientError as boto_error:
             LOG.warn(msg=error_message, exc_info=boto_error)
         except Exception as unknown_error:
@@ -290,7 +289,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             # we need to add a bit of self healing here to repair the
             # nodes that are currently in customer's databases.
             if not org_unit.provider and self.provider:
-                org_unit.provider = self.provider
+                org_unit.provider_id = self.provider.uuid
                 org_unit.save()
             return org_unit
 

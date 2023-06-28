@@ -75,6 +75,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         super().__init__(schema)
         self.report_schema = ReportSchema(django.apps.apps.get_models())
         self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
+        self.prepare_query = JinjaSql().prepare_query
 
         self.date_accessor = DateAccessor()
         self.date_helper = DateHelper()
@@ -112,9 +113,32 @@ class ReportDBAccessorBase(KokuDBAccess):
                 query = table.objects.all()
             return query
 
+    def extract_context_from_sql_params(self, sql_params: dict):
+        return {
+            "schema": sql_params.get("schema"),
+            "start_date": sql_params.get("start") or sql_params.get("start_date"),
+            "end_date": sql_params.get("end") or sql_params.get("end_date"),
+            "provider_uuid": sql_params.get("source_uuid"),
+            "invoice_month": sql_params.get("invoice_month"),
+        }
+
+    def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
+        """Prepare the sql params and run via a cursor."""
+        if tmp_sql_params is None:
+            tmp_sql_params = {}
+        LOG.info(
+            log_json(
+                msg=f"triggering {operation}",
+                table=table,
+                context=self.extract_context_from_sql_params(tmp_sql_params),
+            )
+        )
+        sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
+        return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
+
     def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor."""
-        LOG.info(log_json(msg=f"triggering {operation}", table=table, start=start, end=end))
+        LOG.info(log_json(msg=f"triggering {operation}", table=table))
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             t1 = time.time()
@@ -126,7 +150,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 raise db_exc from exc
 
         running_time = time.time() - t1
-        LOG.info(log_json(msg=f"finished {operation}", table=table, start=start, end=end, running_time=running_time))
+        LOG.info(log_json(msg=f"finished {operation}", table=table, running_time=running_time))
 
     def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""
@@ -143,10 +167,11 @@ class ReportDBAccessorBase(KokuDBAccess):
             sql_params = {}
         if conn_params is None:
             conn_params = {}
+        ctx = self.extract_context_from_sql_params(sql_params)
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
-        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, **sql_params))
+        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
@@ -154,10 +179,10 @@ class ReportDBAccessorBase(KokuDBAccess):
             description = trino_cur.description
         except Exception as ex:
             if attempts_left == 0:
-                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, **sql_params), exc_info=ex)
+                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
             raise ex
         running_time = time.time() - t1
-        LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, **sql_params))
+        LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description
 
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
