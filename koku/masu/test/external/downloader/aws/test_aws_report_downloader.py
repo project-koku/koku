@@ -59,7 +59,7 @@ class FakeSession:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with a report."""
         fake_report = {
             "ReportDefinitions": [
@@ -70,7 +70,7 @@ class FakeSession:
                     "Compression": random.choice(["ZIP", "GZIP"]),
                     "S3Bucket": BUCKET,
                     "S3Prefix": PREFIX,
-                    "S3Region": REGION,
+                    "S3Region": region_name or REGION,
                 }
             ]
         }
@@ -90,7 +90,7 @@ class FakeSessionNoReport:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with no report."""
         fake_report = {"ReportDefinitions": []}
 
@@ -110,7 +110,7 @@ class FakeSessionDownloadError:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with an error."""
         fake_report = {
             "ReportDefinitions": [
@@ -121,7 +121,7 @@ class FakeSessionDownloadError:
                     "Compression": random.choice(["ZIP", "GZIP"]),
                     "S3Bucket": BUCKET,
                     "S3Prefix": PREFIX,
-                    "S3Region": REGION,
+                    "S3Region": region_name or REGION,
                 }
             ]
         }
