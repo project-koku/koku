@@ -10,6 +10,8 @@ from decimal import Decimal
 from itertools import product
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Max
@@ -240,57 +242,115 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                     ) or Decimal(0.0)
                                     self.assertAlmostEqual(capacity, expected)
 
-    def test_get_node_capacity_daily_volume_group_bys(self):
+    def test_get_node_capacity_daily_views_group_bys(self):
         """Test the volume capacities of a daily volume report with various group bys matches expected"""
-        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
-        group_bys = [
-            ["node"],
-            ["cluster", "node"],
-            ["node", "project"],
-        ]
-        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
-        with tenant_context(self.tenant):
-            for group_by in group_bys:
-                url_group_by = "".join([f"&group_by[{gb}]=*" for gb in group_by])
-                url = base_url + url_group_by
-                query_params = self.mocked_query_params(url, OCPVolumeView)
+        params = {
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": "daily",
+            "group_by[node]": "*",
+        }
+        url = "?" + urlencode(params, quote_via=quote_plus)
+        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                query_params = self.mocked_query_params(url, view)
                 handler = OCPReportQueryHandler(query_params)
                 query_data = handler.execute_query()
-
-                annotations = {"capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months")}
-                q_table = handler._mapper.provider_map.get("tables").get("query")
                 query_filter = handler.query_filter
-                query = q_table.objects.filter(query_filter)
-                query_group_by = ["usage_start"]
-                for gb in group_by:
-                    query_group_by.append(GB_MAP.get(gb))
-                query_results = query.values(*query_group_by).annotate(**annotations)
-                with self.subTest(group_by=group_by):
+                # intentionly looking for exact keys since structure
+                # is required for node capacity to function:
+                _cap = handler._mapper.report_type_map["capacity_aggregate"]["node"]["capacity"]
+                with tenant_context(self.tenant):
+                    expected = handler._mapper.query_table.objects.filter(query_filter)
+                    query_results = expected.values(*["usage_start", "node"]).annotate(**{"capacity": _cap})
                     for entry in query_data.get("data", []):
                         date = entry.get("date")
-                        for item in entry.get(f"{group_by[0]}s", []):
-                            filter_dict = {GB_MAP.get(group_by[0]): item.get(group_by[0])}
-                            if len(group_by) > 1:
-                                for element in item.get(f"{group_by[1]}s")[0].get("values"):
-                                    filter_dict[GB_MAP.get(group_by[1])] = element.get(group_by[1])
-                                    capacity = element.get("capacity", {}).get("value")
-                                    expected = query_results.get(usage_start=date, **filter_dict).get(
-                                        "capacity", 0.0
-                                    ) or Decimal(0.0)
-                                    self.assertAlmostEqual(capacity, expected)
-                            else:
-                                for element in item.get("values"):
-                                    capacity = element.get("capacity", {}).get("value")
-                                    expected = query_results.get(usage_start=date, **filter_dict).get(
-                                        "capacity", 0.0
-                                    ) or Decimal(0.0)
-                                    self.assertAlmostEqual(capacity, expected)
+                        for item in entry.get("nodes", []):
+                            for element in item.get("values"):
+                                capacity = element.get("capacity", {}).get("value")
+                                monthly_vals = [
+                                    element.get("capacity") or Decimal(0.0)
+                                    for element in query_results.filter(usage_start=date, node=element.get("node"))
+                                ]
+                                self.assertAlmostEqual(capacity, sum(monthly_vals))
+
+    def test_get_node_cpacity_monthly_views_group_bys(self):
+        """Test the node capacity of a monthly volume report with various group bys"""
+        params = {
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": "monthly",
+            "group_by[node]": "*",
+        }
+        url = "?" + urlencode(params, quote_via=quote_plus)
+        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                query_data = handler.execute_query()
+                query_filter = handler.query_filter
+                # intentionly looking for exact keys since structure
+                # is required for node capacity to function:
+                _cap = handler._mapper.report_type_map["capacity_aggregate"]["node"]["capacity"]
+                with tenant_context(self.tenant):
+                    expected = handler._mapper.query_table.objects.filter(query_filter)
+                    query_results = expected.values(*["usage_start", "node"]).annotate(**{"capacity": _cap})
+                    for entry in query_data.get("data", []):
+                        date = entry.get("date") + "-01"  # first of the month
+                        for item in entry.get("nodes", []):
+                            for element in item.get("values"):
+                                capacity = element.get("capacity", {}).get("value")
+                                monthly_vals = [
+                                    element.get("capacity") or Decimal(0.0)
+                                    for element in query_results.filter(
+                                        usage_start__gte=date, node=element.get("node")
+                                    )
+                                ]
+                                self.assertAlmostEqual(capacity, sum(monthly_vals))
+
+    def test_get_node_capacity_tag_grouping(self):
+        """Test that group_by params with tag keys are returned."""
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys(filters=False)
+        group_by_key = tag_keys[0]
+
+        url = f"?group_by[tag:{group_by_key}]=*&group_by[node]=*"
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        results = handler.get_tag_group_by_keys()
+        self.assertEqual(results, ["tag:" + group_by_key])
+        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                query_data = handler.execute_query()
+                query_filter = handler.query_filter
+                # intentionly looking for exact keys since structure
+                # is required for node capacity to function:
+                _cap = handler._mapper.report_type_map["capacity_aggregate"]["node"]["capacity"]
+                with tenant_context(self.tenant):
+                    expected = handler._mapper.query_table.objects.filter(query_filter)
+                    query_results = expected.values(*["usage_start", "node"]).annotate(**{"capacity": _cap})
+                    for entry in query_data.get("data", []):
+                        date = entry.get("date") + "-01"  # first of the month
+                        for item in entry.get("nodes", []):
+                            for element in item.get("values"):
+                                capacity = element.get("capacity", {}).get("value")
+                                monthly_vals = [
+                                    element.get("capacity") or Decimal(0.0)
+                                    for element in query_results.filter(
+                                        usage_start__gte=date, node=element.get("node")
+                                    )
+                                ]
+                                self.assertAlmostEqual(capacity, sum(monthly_vals))
 
     def test_get_cluster_capacity_monthly_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         group_bys = [["cluster"], ["project"], ["cluster", "project"]]
-        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
+        GB_MAP = {"project": "namespace", "cluster": "cluster_id"}
         with tenant_context(self.tenant):
             for group_by in group_bys:
                 url_group_by = "".join([f"&group_by[{gb}]=*" for gb in group_by])
@@ -303,55 +363,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 q_table = handler._mapper.provider_map.get("tables").get("query")
                 query_filter = handler.query_filter
                 query = q_table.objects.filter(query_filter)
-                query_group_by = ["usage_start"]
-                for gb in group_by:
-                    query_group_by.append(GB_MAP.get(gb))
-                query_results = query.values(*query_group_by).annotate(**annotations)
-                with self.subTest(group_by=group_by):
-                    for entry in query_data.get("data", []):
-                        date = entry.get("date") + "-01"
-                        for item in entry.get(f"{group_by[0]}s", []):
-                            filter_dict = {GB_MAP.get(group_by[0]): item.get(group_by[0])}
-                            if len(group_by) > 1:
-                                for element in item.get(f"{group_by[1]}s")[0].get("values"):
-                                    filter_dict[GB_MAP.get(group_by[1])] = element.get(group_by[1])
-                                    capacity = element.get("capacity", {}).get("value")
-                                    monthly_vals = [
-                                        element.get("capacity") or Decimal(0.0)
-                                        for element in query_results.filter(usage_start__gte=date, **filter_dict)
-                                    ]
-                                    self.assertAlmostEqual(capacity, sum(monthly_vals))
-                            else:
-                                for element in item.get("values"):
-                                    capacity = element.get("capacity", {}).get("value")
-                                    monthly_vals = [
-                                        element.get("capacity") or Decimal(0.0)
-                                        for element in query_results.filter(usage_start__gte=date, **filter_dict)
-                                    ]
-                                    self.assertAlmostEqual(capacity, sum(monthly_vals))
-
-    def test_get_node_capacity_monthly_volume_group_bys(self):
-        """Test the volume capacities of a monthly volume report with various group bys"""
-        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
-        group_bys = [
-            ["node"],
-            ["cluster", "node"],
-            ["node", "project"],
-        ]
-        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
-        with tenant_context(self.tenant):
-            for group_by in group_bys:
-                url_group_by = "".join([f"&group_by[{gb}]=*" for gb in group_by])
-                url = base_url + url_group_by
-                query_params = self.mocked_query_params(url, OCPVolumeView)
-                handler = OCPReportQueryHandler(query_params)
-                query_data = handler.execute_query()
-
-                annotations = {"capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months")}
-                q_table = handler._mapper.provider_map.get("tables").get("query")
-                query_filter = handler.query_filter
-                query = q_table.objects.filter(query_filter)
-                query_group_by = ["usage_start"]
+                query_group_by = ["usage_start", "node"]
                 for gb in group_by:
                     query_group_by.append(GB_MAP.get(gb))
                 query_results = query.values(*query_group_by).annotate(**annotations)
@@ -463,9 +475,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 q_table = handler._mapper.provider_map.get("tables").get("query")
                 query_filter = handler.query_filter
                 query = q_table.objects.filter(query_filter)
-                query_group_by = ["usage_start"]
-                for gb in group_by:
-                    query_group_by.append(GB_MAP.get(gb))
+                query_group_by = ["usage_start", "node"]
                 query_results = query.values(*query_group_by).annotate(**annotations)
                 with self.subTest(group_by=group_by):
                     for entry in query_data.get("data", []):
@@ -477,7 +487,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                             date = self.dh.last_month_end.date()
                             end = self.dh.this_month_start.date()
                         for item in entry.get(f"{group_by[0]}s", []):
-                            filter_dict = {GB_MAP.get(group_by[0]): item.get(group_by[0])}
+                            filter_dict = {}
                             if len(group_by) > 1:
                                 for element in item.get(f"{group_by[1]}s")[0].get("values"):
                                     filter_dict[GB_MAP.get(group_by[1])] = element.get(group_by[1])
@@ -485,7 +495,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                     monthly_vals = [
                                         element.get("capacity") or Decimal(0.0)
                                         for element in query_results.filter(
-                                            usage_start__gte=date, usage_start__lt=end, **filter_dict
+                                            usage_start__gte=date, usage_start__lt=end, **{"node": element.get("node")}
                                         )
                                     ]
                                     self.assertAlmostEqual(capacity, sum(monthly_vals))
@@ -495,7 +505,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                     monthly_vals = [
                                         element.get("capacity") or Decimal(0.0)
                                         for element in query_results.filter(
-                                            usage_start__gte=date, usage_start__lt=end, **filter_dict
+                                            usage_start__gte=date, usage_start__lt=end, **{"node": element.get("node")}
                                         )
                                     ]
                                     self.assertAlmostEqual(capacity, sum(monthly_vals))

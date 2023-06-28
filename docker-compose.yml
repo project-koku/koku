@@ -342,7 +342,7 @@ services:
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['celery', '--pidfile=', '-A', 'koku', 'beat', '-l', 'info']
+    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -359,7 +359,6 @@ services:
       - DJANGO_SETTINGS_MODULE=koku.settings
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - SCHEDULE_REPORT_CHECKS=True
-      - REPORT_DOWNLOAD_SCHEDULE="0 4,16 * * *"
       - SOURCE_STATUS_FREQUENCY_MINUTES
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}

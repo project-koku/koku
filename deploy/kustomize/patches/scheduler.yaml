@@ -74,8 +74,14 @@
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE
-          value: ${REPORT_DOWNLOAD_SCHEDULE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
+          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
+        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
+          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
+        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
+          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -204,7 +210,7 @@
     displayName: Worker Queue
     name: SCHEDULER_WORKER_QUEUE
     required: true
-    value: 'cost_model,download,hcs,ocp,priority,refresh,summary'
+    value: 'cost_model,cost_model_xl,download,download_xl,hcs,ocp,ocp_xl,priority,priority_xl,refresh,refresh_xl,summary,summary_xl'
 - op: add
   path: /parameters/-
   value:

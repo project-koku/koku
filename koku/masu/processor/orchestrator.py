@@ -23,15 +23,18 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_cloud_source_processing_disabled
+from masu.processor import is_customer_large
 from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.processor.tasks import populate_ocp_on_cloud_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
+from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
@@ -47,7 +50,9 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None, **kwargs):
+    def __init__(
+        self, billing_source=None, provider_uuid=None, provider_type=None, bill_date=None, queue_name=None, **kwargs
+    ):
         """
         Orchestrator for processing.
 
@@ -59,14 +64,17 @@ class Orchestrator:
         self.billing_source = billing_source
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
+        self.provider_type = provider_type
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
+        self._accounts, self._polling_accounts = self.get_accounts(
+            self.billing_source, self.provider_uuid, self.provider_type
+        )
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None):
+    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None):
         """
         Prepare a list of accounts for the orchestrator to get CUR from.
 
@@ -77,6 +85,8 @@ class Orchestrator:
 
         Args:
             billing_source (String): Individual account to retrieve.
+            provider_uuid  (String): Individual provider UUID.
+            provider_type  (String): Specific provider type.
 
         Returns:
             [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
@@ -85,7 +95,7 @@ class Orchestrator:
         all_accounts = []
         polling_accounts = []
         try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid)
+            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type)
         except AccountsAccessorError as error:
             LOG.error("Unable to get accounts. Error: %s", str(error))
 
@@ -173,6 +183,9 @@ class Orchestrator:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
             HCS_Q = HCS_QUEUE
+            if is_customer_large(schema_name):
+                SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE_XL
+                REPORT_QUEUE = GET_REPORT_FILES_QUEUE_XL
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
