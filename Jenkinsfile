@@ -42,7 +42,7 @@ pipeline {
 
         IQE_PLUGINS="cost_management"
         IQE_CJI_TIMEOUT="120m"
-        
+
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
     }
@@ -68,9 +68,9 @@ pipeline {
                     flags = FILE_CONTENTS.split()
                     for (i in flags) {
                         s=i.split(':')
-                        if (s.length == 2) { 
+                        if (s.length == 2) {
                             flags_map[s[0]] = "${s[1]}"
-                        } else { 
+                        } else {
                             flags_map[s[0]] = ""
                         }
                     }
@@ -139,7 +139,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
        always {
             archiveArtifacts artifacts: 'artifacts/**/*', fingerprint: true

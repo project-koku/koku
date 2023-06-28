@@ -156,7 +156,7 @@ function _install_bonfire_tools() {
 }
 
 function run_build_image_stage() {
-    
+
     _install_bonfire_tools
     echo "creating PR image"
     build_image
