@@ -473,11 +473,22 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
                     s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:
-                msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
-                LOG.info(log_json(request_id, msg=msg, context=context))
+                LOG.info(
+                    log_json(
+                        request_id,
+                        msg="removed files from s3 bucket",
+                        context=context,
+                        bucket=settings.S3_BUCKET_NAME,
+                        file_list=removed,
+                    )
+                )
         except (EndpointConnectionError, ClientError) as err:
-            msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.info(log_json(request_id, msg=msg, context=context))
+            LOG.warning(
+                log_json(
+                    request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
+                ),
+                exc_info=err,
+            )
     return removed
 
 

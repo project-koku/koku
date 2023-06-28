@@ -209,7 +209,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type",
                 return_value="pod_usage",
             ):
-                self.assertIsInstance(report_processor.set_post_processor(), test.get("expected"))
+                self.assertIsInstance(report_processor._set_post_processor(), test.get("expected"))
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
