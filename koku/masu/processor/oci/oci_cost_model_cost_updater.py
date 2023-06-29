@@ -66,8 +66,8 @@ class OCICostModelCostUpdater:
                 msg="starting charge calculation updates",
                 schema=self._schema,
                 provider_uuid=self._provider.uuid,
-                start_date=str(start_date),
-                end_date=str(end_date),
+                start_date=start_date,
+                end_date=end_date,
             )
         )
 

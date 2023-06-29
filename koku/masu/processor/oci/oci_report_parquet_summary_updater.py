@@ -73,7 +73,7 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                         msg="no bill was found, skipping summarization",
                         schema=self._schema,
                         provider_uuid=self._provider.uuid,
-                        start_date=str(start_date),
+                        start_date=start_date,
                     )
                 )
                 return start_date, end_date
@@ -84,8 +84,8 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                         msg="updating OCI report summary tables from parquet",
                         schema=self._schema,
                         provider_uuid=self._provider.uuid,
-                        start_date=str(start),
-                        end_date=str(end),
+                        start_date=start,
+                        end_date=end,
                     )
                 )
                 filters = {
