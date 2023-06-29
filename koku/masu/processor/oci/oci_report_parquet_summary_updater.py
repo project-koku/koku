@@ -74,7 +74,7 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 msg = f"updating OCI report summary tables from parquet for dates {start}-{end}"
-                LOG.info(log_json(msg=msg, schema=self.schema, provider_uuid=self._provider.uuid))
+                LOG.info(log_json(msg=msg, schema=self._schema, provider_uuid=self._provider.uuid))
                 filters = {
                     "cost_entry_bill_id": current_bill_id
                 }  # Use cost_entry_bill_id to leverage DB index on DELETE

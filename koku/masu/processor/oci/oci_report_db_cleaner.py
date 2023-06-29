@@ -48,7 +48,7 @@ class OCIReportDBCleaner:
 
         """
         msg = "calling purge_expired_report_data for oci"
-        LOG.info(log_json(self.tracing_id, msg=msg, schema=self._schema, provider_uuid=provider_uuid))
+        LOG.info(log_json(msg=msg, schema=self._schema, provider_uuid=provider_uuid))
 
         with OCIReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504

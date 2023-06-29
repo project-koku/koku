@@ -49,7 +49,7 @@ class OCICostModelCostUpdater:
                 report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
         except OCICostModelCostUpdaterError as error:
             msg = "unable to update markup costs."
-            LOG.error(log_json(self.tracing_id, msg=msg), exc_info=error)
+            LOG.error(log_json(msg=msg), exc_info=error)
 
     def update_summary_cost_model_costs(self, start_date=None, end_date=None):
         """Update the OCI summary table with the charge information.
