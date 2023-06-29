@@ -30,13 +30,29 @@ class OCPAzureOrderBySerializer(azureser.AzureOrderBySerializer, ocpser.OCPOrder
 class OCPAzureFilterSerializer(azureser.AzureFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = (
+        "subscription_guid",
+        "resource_location",
+        "instance_type",
+        "service_name",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
 class OCPAzureExcludeSerializer(azureser.AzureExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = (
+        "subscription_guid",
+        "resource_location",
+        "instance_type",
+        "service_name",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
 class OCPAzureQueryParamSerializer(azureser.AzureQueryParamSerializer):

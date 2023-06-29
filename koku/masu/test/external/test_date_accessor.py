@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the DateAccessor object."""
+import secrets
 from datetime import datetime
-from unittest import skip
 from zoneinfo import ZoneInfo
 
 import dateutil
@@ -102,10 +102,20 @@ class DateAccessorTest(MasuTestCase):
         self.assertEqual(today.day, expected_date.day)
         self.assertEqual(today.tzinfo, settings.UTC)
 
-    @skip("flaky test")
     def test_today_override_with_iso8601(self):
         """Test today() with override and using ISO8601 format."""
-        fake_tz_name = self.fake.timezone()
+
+        # Use timezones with UTC offset of something other than 0 to avoid test failures.
+        # dateutil.parse() returns incorrect zone offset information when the timezone string is 00:00.
+        timezones = (
+            "America/Anchorage",
+            "America/New_York",
+            "Europe/Berlin",
+            "Indian/Maldives",
+            "Pacific/Fiji",
+            "Pacific/Palau",
+        )
+        fake_tz_name = secrets.choice(timezones)
         fake_tz = ZoneInfo(fake_tz_name)
         fake_dt = self.fake.date_time(tzinfo=fake_tz)
 

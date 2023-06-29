@@ -12,6 +12,7 @@ from django.core.cache.backends.locmem import LocMemCache
 from django_redis.cache import RedisCache
 from redis import Redis
 
+from api.common import log_json
 from api.provider.models import Provider
 
 
@@ -56,13 +57,11 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
         all_keys = [key.split(":") for key in all_keys]
         all_keys = [":".join(splits[-2:]) for splits in all_keys]
     elif isinstance(cache, DummyCache):
-        LOG.info("Skipping cache invalidation because views caching is disabled.")
+        LOG.info(log_json(msg="skipping cache invalidation because views caching is disabled", schema=schema_name))
         return
     else:
         msg = "Using an unsupported caching backend!"
         raise KokuCacheError(msg)
-
-    all_keys = all_keys if all_keys is not None else []
 
     if cache_key_prefix:
         keys_to_invalidate = [key for key in all_keys if (schema_name in key and cache_key_prefix in key)]
@@ -73,8 +72,7 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     for key in keys_to_invalidate:
         cache.delete(key)
 
-    msg = f"Invalidated request cache for\n\ttenant: {schema_name}\n\tcache_key_prefix: {cache_key_prefix}"
-    LOG.info(msg)
+    LOG.info(log_json(msg="invalidated request cache", schema=schema_name, cache_key_prefix=cache_key_prefix))
 
 
 def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
@@ -107,7 +105,13 @@ def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types)
         if source_type in Provider.PROVIDER_LIST:
             invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
         else:
-            LOG.warning("unable to invalidate cache, %s is not a valid source type", source_type)
+            LOG.info(
+                log_json(
+                    msg="unable to invalidate cache, not a valid source type",
+                    schema=schema_name,
+                    source_type=source_type,
+                )
+            )
 
 
 def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):

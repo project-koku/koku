@@ -15,7 +15,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     instance_ids,
     instance_count,
     source_uuid,
-    markup_cost
+    markup_cost,
+    subscription_name
 )
 WITH cte_line_items AS (
     SELECT date(coalesce(date, usagedatetime)) as usage_date,
@@ -30,6 +31,7 @@ WITH cte_line_items AS (
         json_parse(tags) as tags,
         coalesce(resourceid, instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
+        coalesce(subscriptionname, subscriptionid, subscriptionguid) as subscription_name,
         CASE
             WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines') AND NOT split_part(unitofmeasure, ' ', 2) = ''
                 THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
@@ -69,7 +71,8 @@ SELECT uuid() as uuid,
     array_agg(DISTINCT li.instance_id) as instance_ids,
     count(DISTINCT li.instance_id) as instance_count,
     li.source_uuid,
-    sum(cast(li.pretax_cost * {{markup | sqlsafe}} AS decimal(24,9))) as markup_cost
+    sum(cast(li.pretax_cost * {{markup | sqlsafe}} AS decimal(24,9))) as markup_cost,
+    li.subscription_name -- account name
 FROM cte_line_items AS li
 GROUP BY li.usage_date,
     li.cost_entry_bill_id,
@@ -78,4 +81,5 @@ GROUP BY li.usage_date,
     li.resource_location,
     li.instance_type,
     li.service_name,
-    li.source_uuid
+    li.source_uuid,
+    li.subscription_name
