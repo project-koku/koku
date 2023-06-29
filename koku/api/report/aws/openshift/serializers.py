@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP-on-AWS Report Serializers."""
+from rest_framework import serializers
+
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import validate_field
@@ -34,13 +36,35 @@ class OCPAWSOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySeri
 class OCPAWSFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
 class OCPAWSExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
 class OCPAWSQueryParamSerializer(awsser.AWSQueryParamSerializer):
@@ -72,5 +96,9 @@ class OCPAWSQueryParamSerializer(awsser.AWSQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
+        if len(value) > 2:
+            # Max support group_bys is 2
+            error = {"group_by": ("Cost Management supports a max of two group_by options.")}
+            raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value

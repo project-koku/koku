@@ -47,6 +47,10 @@ do the following:
 
         brew install openssl librdkafka postgresql@13
 
+3.  (Fedora only) Install libraries for building wheels on Linux:
+
+        dnf install openssl-devel libpq-devel postgresql golang-sigs-k8s-kustomize
+
 4.  (macOS only) Also add the following to your `.env` or shell profile:
 
         LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib -L$(brew --prefix postgresql@13)/lib"

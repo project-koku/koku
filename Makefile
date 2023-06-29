@@ -61,6 +61,7 @@ help:
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
 	@echo "  lint                                  run pre-commit against the project"
+	@echo "  get-release-commit                    show the latest commit that is safe to release"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
@@ -104,7 +105,7 @@ help:
 	@echo "  serve                                 run the Django app on localhost"
 	@echo "  shell                                 run the Django interactive shell"
 	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
-	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
@@ -594,3 +595,7 @@ restore-local-db-dir:
 	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \
 	fi
 	@cd - >/dev/null
+
+
+get-release-commit:
+	@$(PYTHON) $(SCRIPTDIR)/get-release-commit.py
