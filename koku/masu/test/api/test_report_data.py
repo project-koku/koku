@@ -16,6 +16,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import QUEUE_LIST
 
 
@@ -93,6 +94,38 @@ class ReportDataTests(TestCase):
             ocp_on_cloud=True,
             invoice_month=None,
         )
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.ProviderDBAccessor")
+    @patch("masu.api.report_data.update_summary_tables")
+    def test_get_report_data_sent_to_XL_OCP_queue(self, mock_update, mock_accessor, _):
+        """Test the GET report_data using XL queue."""
+        provider_type = Provider.PROVIDER_OCP
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
+        params = {
+            "schema": "org1234567",
+            "start_date": self.start_date,
+            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+        }
+        expected_key = "Report Data Task IDs"
+
+        with patch("masu.api.report_data.is_customer_large", return_value=True):
+            response = self.client.get(reverse("report_data"), params)
+            body = response.json()
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(expected_key, body)
+            mock_update.s.assert_called_with(
+                params["schema"],
+                Provider.PROVIDER_OCP,
+                params["provider_uuid"],
+                params["start_date"],
+                DateHelper().today.date().strftime("%Y-%m-%d"),
+                queue_name=PRIORITY_QUEUE_XL,
+                ocp_on_cloud=True,
+                invoice_month=None,
+            )
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")

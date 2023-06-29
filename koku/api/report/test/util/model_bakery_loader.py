@@ -97,12 +97,15 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_aws_category_key_table(self):
         """Insert records for aws category keys."""
+        deduplicate_keys = []
         for item in AWS_COST_CATEGORIES:
             if isinstance(item, dict):
                 keys = item.keys()
                 for key in keys:
-                    with schema_context(self.schema):
-                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                    if key not in deduplicate_keys:
+                        with schema_context(self.schema):
+                            baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                        deduplicate_keys.append(key)
 
     def _populate_exchange_rates(self):
         rates = [

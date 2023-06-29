@@ -301,6 +301,31 @@ class ReportQueryHandlerTest(IamTestCase):
         )
         assertSameQ(output, expected.compose())
 
+    def test_set_operator_specified_filters_exact(self):
+        """Test that EXACT terms are correctly applied to param filters."""
+        operator = "exact"
+
+        term = FAKE.word()
+        first = FAKE.word()
+        second = FAKE.word()
+        operation = FAKE.word()
+
+        url = f"?filter[time_scope_value]=-1&group_by[{operator}:{term}]={first}&group_by[{operator}:{term}]={second}"
+        params = self.mocked_query_params(url, self.mock_view)
+
+        mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
+        rqh = create_test_handler(params, mapper=mapper)
+        output = rqh._set_operator_specified_filters(operator)
+        self.assertIsNotNone(output)
+
+        expected = QueryFilterCollection(
+            filters=[
+                QueryFilter(field=term, operation=operation, parameter=second, logical_operator=operator),
+                QueryFilter(field=term, operation=operation, parameter=first, logical_operator=operator),
+            ]
+        )
+        assertSameQ(output, expected.compose())
+
     def test_set_operator_specified_prefix_filters_and(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
         operator = "and"
