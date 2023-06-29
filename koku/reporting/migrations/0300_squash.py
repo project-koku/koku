@@ -6134,10 +6134,8 @@ class Migration(migrations.Migration):
                 ("finalized_datetime", models.DateTimeField(null=True)),
                 ("derived_cost_datetime", models.DateTimeField(null=True)),
                 (
-                    "source_uuid",
+                    "provider",
                     models.ForeignKey(
-                        db_column="source_uuid",
-                        null=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         to="reporting.tenantapiprovider",
                     ),
