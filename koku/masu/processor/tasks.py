@@ -279,6 +279,67 @@ def get_report_files(  # noqa: C901
         WorkerCache().remove_task_from_cache(cache_key)
 
 
+@celery_app.task(
+    name="masu.processor.tasks.populate_ocp_on_cloud_parquet", queue=GET_REPORT_FILES_QUEUE, bind=True
+)  # noqa: C901
+def populate_ocp_on_cloud_parquet(  # noqa: C901
+    self, report_meta, provider_type, schema_name, provider_uuid, tracing_id, start_date=None, end_date=None
+):
+    """
+    Task to process ocp on cloud via trino.
+    Args:
+        report_meta       (Dict):   Metadata for running task
+        provider_type     (String): Koku defined provider type string.
+        schema_name       (String): Name of the DB schema.
+        provider_uuid     (String): UUID of specific provider.
+        tracing_id        (String): Task tracing ID.
+        start_date        (String): Start date to process.
+        end_date          (String): End date to process.
+    Returns:
+        None
+    """
+    if provider_type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+        starts = []
+        ends = []
+        for report in report_meta:
+            # GCP and OCI set report start and report end, AWS/Azure do not
+            starts.append(report.get("start"))
+            ends.append(report.get("end"))
+            start_date = min(starts)
+            end_date = max(ends)
+        # TODO Fix AWS/Azure start/end dates LOG.info(f"\n\n REPORT {report} \n\n")
+        dh = DateHelper()
+        start = dh.parse_date(start_date)
+        end = dh.parse_date(end_date)
+        months = dh.list_month_tuples(start, end)
+        date_ranges = []
+        date_ranges.append({"start": start, "end": months[0][1]})
+        date_ranges.append({"start": months[-1][0], "end": end})
+        for date_range in date_ranges:
+            ctx = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "start_date": date_range.get("start"),
+            }
+            LOG.info(log_json(tracing_id, msg="Populate_ocp_on_cluod_parquet called", context=ctx))
+            invoice_month = date_range.get("start").strftime("%Y%m")
+            processor = OCPCloudParquetReportProcessor(
+                schema_name,
+                "",
+                provider_uuid,
+                provider_type,
+                0,
+                context={
+                    "tracing_id": "tracing_id",
+                    "start_date": date_range.get("start"),
+                    "invoice_month": invoice_month,
+                },
+            )
+            processor.process_trino(date_range.get("start"), date_range.get("end"))
+    return report_meta
+
+
 @celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, queue_name=None):
     """

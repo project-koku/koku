@@ -179,6 +179,12 @@ class DateHelper:
         month_end = self.days_in_month(self.next_month_start)
         return self.next_month_start.replace(day=month_end)
 
+    def parse_date(self, in_date):
+        """Correctly Parse date"""
+        if isinstance(in_date, str):
+            in_date = ciso8601.parse_datetime(in_date)
+        return in_date
+
     def month_start(self, in_date):
         """Datetime of midnight on the 1st of in_date month."""
         if isinstance(in_date, datetime.datetime):
