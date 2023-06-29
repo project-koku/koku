@@ -277,7 +277,7 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
-            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
+            elif "org_unit_id" in filters and not access_list and self.parameters.get("aws_use_or_operator", False):
                 org_unit_filter = filters.get("org_unit_id")
                 access_list = set(
                     AWSOrganizationalUnit.objects.filter(
