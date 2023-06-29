@@ -85,30 +85,49 @@ Additional Reads:
 - https://trino.io/blog/2020/10/20/intro-to-hive-connector.html#trino-runtime-replaces-hive-runtime
 
 ## Trino Migrations
-Trino migrations are run using the `migrate_trino.py` script, there are a few standard operations for the migrations. A list of external vs managed tables should be maintained in the `migrate_trino.py` script. The following describes which actions should be performed on which tables:
-1. Drop a table
-    * This should only be performed on tables that point to data stored in an external location as dropping these tables will not result in data loss.
-    * External tables are identifiable in trino by using the `SHOW CREATE TABLE <table_name>` command. The external tables will have an `external_location` like this:
-        ```
-        SHOW CREATE TABLE aws_line_items;
-        ...
-        WITH (
-            external_location = 's3a://koku-bucket/data/parquet/org1234567/AWS',
-            format = 'PARQUET',
-            partitioned_by = ARRAY['source','year','month']
-        )
-        ```
-2. Adding/Dropping a column from a table
-    * This should be performed on managed tables, tables without an external store. Dropping these tables would result in data loss.
-    * Managed tables are identifiable in trino by using the `SHOW CREATE TABLE <table_name>` command. The managed tables will *NOT* have an `external_location` like this:
-        ```
-        SHOW CREATE TABLE reporting_ocpawscostlineitem_project_daily_summary;
-        ...
-        WITH (
-            format = 'PARQUET',
-            partitioned_by = ARRAY['aws_source','ocp_source','year','month','day']
-        )
-        ```
+Koku utilize two different table types within Trino, *external tables* and *managed tables*.  Understanding the difference between these two table types is essential to understanding how to migrate them.
+
+### External Tables:
+
+An external table is a table that is stored externally. These tables point towards an external location in S3 or Mino (locally). The Hive metastore only contains the metadata schema so that it knows where to look during a query.
+
+* External tables are identifiable in trino by using the `SHOW CREATE TABLE <table_name>` command. The external tables will have an `external_location` like this:
+
+```
+    SHOW CREATE TABLE aws_line_items;
+    ...
+    WITH (
+        external_location = 's3a://koku-bucket/data/parquet/org1234567/AWS',
+        format = 'PARQUET',
+        partitioned_by = ARRAY['source','year','month']
+    )
+```
+
+*Migration Considerations*
+1. Since the data is externally located, dropping these tables will not result in data loss. Dropping the table will force the hive metastore to refresh the metadata schema picking up any changes.
+
+### Managed Tables:
+Managed tables ARE NOT stored externally, and Hive assumes it owns the data for the managed table. The managed tables can be identified with the same `SHOW CREATE TABLE <table_name>` command.
+
+ ```
+    SHOW CREATE TABLE reporting_ocpawscostlineitem_project_daily_summary;
+    ...
+    WITH (
+        format = 'PARQUET',
+        partitioned_by = ARRAY['aws_source','ocp_source','year','month','day']
+    )
+```
+
+Notice how an `external_location` is not present in the return. That means the hive metastore assumes it owns that information.
+
+*Migration Considerations*
+1. Changes to these tables should always come in the form of adding or dropping a column.
+2. Dropping these tables would result in DATA LOSS, therefore the `migrate_trino.py` script will not allow you to drop managed tables.
+
+### Our migration script.
+
+Our Trino migrations are run using the `migrate_trino.py` script, and this script contains checks and balances regarding managed and external tables. Therefore, when new trino tables are added to the project, the corresponding list of external vs managed tables should be updated with the new table name.
+
 
 ## MinIO
 MinIO is the file storage location we use locally. Since, we query the parquet files based off the S3 path, we use this tool locally to see the csv & parquet files are in their expected place. It will also allow you to download them.
