@@ -1608,6 +1608,7 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_azureenabledtagkeys"},
         ),
+        migrations.RunSQL("ALTER TABLE reporting_azureenabledtagkeys ALTER COLUMN enabled SET DEFAULT true"),
         migrations.CreateModel(
             name="AzureNetworkSummaryP",
             fields=[
@@ -2236,6 +2237,7 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_gcpenabledtagkeys"},
         ),
+        migrations.RunSQL("ALTER TABLE reporting_gcpenabledtagkeys ALTER COLUMN enabled SET DEFAULT false"),
         migrations.CreateModel(
             name="GCPNetworkSummaryP",
             fields=[
@@ -4692,6 +4694,7 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocpenabledtagkeys"},
         ),
+        migrations.RunSQL("ALTER TABLE reporting_ocpenabledtagkeys ALTER COLUMN enabled SET DEFAULT false"),
         migrations.CreateModel(
             name="OCPGCPComputeSummaryP",
             fields=[
@@ -6504,6 +6507,7 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocienabledtagkeys"},
         ),
+        migrations.RunSQL("""ALTER TABLE reporting_ocienabledtagkeys ALTER COLUMN enabled SET DEFAULT true"""),
         migrations.CreateModel(
             name="OCITagsSummary",
             fields=[
