@@ -133,7 +133,7 @@ class OCIReportDBCleaner:
                         msg="deleting provider billing data",
                         schema=self._schema,
                         provider_uuid=bill.provider_id,
-                        start_date=str(bill.billing_period_start),
+                        start_date=bill.billing_period_start,
                     )
                 )
 
