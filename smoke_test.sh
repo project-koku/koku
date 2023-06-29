@@ -12,7 +12,7 @@ IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
 
 # Get bonfire helper scripts
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
 rm -f .cicd_bootstrap.sh
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
