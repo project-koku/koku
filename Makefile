@@ -74,9 +74,9 @@ help:
 	@echo "                                          @param generator_config_file - (optional, default=default) config file for the generator"
 	@echo "                                          @param generator_template_file - (optional) jinja2 template to render output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
-	@echo "  delete-test-sources                   Call the source DELETE API for each source in the database"
-	@echo "  delete-cost-models                    Call the cost-model DELETE API for each cost-model in the database"
-	@echo "  delete-test-customer-data             Delete all sources and cost-models in the database"
+	@echo "  remove-test-sources                   Call the source DELETE API for each source in the database"
+	@echo "  remove-cost-models                    Call the cost-model DELETE API for each cost-model in the database"
+	@echo "  remove-test-customer-data             Delete all sources and cost-models in the database"
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
@@ -179,16 +179,13 @@ create-test-customer: run-migrations docker-up-koku
 create-test-customer-no-sources: run-migrations docker-up-koku
 	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
-remove-test-sources: delete-test-sources
-delete-test-sources:
+remove-test-sources:
 	$(PYTHON) $(SCRIPTDIR)/delete_test_sources.py
 
-remove-cost-models: delete-cost-models
-delete-cost-models:
+remove-cost-models:
 	$(PYTHON) $(SCRIPTDIR)/delete_cost_models.py
 
-remove-test-customer-data: delete-test-customer-data
-delete-test-customer-data: delete-test-sources delete-cost-models
+remove-test-customer-data: remove-test-sources remove-cost-models
 
 test_source=all
 load-test-customer-data:
@@ -211,11 +208,9 @@ collect-static:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
-delete-db: remove-db
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
-delete-test-db: remove-test-db
 remove-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
