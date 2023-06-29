@@ -88,7 +88,7 @@ class AccountSettingsViewTest(IamTestCase):
         data = {"cost_type": "calculated_amortized_cost"}
         with schema_context(self.schema_name):
             response = client.put(url, data, format="json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_account_setting_put_unknown_cost_type(self):
         """Test grabbing a specified user setting"""

@@ -30,38 +30,6 @@ from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 
 
-@dataclass
-class SettingUpdater:
-    setting: str
-    schema_name: str
-    is_valid: bool = False
-    serializer_class: object = field(init=False)
-    update_method: object = field(init=False)
-    invalidate_cache: object = field(init=False)
-    cache_kwargs: dict = field(init=False)
-
-    def __post_init__(self):
-        if self.setting == "cost_type":
-            self.serializer_class = UserSettingUpdateCostTypeSerializer
-            self.update_method = set_cost_type
-            self.invalidate_cache = invalidate_view_cache_for_tenant_and_source_type
-            self.cache_kwargs = {"schema_name": self.schema_name, "source_type": Provider.PROVIDER_AWS}
-            self.is_valid = True
-        elif self.setting == "currency":
-            self.serializer_class = UserSettingUpdateCurrencySerializer
-            self.update_method = set_currency
-            self.invalidate_cache = invalidate_view_cache_for_tenant_and_all_source_types
-            self.cache_kwargs = {"schema_name": self.schema_name}
-            self.is_valid = True
-
-    def init_serializer(self, data):
-        return self.serializer_class(self.schema_name, data)
-
-    def update(self, data):
-        self.update_method(self.schema_name, data)
-        self.invalidate_cache(**self.cache_kwargs)
-
-
 class SettingsInvalidFilterException(APIException):
     """Invalid parameter value"""
 
@@ -69,6 +37,47 @@ class SettingsInvalidFilterException(APIException):
         """Initialize with status code 404."""
         self.status_code = status.HTTP_404_NOT_FOUND
         self.detail = {"detail": force_text(message)}
+
+
+@dataclass
+class SettingParamsHandler:
+    setting: str
+    retriever: object = field(init=False)
+    update_param: object = field(init=False)
+
+    def __post_init__(self):
+        if self.setting in ["cost_type", "cost-type"]:
+            self.setting = self.setting.replace("-", "_")
+            self.update_param = self.update_cost_type
+            self.retriever = get_cost_type
+        elif self.setting == "currency":
+            self.update_param = self.update_currency
+            self.retriever = get_currency
+        else:
+            raise SettingsInvalidFilterException("Invalid not a user setting")
+
+    def update_cost_type(self, request_data, schema_name):
+        serializer = UserSettingUpdateCostTypeSerializer(schema_name, request_data)
+        if serializer.is_valid(raise_exception=True):
+            if new_value := request_data.get(self.setting):
+                set_cost_type(schema_name, new_value)
+                invalidate_view_cache_for_tenant_and_source_type(schema_name, Provider.PROVIDER_AWS)
+                return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update_currency(self, request_data, schema_name):
+        serializer = UserSettingUpdateCurrencySerializer(schema_name, request_data)
+        if serializer.is_valid(raise_exception=True):
+            if new_value := request_data.get(self.setting):
+                set_currency(schema_name, new_value)
+                invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+                return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve_user_settings(self, request):
+        users_setting = {"settings": {self.setting: self.retriever(request)}}
+        users_setting = UserSettingSerializer(users_setting, many=False).data
+        return Response(users_setting)
 
 
 class AccountSettings(APIView):
@@ -81,9 +90,8 @@ class AccountSettings(APIView):
         if not kwargs:
             user_settings = get_account_settings(request)
         else:
-            setting = kwargs["setting"]
-            self.validate_setting(setting)
-            user_settings = self.get_account_setting(request, setting).data
+            param_handler = SettingParamsHandler(kwargs["setting"])
+            user_settings = param_handler.retrieve_user_settings(request).data
         user_settings = UserSettingSerializer(user_settings, many=False).data
         paginated = ListPaginator(user_settings, request)
         return paginated.get_paginated_response(user_settings["settings"])
@@ -92,33 +100,8 @@ class AccountSettings(APIView):
         """Set the user cost type preference."""
         if not kwargs:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        setting = kwargs["setting"]
-        updater = SettingUpdater(setting, self.request.user.customer.schema_name)
-        if not updater.is_valid:
-            error = {"error": f"Unknown setting:{setting}"}
-            return Response(data=error, status=status.HTTP_400_BAD_REQUEST)
-        serializer = updater.init_serializer(request.data)
-        if serializer.is_valid(raise_exception=True):
-            if setting_value := request.data.get(setting):
-                updater.update(setting_value)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @staticmethod
-    def validate_setting(setting):
-        """Check if filter parameters are valid"""
-        valid_query_params = ["cost-type", "currency"]
-        if setting not in valid_query_params:
-            raise SettingsInvalidFilterException("Invalid not a user setting")
-
-    def get_account_setting(self, request, setting):
-        """Returns specific setting that is being filtered"""
-        if setting == "cost-type":
-            users_setting = {"settings": {"cost_type": get_cost_type(request)}}
-        elif setting == "currency":
-            users_setting = {"settings": {"currency": get_currency(request)}}
-        users_setting = UserSettingSerializer(users_setting, many=False).data
-        return Response(users_setting)
+        param_handler = SettingParamsHandler(kwargs["setting"])
+        return param_handler.update_param(request.data, self.request.user.customer.schema_name)
 
 
 class UserCostTypeSettings(APIView):
