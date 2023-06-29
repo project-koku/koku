@@ -4536,10 +4536,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -4598,10 +4595,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -4659,10 +4653,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -5466,10 +5457,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -5577,10 +5565,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -5810,7 +5795,7 @@ class Migration(migrations.Migration):
                 ),
                 ("persistentvolumeclaim", models.CharField(max_length=253, null=True)),
                 ("persistentvolume", models.CharField(max_length=253, null=True)),
-                ("storageclass", models.CharField(max_length=50, null=True)),
+                ("storageclass", models.CharField(max_length=253, null=True)),
                 ("volume_labels", models.JSONField(null=True)),
                 (
                     "persistentvolumeclaim_capacity_gigabyte",
@@ -5876,10 +5861,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -5984,10 +5966,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -6067,10 +6046,7 @@ class Migration(migrations.Migration):
                     "cost_model_memory_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
-                (
-                    "cost_model_rate_type",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
+                ("cost_model_rate_type", models.TextField(null=True)),
                 (
                     "cost_model_volume_cost",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
