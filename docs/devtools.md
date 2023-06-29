@@ -85,11 +85,11 @@ Additional Reads:
 - https://trino.io/blog/2020/10/20/intro-to-hive-connector.html#trino-runtime-replaces-hive-runtime
 
 ## Trino Migrations
-Koku utilize two different table types within Trino, *external tables* and *managed tables*.  Understanding the difference between these two table types are essential to understanding how to migrate them.
+Koku utilize two different table types within Trino, *external tables* and *managed tables*.  Understanding the difference between these two table types is essential to understanding how to migrate them.
 
 ### External Tables:
 
-An external table is a table that is stored externally. These tables point towards an external location in S3 or Mino locally. The Hive metastore only contains the metadata schema so that it knows where to look during a query.
+An external table is a table that is stored externally. These tables point towards an external location in S3 or Mino (locally). The Hive metastore only contains the metadata schema so that it knows where to look during a query.
 
 * External tables are identifiable in trino by using the `SHOW CREATE TABLE <table_name>` command. The external tables will have an `external_location` like this:
 
@@ -107,7 +107,7 @@ An external table is a table that is stored externally. These tables point towar
 1. Since the data is externally located, dropping these tables will not result in data loss. Dropping the table will force the hive metastore to refresh the metadata schema picking up any changes.
 
 ### Managed Tables:
-Managed tables are not store locally, and Hive assumes it owns the data for the managed table. The managed tables can be identified with the same `SHOW CREATE TABLE <table_name>` command.
+Managed tables ARE NOT stored externally, and Hive assumes it owns the data for the managed table. The managed tables can be identified with the same `SHOW CREATE TABLE <table_name>` command.
 
  ```
     SHOW CREATE TABLE reporting_ocpawscostlineitem_project_daily_summary;
