@@ -133,6 +133,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["resource_location"], name="ix_azurecstentrydlysumm_svc"),
             models.Index(fields=["subscription_guid"], name="ix_azurecstentrydlysumm_sub_id"),
             models.Index(fields=["instance_type"], name="ix_azurecstentrydlysumm_instyp"),
+            models.Index(fields=["subscription_name"], name="ix_azurecstentrydlysumm_sub_na"),
         ]
         # A GIN functional index named "ix_azure_costentrydlysumm_service_name" was created manually
         # via RunSQL migration operation
@@ -155,6 +156,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     instance_count = models.IntegerField(null=True)
     unit_of_measure = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
+    subscription_name = models.TextField(null=True)
 
 
 class AzureTagsValues(models.Model):
@@ -254,6 +256,7 @@ class AzureCostSummaryByAccountP(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="azurecostsumm_acc_usage_start"),
             models.Index(fields=["subscription_guid"], name="azurecostsumm_acc_sub_guid"),
+            models.Index(fields=["subscription_name"], name="azurecostsumm_acc_sub_name"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -266,6 +269,7 @@ class AzureCostSummaryByAccountP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
 
 
 class AzureCostSummaryByLocationP(models.Model):
@@ -299,6 +303,7 @@ class AzureCostSummaryByLocationP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
 
 
 class AzureCostSummaryByServiceP(models.Model):
@@ -332,6 +337,7 @@ class AzureCostSummaryByServiceP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
 
 
 class AzureComputeSummaryP(models.Model):
@@ -369,6 +375,7 @@ class AzureComputeSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
 
 
 class AzureStorageSummaryP(models.Model):
@@ -404,6 +411,7 @@ class AzureStorageSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
 
 
 class AzureNetworkSummaryP(models.Model):
@@ -439,6 +447,7 @@ class AzureNetworkSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
 
 
 class AzureDatabaseSummaryP(models.Model):
@@ -474,3 +483,4 @@ class AzureDatabaseSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+    subscription_name = models.TextField(null=True)
