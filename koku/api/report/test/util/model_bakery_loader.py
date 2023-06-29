@@ -272,6 +272,7 @@ class ModelBakeryDataLoader(DataLoader):
             linked_openshift_provider=linked_openshift_provider,
         )
         sub_guid = self.faker.uuid4()
+        sub_name = f"{self.faker.company()} subscription"
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load azure data for start: {start_date}, end: {end_date}")
             self.create_manifest(provider, bill_date)
@@ -289,6 +290,7 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
+                        subscription_name=sub_name,
                     )
         bill_ids = [bill.id for bill in bills]
         with AzureReportDBAccessor(self.schema) as accessor:
