@@ -45,7 +45,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    LOG.info(log_json(msg="overriding start and end date to process full month."))
+                    LOG.info(log_json(msg="overriding start and end date to process full month"))
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
