@@ -68,13 +68,26 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                 current_bill_id = bills.first().id if bills else None
 
             if current_bill_id is None:
-                msg = f"No bill was found for {start_date}. Skipping summarization"
-                LOG.info(log_json(msg=msg, schema=self._schema, provider_uuid=self._provider.uuid))
+                LOG.info(
+                    log_json(
+                        msg="no bill was found, skipping summarization",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=str(start_date),
+                    )
+                )
                 return start_date, end_date
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                msg = f"updating OCI report summary tables from parquet for dates {start}-{end}"
-                LOG.info(log_json(msg=msg, schema=self._schema, provider_uuid=self._provider.uuid))
+                LOG.info(
+                    log_json(
+                        msg="updating OCI report summary tables from parquet",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=str(start),
+                        end_date=str(end),
+                    )
+                )
                 filters = {
                     "cost_entry_bill_id": current_bill_id
                 }  # Use cost_entry_bill_id to leverage DB index on DELETE

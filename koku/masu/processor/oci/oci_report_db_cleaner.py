@@ -47,8 +47,9 @@ class OCIReportDBCleaner:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        msg = "calling purge_expired_report_data for oci"
-        LOG.info(log_json(msg=msg, schema=self._schema, provider_uuid=provider_uuid))
+        LOG.info(
+            log_json(msg="calling purge_expired_report_data for oci", schema=self._schema, provider_uuid=provider_uuid)
+        )
 
         with OCIReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
@@ -72,8 +73,14 @@ class OCIReportDBCleaner:
                 )
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
-            msg = f"deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}"
-            LOG.info(log_json(msg=msg, schema=self._schema))
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data",
+                        schema=self._schema,
+                        provider_uuid=bill.provider_id,
+                        start_date=str(bill.billing_period_start),
+                    )
+                )
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -96,8 +103,14 @@ class OCIReportDBCleaner:
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
-                msg = f"delete partitions for following tables: {table_names} with partitions <= {partition_from}"
-                LOG.info(log_json(msg=msg, schame=self._schema))
+                LOG.info(
+                    log_json(
+                        msg="delete partitions from tables",
+                        schema=self._schema,
+                        tables=table_names,
+                        partitions=partition_from,
+                    )
+                )
 
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
@@ -107,8 +120,7 @@ class OCIReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                msg = f"deleted {del_count} table partitions"
-                LOG.info(log_json(msg=msg, schema=self._schema))
+                LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
                 # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:
                 removed_items.append(
@@ -116,7 +128,13 @@ class OCIReportDBCleaner:
                 )
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data",
+                        schema=self._schema,
+                        provider_uuid=bill.provider_id,
+                        start_date=str(bill.billing_period_start),
+                    )
+                )
 
-            msg = f"deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}"
-            LOG.info(log_json(msg=msg, schema=self.schema))
         return removed_items

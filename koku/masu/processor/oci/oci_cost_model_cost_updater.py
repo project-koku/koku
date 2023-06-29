@@ -48,8 +48,7 @@ class OCICostModelCostUpdater:
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
         except OCICostModelCostUpdaterError as error:
-            msg = "unable to update markup costs."
-            LOG.error(log_json(msg=msg), exc_info=error)
+            LOG.error(log_json(msg="unable to update markup costs."), exc_info=error)
 
     def update_summary_cost_model_costs(self, start_date=None, end_date=None):
         """Update the OCI summary table with the charge information.
@@ -62,14 +61,24 @@ class OCICostModelCostUpdater:
             None
 
         """
-        msg = f"starting charge calculation updates for dates:{start_date}-{end_date}"
-        LOG.debug(log_json(msg=msg, schema=self._schema, provider_uuid=self._provider.uuid))
+        LOG.debug(
+            log_json(
+                msg="starting charge calculation updates",
+                schema=self._schema,
+                provider_uuid=self._provider.uuid,
+                start_date=str(start_date),
+                end_date=str(end_date),
+            )
+        )
 
         self._update_markup_cost(start_date, end_date)
 
         with OCIReportDBAccessor(self._schema) as accessor:
-            msg = "updating OCI derived cost summary"
-            LOG.debug(log_json(msg=msg, schema=self._schema, provider_uuid=self._provider.uuid))
+            LOG.debug(
+                log_json(
+                    msg="updating OCI derived cost summary", schema=self._schema, provider_uuid=self._provider.uuid
+                )
+            )
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid, UI_SUMMARY_TABLES)
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
