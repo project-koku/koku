@@ -120,6 +120,19 @@ def apply_partitioned_tables_trigger(apps, schema_editor):
         msh.apply_sql_file(schema_editor, os.path.join(path, funcfile))
 
 
+def add_platform_category(apps, schema_editor):
+    OpenshiftCostCategory = apps.get_model("reporting", "OpenshiftCostCategory")
+    category = OpenshiftCostCategory(
+        name="Platform",
+        description="Default OpenShift projects bucketed into a Platform group",
+        source_type="OCP",
+        system_default=True,
+        namespace=["openshift-%", "kube-%", "Platform unallocated"],
+        label=[],
+    )
+    category.save()
+
+
 class Migration(migrations.Migration):
     replaces = [
         ("reporting", "0250_squash"),
@@ -231,6 +244,7 @@ class Migration(migrations.Migration):
                 "db_table": "reporting_ocp_cost_category",
             },
         ),
+        migrations.RunPython(add_platform_category),
         migrations.CreateModel(
             name="IngressReports",
             fields=[
