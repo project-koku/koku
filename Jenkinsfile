@@ -64,7 +64,7 @@ pipeline {
                 script {
                     FILE_CONTENTS = readFile('stage_flags')
                     flags_map = [:]
-                    flags = FILE_CONTENTS.split()
+                    flags = FILE_CONTENTS.split("\n")
                     for (i in flags) {
                         s=i.split(':')
                         if (s.length == 2) {
