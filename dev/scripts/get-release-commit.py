@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
 # Get the latest commit hash before midnight UTC.
-# Smoke tests run at midnight UTC, we want to release the commit that ran
+# Smoke tests run at midnight UTC.
+# We want to release the commit that ran in yesterday's test.
+#
+# Show the long and short (seven character) hash. The long hash is needed
+# for app-interface, the short hash is useful for checking the container image.
 
 import shutil
 import subprocess
@@ -28,14 +32,14 @@ def main() -> None:
     cmd = [
         git, "log",
         f"--before={today} 00:00:00-0000",
-        "--format=%h",
+        "--format=%H",
         "--no-merges",
         f"{upstream_name}/main",
         "--max-count", "1",
     ]
     out = _run(cmd)
 
-    print(f"The latest safe to release commit is {out.strip()}")
+    print(f"The latest safe to release commit is {out.strip()} ({out[:7]})")
 
 
 if __name__ == "__main__":
