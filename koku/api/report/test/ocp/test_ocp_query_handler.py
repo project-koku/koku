@@ -942,17 +942,17 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test the apply_group_by handles different grouping scenerios."""
         mock_is_openshift.return_value = True
         group_by_list = [
-            ("project", "cluster", "node"),
-            ("project", "node", "cluster"),
-            ("cluster", "project", "node"),
-            ("cluster", "node", "project"),
-            ("node", "cluster", "project"),
-            ("node", "project", "cluster"),
+            ("project", "cluster"),
+            ("project", "node"),
+            ("cluster", "project"),
+            ("cluster", "node"),
+            ("node", "cluster"),
+            ("node", "project"),
         ]
         base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
         tolerance = 1
         for group_by in group_by_list:
-            sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
+            sub_url = "&group_by[%s]=*&group_by[%s]=*" % group_by
             url = base_url + sub_url
             query_params = self.mocked_query_params(url, OCPCpuView)
             handler = OCPReportQueryHandler(query_params)
