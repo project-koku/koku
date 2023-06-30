@@ -75,7 +75,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     LOG.info(
                         log_json(
                             msg="no invoice month provided, skipping summarization",
-                            schema_name=self._schema,
+                            schema=self._schema,
                             provider_uuid=self._provider.uuid,
                             start_date=start_date,
                         )
@@ -86,7 +86,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     log_json(
                         msg="no bill was found, skipping summarization",
-                        schema_name=self._schema,
+                        schema=self._schema,
                         provider_uuid=self._provider.uuid,
                         start_date=start_date,
                     )
@@ -97,7 +97,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     log_json(
                         msg="updating GCP report summary tables from parquet",
-                        schema_name=self._schema,
+                        schema=self._schema,
                         provider_uuid=self._provider.uuid,
                         start_date=start,
                         end_date=end,
