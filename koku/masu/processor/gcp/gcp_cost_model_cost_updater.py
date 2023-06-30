@@ -64,7 +64,7 @@ class GCPCostModelCostUpdater:
         LOG.debug(
             log_json(
                 msg="starting charge calculation updates",
-                schema_name=self._schema,
+                schema=self._schema,
                 provider_uuid=self._provider.uuid,
                 start_date=start_date,
                 end_date=end_date,
@@ -77,7 +77,7 @@ class GCPCostModelCostUpdater:
             LOG.debug(
                 log_json(
                     msg="updating GCP derived cost summary",
-                    schema_name=self._schema,
+                    schema=self._schema,
                     provider_uuid=self._provider.uuid,
                 )
             )
