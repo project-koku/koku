@@ -16,6 +16,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -293,7 +294,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest_accessor.mark_s3_csv_cleared(manifest)
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        return full_file_path, s3_etag, file_creation_date, [], {}
+        date_range = {}
+        if start_date:
+            date_range = {
+                "start": start_date.strftime("%Y-%m-%d"),
+                "end": DateHelper().month_end(start_date).strftime("%Y-%m-%d"),
+            }
+        return full_file_path, s3_etag, file_creation_date, [], date_range
 
     def get_manifest_context_for_date(self, date):
         """

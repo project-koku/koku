@@ -283,7 +283,7 @@ def get_report_files(  # noqa: C901
     name="masu.processor.tasks.populate_ocp_on_cloud_parquet", queue=GET_REPORT_FILES_QUEUE, bind=True
 )  # noqa: C901
 def populate_ocp_on_cloud_parquet(  # noqa: C901
-    self, report_meta, provider_type, schema_name, provider_uuid, tracing_id, start_date=None, end_date=None
+    self, report_meta, provider_type, schema_name, provider_uuid, tracing_id
 ):
     """
     Task to process ocp on cloud via trino.
@@ -302,12 +302,10 @@ def populate_ocp_on_cloud_parquet(  # noqa: C901
         starts = []
         ends = []
         for report in report_meta:
-            # GCP and OCI set report start and report end, AWS/Azure do not
             starts.append(report.get("start"))
             ends.append(report.get("end"))
-            start_date = min(starts)
-            end_date = max(ends)
-        # TODO Fix AWS/Azure start/end dates LOG.info(f"\n\n REPORT {report} \n\n")
+        start_date = min(starts)
+        end_date = max(ends)
         dh = DateHelper()
         start = dh.parse_date(start_date)
         end = dh.parse_date(end_date)

@@ -11,6 +11,7 @@ import shutil
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -136,4 +137,8 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg=msg, context=self.context))
-        return full_file_path, etag, file_creation_date, [], {}
+        date_range = {
+            "start": start_date.strftime("%Y-%m-%d"),
+            "end": DateHelper().month_end(start_date).strftime("%Y-%m-%d"),
+        }
+        return full_file_path, etag, file_creation_date, [], date_range

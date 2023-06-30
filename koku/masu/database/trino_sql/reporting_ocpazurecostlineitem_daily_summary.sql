@@ -172,7 +172,8 @@ SELECT cast(uuid() as varchar) as uuid,
     max(azure.year) as year,
     max(azure.month) as month
 FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
-WHERE azure.source = {{azure_source_uuid}}
+WHERE azure.azure_source = {{azure_source_uuid}}
+    AND azure.ocp_source = {{ocp_source_uuid}}
     AND azure.year = {{year}}
     AND azure.month = {{month}}
     AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
@@ -248,7 +249,8 @@ SELECT cast(uuid() as varchar) as uuid,
     max(azure.month) as month
 FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
 CROSS JOIN cte_enabled_tag_keys as etk
-WHERE azure.source = {{azure_source_uuid}}
+WHERE azure.azure_source = {{azure_source_uuid}}
+    AND azure.ocp_source = {{ocp_source_uuid}}
     AND azure.year = {{year}}
     AND azure.month = {{month}}
     AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}

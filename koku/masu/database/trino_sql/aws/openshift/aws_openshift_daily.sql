@@ -1,40 +1,3 @@
-lineitem_resourceid varchar,
-lineitem_usagestartdate timestamp,
-bill_payeraccountid varchar,
-lineitem_usageaccountid varchar,
-lineitem_legalentity varchar,
-lineitem_lineitemdescription varchar,
-bill_billingentity varchar,
-lineitem_productcode varchar,
-lineitem_availabilityzone varchar,
-lineitem_lineitemtype varchar,
-product_productfamily varchar,
-product_instancetype varchar,
-product_region varchar,
-pricing_unit varchar,
-resourcetags varchar,
-costcategory varchar,
-lineitem_usageamount double,
-lineitem_normalizationfactor double,
-lineitem_normalizedusageamount double,
-lineitem_currencycode varchar,
-lineitem_unblendedrate double,
-lineitem_unblendedcost double,
-lineitem_blendedrate double,
-lineitem_blendedcost double,
-pricing_publicondemandcost double,
-pricing_publicondemandrate double,
-savingsplan_savingsplaneffectivecost double,
-product_productname varchar,
-bill_invoiceid varchar,
-resource_id_matched boolean,
-matched_tag varchar,
-uuid varchar,
-aws_source varchar,
-ocp_source varchar,
-year varchar,
-month varchar
-day varchar
 -- Now create our proper table if it does not exist
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_daily
 (
@@ -69,11 +32,10 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_daily
     bill_invoiceid varchar,
     resource_id_matched boolean,
     matched_tag varchar,
-    uuid varchar,
     aws_source varchar,
     ocp_source varchar,
     year varchar,
-    month varchar
+    month varchar,
     day varchar
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
@@ -111,7 +73,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily (
     bill_invoiceid,
     resource_id_matched,
     matched_tag,
-    uuid,
     aws_source,
     ocp_source,
     year,
