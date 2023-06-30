@@ -26,6 +26,10 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._provider = provider
         self._manifest = manifest
         self._date_accessor = DateAccessor()
+        self._context = {
+            "schema": self._schema,
+            "provider_uuid": self._provider.uuid,
+        }
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -46,11 +50,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
                     LOG.info(
-                        log_json(
-                            msg="overriding start and end date to process full month",
-                            schema=self._schema,
-                            provider_uuid=self._provider.uuid,
-                        )
+                        log_json(msg="overriding start and end date to process full month", context=self._context)
                     )
 
         if isinstance(start_date, str):
@@ -91,8 +91,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     log_json(
                         msg="no bill was found, skipping summarization",
-                        schema=self._schema,
-                        provider_uuid=self._provider.uuid,
+                        context=self._context,
                         start_date=start_date,
                     )
                 )
@@ -102,8 +101,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 LOG.info(
                     log_json(
                         msg="updating Azure report summary tables via Trino",
-                        schema=self._schema,
-                        provider_uuid=self._provider.uuid,
+                        context=self._context,
                         start_date=start,
                         end_date=end,
                     )
