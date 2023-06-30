@@ -503,15 +503,14 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
 
-    except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
             log_json(
                 tracing_id,
-                msg=(
-                    f"{pnf_ex} Possible source/provider delete during processing. "
-                    + "Processing for this provier will halt."
-                ),
-            )
+                msg="possible source/provider delete during processing - halting processing",
+                context=context,
+            ),
+            exc_info=ex,
         )
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -722,7 +721,14 @@ def update_openshift_on_cloud(
             ),
             exc_info=ex,
         )
-        raise ReportSummaryUpdaterCloudError
+        raise ReportSummaryUpdaterCloudError from ex
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id, msg="possible source/provider delete during processing - halting processing", context=ctx
+            ),
+            exc_info=ex,
+        )
     finally:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

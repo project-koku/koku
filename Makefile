@@ -61,6 +61,7 @@ help:
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
 	@echo "  lint                                  run pre-commit against the project"
+	@echo "  get-release-commit                    show the latest commit that is safe to release"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
@@ -594,3 +595,7 @@ restore-local-db-dir:
 	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \
 	fi
 	@cd - >/dev/null
+
+
+get-release-commit:
+	@$(PYTHON) $(SCRIPTDIR)/get-release-commit.py
