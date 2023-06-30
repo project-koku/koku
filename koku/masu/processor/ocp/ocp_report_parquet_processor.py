@@ -4,11 +4,13 @@
 #
 """Processor for OCP Parquet files."""
 import datetime
+import logging
 
 import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util.common import month_date_range
 from masu.util.ocp import common as utils
@@ -16,6 +18,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
@@ -76,6 +80,17 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         cluster_id = utils.get_cluster_id_from_provider(provider.uuid)
         cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
 
+        LOG.info(
+            log_json(
+                msg="getting or creating bill",
+                cluster_id=cluster_id,
+                cluster_alias=cluster_alias,
+                provider_uuid=provider.uuid,
+                provider_name=provider.name,
+                provider_type=provider.type,
+                customer=provider.customer,
+            )
+        )
         with schema_context(self._schema_name):
             OCPUsageReportPeriod.objects.get_or_create(
                 cluster_id=cluster_id,

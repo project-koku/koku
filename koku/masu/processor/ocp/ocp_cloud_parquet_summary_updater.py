@@ -206,7 +206,13 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             if not report_period:
-                LOG.info(log_json(msg="no report period for AWS provider", provider_uuid=openshift_provider_uuid, start_date=str(start_date)))
+                LOG.info(
+                    log_json(
+                        msg="no report period for AWS provider",
+                        provider_uuid=openshift_provider_uuid,
+                        start_date=start_date,
+                    )
+                )
                 return
 
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
@@ -258,15 +264,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         }
         with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                LOG.info(log_json(
-                    msg="updating OpenShift on AWS summary table",
-                    schema=self._schema,
-                    provider_uuid=self._provider.uuid,
-                    start_date=str(start),
-                    end_date=str(end),
-                    cluster_id=cluster_id,
-                    aws_bill_id=current_aws_bill_id,
-                ))
+                LOG.info(
+                    log_json(
+                        msg="updating OpenShift on AWS summary table",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=str(start),
+                        end_date=str(end),
+                        cluster_id=cluster_id,
+                        aws_bill_id=current_aws_bill_id,
+                    )
+                )
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
                     end,
@@ -287,7 +295,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
-                LOG.info(log_json(msg="processing OCP-ALL for AWS", start_date=str(start_date), end_date=str(end_date)))
+                LOG.info(log_json(msg="processing OCP-ALL for AWS", start_date=start_date, end_date=end_date))
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
@@ -312,16 +320,24 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         with OCPReportDBAccessor(self._schema) as accessor:
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
-                LOG.info(log_json(
-                    msg="no cluster information available for OCP Provider. "
-                    "Skipping OCP on Cloud summary table update for Azure source",
-                    provider_uuid=openshift_provider_uuid,
-                    azure_provider_uuid=azure_provider_uuid,
-                ))
+                LOG.info(
+                    log_json(
+                        msg="no cluster information available for OCP Provider. "
+                        "Skipping OCP on Cloud summary table update for Azure source",
+                        provider_uuid=openshift_provider_uuid,
+                        azure_provider_uuid=azure_provider_uuid,
+                    )
+                )
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             if not report_period:
-                LOG.info(log_json(msg="no report period for Azure provider", provider_uuid=openshift_provider_uuid, start_date=str(start_date)))
+                LOG.info(
+                    log_json(
+                        msg="no report period for Azure provider",
+                        provider_uuid=openshift_provider_uuid,
+                        start_date=start_date,
+                    )
+                )
                 return
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
@@ -372,15 +388,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         }
         with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                LOG.info(log_json(
-                    msg="updating OpenShift on Azure summary table",
-                    schema=self._schema,
-                    schema=self._provider.uuid,
-                    start_date=str(start),
-                    end_date=str(end),
-                    cluster_id=cluster_id,
-                    azure_bill_id=current_azure_bill_id,
-                ))
+                LOG.info(
+                    log_json(
+                        msg="updating OpenShift on Azure summary table",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=str(start),
+                        end_date=str(end),
+                        cluster_id=cluster_id,
+                        azure_bill_id=current_azure_bill_id,
+                    )
+                )
                 accessor.populate_ocp_on_azure_cost_daily_summary_trino(
                     start,
                     end,
@@ -401,7 +419,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "Azure"
-                LOG.info(log_json(msg="processing OCP-ALL for Azure", start_date=str(start_date), end_date=str(end_date)))
+                LOG.info(log_json(msg="processing OCP-ALL for Azure", start_date=start_date, end_date=end_date))
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
@@ -427,7 +445,13 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with OCPReportDBAccessor(self._schema) as accessor:
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             if not report_period:
-                LOG.info(log_json("no report period for GCP provider", provider_uuid=openshift_provider_uuid, start_date=str(start_date)))
+                LOG.info(
+                    log_json(
+                        "no report period for GCP provider",
+                        provider_uuid=openshift_provider_uuid,
+                        start_date=start_date,
+                    )
+                )
                 return
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
@@ -483,19 +507,19 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating OpenShift on GCP summary table for "
-                    "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
-                    "\n\tCluster ID: %s, GCP Bill ID: %s",
-                    self._schema,
-                    self._provider.uuid,
-                    start,
-                    end,
-                    cluster_id,
-                    current_gcp_bill_id,
+                    log_json(
+                        msg="updating OpenShift on GCP summary table",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=start,
+                        end_date=end,
+                        cluster_id=cluster_id,
+                        gcp_bill_id=current_gcp_bill_id,
+                    )
                 )
                 if is_summarize_ocp_on_gcp_by_node_enabled(self._schema):
                     for node in nodes:
-                        LOG.info(f"Summarizing ocp on gcp daily for node: {node}")
+                        LOG.info(log_json(msg="summarizing ocp on gcp daily", node=node))
                         accessor.populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
                             start,
                             end,
@@ -532,7 +556,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
-                LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
+                LOG.info(log_json(msg="processing OCP-ALL for GCP (T)", start_date=start_date, end_date=end_date))
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end

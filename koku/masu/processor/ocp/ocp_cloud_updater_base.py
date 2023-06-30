@@ -5,6 +5,7 @@
 """Updater base for OpenShift on Cloud Infrastructures."""
 import logging
 
+from api.common import log_json
 from api.provider.models import Provider
 from koku.cache import get_cached_infra_map
 from koku.cache import set_cached_infra_map
@@ -108,7 +109,7 @@ class OCPCloudUpdaterBase:
         """
         cache_infra_map = get_cached_infra_map(self._schema, self._provider.type, self._provider_uuid)
         if cache_infra_map:
-            LOG.info("Retrieved matching infra map from cache.")
+            LOG.info(log_json(msg="retrieved matching infra map from cache"))
             return cache_infra_map
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:

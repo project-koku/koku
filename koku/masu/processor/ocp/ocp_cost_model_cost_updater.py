@@ -9,6 +9,7 @@ from decimal import Decimal
 from dateutil.parser import parse
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.metrics import constants as metric_constants
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -216,19 +217,21 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
                         rate = self._supplementary_rates.get(rate_term)
 
-                    log_msg = "Updating"
+                    log_msg = "updating"
                     if rate is None:
-                        log_msg = "Removing"
+                        log_msg = "removing"
 
                     LOG.info(
-                        log_msg + " monthly %s cost for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
-                        cost_type,
-                        self._schema,
-                        self._provider.type,
-                        self._provider.name,
-                        self._provider_uuid,
-                        start_date,
-                        end_date,
+                        log_json(
+                            msg=f"{log_msg} mothly cost",
+                            cost_type=cost_type,
+                            schema=self._schema,
+                            provider_type=self._provider.type,
+                            provider_uuid=self._provider_uuid,
+                            provider_name=self._provider.name,
+                            start_date=start_date,
+                            end_date=end_date,
+                        )
                     )
 
                     amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
@@ -242,7 +245,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         self._provider_uuid,
                     )
         except OCPCostModelCostUpdaterError as error:
-            LOG.error("Unable to update monthly costs. Error: %s", str(error))
+            LOG.error(log_json(msg="unable to update monthly costs"), exc_info=error)
 
     def _update_monthly_tag_based_cost(self, start_date, end_date):  # noqa: C901
         """Update the monthly cost for a period of time based on tag rates."""
@@ -274,15 +277,15 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             continue
 
                         LOG.info(
-                            "Updating tag based monthly %s cost for"
-                            "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
-                            openshift_resource_type,
-                            self._schema,
-                            self._provider.type,
-                            self._provider.name,
-                            self._provider_uuid,
-                            start_date,
-                            end_date,
+                            log_json(
+                                msg="updating tag based monthly cost",
+                                schema=self._schema,
+                                provider_type=self._provider.type,
+                                provider_name=self._provider.name,
+                                provider_uuid=self._provider_uuid,
+                                start_date=start_date,
+                                end_date=end_date,
+                            )
                         )
 
                         per_tag_key_case_statements = self._get_all_monthly_tag_based_case_statements(
@@ -302,7 +305,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             )
 
         except OCPCostModelCostUpdaterError as error:
-            LOG.error("Unable to update monthly costs. Error: %s", str(error))
+            LOG.error(log_json(msg="unable to update monthly costs"), exc_inf=error)
 
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
@@ -336,22 +339,23 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             if not markup:
-                msg = f"No markup to calculate for {self._provider_uuid}."
-                LOG.info(msg)
+                LOG.info(log_json(msg="no markup to calculate", provider_uuid=self._provider_uuid))
                 return
             markup = Decimal(markup.get("value", 0)) / 100
         with OCPReportDBAccessor(self._schema) as accessor:
             LOG.info(
-                "Updating markup for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
-                self._schema,
-                self._provider.type,
-                self._provider.name,
-                self._provider_uuid,
-                start_date,
-                end_date,
+                log_json(
+                    msg="updating markup for schema",
+                    schema=self._schema,
+                    provider_type=self._provider.type,
+                    provider_name=self._provider.name,
+                    provider_uuid=self._provider_uuid,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
-        LOG.info("Finished updating markup.")
+        LOG.info(log_json(msg="finished updating markup"))
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""
@@ -378,7 +382,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             with schema_context(self._schema):
                 report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 if not report_period:
-                    LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
+                    LOG.warning(
+                        log_json(
+                            msg="no report period for provider",
+                            provider_uuid=self._provider.uuid,
+                            start_date=start_date,
+                        )
+                    )
                     return
                 report_period_id = report_period.id
             report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
@@ -406,11 +416,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             end_date = parse(end_date)
 
         LOG.info(
-            "Updating cost model costs for \n%s provider: %s (%s). \nCluster ID: %s.",
-            self._provider.type,
-            self._provider.name,
-            self._provider_uuid,
-            self._cluster_id,
+            log_json(
+                msg="updating cost model costs for provider",
+                provider_type=self._provider.type,
+                provider_name=self._provider.name,
+                provider_uuid=self._provider_uuid,
+                cluster_id=self._cluster_id,
+            )
         )
         self._update_usage_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)

@@ -8,6 +8,7 @@ from datetime import date
 
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -45,7 +46,7 @@ class OCPReportDBCleaner:
             ([{}]) List of dictionaries containing 'usage_period_id' and 'interval_start'
 
         """
-        LOG.info("Calling purge_expired_report_data for ocp")
+        LOG.info(log_json(msg="calling purge_expired_report_data for OCP"))
 
         with OCPReportDBAccessor(self._schema) as accessor:
             if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
@@ -74,8 +75,12 @@ class OCPReportDBCleaner:
 
                 all_report_periods.sort()
                 LOG.info(
-                    f"Removing all data related to report_period_ids: {all_report_periods}; "
-                    f"cluster_ids: {all_cluster_ids}; starting periods {all_period_starts}"
+                    log_json(
+                        msg="removing all data related to for report IDs",
+                        report_periods=all_report_periods,
+                        cluster_ids=all_cluster_ids,
+                        period_starts=all_period_starts,
+                    )
                 )
 
                 if not simulate:
@@ -84,7 +89,7 @@ class OCPReportDBCleaner:
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
-        LOG.info("Executing purge_expired_report_data_by_date")
+        LOG.info(log_json(msg="executing purge_expired_report_data_by_date"))
         partition_from = str(date(expired_date.year, expired_date.month, 1))
         removed_items = []
         all_report_periods = []
@@ -115,15 +120,21 @@ class OCPReportDBCleaner:
 
             all_report_periods.sort()
             LOG.info(
-                f"Removing all data related to "
-                f"cluster_ids: {all_cluster_ids}; starting periods {all_period_starts}"
+                log_json(
+                    msg="removing all data related to cluster_ids",
+                    cluster_ids=all_cluster_ids,
+                    period_starts=all_period_starts,
+                )
             )
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
-                    "Deleting table partitions total for the following tables: "
-                    + f"{table_names} with partitions <= {partition_from}"
+                    log_json(
+                        msg="deleting table partitions total for tables",
+                        tables=table_names,
+                        partitions=partition_from,
+                    )
                 )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
@@ -133,6 +144,6 @@ class OCPReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(f"Deleted {del_count} table partitions")
+                LOG.info(log_json(msg="deleted table partitions", count=del_count))
 
         return removed_items
