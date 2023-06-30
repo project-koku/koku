@@ -95,8 +95,8 @@ help:
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
-	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
-	@echo "  remove-test-db                        remove the django test db"
+	@echo "  delete-db                             delete local directory $(TOPDIR)/pg_data"
+	@echo "  delete-test-db                        delete the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "                                          @param applabel - (optional) Use specified application"
@@ -209,16 +209,16 @@ collect-static:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
-remove-db:
+delete-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
-remove-test-db:
+delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
                                          -d $$DATABASE_NAME \
                                          -U $$DATABASE_USER \
                                          -c "DROP DATABASE test_$$DATABASE_NAME;" >/dev/null
-	@echo "Test DB (test_$$DATABASE_NAME) has been removed."
+	@echo "Test DB (test_$$DATABASE_NAME) has been deleted."
 
 reset-db-statistics:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -300,13 +300,13 @@ docker-logs:
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
 
-docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
+docker-reinitdb: docker-down-db delete-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
 
-docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
+docker-reinitdb-with-sources: docker-down-db delete-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
-docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+docker-reinitdb-with-sources-lite: docker-down-db delete-db docker-up-db run-migrations create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
