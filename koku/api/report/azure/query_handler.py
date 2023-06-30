@@ -152,7 +152,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
             if "subscription_guid" in query_group_by:
                 query_data = query_data.annotate(
-                    subscripton_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
+                    subscription_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
                 )
 
             query_sum = self._build_sum(query)
