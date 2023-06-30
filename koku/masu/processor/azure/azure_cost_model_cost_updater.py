@@ -34,6 +34,10 @@ class AzureCostModelCostUpdater:
         """
         self._provider = provider
         self._schema = schema
+        self._context = {
+            "schema": self._schema,
+            "provider_uuid": self._provider.uuid,
+        }
 
     def _update_markup_cost(self, start_date, end_date):
         """Store markup costs."""
@@ -48,7 +52,7 @@ class AzureCostModelCostUpdater:
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(self._provider.uuid, markup_value, start_date, end_date, bill_ids)
         except AzureCostModelCostUpdaterError as error:
-            LOG.error(log_json(msg="unable to update markup costs"), exc_info=error)
+            LOG.error(log_json(msg="unable to update markup costs", context=self._context), exc_info=error)
 
     def update_summary_cost_model_costs(self, start_date=None, end_date=None):
         """Update the Azure summary table with the charge information.
@@ -64,8 +68,7 @@ class AzureCostModelCostUpdater:
         LOG.debug(
             log_json(
                 msg="starting charge calculation updates",
-                schema=self._schema,
-                provider_uuid=self._provider.uuid,
+                context=self._context,
                 start_date=start_date,
                 end_date=end_date,
             )
@@ -74,13 +77,7 @@ class AzureCostModelCostUpdater:
         self._update_markup_cost(start_date, end_date)
 
         with AzureReportDBAccessor(self._schema) as accessor:
-            LOG.debug(
-                log_json(
-                    msg="updating Azure derived cost summary",
-                    schema=self._schema,
-                    provider_uuid=self._provider.uuid,
-                )
-            )
+            LOG.debug(log_json(msg="updating Azure derived cost summary", context=self._context))
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
