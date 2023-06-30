@@ -134,51 +134,7 @@ def add_platform_category(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    replaces = [
-        ("reporting", "0250_squash"),
-        ("reporting", "0251_update_storageclass_charfields"),
-        ("reporting", "0252_alter_ocpusagelineitemdailysummary_monthly_cost_type"),
-        ("reporting", "0253_ocpusagereportperiod_ocp_on_cloud_updated_datetime"),
-        ("reporting", "0254_oci_models"),
-        ("reporting", "0255_ocp_label_indices"),
-        ("reporting", "0256_enabled_keys_migration"),
-        ("reporting", "0257_raw_currency_ocp_on_cloud"),
-        ("reporting", "0258_aws_azure_daily_summ_idxs"),
-        ("reporting", "0259_ocpnode_node_role"),
-        ("reporting", "0260_productcode_textfields"),
-        ("reporting", "0261_ocpgcpcostlineitemprojectdailysummaryp_pod_credit"),
-        ("reporting", "0262_standard_numeric_on_calculated_feilds"),
-        ("reporting", "0263_add_cost_categroy"),
-        ("reporting", "0264_ocpaws_cost_fields"),
-        ("reporting", "0265_auto_20221114_1806"),
-        ("reporting", "0266_ocpgcp_precision"),
-        ("reporting", "0267_update_cost_category"),
-        ("reporting", "0268_ingressreports"),
-        ("reporting", "0269_auto_20230127_1627"),
-        ("reporting", "0270_ocp_distribution_cost"),
-        ("reporting", "0271_alter_ocpenabledtagkeys_enabled"),
-        ("reporting", "0272_auto_20230309_1924"),
-        ("reporting", "0273_ocp_on_cloud_namespace"),
-        ("reporting", "0274_alter_ocpallcostlineitemprojectdailysummaryp_namespace"),
-        ("reporting", "0275_aws_category_tables"),
-        ("reporting", "0276_auto_20230303_1947"),
-        ("reporting", "0277_store_aws_amoritized_cost"),
-        ("reporting", "0278_ocpcluster_remove_duplicates"),
-        ("reporting", "0279_ocp_alter_unique_together"),
-        ("reporting", "0280_markup_amortized_cost"),
-        ("reporting", "0281_tenantapiprovider"),
-        ("reporting", "0282_auto_20230608_1819"),
-        ("reporting", "0283_auto_20230612_1841"),
-        ("reporting", "0284_auto_20230613_1624"),
-        ("reporting", "0285_auto_20230614_1338"),
-        ("reporting", "0286_auto_20230614_2202"),
-        ("reporting", "0287_auto_20230615_1523"),
-        ("reporting", "0288_auto_20230615_1658"),
-        ("reporting", "0289_alter_awsorganizationalunit_provider"),
-        ("reporting", "0290_update_settings"),
-        ("reporting", "0291_awsenabledcategorykeys_uuid"),
-        ("reporting", "0292_auto_20230628_2317"),
-    ]
+    replaces = []
 
     initial = True
 
