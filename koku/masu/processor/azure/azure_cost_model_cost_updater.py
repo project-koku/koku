@@ -64,6 +64,7 @@ class AzureCostModelCostUpdater:
         LOG.debug(
             log_json(
                 msg="starting charge calculation updates",
+                schema=self._schema,
                 provider_uuid=self._provider.uuid,
                 start_date=start_date,
                 end_date=end_date,

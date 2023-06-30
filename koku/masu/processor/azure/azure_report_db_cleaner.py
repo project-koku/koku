@@ -48,7 +48,11 @@ class AzureReportDBCleaner:
 
         """
 
-        LOG.info(log_json(msg="calling purge_expired_report_data for Azure"))
+        LOG.info(
+            log_json(
+                msg="calling purge_expired_report_data for Azure", schema=self._schema, provider_uuid=provider_uuid
+            )
+        )
 
         with AzureReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
@@ -73,11 +77,14 @@ class AzureReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(
-                log_json(
-                    msg="deleting data for providers and periods", providers=all_providers, periods=all_period_starts
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data",
+                        schema=self._schema,
+                        provider_uuid=bill.provider_id,
+                        start_date=bill.billing_period_start,
+                    )
                 )
-            )
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -110,16 +117,24 @@ class AzureReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(
-                log_json(
-                    msg="deleting data for providers and periods", providers=all_providers, periods=all_period_starts
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data",
+                        schema=self._schema,
+                        provider_uuid=bill.provider_id,
+                        start_date=bill.billing_period_start,
+                    )
                 )
-            )
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
-                    log_json(msg="deleting table partitions total", tables=table_names, partitions=partition_from)
+                    log_json(
+                        msg="delete partitions from tables",
+                        schema=self._schema,
+                        tables=table_names,
+                        partitions=partition_from,
+                    )
                 )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
@@ -129,6 +144,6 @@ class AzureReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(log_json(msg="deleted table partitions", count=del_count))
+                LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
         return removed_items
