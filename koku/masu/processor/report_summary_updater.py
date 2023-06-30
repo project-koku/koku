@@ -72,7 +72,7 @@ class ReportSummaryUpdater:
 
         if not self._provider:
             raise ReportSummaryUpdaterProviderNotFoundError(
-                f"Provider data for uuid '{self._provider_uuid}' not found."
+                f"provider data for uuid '{self._provider_uuid}' not found"
             )
 
         try:

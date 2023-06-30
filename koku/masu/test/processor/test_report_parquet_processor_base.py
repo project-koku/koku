@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pandas as pd
 from django.test.utils import override_settings
 
+from api.common import log_json
 from masu.processor.report_parquet_processor_base import PostgresSummaryTableError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
@@ -59,6 +60,8 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             self.column_types,
             self.table_name,
         )
+        self.log_base = "masu.processor.report_parquet_processor_base"
+        self.log_output_info = f"INFO:{self.log_base}:"
 
     def tearDown(self):
         """Cleanup test case."""
@@ -133,46 +136,51 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_create_table(self, mock_execute):
         """Test the Trino/Hive create table method."""
-        expected_log = f"Table: {self.processor._table_name} created."
-        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+        expected_logs = []
+        for log in ["attempting to create parquet table", "trino parquet table created"]:
+            expected_log = self.log_output_info + str(
+                log_json(msg=log, table=self.table_name, schema=self.schema_name)
+            )
+            expected_logs.append(expected_log)
+        with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_table()
-            self.assertTrue(any(expected_log in log for log in logger.output))
+            for expected_log in expected_logs:
+                self.assertIn(expected_log, logger.output)
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_sync_hive_partitions(self, mock_execute):
         """Test that hive partitions are synced."""
-        expected_log = (
-            "INFO:masu.processor.report_parquet_processor_base:"
-            f"CALL system.sync_partition_metadata('{self.processor._schema_name}', "
-            f"'{self.processor._table_name}', 'FULL')"
+        expected_log = self.log_output_info + str(
+            log_json(msg="syncing trino/hive partitions", schema=self.schema_name, table=self.table_name)
         )
-        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+        with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.sync_hive_partitions()
             self.assertIn(expected_log, logger.output)
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_schema_exists(self, mock_execute):
         """Test that hive partitions are synced."""
-        expected_log = "INFO:masu.processor.report_parquet_processor_base:" "Checking for schema"
-        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+        expected_log = self.log_output_info + str(log_json(msg="checking for schema", schema=self.schema_name))
+        with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.schema_exists()
             self.assertIn(expected_log, logger.output)
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_table_exists(self, mock_execute):
         """Test that hive partitions are synced."""
-        expected_log = "INFO:masu.processor.report_parquet_processor_base:" "Checking for table"
-        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+        expected_log = self.log_output_info + str(
+            log_json(msg="checking for table", table=self.table_name, schema=self.schema_name)
+        )
+        with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.table_exists()
             self.assertIn(expected_log, logger.output)
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_create_schema(self, mock_execute):
         """Test that hive partitions are synced."""
-        expected_log = (
-            "INFO:masu.processor.report_parquet_processor_base:"
-            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS {self.account}"
+        expected_log = self.log_output_info + str(
+            log_json(msg="create trino/hive schema sql", schema=self.schema_name)
         )
-        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+        with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_schema()
             self.assertIn(expected_log, logger.output)

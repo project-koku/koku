@@ -119,9 +119,19 @@ class TestAWSUtils(MasuTestCase):
     def test_get_cur_report_definitions(self):
         """Test get_cur_report_definitions is successful."""
         session = FakeSession()
-        cur_client = session.client("cur")
+        cur_client = session.client("cur", region_name="us-east-1")
         defs = utils.get_cur_report_definitions(cur_client)
         self.assertEqual(len(defs), 1)
+
+    def test_get_cur_report_definitions_failure(self):
+        retries = 3
+        max_wait_time = 1
+        session = FakeSession()
+        cur_client = session.client("cur")
+        cur_client.describe_report_definitions = Mock(side_effect=[ClientError({}, "Testing") for i in range(retries)])
+
+        with self.assertRaises(ClientError):
+            utils.get_cur_report_definitions(cur_client, retries=retries, max_wait_time=max_wait_time)
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_cur_report_definitions_no_session(self, fake_session):

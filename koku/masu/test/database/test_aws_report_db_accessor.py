@@ -607,11 +607,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         mock_jinja = Mock()
 
-        mock_jinja.prepare_query.return_value = sql, sql_params
+        mock_jinja.return_value = sql, sql_params
         accessor = AWSReportDBAccessor(schema=self.schema)
-        accessor.jinja_sql = mock_jinja
+        accessor.prepare_query = mock_jinja
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
-        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
+        accessor.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
         mock_jinja.reset_mock()
@@ -629,7 +629,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "is_savingsplan_cost": is_savingsplan_cost,
         }
 
-        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
+        accessor.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")

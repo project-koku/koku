@@ -218,7 +218,7 @@ class AWSOrganizationalUnit(models.Model):
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
     created_timestamp = models.DateField(auto_now_add=True)
     deleted_timestamp = models.DateField(null=True)
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         """Convert to string."""
@@ -283,7 +283,8 @@ class AWSEnabledCategoryKeys(models.Model):
         indexes = [models.Index(fields=["key", "enabled"], name="aws_enabled_category_key_index")]
         db_table = "reporting_awsenabledcategorykeys"
 
-    key = models.CharField(max_length=253, primary_key=True)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, primary_key=True)
+    key = models.CharField(max_length=253, unique=True)
     enabled = models.BooleanField(default=True)
 
 

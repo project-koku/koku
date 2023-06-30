@@ -35,12 +35,13 @@ class AzureProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_AZURE,
-                "alias": "subscription_guid",  # FIXME: probably wrong
+                "alias": "subscription_name",
                 "annotations": {},
                 "end_date": "costentrybill__billing_period_start",
                 "filters": {
                     "subscription_guid": [
-                        {"field": "subscription_guid", "operation": "icontains", "composition_key": "account_filter"}
+                        {"field": "subscription_guid", "operation": "icontains", "composition_key": "account_filter"},
+                        {"field": "subscription_name", "operation": "icontains", "composition_key": "account_filter"},
                     ],
                     "service_name": {"field": "service_name", "operation": "icontains"},
                     "resource_location": {"field": "resource_location", "operation": "icontains"},

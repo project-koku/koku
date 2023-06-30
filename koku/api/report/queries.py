@@ -287,7 +287,8 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        exact_composed_filters = self._set_operator_specified_filters("exact")
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -299,10 +300,11 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
+        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -317,16 +319,18 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        # TODO: find a better name for ou_or_operator and ou_or_filter
-        ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
-        if ou_or_operator:
-            ou_or_filters = filters.compose()
+
+        aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
+        if aws_use_or_operator:
+            aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+
         if self._category:
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
         composed_exclusions = None
+
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -384,12 +388,12 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters
+        if aws_use_or_operator and aws_or_filter_collections:
+            composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
-            if ou_or_operator:
+            if aws_use_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
-                composed_filters = ou_or_filters & composed_access_filters
+                composed_filters = aws_or_filter_collections & composed_access_filters
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
@@ -565,7 +569,7 @@ class ReportQueryHandler(QueryHandler):
             # This is a flexibilty feature allowing a user to set
             # a single and: value and still get a result instead
             # of erroring on validation
-            if len(list_) < 2:
+            if len(list_) < 2 and logical_operator != "exact":
                 logical_operator = "or"
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 if isinstance(filt, list):
