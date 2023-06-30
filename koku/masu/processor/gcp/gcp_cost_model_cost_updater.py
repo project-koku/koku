@@ -48,7 +48,7 @@ class GCPCostModelCostUpdater:
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
         except GCPCostModelCostUpdaterError as error:
-            LOG.error(log_json(msg="unable to update markup costs", exc_info=error))
+            LOG.error(log_json(msg="unable to update markup costs"), exc_info=error)
 
     def update_summary_cost_model_costs(self, start_date=None, end_date=None):
         """Update the GCP summary table with the charge information.
@@ -64,7 +64,7 @@ class GCPCostModelCostUpdater:
         LOG.debug(
             log_json(
                 msg="starting charge calculation updates",
-                schema_name=self._schema,
+                schema=self._schema,
                 provider_uuid=self._provider.uuid,
                 start_date=start_date,
                 end_date=end_date,
@@ -77,7 +77,7 @@ class GCPCostModelCostUpdater:
             LOG.debug(
                 log_json(
                     msg="updating GCP derived cost summary",
-                    schema_name=self._schema,
+                    schema=self._schema,
                     provider_uuid=self._provider.uuid,
                 )
             )
