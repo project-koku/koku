@@ -199,12 +199,14 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         with OCPReportDBAccessor(self._schema) as accessor:
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
-                LOG.info(log_json(
-                    msg="no cluster information available for OCP provider. "
+                LOG.info(
+                    log_json(
+                        msg="no cluster information available for OCP provider. "
                         "Skipping OCP on Cloud summary table update for AWS source.",
-                    provider_uuid=openshift_provider_uuid,
-                    schema=self._schema,
-                ))
+                        provider_uuid=openshift_provider_uuid,
+                        schema=self._schema,
+                    )
+                )
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             if not report_period:
@@ -268,12 +270,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         ctx = accessor.extract_context_from_sql_params(sql_params)
         with self.db_accessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                LOG.info(
-                    log_json(
-                        msg="updating OpenShift on AWS summary table",
-                        context=ctx
-                    )
-                )
+                LOG.info(log_json(msg="updating OpenShift on AWS summary table", context=ctx))
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
                     end,
@@ -321,8 +318,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     log_json(
-                        msg="cluster information not available - "
-                        "skipping OCP on Cloud summary table update",
+                        msg="cluster information not available - " "skipping OCP on Cloud summary table update",
                         provider_uuid=openshift_provider_uuid,
                     )
                 )

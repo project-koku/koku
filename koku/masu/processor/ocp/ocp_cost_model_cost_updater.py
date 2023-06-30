@@ -339,11 +339,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             if not markup:
-                LOG.info(log_json(
-                    msg="no markup to calculate",
-                    provider_uuid=self._provider_uuid,
-                    schema=self._schema,
-                ))
+                LOG.info(
+                    log_json(
+                        msg="no markup to calculate",
+                        provider_uuid=self._provider_uuid,
+                        schema=self._schema,
+                    )
+                )
                 return
             markup = Decimal(markup.get("value", 0)) / 100
         with OCPReportDBAccessor(self._schema) as accessor:
@@ -359,15 +361,17 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
-        LOG.info(log_json(
-            msg="finished updating markup costs",
-            schema=self._schema,
-            provider_name=self._provider.name,
-            provider_type=self._provider.type,
-            provider_uuid=self._provider_uuid,
-            start_date=start_date,
-            end_date=end_date,
-        ))
+        LOG.info(
+            log_json(
+                msg="finished updating markup costs",
+                schema=self._schema,
+                provider_name=self._provider.name,
+                provider_type=self._provider.type,
+                provider_uuid=self._provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""

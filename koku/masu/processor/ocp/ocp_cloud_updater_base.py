@@ -109,11 +109,13 @@ class OCPCloudUpdaterBase:
         """
         cache_infra_map = get_cached_infra_map(self._schema, self._provider.type, self._provider_uuid)
         if cache_infra_map:
-            LOG.info(log_json(
-                msg="retrieved matching infra map from cache",
-                provider_uuid=self._provider_uuid,
-                schema=self._schema,
-            ))
+            LOG.info(
+                log_json(
+                    msg="retrieved matching infra map from cache",
+                    provider_uuid=self._provider_uuid,
+                    schema=self._schema,
+                )
+            )
             return cache_infra_map
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
