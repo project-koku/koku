@@ -1470,9 +1470,34 @@ class TestWorkerCacheThrottling(MasuTestCase):
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
-        expected = "Processing for this provier will halt."
+        expected = "halting processing"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
+            statement_found = any(expected in log for log in logger.output)
+            self.assertTrue(statement_found)
+
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_openshift_on_cloud_provider_not_found_error(
+        self,
+        mock_inspect,
+        *args,
+    ):
+        """Test that the update_summary_table provider not found exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        expected = "halting processing"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_openshift_on_cloud(
+                self.schema,
+                str(uuid4()),
+                str(uuid4()),
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
