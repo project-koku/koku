@@ -73,6 +73,7 @@ class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
     NO_ACCESS = {"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}}
     READ = {"settings": {"read": ["*"]}}
     WRITE = {"settings": {"write": ["*"]}}
+    READ_WRITE = {"settings": {"read": ["*"], "write": ["*"]}}
 
     @RbacPermissions(NO_ACCESS)
     def test_no_access_to_get_request(self):
@@ -106,6 +107,13 @@ class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
 
     @RbacPermissions(WRITE)
     def test_write_on_get_request(self):
+        url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(READ_WRITE)
+    def test_read_and_write_on_get_request(self):
         url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
         client = APIClient()
         response = client.get(url, **self.headers)
