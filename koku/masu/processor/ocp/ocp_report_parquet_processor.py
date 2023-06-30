@@ -88,7 +88,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 provider_uuid=provider.uuid,
                 provider_name=provider.name,
                 provider_type=provider.type,
-                customer=provider.customer,
+                schema=self._schema_name,
             )
         )
         with schema_context(self._schema_name):

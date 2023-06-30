@@ -73,13 +73,12 @@ class OCPReportDBCleaner:
                     all_cluster_ids.add(usage_period.cluster_id)
                     all_period_starts.add(str(usage_period.report_period_start))
 
-                all_report_periods.sort()
                 LOG.info(
                     log_json(
-                        msg="removing all data related to for report IDs",
-                        report_periods=all_report_periods,
-                        cluster_ids=all_cluster_ids,
-                        period_starts=all_period_starts,
+                        msg="deleting provider billing data",
+                        schema=self._schema,
+                        provider_uuid=provider_uuid,
+                        start_date=usage_period.report_period_start,
                     )
                 )
 

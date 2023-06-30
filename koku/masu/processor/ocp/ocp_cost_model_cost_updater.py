@@ -221,7 +221,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     if rate is None:
                         log_msg = "removing"
 
-                    LOG.info(
+                    LOG.debug(
                         log_json(
                             msg=f"{log_msg} mothly cost",
                             cost_type=cost_type,
@@ -276,7 +276,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             # The cost model has no rates for this metric
                             continue
 
-                        LOG.info(
+                        LOG.debug(
                             log_json(
                                 msg="updating tag based monthly cost",
                                 schema=self._schema,
@@ -339,23 +339,35 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             if not markup:
-                LOG.info(log_json(msg="no markup to calculate", provider_uuid=self._provider_uuid))
+                LOG.info(log_json(
+                    msg="no markup to calculate",
+                    provider_uuid=self._provider_uuid,
+                    schema=self._schema,
+                ))
                 return
             markup = Decimal(markup.get("value", 0)) / 100
         with OCPReportDBAccessor(self._schema) as accessor:
             LOG.info(
                 log_json(
-                    msg="updating markup for schema",
+                    msg="updating markup for costs",
                     schema=self._schema,
-                    provider_type=self._provider.type,
                     provider_name=self._provider.name,
+                    provider_type=self._provider.type,
                     provider_uuid=self._provider_uuid,
                     start_date=start_date,
                     end_date=end_date,
                 )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
-        LOG.info(log_json(msg="finished updating markup"))
+        LOG.info(log_json(
+            msg="finished updating markup costs",
+            schema=self._schema,
+            provider_name=self._provider.name,
+            provider_type=self._provider.type,
+            provider_uuid=self._provider_uuid,
+            start_date=start_date,
+            end_date=end_date,
+        ))
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""
