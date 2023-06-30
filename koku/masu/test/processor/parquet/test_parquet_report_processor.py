@@ -209,7 +209,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type",
                 return_value="pod_usage",
             ):
-                self.assertIsInstance(report_processor.set_post_processor(), test.get("expected"))
+                self.assertIsInstance(report_processor._set_post_processor(), test.get("expected"))
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -273,7 +273,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                 mock_remove.assert_called()
                                 mock_mark_cleared.assert_called()
 
-        expected = "Failed to convert the following files to parquet"
+        expected = "failed to convert files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
             with patch(
                 "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
@@ -398,7 +398,7 @@ class TestParquetReportProcessor(MasuTestCase):
         ), patch("masu.processor.parquet.parquet_report_processor.open"), patch(
             "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
         ), patch(
-            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.set_post_processor",
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._set_post_processor",
             return_value=OCPPostProcessor(self.schema, "pod_usage"),
         ):
             with patch(
