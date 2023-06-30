@@ -78,7 +78,7 @@ class GCPReportDBCleaner:
 
                 LOG.info(
                     log_json(
-                        msg="deleting provider billing data for gcp",
+                        msg="deleting provider billing data for GCP",
                         schema_name=self._schema,
                         provider_uuid=bill.provider_id,
                         start_date=bill.billing_period_start,
@@ -136,7 +136,7 @@ class GCPReportDBCleaner:
 
                 LOG.info(
                     log_json(
-                        msg="deleting provider billing data for gcp",
+                        msg="deleting provider billing data for GCP",
                         schema_name=self._schema,
                         provider_uuid=bill.provider_id,
                         start_date=bill.billing_period_start,
