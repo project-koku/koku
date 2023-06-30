@@ -49,7 +49,7 @@ class GCPReportDBCleaner:
         """
         LOG.info(
             log_json(
-                msg="calling purge_expired_report_data for gcp", schema_name=self._schema, provider_uuid=provider_uuid
+                msg="calling purge_expired_report_data for GCP", schema_name=self._schema, provider_uuid=provider_uuid
             )
         )
 
