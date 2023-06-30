@@ -9,6 +9,7 @@ import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -71,24 +72,37 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     bill_ids = [str(bill.id) for bill in bills]
                     current_bill_id = bills.first().id if bills else None
                 else:
-                    msg = "No invoice month was provided during summarization. Skipping summarization"
-                    LOG.info(msg)
+                    LOG.info(
+                        log_json(
+                            msg="no invoice month provided, skipping summarization",
+                            schema=self._schema,
+                            provider_uuid=self._provider.uuid,
+                            start_date=start_date,
+                        )
+                    )
                     return start_date, end_date
 
             if current_bill_id is None:
-                msg = f"No bill was found for {start_date}. Skipping summarization"
-                LOG.info(msg)
+                LOG.info(
+                    log_json(
+                        msg="no bill was found, skipping summarization",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=start_date,
+                    )
+                )
                 return start_date, end_date
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating GCP report summary tables from parquet: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s \n\tInvoice Month: %s",
-                    self._schema,
-                    self._provider.uuid,
-                    start,
-                    end,
-                    invoice_month,
+                    log_json(
+                        msg="updating GCP report summary tables from parquet",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=start,
+                        end_date=end,
+                        invoice_month=invoice_month,
+                    )
                 )
                 filters = {
                     "cost_entry_bill_id": current_bill_id
