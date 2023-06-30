@@ -1071,8 +1071,8 @@ select * from eek where val1 in {{report_period_id}} ;
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
-        mock_jinja.prepare_query.side_effect = side_effect
-        accessor.jinja_sql = mock_jinja
+        mock_jinja.side_effect = side_effect
+        accessor.prepare_query = mock_jinja
         accessor.populate_platform_and_worker_distributed_cost_sql(
             start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
         )
