@@ -9,6 +9,7 @@ import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
@@ -67,18 +68,25 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                 current_bill_id = bills.first().id if bills else None
 
             if current_bill_id is None:
-                msg = f"No bill was found for {start_date}. Skipping summarization"
-                LOG.info(msg)
+                LOG.info(
+                    log_json(
+                        msg="no bill was found, skipping summarization",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=start_date,
+                    )
+                )
                 return start_date, end_date
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating OCI report summary tables from parquet: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s",
-                    self._schema,
-                    self._provider.uuid,
-                    start,
-                    end,
+                    log_json(
+                        msg="updating OCI report summary tables from parquet",
+                        schema=self._schema,
+                        provider_uuid=self._provider.uuid,
+                        start_date=start,
+                        end_date=end,
+                    )
                 )
                 filters = {
                     "cost_entry_bill_id": current_bill_id
