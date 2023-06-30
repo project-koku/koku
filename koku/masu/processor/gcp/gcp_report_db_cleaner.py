@@ -48,9 +48,7 @@ class GCPReportDBCleaner:
 
         """
         LOG.info(
-            log_json(
-                msg="calling purge_expired_report_data for GCP", schema_name=self._schema, provider_uuid=provider_uuid
-            )
+            log_json(msg="calling purge_expired_report_data for GCP", schema=self._schema, provider_uuid=provider_uuid)
         )
 
         with GCPReportDBAccessor(self._schema) as accessor:
@@ -79,7 +77,7 @@ class GCPReportDBCleaner:
                 LOG.info(
                     log_json(
                         msg="deleting provider billing data for GCP",
-                        schema_name=self._schema,
+                        schema=self._schema,
                         provider_uuid=bill.provider_id,
                         start_date=bill.billing_period_start,
                     )
@@ -111,7 +109,7 @@ class GCPReportDBCleaner:
                 LOG.info(
                     log_json(
                         msg="deleting table partitions",
-                        schema_name=self._schema,
+                        schema=self._schema,
                         tables=table_names,
                         partitions=partition_from,
                     )
@@ -124,7 +122,7 @@ class GCPReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(log_json(msg="deleted table partitions", schema_name=self._schema, records_deleted=del_count))
+                LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
                 # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:
@@ -137,7 +135,7 @@ class GCPReportDBCleaner:
                 LOG.info(
                     log_json(
                         msg="deleting provider billing data for GCP",
-                        schema_name=self._schema,
+                        schema=self._schema,
                         provider_uuid=bill.provider_id,
                         start_date=bill.billing_period_start,
                     )
