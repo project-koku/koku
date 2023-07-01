@@ -142,10 +142,13 @@ def process_cr(report_meta):
         "0419bb957f5cdfade31e26c0f03b755528ec0d7f": "koku-metrics-operator:v0.9.1",
         "bfdc1e54e104c2a6c8bf830ab135cf56a97f41d2": "koku-metrics-operator:v0.9.0",
     }
+    version = report_meta.get("version")
     manifest_info = {
         "cluster_id": report_meta.get("cluster_id"),
         "operator_certified": report_meta.get("certified"),
-        "operator_version": operator_versions.get(report_meta.get("version")),
+        "operator_version": operator_versions.get(
+            version, version  # if version is not defined, fallback to what is in the report-meta
+        ),
         "cluster_channel": None,
         "operator_airgapped": None,
         "operator_errors": None,
