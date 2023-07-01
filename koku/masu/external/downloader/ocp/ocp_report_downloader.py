@@ -147,7 +147,7 @@ def process_cr(report_meta):
         "cluster_id": report_meta.get("cluster_id"),
         "operator_certified": report_meta.get("certified"),
         "operator_version": operator_versions.get(
-            version, version  # if version is not defined, fallback to what is in the report-meta
+            version, version  # if version is not defined in operator_versions, fallback to what is in the report-meta
         ),
         "cluster_channel": None,
         "operator_airgapped": None,
