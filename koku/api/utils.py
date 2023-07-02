@@ -483,7 +483,7 @@ def get_months_in_date_range(
                 )
         else:
             LOG.info("generating start and end dates for manifest")
-            dt_start = dh.today - datetime.timedelta(days=2)
+            dt_start = dh.today - datetime.timedelta(days=2) if dh.today.date().day > 2 else dh.today.replace(day=1)
             dt_end = dh.today
 
     elif dt_invoice_month:
