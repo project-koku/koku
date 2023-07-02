@@ -6,9 +6,13 @@
 import json
 import logging
 import os
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
+from typing import Union
 
 import pandas as pd
 from dateutil import parser
@@ -180,7 +184,61 @@ OCP_REPORT_TYPES = {
 }
 
 
-def get_report_details(report_directory):
+@dataclass
+class ReportDetails:
+    uuid: str = ""
+    cluster_id: str = ""
+    request_id: str = ""
+    tracing_id: str = ""
+    version: str = ""
+    date: Union[str, datetime] = ""
+    usage_month: str = ""
+    files: list[str] = field(default_factory=list)
+    resource_optimization_files: list[str] = field(default_factory=list)
+    start: Union[str, datetime] = ""
+    end: Union[str, datetime] = ""
+    cr_status: dict[str, Any] = field(default_factory=dict)
+    certified: bool = False
+    daily_reports: bool = False
+    manifest_path: str = ""
+    destination_dir: str = ""
+    manifest_destination_path: str = ""
+
+    # post_init variables
+    provider_uuid: str = ""
+    provider_type: str = ""
+    schema: str = ""
+    account: str = ""
+    org_id: str = ""
+    manifest_id: int = 0
+    current_file: str = ""
+    process_complete: bool = False
+
+    def __post_init__(self):
+        self.tracing_id = self.uuid
+        self.date = parser.parse(self.date)
+        self.usage_month = month_date_range(self.date)
+        if payload_start := self.start:
+            self.start = parser.parse(self.start)
+        if payload_end := self.end and payload_start:
+            start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
+            end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
+            # We override the end date from the first of the next month to the end of current month
+            # We do this to prevent summary from triggering unnecessarily on the next month
+            if start.month != end.month and end.day == 1:
+                payload_end = dh().month_end(start)
+            self.end = parser.parse(payload_end)
+
+        self.destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.usage_month}"
+        self.manifest_destination_path = f"{self.destination_dir}/{os.path.basename(self.manifest_path)}"
+        self.provider_uuid = get_provider_uuid_from_cluster_id(self.cluster_id)
+
+
+class ManifestNotFound(Exception):
+    pass
+
+
+def get_report_details(report_directory, request_id) -> ReportDetails:
     """
     Get OCP usage report details from manifest file.
 
@@ -203,39 +261,17 @@ def get_report_details(report_directory):
              end: DateTime
 
     """
-    manifest_path = "{}/{}".format(report_directory, "manifest.json")
-    payload_dict = {}
-    if os.path.exists(manifest_path):
-        try:
-            with open(manifest_path) as file:
-                payload_dict = json.load(file)
-                payload_dict["date"] = parser.parse(payload_dict["date"])
-                payload_dict["manifest_path"] = manifest_path
-                # parse start and end dates if in manifest
-                payload_start = None
-                if payload_dict.get("start"):
-                    payload_start = payload_dict.get("start")
-                    payload_dict["start"] = parser.parse(payload_start)
-                if payload_start and payload_dict.get("end"):
-                    payload_end = payload_dict.get("end")
-                    start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
-                    end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
-                    start_month = start.strftime("%Y-%m")
-                    end_month = end.strftime("%Y-%m")
-                    end_day = end.strftime("%Y-%m-%d")
-                    end_day_check = end.strftime("%Y-%m-01")
-                    # We override the end date from the first of the next month to the end of current month
-                    # We do this to prevent summary from triggering unnecessarily on the next month
-                    if start_month != end_month and end_day == end_day_check:
-                        payload_end = dh().month_end(start)
-                    payload_dict["end"] = parser.parse(str(payload_end))
-        except (OSError, KeyError) as exc:
-            LOG.error("Unable to extract manifest data: %s", exc)
-    else:
-        msg = f"No manifest available at {manifest_path}"
-        LOG.info(msg)
+    manifest_path = f"{report_directory}/manifest.json"
 
-    return payload_dict
+    if not os.path.exists(manifest_path):
+        msg = f"no manifest available at {manifest_path}"
+        LOG.info(msg)
+        raise ManifestNotFound(msg)
+
+    with open(manifest_path) as file:
+        payload_dict = json.load(file)
+
+    return ReportDetails(request_id=request_id, manifest_path=manifest_path, **payload_dict)
 
 
 def month_date_range(for_date_time):

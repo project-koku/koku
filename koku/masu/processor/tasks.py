@@ -124,7 +124,7 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
             LOG.debug(log_json(tracing_id, msg=f"Report {report} has already been recorded."))
 
 
-def record_report_status(manifest_id, file_name, tracing_id, context={}):
+def record_report_status(manifest_id, file_name, tracing_id, context=None):
     """
     Creates initial report status database entry for new report files.
 
@@ -143,6 +143,8 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
         DateTime - Last completed date time for a given report file.
 
     """
+    if context is None:
+        context = {}
     already_processed = False
     with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
         already_processed = db_accessor.get_last_completed_datetime()

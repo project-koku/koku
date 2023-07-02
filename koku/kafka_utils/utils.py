@@ -129,4 +129,3 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return

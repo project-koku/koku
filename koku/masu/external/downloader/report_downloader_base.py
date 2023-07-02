@@ -47,10 +47,7 @@ class ReportDownloaderBase:
             report_name       (String) cost report name
 
         """
-        if download_path:
-            self.download_path = download_path
-        else:
-            self.download_path = mkdtemp(prefix="masu")
+        self.download_path = download_path or mkdtemp(prefix="masu")
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self._provider_type = kwargs.get("provider_type")
@@ -67,8 +64,7 @@ class ReportDownloaderBase:
         """Return a manifest DB object if it exists."""
         manifest_id = None
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-            if manifest:
+            if manifest := manifest_accessor.get_manifest(assembly_id, self._provider_uuid):
                 manifest_id = manifest.id
         return manifest_id
 
@@ -76,8 +72,8 @@ class ReportDownloaderBase:
         self, assembly_id, billing_start, num_of_files, manifest_modified_datetime, **kwargs
     ):
         """Insert or update the manifest DB record."""
-        msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
-        LOG.info(log_json(self.tracing_id, msg=msg))
+        msg = "inserting/updating manifest"
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context, assembly_id=assembly_id))
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
@@ -91,15 +87,15 @@ class ReportDownloaderBase:
                     "num_total_files": num_of_files,
                     "provider_uuid": self._provider_uuid,
                     "manifest_modified_datetime": manifest_modified_datetime,
-                }
-                manifest_dict.update(kwargs)
+                } | kwargs
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)
                 except IntegrityError as error:
-                    fk_violation = FKViolation(error)
-                    if fk_violation:
+                    if fk_violation := FKViolation(error):
                         LOG.warning(fk_violation)
-                        raise ReportDownloaderError(f"Method: _process_manifest_db_record :: {fk_violation}")
+                        raise ReportDownloaderError(
+                            f"Method: _process_manifest_db_record :: {fk_violation}"
+                        ) from error
                     msg = (
                         f"Manifest entry uniqueness collision: Error {error}. "
                         "Manifest already added, getting manifest_entry_id."

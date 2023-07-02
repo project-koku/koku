@@ -43,7 +43,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._date_accessor = DateAccessor()
         self._context = {
             "schema": self._schema,
-            "provider_uuid": self._provider.uuid,
+            "provider_uuid": str(self._provider.uuid),
             "cluster_id": self._cluster_id,
             "cluster_alias": self._cluster_alias,
         }

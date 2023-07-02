@@ -420,7 +420,7 @@ class ParquetReportProcessor:
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
-            kwargs = {"compression": "gzip"}
+            kwargs["compression"] = "gzip"
 
         LOG.info(
             log_json(self.tracing_id, msg="converting csv to parquet", context=self._context, file_name=csv_filename)

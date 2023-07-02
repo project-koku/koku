@@ -18,7 +18,7 @@ from masu.processor.report_processor import ReportProcessorError
 LOG = logging.getLogger(__name__)
 
 
-def _process_report_file(schema_name, provider, report_dict, ingress_reports=None, ingress_reports_uuid=None):
+def _process_report_file(schema_name, provider, report_dict, ingress_reports=None, ingress_reports_uuid=None) -> bool:
     """
     Task to process a Report.
 
@@ -81,13 +81,16 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         stats_recorder.log_last_completed_datetime()
 
     with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest:
+        if manifest := manifest_accesor.get_manifest_by_id(manifest_id):
             manifest_accesor.mark_manifest_as_updated(manifest)
         else:
             LOG.error(
                 log_json(
-                    tracing_id, msg=f"Unable to find manifest for ID: {manifest_id}, file {file_name}", context=context
+                    tracing_id,
+                    msg="unable to find manifest",
+                    context=context,
+                    manifest_id=manifest_id,
+                    file_name=file_name,
                 )
             )
 

@@ -48,42 +48,45 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
-        if manifest:
-            updated_datetime = self.date_accessor.today_with_timezone("UTC")
-            ctx = {
-                "manifest_id": manifest.id,
-                "assembly_id": manifest.assembly_id,
-                "provider_uuid": manifest.provider_id,
-                "manifest_updated_datetime": updated_datetime,
-            }
-            LOG.info(log_json(msg="marking manifest updated", context=ctx))
-            manifest.manifest_updated_datetime = updated_datetime
-            manifest.save()
-            LOG.info(log_json(msg="manifest marked updated", context=ctx))
+        if not manifest:
+            return
+        updated_datetime = self.date_accessor.today_with_timezone("UTC")
+        ctx = {
+            "manifest_id": manifest.id,
+            "assembly_id": manifest.assembly_id,
+            "provider_uuid": manifest.provider_id,
+            "manifest_updated_datetime": updated_datetime,
+        }
+        LOG.info(log_json(msg="marking manifest updated", context=ctx))
+        manifest.manifest_updated_datetime = updated_datetime
+        manifest.save()
+        LOG.info(log_json(msg="manifest marked updated", context=ctx))
 
     def mark_manifests_as_completed(self, manifest_list):
         """Update the completed timestamp."""
+        if not manifest_list:
+            return
         completed_datetime = self.date_accessor.today_with_timezone("UTC")
-        if manifest_list:
-            bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
-            for manifest in bulk_manifest_query:
-                ctx = {
-                    "manifest_id": manifest.id,
-                    "assembly_id": manifest.assembly_id,
-                    "provider_uuid": manifest.provider_id,
-                    "manifest_completed_datetime": completed_datetime,
-                }
-                LOG.info(log_json(msg="marking manifest complete", context=ctx))
-                manifest.manifest_completed_datetime = completed_datetime
-                manifest.save()
-                LOG.info(log_json(msg="manifest marked complete", context=ctx))
+        bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
+        for manifest in bulk_manifest_query:
+            ctx = {
+                "manifest_id": manifest.id,
+                "assembly_id": manifest.assembly_id,
+                "provider_uuid": str(manifest.provider_id),
+                "manifest_completed_datetime": completed_datetime,
+            }
+            LOG.info(log_json(msg="marking manifest complete", context=ctx))
+            manifest.manifest_completed_datetime = completed_datetime
+            manifest.save()
+            LOG.info(log_json(msg="manifest marked complete", context=ctx))
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""
+        if not manifest:
+            return
         set_num_of_files = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
-        if manifest:
-            manifest.num_total_files = set_num_of_files
-            manifest.save()
+        manifest.num_total_files = set_num_of_files
+        manifest.save()
 
     def add(self, **kwargs):
         """
@@ -127,15 +130,15 @@ class ReportManifestDBAccessor(KokuDBAccess):
         Return False otherwise.
 
         """
-        record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
-        if record:
+        if record := CostUsageReportStatus.objects.filter(manifest_id=manifest_id):
             return record.filter(last_completed_datetime__isnull=True).exists()
         return True
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         """Return all manifests for a provider and bill date."""
-        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
-        return CostUsageReportManifest.objects.filter(**filters).all()
+        return CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid, billing_period_start_datetime__date=bill_date
+        ).all()
 
     def get_last_manifest_upload_datetime(self, provider_uuid=None):
         """Return all ocp manifests with lastest upload datetime."""

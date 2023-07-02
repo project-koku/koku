@@ -127,9 +127,9 @@ class OCPUtilTests(MasuTestCase):
         with tempfile.TemporaryDirectory() as manifest_path:
             manifest_file = f"{manifest_path}/manifest.json"
             with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
-                expected = f"INFO:masu.util.ocp.common:No manifest available at {manifest_file}"
+                expected = f"no manifest available at {manifest_file}"
                 utils.get_report_details(manifest_path)
-                self.assertIn(expected, logger.output)
+                self.assertIn(expected, logger.output[0])
 
             with open(manifest_file, "w") as f:
                 data = {"key": "value"}
@@ -139,7 +139,7 @@ class OCPUtilTests(MasuTestCase):
             with patch("masu.util.ocp.common.open") as mock_open:
                 mock_open.side_effect = OSError
                 with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
-                    expected = "ERROR:masu.util.ocp.common:Unable to extract manifest data"
+                    expected = "unable to extract manifest data"
                     utils.get_report_details(manifest_path)
                     self.assertIn(expected, logger.output[0])
 

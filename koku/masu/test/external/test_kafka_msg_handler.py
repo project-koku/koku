@@ -559,7 +559,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
+                                msg_handler.extract_payload_and_copy_csv_to_s3(
                                     payload_url,
                                     "test_request_id",
                                     "fake_identity",
@@ -589,7 +589,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
+                                msg_handler.extract_payload_and_copy_csv_to_s3(
                                     payload_url,
                                     "test_request_id",
                                     "fake_identity",
@@ -621,7 +621,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 mock_ros_shipper.return_value.process_manifest_reports.side_effect = Exception
                                 with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
-                                    msg_handler.extract_payload(
+                                    msg_handler.extract_payload_and_copy_csv_to_s3(
                                         payload_url,
                                         "test_request_id",
                                         "fake_identity",
@@ -647,7 +647,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
+                                msg_handler.extract_payload_and_copy_csv_to_s3(
                                     payload_url,
                                     "test_request_id",
                                     "fake_identity",
@@ -674,7 +674,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch("masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=None):
                         self.assertFalse(
-                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")[0]
+                            msg_handler.extract_payload_and_copy_csv_to_s3(
+                                payload_url, "test_request_id", "fake_identity", {}
+                            )[0]
                         )
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_data_dir)
@@ -695,7 +697,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
-                                msg_handler.extract_payload(
+                                msg_handler.extract_payload_and_copy_csv_to_s3(
                                     payload_url,
                                     "test_request_id",
                                     "fake_identity",
@@ -725,7 +727,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                    msg_handler.extract_payload_and_copy_csv_to_s3(
+                                        payload_url, "test_request_id", "fake_identity", {}
+                                    )
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
@@ -747,7 +751,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                    msg_handler.extract_payload_and_copy_csv_to_s3(
+                                        payload_url, "test_request_id", "fake_identity", {}
+                                    )
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
@@ -759,7 +765,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, exc=HTTPError)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                msg_handler.extract_payload_and_copy_csv_to_s3(payload_url, "test_request_id", "fake_identity", {})
 
     def test_extract_payload_unable_to_open(self):
         """Test to verify extracting payload exceptions are handled."""
@@ -770,7 +776,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.open") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                    msg_handler.extract_payload_and_copy_csv_to_s3(payload_url, "test_request_id", "fake_identity", {})
 
     def test_extract_payload_wrong_file_type(self):
         """Test to verify extracting payload is successful."""
@@ -784,7 +790,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=csv_file)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                msg_handler.extract_payload_and_copy_csv_to_s3(payload_url, "test_request_id", "fake_identity", {})
 
     def test_get_account_from_cluster_id(self):
         """Test to find account from cluster id."""
@@ -836,7 +842,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "uuid": uuid.uuid4(),
         }
         with patch.object(OCPReportDownloader, "_prepare_db_manifest_record", return_value=1):
-            self.assertEqual(1, msg_handler.create_manifest_entries(report_meta, "test_request_id"))
+            self.assertEqual(1, msg_handler.create_manifest_entries(report_meta, "test_request_id", {}))
 
     def test_send_confirmation_error(self):
         """Set up the test for raising a kafka error during sending confirmation."""
@@ -851,7 +857,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_get_account(self):
         """Test that the account details are returned given a provider uuid."""
-        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id")
+        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id", {})
         self.assertIsNotNone(ocp_account)
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
 
@@ -859,7 +865,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     def test_get_account_exception(self, mock_accessor):
         """Test that no account is returned upon exception."""
         mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
-        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id")
+        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id", {})
         self.assertIsNone(ocp_account)
 
     def test_delivery_callback(self):

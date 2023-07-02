@@ -59,7 +59,9 @@ def divide_csv_daily(file_path, filename):
     return daily_files
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(
+    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context=None
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -73,6 +75,8 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    if context is None:
+        context = {}
     daily_file_names = []
     if context.get("version"):
         daily_files = [{"filepath": filepath, "filename": filename}]
@@ -94,7 +98,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
     return daily_file_names
 
 
-def process_cr(report_meta):
+def process_cr(report: utils.ReportDetails):
     """
     Process the manifest info.
 
@@ -109,7 +113,7 @@ def process_cr(report_meta):
             channel: (str or None)
             errors: (Dict or None)
     """
-    LOG.info(log_json(report_meta.get("tracing_id"), msg="Processing the manifest"))
+    LOG.info(log_json(report.tracing_id, msg="Processing the manifest"))
     operator_versions = {
         "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
         "77ec351f8d332796dc522e5623f1200c2fab4042": "costmanagement-metrics-operator:1.1.4",
@@ -130,18 +134,15 @@ def process_cr(report_meta):
     }
     manifest_info = {
         "operator_airgapped": None,
-        "operator_version": operator_versions.get(report_meta.get("version"), report_meta.get("version")),
-        "operator_certified": None,
+        "operator_version": operator_versions.get(report.version, report.version),
+        "operator_certified": report.certified,
         "cluster_channel": None,
-        "cluster_id": report_meta.get("cluster_id"),
+        "cluster_id": report.cluster_id,
         "operator_errors": None,
     }
-    manifest_info["operator_certified"] = report_meta.get("certified")
-    cr_status = report_meta.get("cr_status", None)
-    if cr_status:
-        potential_errors = ["authentication", "packaging", "upload", "prometheus", "source"]
+    if cr_status := report.cr_status:
         errors = {}
-        for case in potential_errors:
+        for case in ["authentication", "packaging", "upload", "prometheus", "source"]:
             case_info = cr_status.get(case, {})
             if case_info.get("error"):
                 errors[case + "_error"] = case_info.get("error")
@@ -322,16 +323,13 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Get full path for local report file."""
         return utils.get_local_file_name(report)
 
-    def _prepare_db_manifest_record(self, manifest):
+    def _prepare_db_manifest_record(self, manifest: utils.ReportDetails):
         """Prepare to insert or update the manifest DB record."""
-        assembly_id = manifest.get("uuid")
-
-        date_range = utils.month_date_range(manifest.get("date"))
+        date_range = manifest.usage_month
         billing_str = date_range.split("-")[0]
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
-        manifest_timestamp = manifest.get("date")
-        num_of_files = len(manifest.get("files") or [])
+        num_of_files = len(manifest.files)
         manifest_info = process_cr(manifest)
         return self._process_manifest_db_record(
-            assembly_id, billing_start, num_of_files, manifest_timestamp, **manifest_info
+            manifest.uuid, billing_start, num_of_files, manifest.date, **manifest_info
         )

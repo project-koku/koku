@@ -253,8 +253,13 @@ class ReportDBAccessorBase(KokuDBAccess):
     ):
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table} from {start_date} to {end_date}"
-        LOG.info(msg)
+        ctx = {
+            "table": table,
+            "start_date": start_date,
+            "end_date": end_date,
+            "provider_uuid": source_uuid,
+        }
+        LOG.info(log_json("deleting records", context=ctx))
         select_query = table.objects.filter(
             source_uuid=source_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
@@ -262,8 +267,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             select_query = select_query.filter(**filters)
         with schema_context(self.schema):
             count, _ = mini_transaction_delete(select_query)
-        msg = f"Deleted {count} records from {table}"
-        LOG.info(msg)
+        LOG.info(log_json("deleted records", context=ctx, count=count))
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
@@ -273,8 +277,13 @@ class ReportDBAccessorBase(KokuDBAccess):
             table = self.line_item_daily_summary_table
         if not isinstance(table, str):
             table = table._meta.db_table
-        msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
-        LOG.info(msg)
+        ctx = {
+            "table": table,
+            "start_date": start_date,
+            "end_date": end_date,
+            "provider_uuid": source_uuid,
+        }
+        LOG.info(log_json("deleting records", context=ctx))
 
         sql = f"""
             DELETE FROM {self.schema}.{table}
@@ -293,6 +302,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         filters["end_date"] = end_date
 
         self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
+        LOG.info(log_json("deleted records", context=ctx))
 
     def truncate_partition(self, partition_name):
         """Issue a TRUNCATE command on a specific partition of a table"""
@@ -302,7 +312,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             int(year)
             int(month)
         except ValueError:
-            msg = "Invalid paritition provided. No TRUNCATE performed."
+            msg = "invalid partition provided - TRUNCATE not performed"
             LOG.warning(msg)
             return
 
@@ -325,18 +335,12 @@ class ReportDBAccessorBase(KokuDBAccess):
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")
-        if table:
-            return True
-        return False
+        return bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino"))
 
     def schema_exists_trino(self):
         """Check if table exists."""
         check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
-        schema_exists = self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino")
-        if schema_exists:
-            return True
-        return False
+        return bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
 
     def execute_delete_sql(self, query):
         """
@@ -352,13 +356,14 @@ class ReportDBAccessorBase(KokuDBAccess):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
-                "Deleting Hive partitions for the following: \n\tSchema: %s "
-                "\n\tOCP Source: %s \n\tTable: %s \n\tYear: %s \n\tMonths: %s",
-                self.schema,
-                source,
-                table,
-                year,
-                month,
+                log_json(
+                    msg="deleting Hive partitions by source",
+                    schema=self.schema,
+                    provider_uuid=source,
+                    table=table,
+                    year=year,
+                    month=month,
+                )
             )
             for i in range(retries):
                 try:
