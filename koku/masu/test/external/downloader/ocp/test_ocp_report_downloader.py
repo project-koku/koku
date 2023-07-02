@@ -308,16 +308,3 @@ class OCPReportDownloaderTest(MasuTestCase):
             1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date, context=context
         )
         self.assertEqual(result, expected)
-
-    @patch("masu.external.downloader.ocp.ocp_report_downloader.LOG")
-    def test_get_report_for_verify_tracing_id(self, log_mock):
-        self.ocp_report_downloader.tracing_id = "1111-2222-4444-5555"
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-        self.ocp_report_downloader.get_report_for(current_month)
-        call_args = log_mock.debug.call_args[0][0]
-        self.assertTrue("Looking for cluster" in call_args.get("message"))
-        self.assertEqual(call_args.get("tracing_id"), self.ocp_report_downloader.tracing_id)
-
-        call_args = log_mock.info.call_args[0][0]
-        self.assertTrue("manifest found:" in call_args.get("message"))
-        self.assertEqual(call_args.get("tracing_id"), self.ocp_report_downloader.tracing_id)

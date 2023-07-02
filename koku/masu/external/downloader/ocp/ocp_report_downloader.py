@@ -188,9 +188,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
         msg = f"Looking for manifest at {directory}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        report_meta = utils.get_report_details(directory, uuid4().hex)
-        self.context["version"] = report_meta.get("version")
-        return report_meta
+        report = utils.get_report_details(directory, uuid4().hex)
+        self.context["version"] = report.version
+        return report
 
     def get_manifest_context_for_date(self, date):
         """
@@ -207,29 +207,24 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-        report_dict = {}
         manifest = self._get_manifest(date)
-
-        if manifest == {}:
-            return report_dict
-
         manifest_id = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(date)
 
-        if manifest:
-            report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest.get("uuid")
-            report_dict["compression"] = UNCOMPRESSED
-            files_list = []
-            for key in manifest.get("files"):
-                key_full_path = (
-                    f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date)}/{os.path.basename(key)}"
-                )
+        report_dict = {
+            "manifest_id": manifest_id,
+            "assembly_id": manifest.uuid,
+            "compression": UNCOMPRESSED,
+        }
 
-                file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
-                files_list.append(file_dict)
+        files_list = []
+        for key in manifest.files:
+            key_full_path = f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date)}/{os.path.basename(key)}"
 
-            report_dict["files"] = files_list
+            file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
+            files_list.append(file_dict)
+
+        report_dict["files"] = files_list
         return report_dict
 
     def _remove_manifest_file(self, date_time):
@@ -237,7 +232,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dates = utils.month_date_range(date_time)
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
 
-        manifest_path = "{}/{}".format(directory, "manifest.json")
+        manifest_path = f"{directory}/manifest.json"
         try:
             os.remove(manifest_path)
             msg = f"Deleted manifest file at {directory}"
@@ -247,33 +242,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         return None
-
-    def get_report_for(self, date_time):
-        """
-        Get OCP usage report files corresponding to a date.
-
-        Args:
-            date_time (DateTime): Start date of the usage report.
-
-        Returns:
-            ([]) List of file paths for a particular report.
-
-        """
-        dates = utils.month_date_range(date_time)
-        msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
-        LOG.debug(log_json(self.tracing_id, msg=msg, context=self.context))
-        directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
-
-        manifest = self._get_manifest(date_time)
-        msg = f"manifest found: {str(manifest)}"
-        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-
-        reports = []
-        for file in manifest.get("files", []):
-            report_full_path = os.path.join(directory, file)
-            reports.append(report_full_path)
-
-        return reports
 
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """

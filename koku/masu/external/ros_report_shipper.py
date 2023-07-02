@@ -58,7 +58,7 @@ class ROSReportShipper:
         self.context = context | {"manifest_id": self.manifest_id}
         self.provider_uuid = str(report.provider_uuid)
         self.request_id = report.request_id
-        self.schema_name = report.schema_name
+        self.schema_name = report.schema
         self.metadata = {
             "account": report.account,
             "org_id": report.org_id,
