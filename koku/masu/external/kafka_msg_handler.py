@@ -520,6 +520,11 @@ def summarize_manifest(report: utils.ReportDetails):
 
     if not (start_date or end_date):
         # we cannot process without start and end dates
+        LOG.info(
+            log_json(
+                report.tracing_id, msg="missing start or end dates - cannot summarize ocp reports", context=context
+            )
+        )
         return
 
     if "0001-01-01 00:00:00+00:00" not in [str(start_date), str(end_date)]:
