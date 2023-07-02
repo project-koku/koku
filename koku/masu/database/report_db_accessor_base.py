@@ -259,7 +259,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             "end_date": end_date,
             "provider_uuid": source_uuid,
         }
-        LOG.info(log_json("deleting records", context=ctx))
+        LOG.info(log_json(msg="deleting records", context=ctx))
         select_query = table.objects.filter(
             source_uuid=source_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
@@ -267,7 +267,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             select_query = select_query.filter(**filters)
         with schema_context(self.schema):
             count, _ = mini_transaction_delete(select_query)
-        LOG.info(log_json("deleted records", context=ctx, count=count))
+        LOG.info(log_json(msg="deleted records", context=ctx, count=count))
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
@@ -283,7 +283,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             "end_date": end_date,
             "provider_uuid": source_uuid,
         }
-        LOG.info(log_json("deleting records", context=ctx))
+        LOG.info(log_json(msg="deleting records", context=ctx))
 
         sql = f"""
             DELETE FROM {self.schema}.{table}
@@ -302,7 +302,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         filters["end_date"] = end_date
 
         self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
-        LOG.info(log_json("deleted records", context=ctx))
+        LOG.info(log_json(msg="deleted records", context=ctx))
 
     def truncate_partition(self, partition_name):
         """Issue a TRUNCATE command on a specific partition of a table"""

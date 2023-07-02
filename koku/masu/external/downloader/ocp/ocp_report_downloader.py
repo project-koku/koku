@@ -8,6 +8,7 @@ import hashlib
 import logging
 import os
 import shutil
+from uuid import uuid4
 
 import pandas as pd
 
@@ -187,7 +188,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
         msg = f"Looking for manifest at {directory}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        report_meta = utils.get_report_details(directory)
+        report_meta = utils.get_report_details(directory, uuid4().hex)
         self.context["version"] = report_meta.get("version")
         return report_meta
 
