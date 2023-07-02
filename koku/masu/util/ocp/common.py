@@ -191,21 +191,27 @@ class ReportDetails:
     request_id: str = ""
     tracing_id: str = ""
     version: str = ""
-    date: Union[str, datetime] = ""
+
     usage_month: str = ""
     files: list[str] = field(default_factory=list)
     resource_optimization_files: list[str] = field(default_factory=list)
-    start: Union[str, datetime] = ""
-    end: Union[str, datetime] = ""
+
     cr_status: dict[str, Any] = field(default_factory=dict)
     certified: bool = False
     daily_reports: bool = False
     manifest_path: str = ""
-    destination_dir: str = ""
-    manifest_destination_path: str = ""
 
     # post_init variables
+    # these are converted to datetimes in post_init:
+    date: Union[str, datetime] = ""
+    start: Union[str, datetime] = ""
+    end: Union[str, datetime] = ""
+
+    destination_dir: str = ""
+    manifest_destination_path: str = ""
     provider_uuid: str = ""
+
+    # these are added after the ReportDetails is created
     provider_type: str = ""
     schema: str = ""
     account: str = ""
