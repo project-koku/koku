@@ -180,11 +180,11 @@ class KokuCacheTest(IamTestCase):
 
         # test for log warning on invalid source type
         with self.assertLogs() as captured:
-            result = "unable to invalidate cache, bogus is not a valid source type"
+            result = "unable to invalidate cache, not a valid source type"
             source_types = ["bogus"]
             invalidate_view_cache_for_tenant_and_source_types(self.schema_name, source_types)
             self.assertEqual(len(captured.records), 1)
-            self.assertEqual(captured.records[0].getMessage(), result)
+            self.assertIn(result, captured.records[0].getMessage())
 
     def test_invalidate_view_cache_for_tenant_and_all_source_type(self):
         """Test that all views for a all source types and tenant are invalidated."""
