@@ -119,7 +119,7 @@ class TestAWSUtils(MasuTestCase):
     def test_get_cur_report_definitions(self):
         """Test get_cur_report_definitions is successful."""
         session = FakeSession()
-        cur_client = session.client("cur")
+        cur_client = session.client("cur", region_name="us-east-1")
         defs = utils.get_cur_report_definitions(cur_client)
         self.assertEqual(len(defs), 1)
 

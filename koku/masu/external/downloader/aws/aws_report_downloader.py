@@ -61,61 +61,30 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        arn = credentials.get("role_arn")
-        bucket = data_source.get("bucket")
-        self.bucket = bucket
-        self.storage_only = data_source.get("storage_only")
-        self.ingress_reports = ingress_reports
-        # Existing schema will start with acct and we strip that prefix new customers
-        # include the org prefix in case an org-id and an account number might overlap
-        if customer_name.startswith("acct"):
-            demo_check = customer_name[4:]
-        else:
-            demo_check = customer_name
-        if demo_check in settings.DEMO_ACCOUNTS:
-            demo_account = settings.DEMO_ACCOUNTS.get(demo_check)
-            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
-            if arn in demo_account:
-                demo_info = demo_account.get(arn)
-                self.customer_name = customer_name.replace(" ", "_")
-                self._provider_uuid = kwargs.get("provider_uuid")
-                self.report_name = demo_info.get("report_name")
-                self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
-                self.s3_client = session.client("s3")
-                return
-
         self.customer_name = customer_name.replace(" ", "_")
+        self.credentials = credentials
+        self.data_source = data_source
+        self.report = None
+        self.report_name = report_name
+        self.ingress_reports = ingress_reports
+
+        self.bucket = data_source.get("bucket")
+        self.region_name = data_source.get("bucket_region")
+        self.storage_only = data_source.get("storage_only")
+
         self._provider_uuid = kwargs.get("provider_uuid")
+        self._region_kwargs = {"region_name": self.region_name} if self.region_name else {}
+
+        if self._demo_check():
+            return
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
+        self._session = utils.get_assume_role_session(
+            utils.AwsArn(credentials), "MasuDownloaderSession", **self._region_kwargs
+        )
+        self.s3_client = self._session.client("s3", **self._region_kwargs)
 
-        # Checking for storage only source
-        if self.storage_only:
-            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
-            report = [""]
-        else:
-            # fetch details about the report from the cloud provider
-            defs = utils.get_cur_report_definitions(session.client("cur"))
-            if not report_name:
-                report_names = []
-                for report in defs.get("ReportDefinitions", []):
-                    if bucket == report.get("S3Bucket"):
-                        report_names.append(report["ReportName"])
-
-                # FIXME: Get the first report in the bucket until Koku can specify
-                # which report the user wants
-                if report_names:
-                    report_name = report_names[0]
-            self.report_name = report_name
-            report_defs = defs.get("ReportDefinitions", [])
-            report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
-            if not report:
-                raise MasuProviderError("Cost and Usage Report definition not found.")
-
-        self.report = report.pop()
-        self.s3_client = session.client("s3")
+        self._set_report()
 
     @property
     def manifest_date_format(self):
@@ -170,6 +139,59 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.debug("%s is %s bytes uncompressed; Download path has %s free", s3key, isize, free_space)
 
         return size_ok
+
+    def _demo_check(self) -> bool:
+        # Existing schema will start with acct and we strip that prefix new customers
+        # include the org prefix in case an org-id and an account number might overlap
+        if self.customer_name.startswith("acct"):
+            demo_check = self.customer_name[4:]
+        else:
+            demo_check = self.customer_name
+
+        if demo_account := settings.DEMO_ACCOUNTS.get(demo_check):
+            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
+            if demo_info := demo_account.get(self.credentials.get("role_arn")):
+                self.report_name = demo_info.get("report_name")
+                self.report = {
+                    "S3Bucket": self.bucket,
+                    "S3Prefix": demo_info.get("report_prefix"),
+                    "Compression": "GZIP",
+                }
+                session = utils.get_assume_role_session(
+                    utils.AwsArn(self.credentials), "MasuDownloaderSession", **self._region_kwargs
+                )
+                self.s3_client = session.client("s3", **self._region_kwargs)
+
+                return True
+
+        return False
+
+    def _set_report(self):
+        # Checking for storage only source
+        if self.storage_only:
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
+            self.report = ""
+            return
+
+        # fetch details about the report from the cloud provider
+        defs = utils.get_cur_report_definitions(self._session.client("cur", region_name="us-east-1"))
+        if not self.report_name:
+            report_names = []
+            for report in defs.get("ReportDefinitions", []):
+                if self.bucket == report.get("S3Bucket"):
+                    report_names.append(report["ReportName"])
+
+            # FIXME: Get the first report in the bucket until Koku can specify
+            # which report the user wants
+            if report_names:
+                self.report_name = report_names[0]
+
+        report_defs = defs.get("ReportDefinitions", [])
+        report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
+        if not report:
+            raise MasuProviderError("Cost and Usage Report definition not found.")
+
+        self.report = report.pop()
 
     def _get_manifest(self, date_time):
         """

@@ -92,5 +92,9 @@ class OCPAllQueryParamSerializer(awsser.AWSQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
+        if len(value) > 2:
+            # Max support group_bys is 2
+            error = {"group_by": ("Cost Management supports a max of two group_by options.")}
+            raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value

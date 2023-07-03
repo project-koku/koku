@@ -562,6 +562,17 @@ class QueryParamSerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_fail_with_max_group_by(self):
+        """Test fail if more than 2 group bys given."""
+        query_params = {
+            "group_by": {"account": ["account1"], "service": ["ser"], "region": ["reg"]},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+        with self.assertRaises(serializers.ValidationError):
+            serializer = AWSQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertFalse(serializer.is_valid())
+            serializer.is_valid(raise_exception=True)
+
     def test_multiple_group_by_with_matching_sort_or(self):
         """Test multiple group by with a matching sort for or group_by parameters."""
         query_params = {

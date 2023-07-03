@@ -344,12 +344,8 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        _start_date_1 = self.first_of_year - datetime.timedelta(days=2)
-        expected_start_1 = _start_date_1.strftime("%Y-%m-%d")
-        _end_date_1 = _start_date_1 + relativedelta(day=31)
-        expected_end_1 = _end_date_1.date().strftime("%Y-%m-%d")
         expected_date_2 = self.first_of_year.strftime("%Y-%m-%d")
-        expected_months = [(expected_start_1, expected_end_1, None), (expected_date_2, expected_date_2, None)]
+        expected_months = [(expected_date_2, expected_date_2, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -363,18 +359,14 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         with a report missing start, end or both dates
         returns list of month tuples during first of a month
         """
-
-        mock_dh_today.return_value = self.first_of_month
+        end_date = self.first_of_month.replace(day=3)
+        mock_dh_today.return_value = end_date
         test_report = {
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        _start_date_1 = self.first_of_month - datetime.timedelta(days=2)
-        expected_start_1 = _start_date_1.strftime("%Y-%m-%d")
-        _end_date_1 = _start_date_1 + relativedelta(day=31)
-        expected_end_1 = _end_date_1.date().strftime("%Y-%m-%d")
-        expected_date_2 = self.first_of_month.strftime("%Y-%m-%d")
-        expected_months = [(expected_start_1, expected_end_1, None), (expected_date_2, expected_date_2, None)]
+        expected_date = self.first_of_month.strftime("%Y-%m-%d")
+        expected_months = [(expected_date, end_date.strftime("%Y-%m-%d"), None)]
 
         returned_months = get_months_in_date_range(test_report)
 

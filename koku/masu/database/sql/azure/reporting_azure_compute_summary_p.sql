@@ -17,7 +17,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
     pretax_cost,
     markup_cost,
     currency,
-    source_uuid
+    source_uuid,
+    subscription_name
 )
     SELECT uuid_generate_v4() as id,
         c.usage_start,
@@ -31,7 +32,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
         c.pretax_cost,
         c.markup_cost,
         c.currency,
-        {{source_uuid}}::uuid as source_uuid
+        {{source_uuid}}::uuid as source_uuid,
+        c.subscription_name
     FROM (
         -- this group by gets the counts
         SELECT usage_start,
@@ -41,14 +43,15 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
             MAX(unit_of_measure) AS unit_of_measure,
             SUM(pretax_cost) AS pretax_cost,
             SUM(markup_cost) AS markup_cost,
-            MAX(currency) AS currency
+            MAX(currency) AS currency,
+            subscription_name
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
             AND usage_start <= {{end_date}}::date
             AND source_uuid = {{source_uuid}}
             AND instance_type IS NOT NULL
             AND unit_of_measure = 'Hrs'
-        GROUP BY usage_start, subscription_guid, instance_type
+        GROUP BY usage_start, subscription_guid, instance_type, subscription_name
     ) AS c
     JOIN (
         -- this group by gets the distinct resources running by day
