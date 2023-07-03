@@ -103,7 +103,7 @@ class AccountSettingsViewTest(IamTestCase):
         """Test grabbing a specified user setting"""
         url = "%scurrency/" % reverse("account-settings")
         client = APIClient()
-        data = {"cost_type": "unknown"}
+        data = {"currency": "unknown"}
         with schema_context(self.schema_name):
             response = client.put(url, data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
