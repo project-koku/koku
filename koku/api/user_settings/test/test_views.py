@@ -74,7 +74,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_cost_type_put(self):
         """Test grabbing a specified user setting"""
-        url = "%scost_type/" % reverse("account-settings")
+        url = "%scost-type/" % reverse("account-settings")
         client = APIClient()
         data = {"cost_type": "calculated_amortized_cost"}
         with schema_context(self.schema_name):
@@ -92,7 +92,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_put_unknown_cost_type(self):
         """Test grabbing a specified user setting"""
-        url = "%scost_type/" % reverse("account-settings")
+        url = "%scost-type/" % reverse("account-settings")
         client = APIClient()
         data = {"cost_type": "unknown"}
         with schema_context(self.schema_name):
