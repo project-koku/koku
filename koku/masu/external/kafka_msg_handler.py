@@ -337,7 +337,7 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
 
     reports = []
     for report_file in report.files:
-        current_report = copy.deepcopy(report)
+        current_report = copy.copy(report)
         payload_source_path = f"{subdirectory}/{report_file}"
         payload_destination_path = f"{current_report.destination_dir}/{report_file}"
         try:

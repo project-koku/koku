@@ -18,6 +18,7 @@ import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
+from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper as dh
 from masu.config import Config
@@ -186,12 +187,12 @@ OCP_REPORT_TYPES = {
 
 @dataclass
 class ReportDetails:
-    uuid: str = ""
-    cluster_id: str = ""
-    request_id: str = ""
+    uuid: str
+    cluster_id: str
+    request_id: str
+
     tracing_id: str = ""
     version: str = ""
-
     usage_month: str = ""
     files: list[str] = field(default_factory=list)
     resource_optimization_files: list[str] = field(default_factory=list)
@@ -238,6 +239,11 @@ class ReportDetails:
         self.destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.usage_month}"
         self.manifest_destination_path = f"{self.destination_dir}/{os.path.basename(self.manifest_path)}"
         self.provider_uuid = get_provider_uuid_from_cluster_id(self.cluster_id)
+
+        if self.files is None:
+            self.files = []
+        if self.resource_optimization_files is None:
+            self.resource_optimization_files = []
 
 
 class ManifestNotFound(Exception):
@@ -381,10 +387,16 @@ def get_provider_uuid_from_cluster_id(cluster_id):
     """
     provider_uuid = None
     credentials = {"cluster_id": cluster_id}
-    provider = Provider.objects.filter(authentication__credentials=credentials).first()
-    if provider:
+    if provider := Provider.objects.filter(authentication__credentials=credentials).first():
         provider_uuid = str(provider.uuid)
-        LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
+        LOG.info(
+            log_json(
+                msg="found provider for cluster",
+                provider_uuid=provider_uuid,
+                cluster_id=cluster_id,
+                schema=provider.customer.schema_name,
+            )
+        )
 
     return provider_uuid
 
