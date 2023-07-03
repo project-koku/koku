@@ -42,40 +42,36 @@ class SettingsInvalidFilterException(APIException):
 @dataclass
 class SettingParamsHandler:
     setting: str
-    retriever: object = field(init=False)
+    get_param: object = field(init=False)
     update_param: object = field(init=False)
 
     def __post_init__(self):
-        if self.setting in ["cost_type", "cost-type"]:
+        if self.setting in ["cost-type"]:
             self.setting = self.setting.replace("-", "_")
             self.update_param = self.update_cost_type
-            self.retriever = get_cost_type
+            self.get_param = get_cost_type
         elif self.setting == "currency":
             self.update_param = self.update_currency
-            self.retriever = get_currency
+            self.get_param = get_currency
         else:
             raise SettingsInvalidFilterException("Invalid not a user setting")
 
     def update_cost_type(self, request_data, schema_name):
         serializer = UserSettingUpdateCostTypeSerializer(schema_name, request_data)
         if serializer.is_valid(raise_exception=True):
-            if new_value := request_data.get(self.setting):
-                set_cost_type(schema_name, new_value)
-                invalidate_view_cache_for_tenant_and_source_type(schema_name, Provider.PROVIDER_AWS)
-                return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            set_cost_type(schema_name, request_data.get(self.setting))
+            invalidate_view_cache_for_tenant_and_source_type(schema_name, Provider.PROVIDER_AWS)
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update_currency(self, request_data, schema_name):
         serializer = UserSettingUpdateCurrencySerializer(schema_name, request_data)
         if serializer.is_valid(raise_exception=True):
-            if new_value := request_data.get(self.setting):
-                set_currency(schema_name, new_value)
-                invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
-                return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            set_currency(schema_name, request_data.get(self.setting))
+            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     def retrieve_user_settings(self, request):
-        users_setting = {"settings": {self.setting: self.retriever(request)}}
+        users_setting = {"settings": {self.setting: self.get_param(request)}}
         users_setting = UserSettingSerializer(users_setting, many=False).data
         return Response(users_setting)
 
