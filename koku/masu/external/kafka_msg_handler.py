@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Kafka message handler."""
+import copy
 import itertools
 import json
 import logging
@@ -13,7 +14,6 @@ import tempfile
 import threading
 import time
 from dataclasses import dataclass
-from dataclasses import replace
 from tarfile import ReadError
 from tarfile import TarFile
 from typing import Literal
@@ -337,7 +337,7 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
 
     reports = []
     for report_file in report.files:
-        current_report = replace(report)
+        current_report = copy.deepcopy(report)
         payload_source_path = f"{subdirectory}/{report_file}"
         payload_destination_path = f"{current_report.destination_dir}/{report_file}"
         try:

@@ -30,6 +30,7 @@ from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+from masu.util.ocp.common import ReportDetails
 
 
 def raise_exception():
@@ -504,15 +505,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test report summarization."""
         table = [
             {
-                "name": "invalid end date",
-                "start": str(datetime.today()),
-                "end": "0001-01-01 00:00:00+00:00",
+                "name": "missing start and end",
+                "start": None,
+                "end": None,
                 "cr_status": {},
             },
             {
                 "name": "invalid start date",
                 "start": "0001-01-01 00:00:00+00:00",
-                "end": str(datetime.today()),
+                "end": str(datetime.now()),
                 "cr_status": {"reports": {"data_collection_message": "it's a bad payload"}},
             },
             {
@@ -522,24 +523,24 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "cr_status": {"reports": {"data_collection_message": "it's a bad payload"}},
             },
         ]
-
-        report_meta = {
-            "schema_name": "test_schema",
-            "manifest_id": "1",
-            "provider_uuid": uuid.uuid4(),
-            "provider_type": "OCP",
-            "compression": "UNCOMPRESSED",
-            "file": "/path/to/file.csv",
-        }
         for t in table:
             with self.subTest(test=t.get("name")):
-                report_meta["start"] = t.get("start")
-                report_meta["end"] = t.get("end")
-                report_meta["cr_status"] = t.get("cr_status")
+                report = ReportDetails(
+                    **{
+                        "schema": "test_schema",
+                        "date": str(datetime.now()),
+                        "manifest_id": "1",
+                        "provider_uuid": uuid.uuid4(),
+                        "provider_type": "OCP",
+                        "start": t.get("start"),
+                        "end": t.get("end"),
+                        "cr_status": t.get("cr_status"),
+                    }
+                )
 
                 with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                     mock_summarize_reports.assert_not_called()
-                    async_id = msg_handler.summarize_manifest(report_meta, self.manifest_id)
+                    async_id = msg_handler.summarize_manifest(report)
                     self.assertIsNone(async_id)
 
     def test_extract_payload(self):
@@ -830,19 +831,19 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_create_manifest_entries(self):
         """Test to create manifest entries."""
-        report_meta = {
-            "schema_name": "test_schema",
-            "manifest_id": "1",
-            "provider_uuid": uuid.uuid4(),
-            "provider_type": "OCP",
-            "cluster_id": "cluster-id",
-            "compression": "UNCOMPRESSED",
-            "file": "/path/to/file.csv",
-            "date": datetime.today(),
-            "uuid": uuid.uuid4(),
-        }
+        report = ReportDetails(
+            **{
+                "schema": "test_schema",
+                "manifest_id": "1",
+                "provider_uuid": uuid.uuid4(),
+                "provider_type": "OCP",
+                "cluster_id": "cluster-id",
+                "date": str(datetime.now()),
+                "uuid": uuid.uuid4(),
+            }
+        )
         with patch.object(OCPReportDownloader, "_prepare_db_manifest_record", return_value=1):
-            self.assertEqual(1, msg_handler.create_manifest_entries(report_meta, "test_request_id", {}))
+            self.assertEqual(1, msg_handler.create_manifest_entries(report))
 
     def test_send_confirmation_error(self):
         """Set up the test for raising a kafka error during sending confirmation."""
@@ -877,14 +878,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.ERROR):
             msg_handler.delivery_callback(err, msg)
-
-    @patch("masu.external.kafka_msg_handler.create_daily_archives", return_value=[])
-    def test_construct_parquet_reports(self, mock_daily_archives):
-        """Test construct parquet reports."""
-        report_meta = {"account": "testaccount", "provider_uuid": "abc", "manifest_id": 1, "date": "today"}
-
-        reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
-        self.assertEqual(reports, [])
 
     def test_summarize_manifest_called_with_XL_queue(self):
         """Test report summarization."""

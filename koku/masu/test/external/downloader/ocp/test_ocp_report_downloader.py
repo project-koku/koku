@@ -17,12 +17,14 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
+from masu.util.ocp.common import ReportDetails
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
@@ -211,21 +213,20 @@ class OCPReportDownloaderTest(MasuTestCase):
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
 
         assembly_id = "1234"
-        compression = "PLAIN"
         report_keys = ["file1", "file2"]
         version = "5678"
-        mock_manifest.return_value = {
-            "uuid": assembly_id,
-            "Compression": compression,
-            "reportKeys": report_keys,
-            "date": current_month,
-            "files": report_keys,
-            "version": version,
-        }
+        mock_manifest.return_value = ReportDetails(
+            **{
+                "uuid": assembly_id,
+                "date": str(current_month),
+                "files": report_keys,
+                "version": version,
+            }
+        )
         self.assertIsNone(self.ocp_report_downloader.context.get("version"))
         result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result.get("assembly_id"), assembly_id)
-        self.assertEqual(result.get("compression"), compression)
+        self.assertEqual(result.get("compression"), UNCOMPRESSED)
         self.assertIsNotNone(result.get("files"))
 
         manifest_id = result.get("manifest_id")
@@ -240,35 +241,37 @@ class OCPReportDownloaderTest(MasuTestCase):
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
 
         assembly_id = "1234"
-        compression = "PLAIN"
         report_keys = ["file1", "file2"]
         version = "5678"
-        mock_manifest.return_value = {
-            "uuid": assembly_id,
-            "Compression": compression,
-            "reportKeys": report_keys,
-            "date": current_month,
-            "files": report_keys,
-            "version": version,
-            "certified": False,
-            "cluster_id": "4e009161-4f40-42c8-877c-3e59f6baea3d",
-            "cr_status": {
-                "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
-                "clusterVersion": "stable-4.6",
-                "api_url": "https://cloud.redhat.com",
-                "authentication": {"type": "token"},
-                "packaging": {"max_reports_to_store": 30, "max_size_MB": 100},
-                "upload": {"ingress_path": "/api/ingress/v1/upload", "upload": False},
-                "operator_commit": "a09a5b21e55ce4a07fe31aa560650b538ec6de7c",
-                "prometheus": {"error": "fake error"},
-                "reports": {"report_month": "07", "last_hour_queried": "2021-07-28 11:00:00 - 2021-07-28 11:59:59"},
-                "source": {"sources_path": "/api/sources/v1.0/", "name": "INSERT-SOURCE-NAME"},
-            },
-        }
+        mock_manifest.return_value = ReportDetails(
+            **{
+                "uuid": assembly_id,
+                "date": str(current_month),
+                "files": report_keys,
+                "version": version,
+                "certified": False,
+                "cluster_id": "4e009161-4f40-42c8-877c-3e59f6baea3d",
+                "cr_status": {
+                    "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
+                    "clusterVersion": "stable-4.6",
+                    "api_url": "https://cloud.redhat.com",
+                    "authentication": {"type": "token"},
+                    "packaging": {"max_reports_to_store": 30, "max_size_MB": 100},
+                    "upload": {"ingress_path": "/api/ingress/v1/upload", "upload": False},
+                    "operator_commit": "a09a5b21e55ce4a07fe31aa560650b538ec6de7c",
+                    "prometheus": {"error": "fake error"},
+                    "reports": {
+                        "report_month": "07",
+                        "last_hour_queried": "2021-07-28 11:00:00 - 2021-07-28 11:59:59",
+                    },
+                    "source": {"sources_path": "/api/sources/v1.0/", "name": "INSERT-SOURCE-NAME"},
+                },
+            }
+        )
         self.assertIsNone(self.ocp_report_downloader.context.get("version"))
         result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result.get("assembly_id"), assembly_id)
-        self.assertEqual(result.get("compression"), compression)
+        self.assertEqual(result.get("compression"), UNCOMPRESSED)
         self.assertIsNotNone(result.get("files"))
 
         manifest_id = result.get("manifest_id")
