@@ -564,10 +564,17 @@ class ParquetReportProcessor:
 
     def process(self):
         """Convert to parquet."""
-        msg = (
-            f"Converting CSV files to Parquet.\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
+        LOG.info(
+            log_json(
+                msg="converting csv files to parquet",
+                start_date=self.start_date,
+                file_name=self.report_file,
+                schema=self._schema_name,
+                provider_uuid=self._provider_uuid,
+                provider_type=self.provider_type,
+                context=self._context,
+            )
         )
-        LOG.info(msg)
         parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
