@@ -52,7 +52,7 @@ class TestUserSettingCommon(MasuTestCase):
         cost_type = get_selected_cost_type_or_setup(self.schema)
         self.assertEqual(cost_type, KOKU_DEFAULT_COST_TYPE)
 
-        new_cost_type = "savingsplan_effective_cost"
+        new_cost_type = "calculated_amortized_cost"
         set_cost_type(self.schema, cost_type_code=new_cost_type)
         cost_type = get_selected_cost_type_or_setup(self.schema)
         self.assertEqual(cost_type, new_cost_type)

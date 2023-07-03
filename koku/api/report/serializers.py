@@ -98,10 +98,11 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 
 
 def add_operator_specified_fields(fields, field_list):
-    """Add the specified and: and or: fields to the serialzer."""
+    """Add the specified and:, or: and exact: fields to the serialzer."""
     for field in field_list:
         fields[f"and:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
         fields[f"or:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
+        fields[f"exact:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
     return fields
 
 
@@ -453,6 +454,10 @@ class ParamSerializer(BaseSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
+        if len(value) > 2:
+            # Max support group_bys is 2
+            error = {"group_by": ("Cost Management supports a max of two group_by options.")}
+            raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value
 

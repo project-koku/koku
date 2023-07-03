@@ -20,7 +20,9 @@ from rest_framework.settings import api_settings
 from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from masu.processor import is_customer_large
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.processor.tasks import process_daily_openshift_on_cloud as process_daily_openshift_on_cloud_task
 from masu.processor.tasks import process_openshift_on_cloud as process_openshift_on_cloud_task
 from masu.processor.tasks import QUEUE_LIST
@@ -41,7 +43,10 @@ def process_openshift_on_cloud(request):
     schema_name = params.get("schema")
     start_date = params.get("start_date")
     end_date = params.get("end_date")
-    queue_name = params.get("queue") or GET_REPORT_FILES_QUEUE
+    fallback_queue = GET_REPORT_FILES_QUEUE
+    if is_customer_large(schema_name):
+        fallback_queue = GET_REPORT_FILES_QUEUE_XL
+    queue_name = params.get("queue") or fallback_queue
 
     if cloud_provider_uuid is None:
         errmsg = "provider_uuid is a required parameter."

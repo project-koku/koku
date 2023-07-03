@@ -123,6 +123,10 @@ class ProviderErrors:
         "The subscription ID was entered incorrectly for this source. "
         "Edit your Azure source and verify the subscription ID."
     )
+    AZURE_UNAUTHORIZED_MESSAGE = (
+        "Azure reported an authorization error. "
+        "In Azure, check the resource group, storage account, cost export scope, and service principal."
+    )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
     OCI_BUCKET_MISSING_MESSAGE = (
         "Cost management requires an OCI bucket to store cost and usage reports. "

@@ -23,7 +23,7 @@ from masu.util.aws.common import get_cur_report_definitions
 LOG = logging.getLogger(__name__)
 
 
-def _get_sts_access(credentials):
+def _get_sts_access(credentials, region_name=None):
     """Get for sts access."""
     # create an STS client
     arn = None
@@ -35,7 +35,7 @@ def _get_sts_access(credentials):
         return {"aws_access_key_id": None, "aws_secret_access_key": None, "aws_session_token": None}
 
     error_message = f"Unable to assume role with ARN {arn.arn}."
-    sts_client = boto3.client("sts")
+    sts_client = boto3.client("sts", region_name=region_name)
     aws_credentials = {}
     credentials = {}
     try:
@@ -68,19 +68,22 @@ def _get_sts_access(credentials):
 def _check_s3_access(bucket, credentials, region_name="us-east-1"):
     """Check for access to s3 bucket."""
     s3_exists = True
-    s3_resource = boto3.resource("s3", region_name=region_name, **credentials)
+    s3_client = boto3.client("s3", region_name=region_name, **credentials)
     try:
-        s3_resource.meta.client.head_bucket(Bucket=bucket)
+        s3_client.head_bucket(Bucket=bucket)
     except (ClientError, BotoConnectionError) as boto_error:
         message = f"Unable to access bucket {bucket} with given credentials."
         LOG.warn(msg=message, exc_info=boto_error)
         s3_exists = False
+
     return s3_exists
 
 
-def _check_cost_report_access(credential_name, credentials, region_name="us-east-1", bucket=None):
+def _check_cost_report_access(credential_name, credentials, bucket=None):
     """Check for provider cost and usage report access."""
-    cur_client = boto3.client("cur", region_name=region_name, **credentials)
+    # Cost Usage Reorts service is currently only available in us-east-1
+    # https://docs.aws.amazon.com/general/latest/gr/billing.html
+    cur_client = boto3.client("cur", region_name="us-east-1", **credentials)
     reports = None
 
     try:
@@ -144,16 +147,16 @@ class AWSProvider(ProviderInterface):
             # Limited bucket access without CUR
             return True
 
-        creds = _get_sts_access(credentials)
+        region_kwargs = {}
+        if region_name := data_source.get("bucket_region"):
+            region_kwargs["region_name"] = region_name
+
+        creds = _get_sts_access(credentials, **region_kwargs)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
             key = ProviderErrors.AWS_ROLE_ARN_UNREACHABLE
             internal_message = f"Unable to access account resources with ARN {role_arn}."
             raise serializers.ValidationError(error_obj(key, internal_message))
-
-        region_kwargs = {}
-        if region_name := data_source.get("bucket_region"):
-            region_kwargs["region_name"] = region_name
 
         s3_exists = _check_s3_access(storage_resource_name, creds, **region_kwargs)
         if not s3_exists:
@@ -161,7 +164,7 @@ class AWSProvider(ProviderInterface):
             internal_message = f"Bucket {storage_resource_name} could not be found with {role_arn}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
-        _check_cost_report_access(role_arn, creds, bucket=storage_resource_name, **region_kwargs)
+        _check_cost_report_access(role_arn, creds, bucket=storage_resource_name)
 
         return True
 
@@ -177,8 +180,9 @@ class AWSProvider(ProviderInterface):
         """Verify that report files are accessible in S3."""
         credentials = source.authentication.credentials
         bucket = source.billing_source.data_source.get("bucket")
+        region_name = source.billing_source.data_source.get("bucket_region")
         creds = _get_sts_access(credentials)
-        s3_client = boto3.client("s3", **creds)
+        s3_client = boto3.client("s3", region_name=region_name, **creds)
         for report in reports_list:
             try:
                 s3_client.get_object(Bucket=bucket, Key=report)

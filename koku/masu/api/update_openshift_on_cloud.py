@@ -20,10 +20,12 @@ from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
 from api.utils import get_months_in_date_range
+from masu.processor import is_customer_large
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.tasks import delete_openshift_on_cloud_data
 from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import update_openshift_on_cloud as update_openshift_on_cloud_task
 
@@ -45,7 +47,10 @@ def update_openshift_on_cloud(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
-        queue_name = params.get("queue") or PRIORITY_QUEUE
+        fallback_queue = PRIORITY_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = PRIORITY_QUEUE_XL
+        queue_name = params.get("queue") or fallback_queue
 
         if openshift_provider_uuid is None:
             errmsg = "provider_uuid is a required parameter."
@@ -110,7 +115,7 @@ def update_openshift_on_cloud(request):
             summaries = group(summary_signature)
             c = chain(deletes, summaries)
 
-            async_result = c.apply_async(queue=queue_name or PRIORITY_QUEUE)
+            async_result = c.apply_async(queue=queue_name or fallback_queue)
             async_results.append({str(month): str(async_result)})
 
         return Response({REPORT_DATA_KEY: async_results})
