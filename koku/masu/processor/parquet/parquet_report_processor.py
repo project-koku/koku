@@ -567,11 +567,7 @@ class ParquetReportProcessor:
         LOG.info(
             log_json(
                 msg="converting csv files to parquet",
-                start_date=self.start_date,
                 file_name=self.report_file,
-                schema=self._schema_name,
-                provider_uuid=self._provider_uuid,
-                provider_type=self.provider_type,
                 context=self._context,
             )
         )
