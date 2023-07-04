@@ -40,10 +40,8 @@ class TestSUBSTasks(SUBSTestCase):
             }
         ]
 
-    @patch("subs.tasks.UNLEASH_CLIENT.is_enabled")
     @patch("subs.tasks.settings")
-    def test_enable_subs_processing(self, mock_settings, mock_unleash_client):
-        mock_unleash_client.return_value = True
+    def test_enable_subs_processing(self, mock_settings):
         mock_settings.ENABLE_SUBS_DEBUG = True
 
         result = enable_subs_processing(self.schema_name)
@@ -79,22 +77,40 @@ class TestSUBSTasks(SUBSTestCase):
         # when all piecies are added
         mock_collect.apply_async.assert_not_called()
 
-    @patch("subs.tasks.ReportSUBS")
-    def test_collect_subs_report_data(self, mock_report_subs):
-        collect_subs_report_data(
-            self.schema_name,
-            self.aws_provider_type,
-            self.aws_provider_uuid,
-            self.start_date,
-            self.end_date,
-            self.tracing_id,
-        )
+    @patch("subs.tasks.enable_subs_processing")
+    def test_collect_subs_report_data_processing_enabled(self, mock_enable_subs_process):
+        """Test collect_subs_report_data function"""
 
-        mock_report_subs.assert_not_called()
-        mock_report_subs.return_value.generate_report.assert_not_called()
+        mock_enable_subs_process.return_value = True
+        with self.assertLogs("subs.tasks", "INFO") as _logs:
+            collect_subs_report_data(
+                self.schema_name,
+                self.aws_provider_type,
+                self.aws_provider_uuid,
+                self.start_date,
+                self.end_date,
+                self.tracing_id,
+            )
 
-        # TODO: uncomment when collect_subs_report_data function is updated to assert_called_with
-        # mock_report_subs.assert_called_with(
-        #     self.schema_name, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id
-        # )
-        # mock_report_subs.return_value.generate_report.assert_called_with(self.start_date, self.end_date)
+            self.assertIn("collecting subs report data", _logs.output[0])
+        # TODO: Add any additional assertions
+        # to test the behavior of the collect_subs_report_data function.
+
+    @patch("subs.tasks.enable_subs_processing")
+    def test_collect_subs_report_data_processing_disabled(self, mock_enable_subs_process):
+        """Test collect_subs_report_data function"""
+
+        mock_enable_subs_process.return_value = False
+
+        with self.assertLogs("subs.tasks", "INFO") as _logs:
+            collect_subs_report_data(
+                self.schema_name,
+                self.aws_provider_type,
+                self.aws_provider_uuid,
+                self.start_date,
+                self.end_date,
+                self.tracing_id,
+            )
+
+            self.assertIn("skipping subs report generation", _logs.output[0])
+        # TODO: Add any additional assertions

@@ -2,24 +2,19 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tasks for Subscriptions Watch"""
+"""Tasks for Subscriptions Watch Data Extraction and Transmission"""
 import datetime
 import logging
 import uuid
 
 from botocore.exceptions import ClientError
-from dateutil import parser
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku import celery_app
 from koku import settings
-from koku.feature_flags import UNLEASH_CLIENT
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
-from subs.daily_report import ReportSUBS
-
 
 LOG = logging.getLogger(__name__)
 
@@ -45,16 +40,22 @@ def check_schema_name(schema_name: str) -> str:
 
 def enable_subs_processing(schema_name: str) -> bool:
     """Helper to determine if source is enabled for SUBS processing."""
+
     schema_name = check_schema_name(schema_name)
     context = {"schema_name": schema_name}
     LOG.info(log_json(msg="enable_subs_processing context", context=context))
-    return bool(
-        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-processor", context) or settings.ENABLE_SUBS_DEBUG
-    )
+
+    # Temporarily disable feature flag check until it is available.
+    # return bool(
+    #     UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-processor", context)
+    #     or settings.ENABLE_SUBS_DEBUG
+    # )
+
+    return settings.ENABLE_SUBS_DEBUG
 
 
 def get_start_and_end_from_manifest_id(manifest_id):
-    """Helper to get the start and end dates for the report"""
+    """Helper to get the start and end dates for the report."""
 
     start_date = None
     end_date = None
@@ -79,64 +80,27 @@ def get_start_and_end_from_manifest_id(manifest_id):
 def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
     """Initial functionality of the task for SUBS data extraction from manifest"""
 
-    # TODO: update function when all pieces are added
-
     LOG.info(log_json(msg="collect subs report data from manifest"))
 
-    # Assuming a similar to HCS, iterate over reports, get necessary details
-    # for SUBS specific data collection
-    # at the moment, the logic is assumed to be similar the HCS flow
+    # TODO: To uncomment if to adapt the following code block based on the assumed similarity with HCS flow.
 
+    """
     reports = [report for report in reports_to_subs_summarize if report]
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
 
     for report in reports_deduplicated:
         start_date = None
         end_date = None
-        if report.get("start") and report.get("end"):
-            start_date = parser.parse(report.get("start")).date()
-            end_date = parser.parse(report.get("end")).date()
-            LOG.info(
-                log_json(
-                    msg="using start and end dates from the manifest for SUBS processing",
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-            )
-        else:
-            date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
-            if not date_tuple:
-                LOG.debug(log_json(msg="no manifest found, skipping report", report=report))
-                continue
-            start_date, end_date = date_tuple
-
-        # if no latest hourly month-to-date cost and usage files of data,
-        # query all data for the month
-        dh = DateHelper()
-        start_date = dh.this_month_start.date() if start_date is None else start_date
-        end_date = dh.this_month_end.date() if end_date is None else end_date
-
-        date_str_fmt = "%Y-%m-%d"
-        start_date = start_date.strftime(date_str_fmt)
-        end_date = end_date.strftime(date_str_fmt)
-
-        schema_name = report.get("schema_name")
-        provider_type = report.get("provider_type")
-        provider_uuid = report.get("provider_uuid")
-        tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
-
-        ctx = {
-            "schema_name": schema_name,
-            "provider_type": provider_type,
-            "provider_uuid": provider_uuid,
-            "start_date": start_date,
-            "end_date": end_date,
-        }
-        LOG.info(log_json(tracing_id, msg="collect SUBS report data from manifest", context=ctx))
-
+        ...
+        # Process each report to:
+        # - Extract start and end dates (either directly from the report data or from the manifest ID)
+        # - Retrieve schema_name, provider_type, provider_uuid, and tracing_id
+        # - Initiate the collect_subs_report_data task with the collected information.
+        ...
         collect_subs_report_data.s(
             schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id
         ).apply_async()
+    """
 
 
 @celery_app.task(
@@ -162,22 +126,11 @@ def collect_subs_report_data(
         None
     """
 
-    # TODO: update the functionality of the SUBS data extraction task when all pieces are added
-
-    start_date = start_date or DateAccessor().today() - datetime.timedelta(days=2)
-    end_date = end_date or DateAccessor().today()
-    tracing_id = tracing_id or str(uuid.uuid4())
-
-    context = {
-        "start_date": start_date,
-        "end_date": end_date,
-    }
-    LOG.info(log_json(tracing_id, msg="skipping subs report generation", context=context))
-
+    dh = DateHelper()
+    start_date = start_date or dh.today - datetime.timedelta(days=2)
+    end_date = end_date or dh.today
     schema_name = check_schema_name(schema_name)
-    start_date = DateAccessor().today() - datetime.timedelta(days=2) if start_date is None else start_date
-    end_date = DateAccessor().today() if end_date is None else end_date
-    tracing_id = str(uuid.uuid4()) if tracing_id is None else tracing_id
+    tracing_id = tracing_id or str(uuid.uuid4())
 
     ctx = {
         "schema_name": schema_name,
@@ -188,8 +141,9 @@ def collect_subs_report_data(
     }
     if enable_subs_processing(schema_name) and provider_type in SUBS_ACCEPTED_PROVIDERS:
         LOG.info(log_json(tracing_id, msg="collecting subs report data", context=ctx))
-        reporter = ReportSUBS(schema_name, provider_type, provider_uuid, tracing_id)
-        reporter.generate_report(start_date, end_date)
+        # TODO: instantiate the ReportSUBS class and call generate_report when implemented.
+        # reporter = ReportSUBS(schema_name, provider_type, provider_uuid, tracing_id)
+        # reporter.generate_report(start_date, end_date)
 
     else:
         LOG.info(log_json(tracing_id, msg="skipping subs report generation", context=ctx))
