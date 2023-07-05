@@ -403,6 +403,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             msg="no report period for provider",
                             provider_uuid=self._provider.uuid,
                             start_date=start_date,
+                            end_date=end_date,
+                            schema=self._schema,
                         )
                     )
                     return

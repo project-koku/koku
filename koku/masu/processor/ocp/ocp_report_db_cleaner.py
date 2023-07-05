@@ -73,14 +73,14 @@ class OCPReportDBCleaner:
                     all_cluster_ids.add(usage_period.cluster_id)
                     all_period_starts.add(str(usage_period.report_period_start))
 
-                LOG.info(
-                    log_json(
-                        msg="deleting provider billing data",
-                        schema=self._schema,
-                        provider_uuid=provider_uuid,
-                        start_date=usage_period.report_period_start,
+                    LOG.info(
+                        log_json(
+                            msg="deleting provider billing data",
+                            schema=self._schema,
+                            provider_uuid=provider_uuid,
+                            start_date=usage_period.report_period_start,
+                        )
                     )
-                )
 
                 if not simulate:
                     cascade_delete(usage_period_objs.query.model, usage_period_objs)
@@ -117,14 +117,14 @@ class OCPReportDBCleaner:
                 all_cluster_ids.add(usage_period.cluster_id)
                 all_period_starts.add(str(usage_period.report_period_start))
 
-            all_report_periods.sort()
-            LOG.info(
-                log_json(
-                    msg="removing all data related to cluster_ids",
-                    cluster_ids=all_cluster_ids,
-                    period_starts=all_period_starts,
+                LOG.info(
+                    log_json(
+                        msg="removing all data related to cluster_ids",
+                        cluster_ids=all_cluster_ids,
+                        period_starts=all_period_starts,
+                        schema=self._schema,
+                    )
                 )
-            )
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
@@ -143,6 +143,6 @@ class OCPReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(log_json(msg="deleted table partitions", count=del_count))
+                LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
         return removed_items
