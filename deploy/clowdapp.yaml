@@ -3549,7 +3549,7 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs
+    - name: clowder-worker-subs-extraction
       podSpec:
         command:
         - /bin/bash
@@ -3579,8 +3579,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: ENABLE_SUBS_DEBUG
-          value: ${ENABLE_SUBS_DEBUG}
+        - name: ENABLE_SUBS_EXTRACTION_DEBUG
+          value: ${ENABLE_SUBS_EXTRACTION_DEBUG}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3610,7 +3610,7 @@ objects:
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${WORKER_SUBS_WORKER_QUEUE}
+          value: ${WORKER_SUBS_EXTRACT_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: DATE_OVERRIDE
@@ -3625,10 +3625,6 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
-        - name: AUTO_DATA_INGEST
-          value: ${AUTO_DATA_INGEST}
-        - name: REPORT_PROCESSING_BATCH_SIZE
-          value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: SOURCES_API_PREFIX
@@ -3639,25 +3635,6 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -3683,19 +3660,16 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_SUBS_CPU_LIMIT}
-            memory: ${WORKER_SUBS_MEMORY_LIMIT}
+            cpu: ${WORKER_SUBS_EXTRACT_CPU_LIMIT}
+            memory: ${WORKER_SUBS_EXTRACT_MEMORY_LIMIT}
           requests:
-            cpu: ${WORKER_SUBS_CPU_REQUEST}
-            memory: ${WORKER_SUBS_MEMORY_REQUEST}
+            cpu: ${WORKER_SUBS_EXTRACT_CPU_REQUEST}
+            memory: ${WORKER_SUBS_EXTRACT_MEMORY_REQUEST}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
-          readOnly: true
-        - mountPath: /etc/oci
-          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
@@ -3710,13 +3684,7 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-        - name: oci-credentials
-          secret:
-            items:
-            - key: oci-credentials
-              path: oci-credentials.pem
-            secretName: koku-oci
-      replicas: ${{WORKER_SUBS_REPLICAS}}
+      replicas: ${{WORKER_SUBS_EXTRACT_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -4683,29 +4651,29 @@ parameters:
   name: ENABLE_HCS_DEBUG
   value: "False"
 - displayName: Minimum replicas
-  name: WORKER_SUBS_REPLICAS
+  name: WORKER_SUBS_EXTRACT_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
-  name: WORKER_SUBS_MEMORY_REQUEST
+  name: WORKER_SUBS_EXTRACT_MEMORY_REQUEST
   required: true
   value: 500Mi
 - displayName: Memory Limit
-  name: WORKER_SUBS_MEMORY_LIMIT
+  name: WORKER_SUBS_EXTRACT_MEMORY_LIMIT
   required: true
   value: 700Mi
 - displayName: CPU Request
-  name: WORKER_SUBS_CPU_REQUEST
+  name: WORKER_SUBS_EXTRACT_CPU_REQUEST
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_SUBS_CPU_LIMIT
+  name: WORKER_SUBS_EXTRACT_CPU_LIMIT
   required: true
   value: 200m
 - displayName: Worker Queue
-  name: WORKER_SUBS_WORKER_QUEUE
+  name: WORKER_SUBS_EXTRACT_WORKER_QUEUE
   required: true
-  value: subs
-- displayName: SUBS debug
-  name: ENABLE_SUBS_DEBUG
+  value: subs_extraction
+- displayName: SUBS Extraction debug
+  name: ENABLE_SUBS_EXTRACTION_DEBUG
   value: "False"

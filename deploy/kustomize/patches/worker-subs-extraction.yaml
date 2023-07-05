@@ -185,7 +185,7 @@
     displayName: Worker Queue
     name: WORKER_SUBS_EXTRACT_WORKER_QUEUE
     required: true
-    value: "subs"
+    value: "subs_extraction"
 - op: add
   path: /parameters/-
   value:
