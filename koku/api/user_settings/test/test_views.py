@@ -53,7 +53,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting(self):
         """Test grabbing a specified user setting"""
-        url = url = "%scurrency/" % reverse("account-settings")
+        url = "%scurrency/" % reverse("account-settings")
         client = APIClient()
         expected = {"currency": "USD"}
         with schema_context(self.schema_name):
@@ -63,9 +63,54 @@ class AccountSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
+    def test_account_setting_currency_put(self):
+        """Test grabbing a specified user setting"""
+        url = "%scurrency/" % reverse("account-settings")
+        client = APIClient()
+        data = {"currency": "EUR"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_account_setting_cost_type_put(self):
+        """Test grabbing a specified user setting"""
+        url = "%scost-type/" % reverse("account-settings")
+        client = APIClient()
+        data = {"cost_type": "calculated_amortized_cost"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_account_setting_put_unknown_setting(self):
+        """Test grabbing a specified user setting"""
+        url = "%sunknown/" % reverse("account-settings")
+        client = APIClient()
+        data = {"cost_type": "calculated_amortized_cost"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_account_setting_put_unknown_cost_type(self):
+        """Test grabbing a specified user setting"""
+        url = "%scost-type/" % reverse("account-settings")
+        client = APIClient()
+        data = {"cost_type": "unknown"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_account_setting_put_unknown_currency(self):
+        """Test grabbing a specified user setting"""
+        url = "%scurrency/" % reverse("account-settings")
+        client = APIClient()
+        data = {"currency": "unknown"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_account_setting_invalid(self):
         """Test grabbing a specified user setting invalid setting"""
-        url = url = "%sinvalid/" % reverse("account-settings")
+        url = "%sinvalid/" % reverse("account-settings")
         client = APIClient()
         with schema_context(self.schema_name):
             response = client.get(url, **self.headers)
