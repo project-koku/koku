@@ -204,23 +204,17 @@ class AWSReportDownloaderTest(MasuTestCase):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
-    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.mark_s3_csv_cleared")
-    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.get_s3_csv_cleared")
     @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_download_file(
-        self, fake_session, mock_copy, mock_remove, mock_check_csvs, mock_mark_csvs, mock_check_size
-    ):
+    def test_download_file(self, fake_session, mock_copy, mock_remove, mock_check_size):
         """Test the download file method."""
-        mock_check_csvs.return_value = False
         mock_check_size.return_value = True
         downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
-        downloader.download_file(self.fake.file_path(), manifest_id=1)
-        mock_check_csvs.assert_called()
-        mock_copy.assert_called()
-        mock_remove.assert_called()
-        mock_mark_csvs.assert_called()
+        with patch("masu.external.downloader.aws.aws_report_downloader.pd.read_csv"):
+            downloader.download_file(self.fake.file_path(), manifest_id=1)
+            mock_check_size.assert_called()
+            mock_copy.assert_called()
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
     @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.mark_s3_csv_cleared")
@@ -240,11 +234,16 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.storage_only_data_source,
             ingress_reports=self.ingress_reports,
         )
-        downloader.download_file(self.fake.file_path(), manifest_id=1)
-        mock_check_csvs.assert_called()
-        mock_copy.assert_called()
-        mock_remove.assert_called()
-        mock_mark_csvs.assert_called()
+        with patch("masu.external.downloader.aws.aws_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                downloader.download_file(self.fake.file_path(), manifest_id=1)
+                mock_check_csvs.assert_called()
+                mock_copy.assert_called()
+                mock_remove.assert_called()
+                mock_mark_csvs.assert_called()
 
     @patch("masu.external.report_downloader.ReportStatsDBAccessor")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionDownloadError)

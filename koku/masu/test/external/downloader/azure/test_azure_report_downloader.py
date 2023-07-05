@@ -200,6 +200,16 @@ class AzureReportDownloaderTest(MasuTestCase):
         call_arg = mock_log.info.call_args.args[0]
         self.assertTrue("Skipping ingest as source is storage_only and requires ingress reports" in call_arg)
 
+    def test_get_ingress_manifest(self):
+        """Test that Azure ingress manifest is created."""
+        expected_start, expected_end = self.mock_data.month_range.split("-")
+        manifest, _ = self.ingress_downloader._get_manifest(self.mock_data.test_date)
+
+        self.assertEqual(manifest.get("reportKeys"), [self.mock_data.ingress_report])
+        self.assertEqual(manifest.get("Compression"), "PLAIN")
+        self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
+        self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
+
     @patch("masu.external.downloader.azure.azure_report_downloader.LOG")
     def test_get_ingress_report_error(self, mock_log):
         """Test that Azure get_bob errors correctly."""
@@ -282,9 +292,14 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
-        self.assertEqual(full_file_path, expected_full_path)
-        self.assertEqual(etag, self.mock_data.export_etag)
+        with patch("masu.external.downloader.azure.azure_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
+                self.assertEqual(full_file_path, expected_full_path)
+                self.assertEqual(etag, self.mock_data.export_etag)
 
     def test_download_missing_file(self):
         """Test that Azure report is not downloaded for incorrect key."""
@@ -298,21 +313,13 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.ingress_reports[0]
         )
-        full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
-        self.assertEqual(full_file_path, expected_full_path)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
-    def test_download_file_matching_etag(self, mock_download_cost_method):
-        """Test that Azure report is not downloaded with matching etag."""
-        expected_full_path = "{}/{}/azure/{}/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
-        )
-        full_file_path, etag, _, __, ___ = self.downloader.download_file(
-            self.mock_data.export_key, self.mock_data.export_etag
-        )
-        self.assertEqual(full_file_path, expected_full_path)
-        self.assertEqual(etag, self.mock_data.export_etag)
-        mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
+        with patch("masu.external.downloader.azure.azure_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
+                self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())

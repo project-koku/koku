@@ -72,8 +72,10 @@ def create_daily_archives(
     data_frame = pd.read_csv(local_file)
     days = []
     time_interval = "UsageDateTime"
+    format = "%Y-%m-%d"
     if hasattr(data_frame, "Date"):
         time_interval = "Date"
+        format = "%m/%d/%Y"
     # Ideally this if below would look at the invoice month column! But as far as I can tell Azure DONT update this!
     if start_date.month < dh.today.month and dh.today.day > 5 or not check_setup_complete(provider_uuid):
         start_delta = start_date
@@ -85,7 +87,8 @@ def create_daily_archives(
         start_delta = start_delta.replace(tzinfo=None)
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, "%m/%d/%Y") >= start_delta:
+        LOG.info(f"\n\n DATES {datetime.datetime.strptime(interval, format), start_delta} \n\n")
+        if datetime.datetime.strptime(interval, format) >= start_delta:
             if interval not in days:
                 days.append(interval)
     if days:

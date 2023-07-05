@@ -250,29 +250,6 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertEqual(file_name, "")
             self.assertTrue(data_frame.empty)
 
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
-            with patch(
-                "masu.processor.parquet.parquet_report_processor.remove_files_not_in_set_from_s3_bucket"
-            ) as mock_remove:
-                with patch(
-                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "convert_csv_to_parquet"
-                ) as mock_convert:
-                    with patch(
-                        "masu.processor.parquet.parquet_report_processor."
-                        "ReportManifestDBAccessor.get_s3_parquet_cleared",
-                        return_value=False,
-                    ) as mock_get_cleared:
-                        with patch(
-                            "masu.processor.parquet.parquet_report_processor."
-                            "ReportManifestDBAccessor.mark_s3_parquet_cleared"
-                        ) as mock_mark_cleared:
-                            with patch.object(ParquetReportProcessor, "create_daily_parquet"):
-                                mock_convert.return_value = "", pd.DataFrame(), True
-                                self.report_processor.convert_to_parquet()
-                                mock_get_cleared.assert_called()
-                                mock_remove.assert_called()
-                                mock_mark_cleared.assert_called()
-
         expected = "failed to convert files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
             with patch(

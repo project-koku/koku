@@ -99,13 +99,18 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                         ):
                             test_report_date = datetime(year=2018, month=8, day=7)
                             with patch.object(DateAccessor, "today", return_value=test_report_date):
-                                report_context = {
-                                    "date": test_report_date.date(),
-                                    "manifest_id": 1,
-                                    "comporession": "GZIP",
-                                    "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
-                                }
-                                self.report_downloader.download_report(report_context)
+                                with patch("masu.external.downloader.aws.aws_report_downloader.open"):
+                                    with patch(
+                                        "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
+                                        return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                                    ):
+                                        report_context = {
+                                            "date": test_report_date.date(),
+                                            "manifest_id": 1,
+                                            "comporession": "GZIP",
+                                            "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+                                        }
+                                        self.report_downloader.download_report(report_context)
                             expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
                             self.assertTrue(os.path.isdir(expected_path))
 
@@ -151,21 +156,26 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=8, day=7)
         fake_data_source = {"bucket": fake_bucket}
         with patch.object(DateAccessor, "today", return_value=test_report_date):
-            report_downloader = ReportDownloader(
-                self.fake_customer_name,
-                self.credentials,
-                fake_data_source,
-                Provider.PROVIDER_AWS_LOCAL,
-                self.aws_provider_uuid,
-            )
-            # Names from test report .gz file
-            report_context = {
-                "date": test_report_date.date(),
-                "manifest_id": 1,
-                "comporession": "GZIP",
-                "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
-            }
-            report_downloader.download_report(report_context)
+            with patch("masu.external.downloader.aws.aws_report_downloader.open"):
+                with patch(
+                    "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                ):
+                    report_downloader = ReportDownloader(
+                        self.fake_customer_name,
+                        self.credentials,
+                        fake_data_source,
+                        Provider.PROVIDER_AWS_LOCAL,
+                        self.aws_provider_uuid,
+                    )
+                    # Names from test report .gz file
+                    report_context = {
+                        "date": test_report_date.date(),
+                        "manifest_id": 1,
+                        "comporession": "GZIP",
+                        "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+                    }
+                    report_downloader.download_report(report_context)
         expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
         self.assertTrue(os.path.isdir(expected_path))
 
