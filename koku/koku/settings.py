@@ -84,7 +84,7 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
-    "subs_transmission",
+    "subs",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
@@ -554,4 +554,4 @@ ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
 
 
 # SUBS Data Transmission debugging
-ENABLE_SUBS_TRANSMISSION_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_TRANSMISSION_DEBUG", default=False)
+ENABLE_SUBS_PROCESSING_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_PROCESSING_DEBUG", default=False)

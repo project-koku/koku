@@ -3579,8 +3579,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: ENABLE_SUBS_TRANSMISSION_DEBUG
-          value: ${ENABLE_SUBS_TRANSMISSION_DEBUG}
+        - name: ENABLE_SUBS_PROCESSING_DEBUG
+          value: ${ENABLE_SUBS_PROCESSING_DEBUG}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4675,5 +4675,5 @@ parameters:
   required: true
   value: subs_transmission
 - displayName: SUBS Transmission debug
-  name: ENABLE_SUBS_TRANSMISSION_DEBUG
+  name: ENABLE_SUBS_PROCESSING_DEBUG
   value: "False"
