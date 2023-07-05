@@ -15,6 +15,7 @@ from api.utils import DateHelper
 from koku import celery_app
 from koku import settings
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.util.common import convert_account
 
 LOG = logging.getLogger(__name__)
 
@@ -30,18 +31,10 @@ SUBS_ACCEPTED_PROVIDERS = (
 )
 
 
-def check_schema_name(schema_name: str) -> str:
-    """Helper to check for and modify the schema name if needed."""
-    if schema_name and not schema_name.startswith(("acct", "org")):
-        schema_name = f"acct{schema_name}"
-
-    return schema_name
-
-
 def enable_subs_processing(schema_name: str) -> bool:
     """Helper to determine if source is enabled for SUBS processing."""
 
-    schema_name = check_schema_name(schema_name)
+    schema_name = convert_account(schema_name)
     context = {"schema_name": schema_name}
     LOG.info(log_json(msg="enable_subs_processing context", context=context))
 
@@ -129,7 +122,7 @@ def collect_subs_report_data(
     dh = DateHelper()
     start_date = start_date or dh.today - datetime.timedelta(days=2)
     end_date = end_date or dh.today
-    schema_name = check_schema_name(schema_name)
+    schema_name = convert_account(schema_name)
     tracing_id = tracing_id or str(uuid.uuid4())
 
     ctx = {
