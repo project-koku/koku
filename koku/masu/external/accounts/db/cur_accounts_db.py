@@ -6,6 +6,8 @@
 import logging
 
 from api.common import log_json
+from api.utils import DateHelper
+from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
 from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 from masu.processor import is_source_disabled
@@ -42,6 +44,15 @@ class CURAccountsDB(CURAccountsInterface):
                 )
             )
             return False
+        poll_timestamp = provider.polling_timestamp
+        dh = DateHelper()
+        timer = Config.POLLING_TIMER
+        if poll_timestamp is not None:
+            if ((dh.now_utc - poll_timestamp).seconds) < timer:
+                return False
+        # Update provider polling time.
+        provider.polling_timestamp = dh.now_utc
+        provider.save()
         return True
 
     def get_accounts_from_source(self, provider_uuid=None, provider_type=None):
@@ -72,7 +83,6 @@ class CURAccountsDB(CURAccountsInterface):
             LOG.info(
                 log_json(
                     msg="looping through providers polling for accounts",
-                    provider_type=provider_type,
                 )
             )
 
@@ -80,5 +90,14 @@ class CURAccountsDB(CURAccountsInterface):
                 if provider_type and provider_type not in provider.type:
                     continue
                 if self.is_source_pollable(provider):
-                    accounts.append(self.get_account_information(provider))
+                    if len(accounts) < Config.POLLING_BATCH_SIZE:
+                        accounts.append(self.get_account_information(provider))
+                        LOG.info(
+                            log_json(
+                                msg="adding provider to polling batch",
+                                provider_type=provider.type,
+                                provider_uuid=provider.uuid,
+                                schema=provider.customer_id,
+                            )
+                        )
         return accounts

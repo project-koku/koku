@@ -153,6 +153,10 @@ class OrchestratorTest(MasuTestCase):
         """Test the is_cloud_source_processing_disabled."""
         expected_result = "processing disabled"
         orchestrator = Orchestrator()
+        providers = Provider.objects.all()
+        for provider in providers:
+            provider.polling_timestamp = None
+            provider.save()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
             orchestrator.get_accounts()
             self.assertIn(expected_result, captured_logs.output[0])

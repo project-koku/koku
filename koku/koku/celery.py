@@ -110,50 +110,18 @@ app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
-    download_expression = "0 4,16 * * *"
+    download_expression = "0 * * * *"
     download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
-    REPORT_DOWNLOAD_SCHEDULE_GCP = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_GCP", default=download_expression)
-    REPORT_DOWNLOAD_SCHEDULE_GCP = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_GCP)
-    report_schedule_gcp = crontab(*REPORT_DOWNLOAD_SCHEDULE_GCP.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF_GCP = {
+    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_expression)
+    REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE)
+    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
+    CHECK_REPORT_UPDATES_DEF = {
         "task": download_task,
-        "schedule": report_schedule_gcp,
-        "kwargs": {"provider_type": "GCP"},
+        "schedule": report_schedule,
+        "kwargs": {},
     }
-    app.conf.beat_schedule["check-report-updates-gcp"] = CHECK_REPORT_UPDATES_DEF_GCP
-
-    REPORT_DOWNLOAD_SCHEDULE_AWS = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_AWS", default=download_expression)
-    REPORT_DOWNLOAD_SCHEDULE_AWS = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_AWS)
-    report_schedule_aws = crontab(*REPORT_DOWNLOAD_SCHEDULE_AWS.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF_AWS = {
-        "task": download_task,
-        "schedule": report_schedule_aws,
-        "kwargs": {"provider_type": "AWS"},
-    }
-    app.conf.beat_schedule["check-report-updates-aws"] = CHECK_REPORT_UPDATES_DEF_AWS
-
-    REPORT_DOWNLOAD_SCHEDULE_AZURE = ENVIRONMENT.get_value(
-        "REPORT_DOWNLOAD_SCHEDULE_AZURE", default=download_expression
-    )
-    REPORT_DOWNLOAD_SCHEDULE_AZURE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_AZURE)
-    report_schedule_azure = crontab(*REPORT_DOWNLOAD_SCHEDULE_AZURE.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF_AZURE = {
-        "task": download_task,
-        "schedule": report_schedule_azure,
-        "kwargs": {"provider_type": "Azure"},
-    }
-    app.conf.beat_schedule["check-report-updates-azure"] = CHECK_REPORT_UPDATES_DEF_AZURE
-
-    REPORT_DOWNLOAD_SCHEDULE_OCI = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE_OCI", default=download_expression)
-    REPORT_DOWNLOAD_SCHEDULE_OCI = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE_OCI)
-    report_schedule_oci = crontab(*REPORT_DOWNLOAD_SCHEDULE_OCI.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF_OCI = {
-        "task": download_task,
-        "schedule": report_schedule_oci,
-        "kwargs": {"provider_type": "OCI"},
-    }
-    app.conf.beat_schedule["check-report-updates-oci"] = CHECK_REPORT_UPDATES_DEF_OCI
+    app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
 
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)

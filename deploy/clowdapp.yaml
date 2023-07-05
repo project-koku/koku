@@ -504,6 +504,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
@@ -659,14 +663,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
-          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
-        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
-          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
-        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
-          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
-        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
-          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
+        - name: REPORT_DOWNLOAD_SCHEDULE
+          value: ${REPORT_DOWNLOAD_SCHEDULE}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -687,6 +685,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1177,6 +1179,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1350,6 +1356,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1525,6 +1535,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1700,6 +1714,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1873,6 +1891,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2046,6 +2068,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2221,6 +2247,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2396,6 +2426,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2569,6 +2603,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2742,6 +2780,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2917,6 +2959,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3092,6 +3138,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3267,6 +3317,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3444,6 +3498,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: "86400"
+        - name: POLLING_BATCH_SIZE
+          value: "100"
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3870,22 +3928,10 @@ parameters:
   value: "True"
 - name: QE_SCHEMA
   value: ""
-- description: Report download schedule GCP
-  displayName: Report download schedule GCP
-  name: REPORT_DOWNLOAD_SCHEDULE_GCP
-  value: 0 4,16 * * *
-- description: Report download schedule AWS
-  displayName: Report download schedule AWS
-  name: REPORT_DOWNLOAD_SCHEDULE_AWS
-  value: 0 4,16 * * *
-- description: Report download schedule AZURE
-  displayName: Report download schedule AZURE
-  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
-  value: 0 4,16 * * *
-- description: Report download schedule OCI
-  displayName: Report download schedule OCI
-  name: REPORT_DOWNLOAD_SCHEDULE_OCI
-  value: 0 4,16 * * *
+- description: Report download schedule
+  displayName: Report download schedule
+  name: REPORT_DOWNLOAD_SCHEDULE
+  value: 0 * * * *
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -3917,6 +3963,12 @@ parameters:
 - displayName: Initial ingest override
   name: INITIAL_INGEST_OVERRIDE
   value: "False"
+- displayName: Initial ingest override
+  name: POLLING_TIMER
+  value: "86400"
+- displayName: Initial ingest override
+  name: POLLING_BATCH_SIZE
+  value: "100"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
