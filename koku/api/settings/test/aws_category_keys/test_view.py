@@ -70,26 +70,26 @@ class AwsCategoryKeysSettingsViewTest(TestAwsCategoryClass):
 class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
     """Test case for RBAC permissions to access settings."""
 
-    NO_ACCESS = {"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}}
-    READ = {"settings": {"read": ["*"]}}
-    WRITE = {"settings": {"write": ["*"]}}
-    READ_WRITE = {"settings": {"read": ["*"], "write": ["*"]}}
+    no_access = {"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}}
+    read = {"settings": {"read": ["*"]}}
+    write = {"settings": {"write": ["*"]}}
+    read_write = {"settings": {"read": ["*"], "write": ["*"]}}
 
-    @RbacPermissions(NO_ACCESS)
+    @RbacPermissions(no_access)
     def test_no_access_to_get_request(self):
         url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @RbacPermissions(READ)
+    @RbacPermissions(read)
     def test_read_accesss_to_get_request(self):
         url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @RbacPermissions(READ)
+    @RbacPermissions(read)
     def test_read_access_to_put_request(self):
         url = reverse("settings-aws-category-keys-disable")
         client = APIClient()
@@ -97,7 +97,7 @@ class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
         response = client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @RbacPermissions(WRITE)
+    @RbacPermissions(write)
     def test_write_on_put_request(self):
         url = reverse("settings-aws-category-keys-disable")
         client = APIClient()
@@ -105,14 +105,14 @@ class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
         response = client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-    @RbacPermissions(WRITE)
+    @RbacPermissions(write)
     def test_write_on_get_request(self):
         url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @RbacPermissions(READ_WRITE)
+    @RbacPermissions(read_write)
     def test_read_and_write_on_get_request(self):
         url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
         client = APIClient()

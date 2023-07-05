@@ -21,8 +21,7 @@ class SettingsAccessPermission(permissions.BasePermission):
             return False
 
         if request.method in permissions.SAFE_METHODS:
-            setting_read = request.user.access.get(self.resource_type, {}).get("read", [])
-            if setting_read:
+            if request.user.access.get(self.resource_type, {}).get("read", []):
                 return True
         else:
             setting_write = request.user.access.get(self.resource_type, {}).get("write", [])
