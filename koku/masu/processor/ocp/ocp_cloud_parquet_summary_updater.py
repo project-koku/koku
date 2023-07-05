@@ -270,7 +270,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with self.db_accessor(self._schema) as accessor:
             ctx = accessor.extract_context_from_sql_params(sql_params)
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                LOG.info(log_json(msg="updating OpenShift on AWS summary table", context=ctx))
+                LOG.info(log_json(msg="updating OpenShift on AWS summary table", **ctx))
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
                     end,
@@ -291,7 +291,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
-                LOG.info(log_json(msg="processing OCP-ALL for AWS", start_date=start_date, end_date=end_date))
+                LOG.info(log_json(msg="processing OCP-ALL for AWS", **ctx))
                 for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
@@ -299,7 +299,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
                     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
-        LOG.info(log_json(msg="updating ocp_on_cloud_updated_datetime OpenShift report periods"))
+        LOG.info(log_json(msg="updating ocp_on_cloud_updated_datetime OpenShift report periods", **ctx))
         with schema_context(self._schema):
             report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()
