@@ -7,11 +7,11 @@ import datetime
 import uuid
 from unittest.mock import patch
 
-from subs.tasks import collect_subs_report_data
-from subs.tasks import collect_subs_report_data_from_manifest
-from subs.tasks import enable_subs_extraction
-from subs.tasks import get_start_and_end_from_manifest_id
-from subs.test import SUBSTestCase
+from subs_extraction.tasks import collect_subs_extract_report_data
+from subs_extraction.tasks import collect_subs_extract_report_data_from_manifest
+from subs_extraction.tasks import enable_subs_extraction
+from subs_extraction.tasks import get_start_and_end_from_manifest_id
+from subs_extraction.test import SUBSTestCase
 
 
 class TestSUBSTasks(SUBSTestCase):
@@ -40,15 +40,15 @@ class TestSUBSTasks(SUBSTestCase):
             }
         ]
 
-    @patch("subs.tasks.settings")
+    @patch("subs_extraction.tasks.settings")
     def test_enable_subs_extraction(self, mock_settings):
-        mock_settings.ENABLE_SUBS_DEBUG = True
+        mock_settings.ENABLE_SUBS_EXTRACTION_DEBUG = True
 
         result = enable_subs_extraction(self.schema_name)
 
         self.assertTrue(result)
 
-    @patch("subs.tasks.ReportManifestDBAccessor")
+    @patch("subs_extraction.tasks.ReportManifestDBAccessor")
     def test_get_start_and_end_from_manifest_id(self, mock_accessor):
         mock_manifest = mock_accessor.return_value.get_manifest_by_id.return_value
         mock_manifest.billing_period_start_datetime.date.return_value = self.start_date
@@ -59,7 +59,7 @@ class TestSUBSTasks(SUBSTestCase):
         self.assertNotEqual(start_date, self.start_date)
         self.assertNotEqual(end_date, self.end_date)
 
-    @patch("subs.tasks.ReportManifestDBAccessor")
+    @patch("subs_extraction.tasks.ReportManifestDBAccessor")
     def test_get_start_and_end_from_manifest_id__no_manifest(self, mock_accessor):
         mock_manifest = mock_accessor.return_value.get_manifest_by_id.return_value
         mock_manifest.billing_period_start_datetime.date.return_value = self.start_date
@@ -69,21 +69,21 @@ class TestSUBSTasks(SUBSTestCase):
         self.assertIsNone(start_date, None)
         self.assertIsNone(end_date, None)
 
-    @patch("subs.tasks.collect_subs_report_data.s")
-    def test_collect_subs_report_data_from_manifest(self, mock_collect):
-        collect_subs_report_data_from_manifest(self.reports_to_subs_summarize)
+    @patch("subs_extraction.tasks.collect_subs_extract_report_data.s")
+    def test_collect_subs_extract_report_data_from_manifest(self, mock_collect):
+        collect_subs_extract_report_data_from_manifest(self.reports_to_subs_summarize)
 
         # TODO: update this unit test to mock_collect.apply_async.assert_called()
         # when all piecies are added
         mock_collect.apply_async.assert_not_called()
 
-    @patch("subs.tasks.enable_subs_extraction")
-    def test_collect_subs_report_data_processing_enabled(self, mock_enable_subs_process):
+    @patch("subs_extraction.tasks.enable_subs_extraction")
+    def test_collect_subs_extract_report_data_processing_enabled(self, mock_enable_subs_process):
         """Test collect_subs_report_data function"""
 
         mock_enable_subs_process.return_value = True
-        with self.assertLogs("subs.tasks", "INFO") as _logs:
-            collect_subs_report_data(
+        with self.assertLogs("subs_extraction.tasks", "INFO") as _logs:
+            collect_subs_extract_report_data(
                 self.schema_name,
                 self.aws_provider_type,
                 self.aws_provider_uuid,
@@ -96,14 +96,14 @@ class TestSUBSTasks(SUBSTestCase):
         # TODO: Add any additional assertions
         # to test the behavior of the collect_subs_report_data function.
 
-    @patch("subs.tasks.enable_subs_extraction")
+    @patch("subs_extraction.tasks.enable_subs_extraction")
     def test_collect_subs_report_data_processing_disabled(self, mock_enable_subs_process):
         """Test collect_subs_report_data function"""
 
         mock_enable_subs_process.return_value = False
 
-        with self.assertLogs("subs.tasks", "INFO") as _logs:
-            collect_subs_report_data(
+        with self.assertLogs("subs_extraction.tasks", "INFO") as _logs:
+            collect_subs_extract_report_data(
                 self.schema_name,
                 self.aws_provider_type,
                 self.aws_provider_uuid,

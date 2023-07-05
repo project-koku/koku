@@ -41,7 +41,7 @@ def enable_subs_extraction(schema_name: str) -> bool:
 
     return bool(
         UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-extraction", context)
-        or settings.ENABLE_SUBS_DEBUG
+        or settings.ENABLE_SUBS_EXTRACTION_DEBUG
     )
 
 
@@ -67,8 +67,10 @@ def get_start_and_end_from_manifest_id(manifest_id):
     return start_date, end_date
 
 
-@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", queue=SUBS_EXTRACTION_QUEUE)
-def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
+@celery_app.task(
+    name="subs_extraction.tasks.collect_subs_extract_report_data_from_manifest", queue=SUBS_EXTRACTION_QUEUE
+)
+def collect_subs_extract_report_data_from_manifest(reports_to_subs_summarize):
     """Initial functionality of the task for SUBS data extraction from manifest"""
 
     LOG.info(log_json(msg="collect subs report data from manifest"))
@@ -95,13 +97,13 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
 
 
 @celery_app.task(
-    name="subs.tasks.collect_subs_report_data",
+    name="subs_extraction.tasks.collect_subs_extract_report_data",
     bind=True,
     autoretry_for=(ClientError,),
     max_retries=settings.MAX_UPDATE_RETRIES,
     queue=SUBS_EXTRACTION_QUEUE,
 )
-def collect_subs_report_data(
+def collect_subs_extract_report_data(
     self, schema_name, provider_type, provider_uuid, start_date=None, end_date=None, tracing_id=None
 ):
     """Implement the functionality of the new task
