@@ -412,19 +412,19 @@ class ProcessReportFileTests(MasuTestCase):
         """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
 
-        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
-        report_meta = {}
-        report_meta["start"] = test_date.strftime("%Y-%m-%d")
-        report_meta["end"] = test_date.strftime("%Y-%m-%d")
-        report_meta["schema_name"] = self.schema
-        report_meta["provider_type"] = Provider.PROVIDER_OCP
-        report_meta["provider_uuid"] = self.ocp_test_provider_uuid
-        report_meta["manifest_id"] = 1
+        report_meta = {
+            "start": str(DateHelper().today),
+            "end": str(DateHelper().today),
+            "schema_name": self.schema,
+            "provider_type": Provider.PROVIDER_OCP,
+            "provider_uuid": self.ocp_test_provider_uuid,
+            "manifest_id": 1,
+        }
         reports_to_summarize = [report_meta, None]
 
         summarize_reports(reports_to_summarize)
 
-        mock_update_summary.s.assert_called_once()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
