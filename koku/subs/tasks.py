@@ -18,7 +18,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
 LOG = logging.getLogger(__name__)
 
-SUBS_EXTRACTION_QUEUE = "subs"
+SUBS_EXTRACTION_QUEUE = "subs_extraction"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
