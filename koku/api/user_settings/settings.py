@@ -23,6 +23,8 @@ COST_TYPES = [
         "description": "Using a blended rate to calculate cost usage",
     },
 ]
+VALID_COST_TYPES = [cost_type["code"] for cost_type in COST_TYPES]
+COST_TYPE_CHOICES = tuple((cost_type, cost_type) for cost_type in VALID_COST_TYPES)
 
 """Default users settings"""
 # fmt: off
