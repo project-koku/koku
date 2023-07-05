@@ -120,6 +120,8 @@ class ReportDBAccessorBase(KokuDBAccess):
             "end_date": sql_params.get("end") or sql_params.get("end_date"),
             "provider_uuid": sql_params.get("source_uuid"),
             "invoice_month": sql_params.get("invoice_month"),
+            "cluster_id": sql_params.get("cluster_id"),
+            "source_type": sql_params.get("source_type"),
         }
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
