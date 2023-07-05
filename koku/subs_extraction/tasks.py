@@ -2,7 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tasks for Subscriptions Watch Data Extraction and Transmission"""
+"""Tasks for Subscription Watch Data Extraction"""
 import datetime
 import logging
 import uuid
