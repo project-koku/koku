@@ -14,6 +14,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from koku import celery_app
 from koku import settings
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util.common import convert_account
 
@@ -31,20 +32,17 @@ SUBS_ACCEPTED_PROVIDERS = (
 )
 
 
-def enable_subs_processing(schema_name: str) -> bool:
+def enable_subs_extraction(schema_name: str) -> bool:
     """Helper to determine if source is enabled for SUBS processing."""
 
     schema_name = convert_account(schema_name)
     context = {"schema_name": schema_name}
-    LOG.info(log_json(msg="enable_subs_processing context", context=context))
+    LOG.info(log_json(msg="enable_subs_extraction context", context=context))
 
-    # Temporarily disable feature flag check until it is available.
-    # return bool(
-    #     UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-processor", context)
-    #     or settings.ENABLE_SUBS_DEBUG
-    # )
-
-    return settings.ENABLE_SUBS_DEBUG
+    return bool(
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-extraction", context)
+        or settings.ENABLE_SUBS_DEBUG
+    )
 
 
 def get_start_and_end_from_manifest_id(manifest_id):
@@ -132,7 +130,7 @@ def collect_subs_report_data(
         "start_date": start_date,
         "end_date": end_date,
     }
-    if enable_subs_processing(schema_name) and provider_type in SUBS_ACCEPTED_PROVIDERS:
+    if enable_subs_extraction(schema_name) and provider_type in SUBS_ACCEPTED_PROVIDERS:
         LOG.info(log_json(tracing_id, msg="collecting subs report data", context=ctx))
         # TODO: instantiate the ReportSUBS class and call generate_report when implemented.
         # reporter = ReportSUBS(schema_name, provider_type, provider_uuid, tracing_id)

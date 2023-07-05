@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from subs.tasks import collect_subs_report_data
 from subs.tasks import collect_subs_report_data_from_manifest
-from subs.tasks import enable_subs_processing
+from subs.tasks import enable_subs_extraction
 from subs.tasks import get_start_and_end_from_manifest_id
 from subs.test import SUBSTestCase
 
@@ -41,10 +41,10 @@ class TestSUBSTasks(SUBSTestCase):
         ]
 
     @patch("subs.tasks.settings")
-    def test_enable_subs_processing(self, mock_settings):
+    def test_enable_subs_extraction(self, mock_settings):
         mock_settings.ENABLE_SUBS_DEBUG = True
 
-        result = enable_subs_processing(self.schema_name)
+        result = enable_subs_extraction(self.schema_name)
 
         self.assertTrue(result)
 
@@ -77,7 +77,7 @@ class TestSUBSTasks(SUBSTestCase):
         # when all piecies are added
         mock_collect.apply_async.assert_not_called()
 
-    @patch("subs.tasks.enable_subs_processing")
+    @patch("subs.tasks.enable_subs_extraction")
     def test_collect_subs_report_data_processing_enabled(self, mock_enable_subs_process):
         """Test collect_subs_report_data function"""
 
@@ -96,7 +96,7 @@ class TestSUBSTasks(SUBSTestCase):
         # TODO: Add any additional assertions
         # to test the behavior of the collect_subs_report_data function.
 
-    @patch("subs.tasks.enable_subs_processing")
+    @patch("subs.tasks.enable_subs_extraction")
     def test_collect_subs_report_data_processing_disabled(self, mock_enable_subs_process):
         """Test collect_subs_report_data function"""
 
