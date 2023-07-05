@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
 from api.user_settings.settings import COST_TYPES
@@ -135,3 +136,75 @@ class UserSettingsCostViewTest(IamTestCase):
 
         data = response.data
         self.assertEqual(data.get("data"), COST_TYPES)
+
+
+class AccountSettingsViewTestRBACTest(IamTestCase):
+    def setUp(self):
+        """Set up the account settings view tests."""
+        super().setUp()
+        self.client = APIClient()
+        self.base_url = reverse("account-settings")
+        self.account_settings = {"currency": "USD", "cost-type": "blended_cost"}
+
+    no_access = {"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}}
+    read = {"settings": {"read": ["*"]}}
+    write = {"settings": {"write": ["*"]}}
+    read_write = {"settings": {"read": ["*"], "write": ["*"]}}
+
+    # deprecated permissions
+    @RbacPermissions(no_access)
+    def test_no_access_to_get_request(self):
+        for acct_setting in self.account_settings.keys():
+            with self.subTest(acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions(read)
+    def test_read_accesss_to_get_request(self):
+        for acct_setting in self.account_settings.keys():
+            with self.subTest(acct_setting=acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions(read)
+    def test_read_access_to_put_request(self):
+        for acct_setting, value in self.account_settings.items():
+            with self.subTest(acct_setting=acct_setting, value=value):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                data = {acct_setting.replace("-", "_"): value}
+                response = client.put(url, data, format="json", **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(write)
+    def test_write_on_put_request(self):
+        for acct_setting, value in self.account_settings.items():
+            with self.subTest(acct_setting=acct_setting, value=value):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                data = {acct_setting.replace("-", "_"): value}
+                response = client.put(url, data, format="json", **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    # Deprecated permissions
+    @RbacPermissions(write)
+    def test_write_on_get_request(self):
+        for acct_setting in self.account_settings.keys():
+            with self.subTest(acct_setting=acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions(read_write)
+    def test_read_and_write_on_get_request(self):
+        for acct_setting in self.account_settings.keys():
+            with self.subTest(acct_setting=acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
