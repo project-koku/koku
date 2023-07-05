@@ -7,6 +7,7 @@ import datetime
 import uuid
 from unittest.mock import patch
 
+from subs.tasks import collect_subs_data_for_transmission
 from subs.tasks import collect_subs_report_data
 from subs.tasks import collect_subs_report_data_from_manifest
 from subs.tasks import enable_subs_processing
@@ -114,3 +115,15 @@ class TestSUBSTasks(SUBSTestCase):
 
             self.assertIn("skipping subs report generation", _logs.output[0])
         # TODO: Add any additional assertions
+
+    def test_collect_subs_data_for_transmission(self):
+        """Test collect_subs_data_for_transmission function"""
+
+        with self.assertLogs("subs.tasks", "INFO") as _logs:
+            collect_subs_data_for_transmission(
+                self.schema_name,
+                self.tracing_id,
+            )
+
+            self.assertIn("collecting subs data for transmission", _logs.output[0])
+        # TODO: To add any additional assertions

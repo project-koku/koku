@@ -18,8 +18,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
 LOG = logging.getLogger(__name__)
 
-SUBS_EXTRACTION_QUEUE = "subs"
-SUBS_TRANSMISSION_QUEUE = "subs"
+SUBS_EXTRACTION_QUEUE = "subs_extraction"
+SUBS_TRANSMISSION_QUEUE = "subs_transmission"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
@@ -148,3 +148,23 @@ def collect_subs_report_data(
 
     else:
         LOG.info(log_json(tracing_id, msg="skipping subs report generation", context=ctx))
+
+
+@celery_app.task(name="subs.tasks.collect_subs_data_for_transmission", queue=SUBS_TRANSMISSION_QUEUE)
+def collect_subs_data_for_transmission(schema_name=None, tracing_id=None):
+    """Implement the logic for SUBS Data Transmission task
+    Args:
+        schema_name: (Str) db schema name
+        tracing_id: (uuid) for log tracing
+
+    Returns:
+        None
+    """
+
+    # TODO: Implement the functionality for the SUBS data transmission flow
+
+    tracing_id = tracing_id or str(uuid.uuid4())
+    schema_name = check_schema_name(schema_name)
+    context = {"schema_name": schema_name}
+
+    LOG.info(log_json(tracing_id, msg="collecting subs data for transmission", context=context))
