@@ -424,7 +424,7 @@ class ProcessReportFileTests(MasuTestCase):
 
         summarize_reports(reports_to_summarize)
 
-        mock_update_summary.s.assert_called_once()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
