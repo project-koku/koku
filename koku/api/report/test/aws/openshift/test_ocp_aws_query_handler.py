@@ -487,10 +487,10 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAWSExcludeSerializer._opfields)
         # az needed to be tested separate cause
-        # no info was available in the response for az
+        # no info was available in the response for az, inbstance_type, stoprage_type
         exclude_opts.remove("az")
-        # ocp on aws daily summary table doesn't have org_unit_id
-        exclude_opts.remove("org_unit_id")
+        exclude_opts.remove("instance_type")
+        exclude_opts.remove("storage_type")
         for exclude_opt in exclude_opts:
             for view in [OCPAWSCostView, OCPAWSStorageView, OCPAWSInstanceTypeView]:
                 with self.subTest(exclude_opt):
@@ -602,7 +602,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAWSExcludeSerializer._opfields)
         exclude_opts.remove("az")
-        exclude_opts.remove("org_unit_id")
+        exclude_opts.remove("instance_type")
+        exclude_opts.remove("storage_type")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPAWSCostView, OCPAWSStorageView, OCPAWSInstanceTypeView]:

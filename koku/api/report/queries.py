@@ -287,7 +287,8 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        exact_composed_filters = self._set_operator_specified_filters("exact")
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -299,10 +300,11 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
+        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -317,16 +319,18 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        # TODO: find a better name for ou_or_operator and ou_or_filter
-        ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
-        if ou_or_operator:
-            ou_or_filters = filters.compose()
+
+        aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
+        if aws_use_or_operator:
+            aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+
         if self._category:
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
         composed_exclusions = None
+
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -384,12 +388,12 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters
+        if aws_use_or_operator and aws_or_filter_collections:
+            composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
-            if ou_or_operator:
+            if aws_use_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
-                composed_filters = ou_or_filters & composed_access_filters
+                composed_filters = aws_or_filter_collections & composed_access_filters
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
@@ -565,7 +569,7 @@ class ReportQueryHandler(QueryHandler):
             # This is a flexibilty feature allowing a user to set
             # a single and: value and still get a result instead
             # of erroring on validation
-            if len(list_) < 2:
+            if len(list_) < 2 and logical_operator != "exact":
                 logical_operator = "or"
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 if isinstance(filt, list):
@@ -1143,7 +1147,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = {"cost_units", "source_uuid"}
+        drop_columns = {"source_uuid"}
         if self.is_openshift:
             drop_columns.add("clusters")
 
@@ -1155,14 +1159,15 @@ class ReportQueryHandler(QueryHandler):
         rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
-        agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
-        if "costs" not in self._report_type:
-            agg_fields.update({"usage_units": ["max"]})
-            drop_columns.add("usage_units")
+
+        agg_fields = {}
+        for col in [col for col in self.report_annotations if "units" in col]:
+            drop_columns.add(col)
+            agg_fields[col] = ["max"]
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)

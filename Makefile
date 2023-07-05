@@ -61,6 +61,7 @@ help:
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
 	@echo "  lint                                  run pre-commit against the project"
+	@echo "  get-release-commit                    show the latest commit that is safe to release"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
@@ -94,8 +95,8 @@ help:
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
-	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
-	@echo "  remove-test-db                        remove the django test db"
+	@echo "  delete-db                             delete local directory $(TOPDIR)/pg_data"
+	@echo "  delete-test-db                        delete the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "                                          @param applabel - (optional) Use specified application"
@@ -104,7 +105,7 @@ help:
 	@echo "  serve                                 run the Django app on localhost"
 	@echo "  shell                                 run the Django interactive shell"
 	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
-	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
@@ -208,16 +209,16 @@ collect-static:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
-remove-db:
+delete-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
-remove-test-db:
+delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
                                          -d $$DATABASE_NAME \
                                          -U $$DATABASE_USER \
                                          -c "DROP DATABASE test_$$DATABASE_NAME;" >/dev/null
-	@echo "Test DB (test_$$DATABASE_NAME) has been removed."
+	@echo "Test DB (test_$$DATABASE_NAME) has been deleted."
 
 reset-db-statistics:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -299,13 +300,13 @@ docker-logs:
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
 
-docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
+docker-reinitdb: docker-down-db delete-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
 
-docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
+docker-reinitdb-with-sources: docker-down-db delete-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
-docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+docker-reinitdb-with-sources-lite: docker-down-db delete-db docker-up-db run-migrations create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
@@ -594,3 +595,7 @@ restore-local-db-dir:
 	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \
 	fi
 	@cd - >/dev/null
+
+
+get-release-commit:
+	@$(PYTHON) $(SCRIPTDIR)/get-release-commit.py

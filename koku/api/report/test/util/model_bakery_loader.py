@@ -97,12 +97,15 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_aws_category_key_table(self):
         """Insert records for aws category keys."""
+        deduplicate_keys = []
         for item in AWS_COST_CATEGORIES:
             if isinstance(item, dict):
                 keys = item.keys()
                 for key in keys:
-                    with schema_context(self.schema):
-                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                    if key not in deduplicate_keys:
+                        with schema_context(self.schema):
+                            baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                        deduplicate_keys.append(key)
 
     def _populate_exchange_rates(self):
         rates = [
@@ -269,6 +272,7 @@ class ModelBakeryDataLoader(DataLoader):
             linked_openshift_provider=linked_openshift_provider,
         )
         sub_guid = self.faker.uuid4()
+        sub_name = f"{self.faker.company()} subscription"
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load azure data for start: {start_date}, end: {end_date}")
             self.create_manifest(provider, bill_date)
@@ -286,6 +290,7 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
+                        subscription_name=sub_name,
                     )
         bill_ids = [bill.id for bill in bills]
         with AzureReportDBAccessor(self.schema) as accessor:

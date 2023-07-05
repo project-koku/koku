@@ -218,3 +218,19 @@ def check_resource_level(gcp_provider_uuid):
                 return True
         LOG.info("Defaulting to GCP tag matching")
         return False
+
+
+def add_label_columns(data_frame):
+    label_data = False
+    system_label_data = False
+    columns = list(data_frame)
+    for column in columns:
+        if "labels" == column:
+            label_data = True
+        if "system_labels" == column:
+            system_label_data = True
+    if not label_data:
+        data_frame["labels"] = ""
+    if not system_label_data:
+        data_frame["system_labels"] = ""
+    return data_frame

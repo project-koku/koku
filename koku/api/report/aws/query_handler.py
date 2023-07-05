@@ -19,6 +19,7 @@ from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
 from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import AWS_MARKUP_COST
 from api.report.queries import ReportQueryHandler
 from api.report.queries import strip_prefix
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
@@ -52,11 +53,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
         try:
             getattr(self, "_mapper")
         except AttributeError:
-            self._mapper = AWSProviderMap(
-                provider=self.provider,
-                report_type=parameters.report_type,
-                cost_type=parameters.cost_type,
-            )
+            kwargs = {
+                "provider": self.provider,
+                "report_type": parameters.report_type,
+                "cost_type": parameters.cost_type,
+            }
+            if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
+                kwargs["markup_cost"] = markup_cost
+
+            self._mapper = AWSProviderMap(**kwargs)
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
@@ -230,8 +235,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             self.parameters.parameters["access"]["org_unit_id"] = org_unit_list
             self.parameters.parameters["access"]["account"] = acc_group_by_data
 
-            # add a key to parameters used in query filter composition in queries.py
-            self.parameters.set("ou_or_operator", True)
+            # Use OR operator
+            self.parameters.set("aws_use_or_operator", True)
             self.parameters._configure_access_params(self.parameters.caller)
             self.query_filter = self._get_filter()
 

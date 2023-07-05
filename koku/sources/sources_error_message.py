@@ -36,6 +36,8 @@ class SourcesErrorMessage:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
         if any(test in message for test in ["SubscriptionNotFound", "InvalidSubscriptionId"]):
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
+        if any(test in message for test in ["RBACAccessDenied", "does not have authorization", "scope is invalid"]):
+            scrubbed_message = ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE
         return scrubbed_message
 
     def aws_client_errors(self, message):

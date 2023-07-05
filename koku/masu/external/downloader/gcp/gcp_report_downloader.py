@@ -30,6 +30,7 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
+from masu.util.gcp.common import add_label_columns
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 
@@ -48,11 +49,23 @@ class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
 
+def get_ingress_manifest(manifest_id):
+    with ReportManifestDBAccessor() as manifest_accessor:
+        return manifest_accessor.get_manifest_by_id(manifest_id)
+
+
+def pd_read_csv(local_file_path):
+    try:
+        return pd.read_csv(local_file_path)
+    except Exception as error:
+        LOG.error(log_json(msg="file could not be parsed", file_path=local_file_path), exc_info=error)
+        raise GCPReportDownloaderError(error)
+
+
 def create_daily_archives(
     tracing_id,
     account,
     provider_uuid,
-    filename,
     local_file_paths,
     manifest_id,
     start_date,
@@ -66,7 +79,6 @@ def create_daily_archives(
         tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
-        filename (str): The OCP file name
         filepath (str): The full path name of the file
         manifest_id (int): The manifest identifier
         start_date (Datetime): The start datetime of incoming report
@@ -75,17 +87,11 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     for local_file_path in local_file_paths:
-        if not ingress_reports:
-            file_name = os.path.basename(local_file_path).split("/")[-1]
-        else:
-            file_name = filename.replace("/", "_").replace("-", "_")
+        file_name = os.path.basename(local_file_path).split("/")[-1]
         dh = DateHelper()
         directory = os.path.dirname(local_file_path)
-        try:
-            data_frame = pd.read_csv(local_file_path)
-        except Exception as error:
-            LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
-            raise GCPReportDownloaderError(error)
+        data_frame = pd_read_csv(local_file_path)
+        data_frame = add_label_columns(data_frame)
         # putting it in for loop handles crossover data, when we have distinct invoice_month
         for invoice_month in data_frame["invoice.month"].unique():
             invoice_filter = data_frame["invoice.month"] == invoice_month
@@ -102,6 +108,14 @@ def create_daily_archives(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
+                if ingress_reports:
+                    manifest = get_ingress_manifest(manifest_id)
+                    if not manifest.report_tracker.get(partition_date):
+                        manifest.report_tracker[partition_date] = 0
+                    counter = manifest.report_tracker[partition_date]
+                    day_file = f"{invoice_month}_{partition_date}_{counter}.csv"
+                    manifest.report_tracker[partition_date] = counter + 1
+                    manifest.save()
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -519,7 +533,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.tracing_id,
             self.account,
             self._provider_uuid,
-            key,
             paths_list,
             manifest_id,
             start_date,

@@ -652,7 +652,7 @@ select * from eek where val1 in {{report_period_id}} ;
         end_date = dh.this_month_end.date()
 
         self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
         with schema_context(self.schema):
@@ -781,6 +781,35 @@ select * from eek where val1 in {{report_period_id}} ;
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertEqual(node.node_role, node_info[3])
+
+    def test_populate_cluster_table_update_cluster_alias(self):
+        """Test updating cluster alias for entry in the cluster table."""
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "cluster_alias"
+        new_cluster_alias = "new_cluster_alias"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
+            self.assertEqual(cluster.cluster_alias, cluster_alias)
+            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
+            self.assertEqual(cluster.cluster_alias, new_cluster_alias)
+
+    def test_populate_cluster_table_delete_duplicates(self):
+        """Test updating cluster alias for duplicate entry in the cluster table."""
+        cluster_id = str(uuid.uuid4())
+        new_cluster_alias = "new_cluster_alias"
+        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
+        with schema_context(self.schema):
+            # Forcefully create a second entry
+            OCPCluster.objects.get_or_create(
+                cluster_id=cluster_id, cluster_alias=self.aws_provider.name, provider_id=self.aws_provider_uuid
+            )
+            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            clusters = OCPCluster.objects.filter(cluster_id=cluster_id)
+            self.assertEqual(len(clusters), 1)
+            cluster = clusters.first()
+            self.assertEqual(cluster.cluster_alias, new_cluster_alias)
 
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""
@@ -1042,8 +1071,8 @@ select * from eek where val1 in {{report_period_id}} ;
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
-        mock_jinja.prepare_query.side_effect = side_effect
-        accessor.jinja_sql = mock_jinja
+        mock_jinja.side_effect = side_effect
+        accessor.prepare_query = mock_jinja
         accessor.populate_platform_and_worker_distributed_cost_sql(
             start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
         )

@@ -103,6 +103,8 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = ("reporting", "cost_models")
+TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
+TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
 
 DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
@@ -147,7 +149,12 @@ if DEVELOPMENT:
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=False)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
-    MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
+    try:
+        from django_cprofile_middleware.middleware import ProfilerMiddleware
+
+        MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
+    except ImportError:
+        pass
     DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
 ### Feature Flags

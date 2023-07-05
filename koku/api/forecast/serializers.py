@@ -6,6 +6,7 @@
 from rest_framework import serializers
 
 from api.currency.currencies import CURRENCY_CHOICES
+from api.report.constants import AWS_COST_TYPE_CHOICES
 from api.report.serializers import handle_invalid_fields
 from api.utils import get_cost_type
 from api.utils import get_currency
@@ -43,12 +44,9 @@ class ForecastParamSerializer(serializers.Serializer):
 class AWSCostForecastParamSerializer(ForecastParamSerializer):
     """AWS Cost Forecast Serializer."""
 
-    COST_TYPE_CHOICE = (
-        ("blended_cost", "blended_cost"),
-        ("unblended_cost", "unblended_cost"),
-        ("savingsplan_effective_cost", "savingsplan_effective_cost"),
-    )
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
+    COST_TYPE_CHOICES = AWS_COST_TYPE_CHOICES
+
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICES, required=False)
 
     def validate(self, data):
         """Validate incoming data to including cost_type.

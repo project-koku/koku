@@ -20,12 +20,14 @@
     )
     SELECT ocp.provider_id as ocp_uuid,
         gcp.source as infra_uuid,
-        {{provider_type}} as type
+        api_provider.type as type
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
         ON any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_id)
             OR any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_alias)
             OR element_at(gcp.parsed_labels, 'openshift_cluster')  IN (ocp.cluster_id, ocp.cluster_alias)
+    JOIN postgres.{{schema | sqlsafe}}.reporting_tenant_api_provider as api_provider
+        ON gcp.source = cast(api_provider.uuid as varchar)
 {% endif %}
 
 {% if resource_level %}
@@ -57,8 +59,10 @@
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
-        {{provider_type}} as type
+        api_provider.type as type
     FROM cte_gcp_resource_name AS gcp
     JOIN cte_ocp_nodes AS ocp
         ON strpos(gcp.resource_name, ocp.node) != 0
+    JOIN postgres.{{schema | sqlsafe}}.reporting_tenant_api_provider as api_provider
+        ON gcp.source = cast(api_provider.uuid as varchar)
 {% endif %}

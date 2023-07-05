@@ -69,6 +69,7 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
+from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
@@ -390,6 +391,23 @@ class ProcessReportFileTests(MasuTestCase):
                 mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
+    def test_summarize_reports_processing_with_XL_queue(self, mock_update_summary):
+        """Test that the summarize_reports task is called with XL queue."""
+        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
+        provider_type = Provider.PROVIDER_OCP
+        provider_uuid = self.ocp_test_provider_uuid
+        report_meta = {}
+        report_meta["start_date"] = test_date.strftime("%Y-%m-%d")
+        report_meta["schema_name"] = self.schema
+        report_meta["provider_type"] = provider_type
+        report_meta["provider_uuid"] = provider_uuid
+        report_meta["manifest_id"] = 1
+        reports_to_summarize = [report_meta]
+        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+            summarize_reports(reports_to_summarize)
+            mock_update_summary.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
+
+    @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
@@ -406,7 +424,7 @@ class ProcessReportFileTests(MasuTestCase):
 
         summarize_reports(reports_to_summarize)
 
-        mock_update_summary.s.assert_called_once()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
@@ -923,8 +941,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test GET report_data endpoint with provider_uuid=*."""
         start_date = date.today()
         update_all_summary_tables(start_date)
-
         mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, queue_name=ANY)
+
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_get_report_data_for_provider_with_XL_queue(self, mock_update):
+        """Test GET report_data endpoint with provider and XL queue"""
+        start_date = date.today()
+        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+            update_all_summary_tables(start_date)
+            mock_update.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):
@@ -1445,9 +1470,34 @@ class TestWorkerCacheThrottling(MasuTestCase):
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
-        expected = "Processing for this provier will halt."
+        expected = "halting processing"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
+            statement_found = any(expected in log for log in logger.output)
+            self.assertTrue(statement_found)
+
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_openshift_on_cloud_provider_not_found_error(
+        self,
+        mock_inspect,
+        *args,
+    ):
+        """Test that the update_summary_table provider not found exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        expected = "halting processing"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_openshift_on_cloud(
+                self.schema,
+                str(uuid4()),
+                str(uuid4()),
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 

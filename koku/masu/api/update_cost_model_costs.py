@@ -17,7 +17,9 @@ from rest_framework.settings import api_settings
 from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
@@ -39,7 +41,10 @@ def update_cost_model_costs(request):
     default_end_date = DateHelper().today.strftime("%Y-%m-%d")
     start_date = params.get("start_date", default=default_start_date)
     end_date = params.get("end_date", default=default_end_date)
-    queue_name = params.get("queue") or PRIORITY_QUEUE
+    fallback_queue = PRIORITY_QUEUE
+    if is_customer_large(schema_name):
+        fallback_queue = PRIORITY_QUEUE_XL
+    queue_name = params.get("queue") or fallback_queue
 
     if provider_uuid is None or schema_name is None:
         errmsg = "provider_uuid and schema are required parameters."

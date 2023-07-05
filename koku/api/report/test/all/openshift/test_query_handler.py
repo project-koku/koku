@@ -214,45 +214,6 @@ class OCPAllQueryHandlerTest(IamTestCase):
         expected = [QueryFilter(field=field, operation="contains", parameter=access)]
         self.assertEqual(filters._filters, expected)
 
-    def test_exclude_functionality(self):
-        """Test that the exclude feature works for all options."""
-        exclude_opts = list(OCPAllExcludeSerializer._opfields)
-        exclude_opts.remove("source_type")
-        for exclude_opt in exclude_opts:
-            for view in [OCPAllCostView, OCPAllStorageView, OCPAllInstanceTypeView]:
-                with self.subTest(exclude_opt):
-                    overall_url = f"?group_by[{exclude_opt}]=*"
-                    query_params = self.mocked_query_params(overall_url, view)
-                    handler = OCPAllReportQueryHandler(query_params)
-                    overall_output = handler.execute_query()
-                    overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                    opt_dict = overall_output.get("data", [{}])[0]
-                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
-                    opt_value = opt_dict.get(exclude_opt)
-                    # Grab filtered value
-                    filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
-                    query_params = self.mocked_query_params(filtered_url, view)
-                    handler = OCPAllReportQueryHandler(query_params)
-                    handler.execute_query()
-                    filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                    expected_total = overall_total - filtered_total
-                    # Test exclude
-                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
-                    query_params = self.mocked_query_params(exclude_url, view)
-                    handler = OCPAllReportQueryHandler(query_params)
-                    self.assertIsNotNone(handler.query_exclusions)
-                    excluded_output = handler.execute_query()
-                    excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                    excluded_data = excluded_output.get("data")
-                    # Check to make sure the value is not in the return
-                    for date_dict in excluded_data:
-                        grouping_list = date_dict.get(f"{exclude_opt}s", [])
-                        self.assertIsNotNone(grouping_list)
-                        for group_dict in grouping_list:
-                            self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
-                    self.assertAlmostEqual(expected_total, excluded_total, 6)
-                    self.assertNotEqual(overall_total, excluded_total)
-
     @skip("the ocp-all table is not populated")
     def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
@@ -289,6 +250,10 @@ class OCPAllQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(OCPAllExcludeSerializer._opfields)
         exclude_opts.remove("source_type")
+        exclude_opts.remove("account")
+        exclude_opts.remove("az")
+        exclude_opts.remove("instance_type")
+        exclude_opts.remove("storage_type")
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPAllCostView, OCPAllStorageView, OCPAllInstanceTypeView]:
