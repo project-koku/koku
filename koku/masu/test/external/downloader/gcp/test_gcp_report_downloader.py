@@ -22,7 +22,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import create_daily_arch
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
-from masu.external.downloader.gcp.gcp_report_downloader import get_ingress_manifest
+from masu.external.downloader.gcp.gcp_report_downloader import get_manifest
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
@@ -78,10 +78,10 @@ class GCPReportDownloaderTest(MasuTestCase):
         super().tearDown()
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
-    def test_get_ingress_manifest(self):
+    def test_get_manifest(self):
         """Test that given a manifest ID, this function returns a manifest"""
         expected_manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first()
-        manifest = get_ingress_manifest(manifest_id=expected_manifest.id)
+        manifest = get_manifest(manifest_id=expected_manifest.id)
         self.assertEqual(manifest, expected_manifest)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
@@ -431,7 +431,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start
         with patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.get_ingress_manifest",
+            "masu.external.downloader.gcp.gcp_report_downloader.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first(),
         ):
             daily_file_names, date_range = create_daily_archives(

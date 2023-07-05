@@ -200,16 +200,6 @@ class AzureReportDownloaderTest(MasuTestCase):
         call_arg = mock_log.info.call_args.args[0]
         self.assertTrue("Skipping ingest as source is storage_only and requires ingress reports" in call_arg)
 
-    def test_get_ingress_manifest(self):
-        """Test that Azure ingress manifest is created."""
-        expected_start, expected_end = self.mock_data.month_range.split("-")
-        manifest, _ = self.ingress_downloader._get_manifest(self.mock_data.test_date)
-
-        self.assertEqual(manifest.get("reportKeys"), [self.mock_data.ingress_report])
-        self.assertEqual(manifest.get("Compression"), "PLAIN")
-        self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
-        self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
-
     @patch("masu.external.downloader.azure.azure_report_downloader.LOG")
     def test_get_ingress_report_error(self, mock_log):
         """Test that Azure get_bob errors correctly."""
@@ -225,7 +215,6 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_get_manifest(self):
         """Test that Azure manifest is created."""
         expected_start, expected_end = self.mock_data.month_range.split("-")
-
         manifest, _ = self.downloader._get_manifest(self.mock_data.test_date)
 
         self.assertEqual(manifest.get("assemblyId"), self.mock_data.export_uuid)

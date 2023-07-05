@@ -26,6 +26,8 @@ import koku.trino_database as trino_db
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 
@@ -441,3 +443,13 @@ class SingletonMeta(type):
                 instance = super().__call__(*args, **kwargs)
                 cls._instances[cls] = instance
         return cls._instances[cls]
+
+
+def get_manifest(manifest_id):
+    with ReportManifestDBAccessor() as manifest_accessor:
+        return manifest_accessor.get_manifest_by_id(manifest_id)
+
+
+def check_setup_complete(provider_uuid):
+    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
+        return provider_accessor.get_setup_complete()

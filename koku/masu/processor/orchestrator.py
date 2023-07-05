@@ -34,6 +34,7 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
+from masu.util.common import check_setup_complete
 
 LOG = logging.getLogger(__name__)
 
@@ -134,16 +135,13 @@ class Orchestrator:
             (List) List of datetime objects.
 
         """
-        with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-            reports_processed = provider_accessor.get_setup_complete()
-
         if self.bill_date:
             if self.ingress_reports:
                 bill_date = f"{self.bill_date}01"
                 return [DateAccessor().get_billing_month_start(bill_date)]
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
-        if Config.INGEST_OVERRIDE or not reports_processed:
+        if Config.INGEST_OVERRIDE or not check_setup_complete(provider_uuid):
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
         else:
             number_of_months = 2

@@ -9,23 +9,24 @@ import logging
 import os
 import uuid
 
+import pandas as pd
 from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure import common as utils
 from masu.util.azure.common import AzureBlobExtension
+from masu.util.common import check_setup_complete
 from masu.util.common import extract_uuids_from_string
+from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
 from masu.util.common import month_date_range
 
@@ -39,6 +40,76 @@ class AzureReportDownloaderError(Exception):
 
 class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
+
+
+def create_daily_archives(
+    tracing_id,
+    account,
+    provider_uuid,
+    local_file,
+    manifest_id,
+    start_date,
+    context={},
+):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        tracing_id (str): The tracing id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filepath (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    daily_file_names = []
+    date_range = {}
+    file_name = os.path.basename(local_file).split("/")[-1]
+    dh = DateHelper()
+    manifest = get_manifest(manifest_id)
+    directory = os.path.dirname(local_file)
+    data_frame = pd.read_csv(local_file)
+    days = []
+    time_interval = "UsageDateTime"
+    if hasattr(data_frame, "Date"):
+        time_interval = "Date"
+    # Ideally this if below would look at the invoice month column! But as far as I can tell Azure DONT update this!
+    if start_date.month < dh.today.month and dh.today.day > 5 or not check_setup_complete(provider_uuid):
+        start_delta = start_date
+    else:
+        if start_date.year == dh.today.year and start_date.month == dh.today.month:
+            start_delta = dh.today - datetime.timedelta(days=5) if dh.today.date().day > 5 else dh.today.replace(day=1)
+        else:
+            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
+        start_delta = start_delta.replace(tzinfo=None)
+    intervals = data_frame[time_interval].unique()
+    for interval in intervals:
+        if datetime.datetime.strptime(interval, "%m/%d/%Y") >= start_delta:
+            if interval not in days:
+                days.append(interval)
+    if days:
+        date_range = {"start": min(days), "end": max(days), "invoice_month": None}
+        for day in days:
+            daily_data = data_frame[data_frame[time_interval].str.match(day)]
+            s3_csv_path = get_path_prefix(
+                account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
+            )
+            day = f"{day.split('/')[2]}-{day.split('/')[0]}-{day.split('/')[1]}"
+            day_file = f"{day}_{file_name}"
+            if not manifest.report_tracker.get(day):
+                manifest.report_tracker[day] = 0
+            counter = manifest.report_tracker[day]
+            day_file = f"{day}_{counter}.csv"
+            manifest.report_tracker[day] = counter + 1
+            manifest.save()
+            day_filepath = f"{directory}/{day_file}"
+            daily_data.to_csv(day_filepath, index=False, header=True)
+            copy_local_report_file_to_s3_bucket(
+                tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+            )
+            daily_file_names.append(day_filepath)
+    return daily_file_names, date_range
 
 
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -310,6 +381,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        file_names = []
+        date_range = {}
         file_creation_date = None
         etag = None
         if not self.ingress_reports:
@@ -329,21 +402,17 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._azure_client.download_file(
             key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
         )
-        # Push to S3
-        s3_csv_path = get_path_prefix(
-            self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
+
+        file_names, date_range = create_daily_archives(
+            self.tracing_id,
+            self.account,
+            self._provider_uuid,
+            full_file_path,
+            manifest_id,
+            start_date,
+            self.context,
         )
-        copy_local_report_file_to_s3_bucket(
-            self.tracing_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
-        )
 
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-
-        if not manifest_accessor.get_s3_csv_cleared(manifest):
-            remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
-            manifest_accessor.mark_s3_csv_cleared(manifest)
-
-        msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
+        msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        return full_file_path, etag, file_creation_date, [], {}
+        return full_file_path, etag, file_creation_date, file_names, date_range
