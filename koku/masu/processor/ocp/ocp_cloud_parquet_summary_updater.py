@@ -267,8 +267,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        ctx = accessor.extract_context_from_sql_params(sql_params)
         with self.db_accessor(self._schema) as accessor:
+            ctx = accessor.extract_context_from_sql_params(sql_params)
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(log_json(msg="updating OpenShift on AWS summary table", context=ctx))
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
