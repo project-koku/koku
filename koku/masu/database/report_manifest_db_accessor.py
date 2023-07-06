@@ -235,9 +235,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             return False
         if not manifest.cluster_id:
             return True
-        result = False
-        if manifest.operator_daily_files:
-            result = True
+        result = manifest.operator_daily_files
         LOG.info(
             log_json(
                 msg=f"s3 bucket should be cleared: {result}",
