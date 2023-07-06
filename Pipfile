@@ -56,6 +56,7 @@ unleashclient = "<5"  # new version breaks for unknown reason
 watchtower = "==1.0.6"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
 # Constraints on indirect dependencies
+kombu = "<5.3"  # UUID and datetime objects are now correctly preserved. We expect them to be strings in many places.
 jinja2 = "<3"   # jinjasql is not compatible with Jinja >=3 https://github.com/sripathikrishnan/jinjasql/pull/53
 markupsafe = "<2.1"  # jinja2 <3 tries to import markupsafe.soft_unicode which was removed in markupsafe 2.1
 
