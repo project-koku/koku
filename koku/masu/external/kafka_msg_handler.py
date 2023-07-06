@@ -360,7 +360,7 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
                     current_report.tracing_id, msg="creating daily archive", context=context, report_file=report_file
                 )
             )
-            _, dates = create_daily_archives(
+            file_dict, _ = create_daily_archives(
                 current_report.tracing_id,
                 current_report.account,
                 current_report.provider_uuid,
@@ -368,11 +368,17 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
                 current_report.manifest_id,
                 context,
             )
-            current_report.date = min(dates)
+            current_report.date = file_dict[current_report.current_file]
             reports.append(current_report)
         except FileNotFoundError:
-            msg = f"File {str(report_file)} has not downloaded yet."
-            LOG.debug(log_json(current_report.tracing_id, msg=msg, context=context))
+            LOG.debug(
+                log_json(
+                    current_report.tracing_id,
+                    msg="file has not downloaded yet",
+                    context=context,
+                    report_file=report_file,
+                )
+            )
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return reports
