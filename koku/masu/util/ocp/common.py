@@ -236,7 +236,7 @@ class ReportDetails:
                 payload_end = dh().month_end(start)
             self.end = parser.parse(payload_end)
 
-        self.destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.usage_month}"
+        self.destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}"
         self.manifest_destination_path = f"{self.destination_dir}/{os.path.basename(self.manifest_path)}"
         self.provider_uuid = get_provider_uuid_from_cluster_id(self.cluster_id)
 

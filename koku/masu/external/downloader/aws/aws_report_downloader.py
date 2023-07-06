@@ -304,7 +304,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             utils.copy_local_report_file_to_s3_bucket(
-                self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
+                self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, self.context
             )
 
             manifest_accessor = ReportManifestDBAccessor()

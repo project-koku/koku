@@ -412,21 +412,25 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context={}
+    request_id, s3_path, full_file_path, local_filename, manifest_id, context=None
 ):
     """
     Copies local report file to s3 bucket
     """
+    if context is None:
+        context = {}
     if s3_path:
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
 
 
-def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False, context={}):
+def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False, context=None):
     """
     Copies HCS data to s3 bucket location
     """
+    if context is None:
+        context = {}
     upload = None
     upload_key = f"{path}/{filename}"
     extra_args = {"Metadata": {"finalized": str(finalize)}}

@@ -71,9 +71,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             day_file = f"{invoice_month}_{partition_date}.csv"
             day_filepath = f"{directory}/{day_file}"
             invoice_partition_data.to_csv(day_filepath, index=False, header=True)
-            copy_local_report_file_to_s3_bucket(
-                tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
-            )
+            copy_local_report_file_to_s3_bucket(tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context)
             daily_file_names.append(day_filepath)
         return daily_file_names, date_range
 

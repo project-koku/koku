@@ -91,6 +91,20 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Require this property in subclases."""
         raise ReportDBAccessorException("This must be a property on the sub class.")
 
+    @staticmethod
+    def extract_context_from_sql_params(sql_params: dict):
+        return {
+            "schema": sql_params.get("schema"),
+            # An "or" comparison is needed here in case "start" or "end" contain
+            # falsy values such as "None"
+            "start_date": sql_params.get("start") or sql_params.get("start_date"),
+            "end_date": sql_params.get("end") or sql_params.get("end_date"),
+            "invoice_month": sql_params.get("invoice_month"),
+            "source_type": sql_params.get("source_type"),
+            "provider_uuid": sql_params.get("source_uuid"),
+            "cluster_id": sql_params.get("cluster_id"),
+        }
+
     def _get_db_obj_query(self, table, columns=None):
         """Return a query on a specific database table.
 
@@ -112,15 +126,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             else:
                 query = table.objects.all()
             return query
-
-    def extract_context_from_sql_params(self, sql_params: dict):
-        return {
-            "schema": sql_params.get("schema"),
-            "start_date": sql_params.get("start") or sql_params.get("start_date"),
-            "end_date": sql_params.get("end") or sql_params.get("end_date"),
-            "provider_uuid": sql_params.get("source_uuid"),
-            "invoice_month": sql_params.get("invoice_month"),
-        }
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""

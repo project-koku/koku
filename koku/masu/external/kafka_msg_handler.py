@@ -360,16 +360,15 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
                     current_report.tracing_id, msg="creating daily archive", context=context, report_file=report_file
                 )
             )
-            create_daily_archives(
-                report.tracing_id,
-                report.account,
-                report.provider_uuid,
-                report_file,
+            _, dates = create_daily_archives(
+                current_report.tracing_id,
+                current_report.account,
+                current_report.provider_uuid,
                 payload_destination_path,
-                report.manifest_id,
-                report.date,
+                current_report.manifest_id,
                 context,
             )
+            current_report.date = min(dates)
             reports.append(current_report)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
