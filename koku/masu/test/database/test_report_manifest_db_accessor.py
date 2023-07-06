@@ -210,6 +210,34 @@ class ReportManifestDBAccessorTest(IamTestCase):
             status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
             self.assertTrue(status)
 
+    def test_get_s3_parquet_cleared_ocp_not_daily_files(self):
+        """Test that s3 CSV clear status is reported."""
+        with schema_context(self.schema):
+            manifest = self.manifest_accessor.add(**self.manifest_dict, cluster_id="cluster-id")
+            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+            self.assertFalse(status)
+
+            self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+
+            # even tho the above was called, this should still return false for non-daily-file ocp manifests
+            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+            self.assertFalse(status)
+
+    def test_get_s3_parquet_cleared_ocp_daily_files(self):
+        """Test that s3 CSV clear status is reported."""
+        with schema_context(self.schema):
+            manifest = self.manifest_accessor.add(
+                **self.manifest_dict, cluster_id="cluster-id", operator_daily_files=True
+            )
+            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+            self.assertFalse(status)
+
+            self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+
+            # now that we have daily ocp manifests, this should return what is in the manifest
+            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+            self.assertTrue(status)
+
     def test_bulk_delete_manifests(self):
         """Test bulk delete of manifests."""
         with schema_context(self.schema):
