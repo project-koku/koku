@@ -152,7 +152,7 @@ def process_cr(report_meta):
         "cluster_channel": None,
         "operator_airgapped": None,
         "operator_errors": None,
-        "operator_daily_files": report_meta.get("daily_reports"),
+        "operator_daily_files": report_meta.get("daily_reports", False),
     }
     if cr_status := report_meta.get("cr_status"):
         manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
