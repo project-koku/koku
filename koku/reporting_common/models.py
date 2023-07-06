@@ -31,6 +31,7 @@ class CostUsageReportManifest(models.Model):
     operator_certified = models.BooleanField(null=True)
     operator_airgapped = models.BooleanField(null=True)
     operator_errors = models.JSONField(default=dict, null=True)
+    operator_daily_files = models.BooleanField(null=True, default=False)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
     export_time = models.DateTimeField(null=True)

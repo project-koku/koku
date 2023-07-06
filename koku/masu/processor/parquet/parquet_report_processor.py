@@ -326,10 +326,9 @@ class ParquetReportProcessor:
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
-        # OCP data is daily chunked report files.
         # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+        # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
         if not manifest_accessor.get_s3_parquet_cleared(manifest) and self.provider_type not in (
-            Provider.PROVIDER_OCP,
             Provider.PROVIDER_GCP,
             Provider.PROVIDER_GCP_LOCAL,
             Provider.PROVIDER_OCI,

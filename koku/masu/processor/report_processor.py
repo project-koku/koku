@@ -112,10 +112,7 @@ class ReportProcessor:
             parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
-            if daily_data_frames != []:
-                return True
-            else:
-                return False
+            return daily_data_frames != []
         except (InterfaceError, DjangoInterfaceError) as err:
             raise ReportProcessorDBError(f"Interface error: {err}") from err
         except OperationalError as o_err:

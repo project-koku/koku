@@ -48,6 +48,7 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -665,6 +666,13 @@ def process_messages(msg):
     tracing_id = manifest_uuid or request_id
     if report_metas:
         for report_meta in report_metas:
+            if (
+                report_meta.get("daily_reports")
+                and len(report_meta.get("files"))
+                != CostUsageReportStatus.objects.filter(manifest_id=report_meta.get("manifest_id")).count()
+            ):
+                # we have not received all of the daily files yet, so don't process them
+                break
             report_meta["process_complete"] = process_report(request_id, report_meta)
             LOG.info(log_json(tracing_id, msg=f"Processing: {report_meta.get('current_file')} complete."))
         process_complete = report_metas_complete(report_metas)
