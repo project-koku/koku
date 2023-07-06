@@ -106,8 +106,11 @@ class ReportProcessor:
             (List) List of filenames downloaded.
 
         """
-        msg = f"Report processing started for {self.report_path}"
-        LOG.info(log_json(self.tracing_id, msg=msg))
+        LOG.info(
+            log_json(
+                self.tracing_id, msg="report processing starting", context=self.context, report_path=self.report_path
+            )
+        )
         try:
             parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:

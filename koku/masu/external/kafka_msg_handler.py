@@ -583,7 +583,6 @@ def process_report(report: utils.ReportDetails) -> None:
         "provider_type": "OCP",
         "start_date": report.date,
         "create_table": True,
-        "ocp_daily_files": report.daily_reports,
     }
     try:
         _process_report_file(report.schema, report.provider_type, report_dict)
@@ -647,12 +646,8 @@ def process_messages(msg: str) -> None:
             report.daily_reports
             and len(report.files) != CostUsageReportStatus.objects.filter(manifest_id=report.manifest_id).count()
         ):
-            # we have not received all of the daily  files yet, so don't process them
+            # we have not received all of the daily files yet, so don't process them
             break
-        # Maybe for daily report files, we DONT immediately do this step
-        # Maybe we confirm we've sent all files to s3, THEN process the files
-        # If these are daily operator files, wipe the s3 bucket here:
-        # https://github.com/project-koku/koku/blob/main/koku/masu/processor/parquet/parquet_report_processor.py#L331-L348  # noqa: E501
         process_report(report)
         LOG.info(log_json(kmsg.request_id, msg="file processing complete", file_name=report.current_file))
     if summary_task_id := summarize_manifest(report):
