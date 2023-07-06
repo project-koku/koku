@@ -219,7 +219,6 @@ class ReportDetails:
     org_id: str = ""
     manifest_id: int = 0
     current_file: str = ""
-    process_complete: bool = False
 
     def __post_init__(self):
         self.tracing_id = self.uuid

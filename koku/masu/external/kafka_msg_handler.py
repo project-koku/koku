@@ -485,7 +485,6 @@ def get_account(provider_uuid, tracing_id, context):
         msg = f"Unable to get accounts. Error: {str(error)}"
         LOG.warning(log_json(tracing_id, msg=msg, context=context))
         return None
-
     return all_accounts.pop() if all_accounts else None
 
 
@@ -553,7 +552,7 @@ def summarize_manifest(report: utils.ReportDetails):
     )
 
 
-def process_report(report: utils.ReportDetails) -> bool:
+def process_report(report: utils.ReportDetails) -> None:
     """
     Process line item report.
 
@@ -587,10 +586,9 @@ def process_report(report: utils.ReportDetails) -> bool:
         "ocp_daily_files": report.daily_reports,
     }
     try:
-        return _process_report_file(report.schema, report.provider_type, report_dict)
+        _process_report_file(report.schema, report.provider_type, report_dict)
     except NotImplementedError as err:
         LOG.info(f"NotImplementedError: {str(err)}")
-        return True
 
 
 def report_metas_complete(reports: list[utils.ReportDetails]):
@@ -611,7 +609,7 @@ def report_metas_complete(reports: list[utils.ReportDetails]):
     return all(report.process_complete for report in reports)
 
 
-def process_messages(msg: str):
+def process_messages(msg: str) -> None:
     """
     Process messages and send validation status.
 
@@ -629,7 +627,6 @@ def process_messages(msg: str):
         None
 
     """
-    process_complete = False
     decoded_value = json.loads(msg.value().decode("utf-8"))
     kmsg = KafkaValue(
         account=decoded_value.get("account"),
@@ -640,35 +637,30 @@ def process_messages(msg: str):
     )
     status, reports = handle_message(kmsg)
 
-    if reports:
-        for report in reports:
-            if (
-                report.daily_reports
-                and len(report.files) != CostUsageReportStatus.objects.filter(manifest_id=report.manifest_id).count()
-            ):
-                # we have not received all of the daily  files yet, so don't process them
-                break
-            # Maybe for daily report files, we DONT immediately do this step
-            # Maybe we confirm we've sent all files to s3, THEN process the files
-            # If these are daily operator files, wipe the s3 bucket here:
-            # https://github.com/project-koku/koku/blob/main/koku/masu/processor/parquet/parquet_report_processor.py#L331-L348  # noqa: E501
-            report.process_complete = process_report(report)
-            LOG.info(log_json(kmsg.request_id, msg="file processing complete", file_name=report.current_file))
-        process_complete = report_metas_complete(reports)
-        if summary_task_id := summarize_manifest(report):
-            LOG.info(log_json(kmsg.request_id, msg=f"Summarization celery uuid: {summary_task_id}"))
-
-    if status:
-        if reports:
-            file_list = [report.current_file for report in reports]
-            LOG.info(
-                log_json(kmsg.request_id, msg="sending ingress service confirmation for files", file_list=file_list)
-            )
-        else:
-            LOG.info(log_json(kmsg.request_id, msg="sending ingress service confirmation for msg", **kmsg.__dict__))
+    if not reports:
+        LOG.info(log_json(kmsg.request_id, msg="sending ingress service confirmation for msg", **kmsg.__dict__))
         send_confirmation(kmsg.request_id, status)
+        return
 
-    return process_complete
+    for report in reports:
+        if (
+            report.daily_reports
+            and len(report.files) != CostUsageReportStatus.objects.filter(manifest_id=report.manifest_id).count()
+        ):
+            # we have not received all of the daily  files yet, so don't process them
+            break
+        # Maybe for daily report files, we DONT immediately do this step
+        # Maybe we confirm we've sent all files to s3, THEN process the files
+        # If these are daily operator files, wipe the s3 bucket here:
+        # https://github.com/project-koku/koku/blob/main/koku/masu/processor/parquet/parquet_report_processor.py#L331-L348  # noqa: E501
+        process_report(report)
+        LOG.info(log_json(kmsg.request_id, msg="file processing complete", file_name=report.current_file))
+    if summary_task_id := summarize_manifest(report):
+        LOG.info(log_json(kmsg.request_id, msg=f"Summarization celery uuid: {summary_task_id}"))
+
+    file_list = [report.current_file for report in reports]
+    LOG.info(log_json(kmsg.request_id, msg="sending ingress service confirmation for files", file_list=file_list))
+    send_confirmation(kmsg.request_id, status)
 
 
 def listen_for_messages_loop():
