@@ -84,7 +84,7 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
-    "subs",
+    "subs.transmission",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
