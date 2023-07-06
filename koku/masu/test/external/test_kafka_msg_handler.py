@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Kafka msg handler."""
+import copy
 import json
 import logging
 import os
@@ -300,15 +301,23 @@ class KafkaMsgHandlerTest(MasuTestCase):
         def _expected_fail_path(msg, test, confirmation_mock):
             confirmation_mock.assert_not_called()
 
+        def _expect_report_mock_called(msg, test, process_report_mock):
+            process_report_mock.assert_called()
+
+        def _expect_report_mock_not_called(msg, test, process_report_mock):
+            process_report_mock.assert_not_called()
+
         report_meta_1 = {
             "schema_name": "test_schema",
             "manifest_id": "1",
             "provider_uuid": uuid.uuid4(),
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
-            "file": "/path/to/file.csv",
+            "files": ["/path/to/file.csv"],
             "date": datetime.today(),
         }
+        report_meta_2 = copy.copy(report_meta_1) | {"daily_reports": True}
+        report_meta_3 = copy.copy(report_meta_1) | {"daily_reports": True, "manifest_id": "10000"}
         summarize_manifest_uuid = uuid.uuid4()
         test_matrix = [
             {
@@ -321,6 +330,31 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1], self.manifest_id),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
+                "processing_fn": _expect_report_mock_called,
+            },
+            {
+                "test_value": {
+                    "request_id": "1",
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
+                "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_2], self.manifest_id),
+                "summarize_manifest_returns": summarize_manifest_uuid,
+                "expected_fn": _expected_success_path,
+                "processing_fn": _expect_report_mock_called,
+            },
+            {
+                "test_value": {
+                    "request_id": "1",
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
+                "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_3], self.manifest_id),
+                "summarize_manifest_returns": summarize_manifest_uuid,
+                "expected_fn": _expected_success_path,
+                "processing_fn": _expect_report_mock_not_called,
             },
             {
                 "test_value": {
@@ -332,6 +366,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "handle_message_returns": (msg_handler.FAILURE_CONFIRM_STATUS, None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
+                "processing_fn": _expect_report_mock_not_called,
             },
             {
                 "test_value": {
@@ -343,6 +378,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "handle_message_returns": (None, None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
+                "processing_fn": _expect_report_mock_not_called,
             },
             {
                 "test_value": {
@@ -354,6 +390,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "handle_message_returns": (None, [report_meta_1], None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
+                "processing_fn": _expect_report_mock_called,
             },
         ]
         for test in test_matrix:
@@ -371,10 +408,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.summarize_manifest",
                         return_value=test.get("summarize_manifest_returns"),
                     ):
-                        with patch("masu.external.kafka_msg_handler.process_report"):
+                        with patch("masu.external.kafka_msg_handler.process_report") as process_report_mock:
                             with patch("masu.external.kafka_msg_handler.send_confirmation") as confirmation_mock:
                                 msg_handler.process_messages(msg)
                                 test.get("expected_fn")(msg, test, confirmation_mock)
+                                test.get("processing_fn")(msg, test, process_report_mock)
 
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
