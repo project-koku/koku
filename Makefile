@@ -64,10 +64,10 @@ help:
 	@echo "  get-release-commit                    show the latest commit that is safe to release"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
-	@echo "  clear-trino                           Remove stale files/subdirectories from the trino data directory."
-	@echo "  clear-trino-data                      Remove old trino data from .trino/parquet_data/koku-bucket/data."
-	@echo "  clear-cache                           Flushes cache keys inside of the redis container."
+	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
+	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
+	@echo "  delete-trino-data                     Delete old trino data from .trino/parquet_data/koku-bucket/."
+	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -162,16 +162,16 @@ clean:
 lint:
 	pre-commit run --all-files
 
-clear-testing:
+delete-testing:
 	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
-clear-trino:
+delete-trino:
 	$(PREFIX) rm -fr ./.trino/
 
-clear-trino-data:
-	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data
+delete-trino-data:
+	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/**
 
-clear-cache:
+delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
 
 create-test-customer: run-migrations docker-up-koku
@@ -287,8 +287,8 @@ endif
 
 docker-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	$(PREFIX) make clear-testing
-	$(PREFIX) make clear-trino-data
+	$(PREFIX) make delete-testing
+	$(PREFIX) make delete-trino-data
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
@@ -375,22 +375,22 @@ _set-test-dir-permissions:
 	@$(PREFIX) chmod -R o+rw,g+rw ./testing
 	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
 
-docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_local_hccm.sh $(iqe_cmd)
 
-docker-iqe-smoke-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-smoke-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_smoke_tests.sh
 
 docker-iqe-smoke-tests-trino:
 	./testing/run_smoke_tests.sh
 
-docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_api_tests.sh
 
-docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-docker-trino-setup: clear-trino
+docker-trino-setup: delete-trino
 	mkdir -p -m a+rwx ./.trino
 	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
 
@@ -405,7 +405,7 @@ docker-trino-ps:
 
 docker-trino-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	make clear-trino
+	make delete-trino
 
 docker-trino-down-all: docker-trino-down docker-down
 
