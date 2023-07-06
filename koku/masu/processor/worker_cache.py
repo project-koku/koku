@@ -20,7 +20,7 @@ def create_single_task_cache_key(task_name, task_args=None):
     cache_str = task_name
     if task_args:
         cache_str += ":"
-        cache_str += ":".join(task_args)
+        cache_str += ":".join(str(task_args))
     return cache_str
 
 
