@@ -420,7 +420,14 @@ def copy_local_report_file_to_s3_bucket(
     if context is None:
         context = {}
     if s3_path:
-        LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
+        LOG.info(
+            log_json(
+                msg="copy_local_report_file_to_s3_bucket",
+                s3_path=s3_path,
+                local_filename=local_filename,
+                context=context,
+            )
+        )
         with open(full_file_path, "rb") as fin:
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
 
