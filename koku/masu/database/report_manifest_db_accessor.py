@@ -231,19 +231,20 @@ class ReportManifestDBAccessor(KokuDBAccess):
         If there is a cluster-id, we check if this manifest is for daily files. If so,
         we should clear the parquet files, otherwise we dont.
         """
-        result = False
         if not manifest:
-            return result
-        if manifest.cluster_id:
-            if manifest.operator_daily_files:
-                result = True
-            LOG.info(
-                log_json(
-                    msg=f"s3 bucket should be cleared: {result}",
-                    manifest_uuid=manifest.assembly_id,
-                    schema=self.schema,
-                )
+            return False
+        if not manifest.cluster_id:
+            return True
+        result = False
+        if manifest.operator_daily_files:
+            result = True
+        LOG.info(
+            log_json(
+                msg=f"s3 bucket should be cleared: {result}",
+                manifest_uuid=manifest.assembly_id,
+                schema=self.schema,
             )
+        )
         return result
 
     def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> bool:

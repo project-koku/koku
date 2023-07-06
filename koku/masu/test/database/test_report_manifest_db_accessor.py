@@ -215,7 +215,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         with schema_context(self.schema):
             # non-ocp manifest returns True:
             manifest = self.manifest_accessor.add(**self.manifest_dict)
-            self.assertFalse(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
+            self.assertTrue(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
 
     def test_should_s3_parquet_be_cleared_ocp_not_daily(self):
         """Test that is parquet s3 should be cleared for ocp manifest, not daily."""
