@@ -66,7 +66,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
-	@echo "  delete-trino-data                     Delete old trino data from .trino/parquet_data/koku-bucket/data."
+	@echo "  delete-trino-data                     Delete old trino data from .trino/parquet_data/koku-bucket/."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
