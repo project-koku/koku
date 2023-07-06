@@ -97,9 +97,9 @@
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
