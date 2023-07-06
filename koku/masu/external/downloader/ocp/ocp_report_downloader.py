@@ -78,7 +78,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
     """
     if context is None:
         context = {}
-    daily_file_names = {}
+    daily_file_names = []
     daily_files = divide_csv_daily(filepath)
     for daily_file in daily_files:
         # Push to S3
