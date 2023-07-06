@@ -261,6 +261,10 @@ class TestCeleryTasks(MasuTestCase):
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
         _, polling_accounts = Orchestrator.get_accounts()
+        providers = Provider.objects.all()
+        for provider in providers:
+            provider.polling_timestamp = None
+            provider.save()
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
