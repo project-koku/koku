@@ -139,7 +139,7 @@ class Provider(models.Model):
     setup_complete = models.BooleanField(default=False)
 
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    polling_timestamp = models.DateTimeField(blank=True, null=True)
+    polling_timestamp = models.DateTimeField(blank=True, null=True, default=None)
 
     # We update the record on the provider when we update data.
     # This helps capture events like the updates following a cost model
