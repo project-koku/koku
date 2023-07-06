@@ -27,9 +27,10 @@ class ReportStatsDBAccessor(KokuDBAccess):
         self._table = CostUsageReportStatus
 
         if manifest_id and self.does_db_entry_exist() is False:
-            update_fields = {}
-            update_fields["report_name"] = self._report_name
-            update_fields["manifest_id"] = self._manifest_id
+            update_fields = {
+                "report_name": self._report_name,
+                "manifest_id": self._manifest_id,
+            }
             self.add(**update_fields)
 
         self._obj = self._get_db_obj_query().first()

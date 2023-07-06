@@ -153,6 +153,7 @@ def process_cr(report: utils.ReportDetails):
         "cluster_channel": None,
         "cluster_id": report.cluster_id,
         "operator_errors": None,
+        "operator_daily_files": report.daily_reports,
     }
     if cr_status := report.cr_status:
         manifest_info["cluster_channel"] = cr_status.get("clusterVersion")

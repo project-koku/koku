@@ -40,7 +40,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         query = self._get_db_obj_query()
         return query.filter(provider_id=provider_uuid).filter(assembly_id=assembly_id).first()
 
-    def get_manifest_by_id(self, manifest_id):
+    def get_manifest_by_id(self, manifest_id) -> CostUsageReportManifest:
         """Get the manifest by id."""
         with schema_context(self._schema):
             query = self._get_db_obj_query()
@@ -216,27 +216,37 @@ class ReportManifestDBAccessor(KokuDBAccess):
             expired_date,
         )
 
-    def get_s3_csv_cleared(self, manifest):
+    def get_s3_csv_cleared(self, manifest: CostUsageReportManifest) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
         s3_csv_cleared = False
         if manifest:
             s3_csv_cleared = manifest.s3_csv_cleared
         return s3_csv_cleared
 
-    def mark_s3_csv_cleared(self, manifest):
+    def mark_s3_csv_cleared(self, manifest: CostUsageReportManifest) -> None:
         """Mark CSV files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_csv_cleared = True
             manifest.save()
 
-    def get_s3_parquet_cleared(self, manifest):
+    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
         s3_parquet_cleared = False
         if manifest:
             s3_parquet_cleared = manifest.s3_parquet_cleared
+            if manifest.cluster_id and not manifest.operator_daily_files:
+                # OCP specific - if the operator is not sending daily files, do not clear s3
+                s3_parquet_cleared = False
+            LOG.info(
+                log_json(
+                    msg=f"s3 bucket should be cleared: {s3_parquet_cleared}",
+                    manifest_uuid=manifest.assembly_id,
+                    schema=self.schema,
+                )
+            )
         return s3_parquet_cleared
 
-    def mark_s3_parquet_cleared(self, manifest):
+    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> None:
         """Mark Parquet files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_parquet_cleared = True

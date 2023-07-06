@@ -51,6 +51,7 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -237,7 +238,9 @@ def handle_ros_payload(kmsg: KafkaValue, report: utils.ReportDetails, subdirecto
         LOG.warning(log_json(report.tracing_id, msg=msg, context=context), exc_info=e)
 
 
-def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union[list, None]:  # noqa: C901
+def extract_payload_and_copy_csv_to_s3(
+    kmsg: KafkaValue, context: dict
+) -> Union[list[utils.ReportDetails], None]:  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -350,14 +353,9 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
             LOG.info(
                 log_json(
                     current_report.tracing_id,
-                    msg="successfully extracted report file",
+                    msg="successfully extracted report file - creating daily archive",
                     context=context,
                     report_file=report_file,
-                )
-            )
-            LOG.info(
-                log_json(
-                    current_report.tracing_id, msg="creating daily archive", context=context, report_file=report_file
                 )
             )
             create_daily_archives(
@@ -586,6 +584,7 @@ def process_report(report: utils.ReportDetails) -> bool:
         "provider_type": "OCP",
         "start_date": report.date,
         "create_table": True,
+        "ocp_daily_files": report.daily_reports,
     }
     try:
         return _process_report_file(report.schema, report.provider_type, report_dict)
@@ -643,6 +642,12 @@ def process_messages(msg: str):
 
     if reports:
         for report in reports:
+            if (
+                report.daily_reports
+                and len(report.files) != CostUsageReportStatus.objects.filter(manifest_id=report.manifest_id).count()
+            ):
+                # we have not received all of the daily  files yet, so don't process them
+                break
             # Maybe for daily report files, we DONT immediately do this step
             # Maybe we confirm we've sent all files to s3, THEN process the files
             # If these are daily operator files, wipe the s3 bucket here:

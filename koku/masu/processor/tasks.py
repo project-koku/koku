@@ -150,10 +150,10 @@ def record_report_status(manifest_id, file_name, tracing_id, context=None):
     with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
         already_processed = db_accessor.get_last_completed_datetime()
         if already_processed:
-            msg = f"Report {file_name} has already been processed."
+            msg = "file has already been processed"
         else:
-            msg = f"Recording stats entry for {file_name}"
-        LOG.info(log_json(tracing_id, msg=msg, context=context))
+            msg = "created report status entry for file"
+        LOG.info(log_json(tracing_id, msg=msg, context=context, file_name=file_name))
     return already_processed
 
 
