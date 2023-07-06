@@ -360,7 +360,7 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
                     current_report.tracing_id, msg="creating daily archive", context=context, report_file=report_file
                 )
             )
-            file_dict, _ = create_daily_archives(
+            create_daily_archives(
                 current_report.tracing_id,
                 current_report.account,
                 current_report.provider_uuid,
@@ -368,7 +368,6 @@ def extract_payload_and_copy_csv_to_s3(kmsg: KafkaValue, context: dict) -> Union
                 current_report.manifest_id,
                 context,
             )
-            current_report.date = file_dict[current_report.current_file]
             reports.append(current_report)
         except FileNotFoundError:
             LOG.debug(

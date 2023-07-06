@@ -80,7 +80,6 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
         context = {}
     daily_file_names = {}
     daily_files = divide_csv_daily(filepath)
-    dates = []
     for daily_file in daily_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
@@ -94,9 +93,8 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
             manifest_id,
             context,
         )
-        daily_file_names[daily_file.get("filepath")] = daily_file.get("date")
-        dates.append(daily_file.get("date"))
-    return daily_file_names, dates
+        daily_file_names.append(daily_file.get("filepath"))
+    return daily_file_names
 
 
 def process_cr(report: utils.ReportDetails):
@@ -289,7 +287,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names, dates = create_daily_archives(
+        file_names = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -297,8 +295,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_id,
             self.context,
         )
-        date_range = {"start": min(dates), "end": max(dates)}
-        return full_file_path, ocp_etag, file_creation_date, list(file_names.keys()), date_range
+        return full_file_path, ocp_etag, file_creation_date, file_names, {}
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""
