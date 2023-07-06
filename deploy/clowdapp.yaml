@@ -3963,10 +3963,10 @@ parameters:
 - displayName: Initial ingest override
   name: INITIAL_INGEST_OVERRIDE
   value: "False"
-- displayName: Initial ingest override
+- displayName: Timer between provider polling
   name: POLLING_TIMER
   value: "86400"
-- displayName: Initial ingest override
+- displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
 - displayName: Kafka connect
