@@ -13,7 +13,7 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS
         AND li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
-        AND li.pod_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys WHERE enabled=true)
+        AND li.pod_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_enabledtagkeys WHERE enabled=true AND provider_type='OCP')
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ;
 
@@ -30,9 +30,10 @@ create table {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} AS
         namespace,
         node
     FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} tv
-    JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys etk
+    JOIN {{schema | sqlsafe}}.reporting_enabledtagkeys etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
+        AND etk.provider_type = 'OCP'
     GROUP BY tv.key, report_period_id, namespace, node
 ;
 
@@ -95,9 +96,10 @@ WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
     WHERE EXISTS (
         SELECT 1
-        FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS etk
+        FROM {{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
         WHERE etk.enabled = false
             AND ls.key = etk.key
+            AND etk.provider_type = 'OCP'
     )
     ORDER BY ls.uuid
     FOR UPDATE

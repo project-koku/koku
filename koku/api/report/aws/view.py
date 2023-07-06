@@ -9,7 +9,6 @@ from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import AWSQueryParamSerializer
 from api.report.view import ReportView
-from reporting.provider.aws.models import AWSEnabledTagKeys
 
 
 class AWSView(ReportView):
@@ -19,7 +18,6 @@ class AWSView(ReportView):
     provider = Provider.PROVIDER_AWS
     serializer = AWSQueryParamSerializer
     query_handler = AWSReportQueryHandler
-    tag_handler = [AWSEnabledTagKeys]
     tag_providers = [Provider.PROVIDER_AWS]
 
 

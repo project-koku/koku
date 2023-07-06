@@ -9,7 +9,7 @@ from dateutil.parser import ParserError
 from masu.util.common import create_enabled_keys
 from masu.util.common import safe_float
 from masu.util.ocp.common import OCP_REPORT_TYPES
-from reporting.provider.ocp.models import OCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -162,4 +162,4 @@ class OCPPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, OCPEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_keys(self.schema, EnabledTagKeys, self.enabled_tag_keys, "OCP")

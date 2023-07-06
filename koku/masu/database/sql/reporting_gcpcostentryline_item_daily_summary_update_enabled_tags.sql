@@ -1,8 +1,9 @@
 -- update gcp tags leaving only enabled keys
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
-      from {{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+      from {{schema | sqlsafe}}.reporting_enabledtagkeys
       where enabled = false
+      and provider_type = 'GCP'
 )
 update {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary as lids
    set tags = tags - ek.keys

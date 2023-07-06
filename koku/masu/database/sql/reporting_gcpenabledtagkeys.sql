@@ -1,5 +1,8 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_gcpenabledtagkeys (key)
-SELECT DISTINCT(key)
+INSERT INTO {{schema | sqlsafe}}.reporting_enabledtagkeys (uuid, key, enabled, provider_type)
+SELECT uuid_generate_v4() as uuid,
+    key,
+    true as enabled,
+    'GCP' as provider_type
   FROM reporting_gcpcostentrylineitem_daily_summary as lids,
        jsonb_each_text(lids.tags) labels
  WHERE lids.usage_start >= date({{start_date}})
@@ -9,11 +12,13 @@ SELECT DISTINCT(key)
    {% endif %}
    AND NOT EXISTS (
          SELECT key
-           FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+           FROM {{schema | sqlsafe}}.reporting_enabledtagkeys
           WHERE key = labels.key
+            AND provider_type = 'GCP'
        )
    AND NOT key = ANY(
          SELECT DISTINCT(key)
            FROM {{schema | sqlsafe}}.reporting_gcptags_summary
        )
-    ON CONFLICT (key) DO NOTHING;
+    GROUP BY key
+    ON CONFLICT (key, provider_type) DO NOTHING;

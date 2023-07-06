@@ -17,6 +17,5 @@ class AWSOrgView(OrganizationView):
     query_handler = AWSOrgQueryHandler
     serializer = AWSOrgQueryParamSerializer
     report = "organizations"
-    tag_handler = []
     tag_providers = []
     permission_classes = [AWSOUAccessPermission]

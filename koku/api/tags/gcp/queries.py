@@ -12,7 +12,7 @@ from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import GCPTagsSummary
-from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.gcp.models import GCPTagsValues
 
 
@@ -20,7 +20,7 @@ class GCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for GCP."""
 
     provider = Provider.PROVIDER_GCP
-    enabled = GCPEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = EnabledTagKeys.objects.filter(provider_type="GCP").filter(key=OuterRef("key")).filter(enabled=True)
     data_sources = [
         {
             "db_table": GCPTagsSummary,

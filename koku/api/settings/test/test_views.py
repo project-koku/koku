@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import OCPAWSTagsSummary
-from reporting.models import OCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 
 class SettingsViewTest(IamTestCase):
@@ -94,7 +94,7 @@ class SettingsViewTest(IamTestCase):
         with schema_context(self.schema_name):
             tags = OCPAWSTagsSummary.objects.distinct("key").values_list("key", flat=True)
             aws_list = [f"aws-{tag}" for tag in tags]
-            tags = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)
+            tags = EnabledTagKeys.objects.filter(provider_type="OCP").distinct("key").values_list("key", flat=True)
             ocp_list = [f"openshift-{tag}" for tag in tags]
             keys_list = aws_list + ocp_list
             max_idx = len(keys_list)

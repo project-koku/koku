@@ -12,7 +12,7 @@ from pandas import DataFrame
 
 from masu.test import MasuTestCase
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
-from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 
 class TestGCPPostProcessor(MasuTestCase):
@@ -362,5 +362,7 @@ class TestGCPPostProcessor(MasuTestCase):
         self.post_processor.finalize_post_processing()
 
         with schema_context(self.schema):
-            tag_key_count = GCPEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            tag_key_count = (
+                EnabledTagKeys.objects.filter(provider_type="GCP").filter(key__in=expected_tag_keys).count()
+            )
             self.assertEqual(tag_key_count, len(expected_tag_keys))

@@ -21,7 +21,7 @@ from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
-from reporting.provider.ocp.models import OCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 
 class TestOCPCloudParquetReportProcessor(MasuTestCase):
@@ -139,7 +139,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_has_enabled_ocp_labels(self):
         """Test that we return whether there are enabled labels"""
         with schema_context(self.schema_name):
-            expected = OCPEnabledTagKeys.objects.exists()
+            expected = EnabledTagKeys.objects.filter(provider_type="OCP").exists()
 
         self.assertEqual(self.report_processor.has_enabled_ocp_labels, expected)
 

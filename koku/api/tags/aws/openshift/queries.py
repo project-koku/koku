@@ -16,7 +16,6 @@ from api.tags.queries import TagQueryHandler
 from reporting.models import OCPAWSTagsSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
-from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
@@ -38,7 +37,11 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         {
             "db_table": OCPAWSTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"enabled": Exists(OCPEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+            "annotations": {
+                "enabled": Exists(
+                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key=OuterRef("key"))
+                )
+            },
         },
     ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPAWSTagsValues, "fields": ["key"]}]

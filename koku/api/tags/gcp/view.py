@@ -8,7 +8,6 @@ from api.provider.models import Provider
 from api.tags.gcp.queries import GCPTagQueryHandler
 from api.tags.gcp.serializers import GCPTagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.provider.gcp.models import GCPEnabledTagKeys
 
 
 class GCPTagView(TagView):
@@ -17,6 +16,5 @@ class GCPTagView(TagView):
     provider = "gcp"
     serializer = GCPTagsQueryParamSerializer
     query_handler = GCPTagQueryHandler
-    tag_handler = [GCPEnabledTagKeys]
     tag_providers = [Provider.PROVIDER_GCP]
     permission_classes = [GcpAccessPermission]

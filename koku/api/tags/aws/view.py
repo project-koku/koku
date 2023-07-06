@@ -8,7 +8,6 @@ from api.provider.models import Provider
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.serializers import AWSTagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.provider.aws.models import AWSEnabledTagKeys
 
 
 class AWSTagView(TagView):
@@ -17,6 +16,5 @@ class AWSTagView(TagView):
     provider = "aws"
     serializer = AWSTagsQueryParamSerializer
     query_handler = AWSTagQueryHandler
-    tag_handler = [AWSEnabledTagKeys]
     tag_providers = [Provider.PROVIDER_AWS]
     permission_classes = [AwsAccessPermission]

@@ -411,9 +411,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
 
             bill_ids = [bill.id for bill in bills]
-            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS), 0)
+            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).count(), 0)
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS), 0)
+            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).count(), 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""

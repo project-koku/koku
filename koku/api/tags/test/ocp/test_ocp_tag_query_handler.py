@@ -13,10 +13,10 @@ from api.query_filter import QueryFilterCollection
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
-from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 
 
@@ -242,7 +242,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            enabled = list(OCPEnabledTagKeys.objects.values_list("key", flat=True).all())
+            enabled = list(EnabledTagKeys.objects.filter(provider_type="OCP").values_list("key", flat=True).all())
             tag_keys = [tag for tag in storage_tag_keys if tag in enabled]
 
         result = handler.get_tag_keys()

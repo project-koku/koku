@@ -24,8 +24,8 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.util.azure.common import get_bills_from_provider
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureTagsSummary
 
 
@@ -277,11 +277,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
         with schema_context(self.schema):
             AzureTagsSummary.objects.all().delete()
-            AzureEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type="Azure").delete()
             bill_ids = [bill.id for bill in bills]
-            self.assertEqual(AzureEnabledTagKeys.objects.count(), 0)
+            self.assertEqual(EnabledTagKeys.objects.filter(provider_type="Azure").count(), 0)
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(AzureEnabledTagKeys.objects.count(), 0)
+            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type="Azure").count(), 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
@@ -292,9 +292,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
         with schema_context(self.schema):
             AzureTagsSummary.objects.all().delete()
-            key_to_keep = AzureEnabledTagKeys.objects.filter(key="app").first()
-            AzureEnabledTagKeys.objects.all().update(enabled=False)
-            AzureEnabledTagKeys.objects.filter(key="app").update(enabled=True)
+            key_to_keep = EnabledTagKeys.objects.filter(provider_type="Azure").filter(key="app").first()
+            EnabledTagKeys.objects.filter(provider_type="Azure").update(enabled=False)
+            EnabledTagKeys.objects.filter(provider_type="Azure").filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (
@@ -397,7 +397,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
-            AzureEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type="Azure").delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 

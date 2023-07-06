@@ -12,7 +12,7 @@ from pandas import DataFrame
 
 from masu.test import MasuTestCase
 from masu.util.oci.oci_post_processor import OCIPostProcessor
-from reporting.provider.oci.models import OCIEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 
@@ -289,7 +289,9 @@ class TestOCIPostProcessor(MasuTestCase):
         self.post_processor.finalize_post_processing()
 
         with schema_context(self.schema):
-            tag_key_count = OCIEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            tag_key_count = (
+                EnabledTagKeys.objects.filter(provider_type="OCI").filter(key__in=expected_tag_keys).count()
+            )
             self.assertEqual(tag_key_count, len(expected_tag_keys))
 
     def test_get_column_converters(self):

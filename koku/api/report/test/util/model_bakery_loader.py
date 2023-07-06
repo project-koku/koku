@@ -85,7 +85,6 @@ class ModelBakeryDataLoader(DataLoader):
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
 
-        # for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys", "AzureEnabledTagKeys"):
         for provider_type in (
             Provider.PROVIDER_AWS,
             Provider.PROVIDER_GCP,

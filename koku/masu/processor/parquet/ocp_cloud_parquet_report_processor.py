@@ -27,7 +27,7 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
-from reporting.provider.ocp.models import OCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def has_enabled_ocp_labels(self):
         """Return whether we have enabled OCP labels."""
         with schema_context(self.schema_name):
-            return OCPEnabledTagKeys.objects.exists()
+            return EnabledTagKeys.objects.filter(provider_type="OCP").exists()
 
     def get_report_period_id(self, ocp_provider_uuid):
         """Return the OpenShift report period ID."""

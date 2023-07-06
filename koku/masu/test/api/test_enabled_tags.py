@@ -22,11 +22,11 @@ class EnabledTagsTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         cls.provider_type_to_table = {
-            Provider.PROVIDER_AWS.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROIVDER_AWS),
-            Provider.PROVIDER_AZURE.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROIVDER_AZURE),
-            Provider.PROVIDER_GCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROIVDER_GCP),
-            Provider.PROVIDER_OCI.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROIVDER_OCI),
-            Provider.PROVIDER_OCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROIVDER_OCP),
+            Provider.PROVIDER_AWS.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS),
+            Provider.PROVIDER_AZURE.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE),
+            Provider.PROVIDER_GCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP),
+            Provider.PROVIDER_OCI.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI),
+            Provider.PROVIDER_OCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP),
         }
 
         cls.provider_type_options = set(cls.provider_type_to_table.keys())
@@ -37,8 +37,10 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_objects = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
+                    enabled_table_objects = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    )
                     expected_keys = enabled_table_objects.filter(enabled=True).values_list("key")
                     expected_keys = [key[0] for key in expected_keys]
 
@@ -68,8 +70,10 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_objects = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
+                    enabled_table_objects = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    )
                     enabled_table_objects.delete()
 
                 post_data = {
@@ -90,8 +94,10 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_objects = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
+                    enabled_table_objects = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    )
                     keys = enabled_table_objects.values_list("key")
                     keys = [key[0] for key in keys]
                     print(keys)
@@ -118,9 +124,10 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_objects = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
-                    keys = enabled_table_objects.values_list("key")
+                    keys = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    ).values_list("key")
                     keys = [key[0] for key in keys]
                     print(keys)
 
