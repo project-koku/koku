@@ -106,6 +106,9 @@ class CURAccountsDBTest(MasuTestCase):
             first.active = test["active"]
             first.paused = test["paused"]
             first.save()
+            for provider in providers:
+                provider.polling_timestamp = None
+                provider.save()
             accounts = CURAccountsDB().get_accounts_from_source()
             self.assertEqual(len(accounts), test["expected"])
 
