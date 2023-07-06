@@ -223,21 +223,34 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.s3_csv_cleared = True
             manifest.save()
 
+    def should_s3_parquet_be_cleared(self, manifest: CostUsageReportManifest) -> bool:
+        """
+        Determine if the s3 parquet files should be removed.
+
+        This is only used for OCP manifests which we can track via the cluster-id.
+        If there is a cluster-id, we check if this manifest is for daily files. If so,
+        we should clear the parquet files, otherwise we dont.
+        """
+        result = False
+        if not manifest:
+            return result
+        if manifest.cluster_id:
+            if manifest.operator_daily_files:
+                result = True
+            LOG.info(
+                log_json(
+                    msg=f"s3 bucket should be cleared: {result}",
+                    manifest_uuid=manifest.assembly_id,
+                    schema=self.schema,
+                )
+            )
+        return result
+
     def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
         s3_parquet_cleared = False
         if manifest:
             s3_parquet_cleared = manifest.s3_parquet_cleared
-            if manifest.cluster_id and not manifest.operator_daily_files:
-                # OCP specific - if the operator is not sending daily files, do not clear s3
-                s3_parquet_cleared = False
-            LOG.info(
-                log_json(
-                    msg=f"s3 bucket should be cleared: {s3_parquet_cleared}",
-                    manifest_uuid=manifest.assembly_id,
-                    schema=self.schema,
-                )
-            )
         return s3_parquet_cleared
 
     def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> None:
