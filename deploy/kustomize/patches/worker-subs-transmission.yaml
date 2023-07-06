@@ -150,7 +150,7 @@
     displayName: Minimum replicas
     name: WORKER_SUBS_TRANSMISSION_REPLICAS
     required: true
-    value: "1"
+    value: "0"
 - op: add
   path: /parameters/-
   value:

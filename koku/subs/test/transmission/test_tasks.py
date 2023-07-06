@@ -39,7 +39,7 @@ class TestSUBSTasks(SUBSTestCase):
 
     @patch("subs.transmission.tasks.enable_subs_processing")
     def test_collect_subs_transmission_report_data_processing_enabled(self, mock_enable_subs_process):
-        """Test collect_subs_report_data function"""
+        """Test collect_subs_report_data function with subs processing enabled."""
 
         mock_enable_subs_process.return_value = True
         with self.assertLogs("subs.transmission.tasks", "INFO") as _logs:
@@ -53,12 +53,10 @@ class TestSUBSTasks(SUBSTestCase):
             )
 
             self.assertIn("collecting subs report data", _logs.output[0])
-        # TODO: Add any additional assertions
-        # to test the behavior of the collect_subs_report_data function.
 
     @patch("subs.transmission.tasks.enable_subs_processing")
     def test_collect_subs_report_data_processing_disabled(self, mock_enable_subs_process):
-        """Test collect_subs_report_data function"""
+        """Test collect_subs_report_data function with subs processing disabled."""
 
         mock_enable_subs_process.return_value = False
 
@@ -73,4 +71,3 @@ class TestSUBSTasks(SUBSTestCase):
             )
 
             self.assertIn("skipping subs report generation for transmission", _logs.output[0])
-        # TODO: Add any additional assertions
