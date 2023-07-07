@@ -6,6 +6,7 @@
 import logging
 
 from api.common import log_json
+from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
@@ -57,7 +58,7 @@ class CURAccountsDB(CURAccountsInterface):
             provider.save()
         return True
 
-    def get_accounts_from_source(self, provider_uuid=None, provider_type=None):
+    def get_accounts_from_source(self, provider_uuid=None, provider_type=None, scheduled=False):
         """
         Retrieve all accounts from the Koku database.
 
@@ -78,7 +79,7 @@ class CURAccountsDB(CURAccountsInterface):
                 LOG.info(log_json(msg="provider does not exist", provider_uuid=provider_uuid))
                 return []
             elif provider_uuid and provider:
-                if self.is_source_pollable(provider, provider_uuid=provider_uuid):
+                if self.is_source_pollable(provider, provider_uuid):
                     return [self.get_account_information(provider)]
                 return []
 
@@ -89,6 +90,8 @@ class CURAccountsDB(CURAccountsInterface):
             )
 
             for _, provider in all_providers.items():
+                if scheduled and provider.type == Provider.PROVIDER_OCP:
+                    continue
                 if provider_type and provider_type not in provider.type:
                     continue
                 if self.is_source_pollable(provider):
