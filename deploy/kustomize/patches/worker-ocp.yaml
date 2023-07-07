@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-ocp
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{WORKER_OCP_REPLICAS}}
     webServices:
       public:
@@ -83,9 +86,9 @@
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT

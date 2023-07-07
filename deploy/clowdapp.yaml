@@ -412,7 +412,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-masu
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently it supports only internal administrative api
+      name: clowder-masu
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -505,9 +509,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
@@ -603,7 +607,15 @@ objects:
           enabled: true
         public:
           enabled: false
-    - name: clowder-scheduler
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently scheduling is a singleton
+          ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery
+            beat which does not easily support liveness checks
+          ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery
+            beat which does not easily support readiness checks
+      name: clowder-scheduler
       podSpec:
         command:
         - /bin/bash
@@ -686,9 +698,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -770,7 +782,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-sources-client
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-sources-client
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -938,7 +954,12 @@ objects:
           enabled: true
         public:
           enabled: false
-    - name: clowder-sources-listener
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently sources integration requires in order message handling,
+            which can fail with multiple consumers due to race conditions
+      name: clowder-sources-listener
       podSpec:
         command:
         - /bin/bash
@@ -1109,7 +1130,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-celery
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-celery
       podSpec:
         command:
         - /bin/bash
@@ -1180,9 +1205,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1286,7 +1311,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-cost-model
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-cost-model
       podSpec:
         command:
         - /bin/bash
@@ -1357,9 +1386,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1465,7 +1494,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-cost-model-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-cost-model-xl
       podSpec:
         command:
         - /bin/bash
@@ -1536,9 +1569,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1644,7 +1677,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-download
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-download
       podSpec:
         command:
         - /bin/bash
@@ -1715,9 +1752,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1821,7 +1858,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-download-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-download-xl
       podSpec:
         command:
         - /bin/bash
@@ -1892,9 +1933,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1998,7 +2039,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-ocp
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-ocp
       podSpec:
         command:
         - /bin/bash
@@ -2069,9 +2114,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2177,7 +2222,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-ocp-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-ocp-xl
       podSpec:
         command:
         - /bin/bash
@@ -2248,9 +2297,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2356,7 +2405,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-priority
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-priority
       podSpec:
         command:
         - /bin/bash
@@ -2427,9 +2480,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2533,7 +2586,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-priority-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-priority-xl
       podSpec:
         command:
         - /bin/bash
@@ -2604,9 +2661,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2710,7 +2767,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-refresh
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-refresh
       podSpec:
         command:
         - /bin/bash
@@ -2781,9 +2842,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2889,7 +2950,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-refresh-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-refresh-xl
       podSpec:
         command:
         - /bin/bash
@@ -2960,9 +3025,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3068,7 +3133,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-summary
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-summary
       podSpec:
         command:
         - /bin/bash
@@ -3139,9 +3208,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3247,7 +3316,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-summary-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-summary-xl
       podSpec:
         command:
         - /bin/bash
@@ -3318,9 +3391,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3426,7 +3499,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-hcs
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-hcs
       podSpec:
         command:
         - /bin/bash
@@ -3499,9 +3576,9 @@ objects:
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
-          value: "86400"
+          value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
-          value: "100"
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3963,10 +4040,10 @@ parameters:
 - displayName: Initial ingest override
   name: INITIAL_INGEST_OVERRIDE
   value: "False"
-- displayName: Initial ingest override
+- displayName: Timer between provider polling
   name: POLLING_TIMER
   value: "86400"
-- displayName: Initial ingest override
+- displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
 - displayName: Kafka connect
