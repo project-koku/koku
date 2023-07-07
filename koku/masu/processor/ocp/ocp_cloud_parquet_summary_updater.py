@@ -14,7 +14,6 @@ from django_tenants.utils import schema_context
 from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
-from api.provider.provider_manager import ProviderManager
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -174,11 +173,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         """
         if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            # Do not attempt any processing if there is no available data
-            manager = ProviderManager(infra_provider_uuid)
-            if not manager.get_current_month_data_exists():
-                return
-
             self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
         elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
@@ -230,6 +224,10 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
+        if not aws_bills:
+            # Without bill data, we cannot populate the summary table
+            return
+
         with schema_context(self._schema):
             self._handle_partitions(
                 self._schema,
