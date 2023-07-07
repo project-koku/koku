@@ -259,10 +259,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
             return
         if manifest.cluster_id:
             manifest.s3_parquet_cleared_tracker[report_type] = True
-            manifest.save()
-            return
-
-        manifest.s3_parquet_cleared = True
+        else:
+            manifest.s3_parquet_cleared = True
         manifest.save()
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):

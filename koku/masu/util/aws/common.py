@@ -462,48 +462,58 @@ def copy_local_hcs_report_file_to_s3_bucket(
             copy_hcs_data_to_s3_bucket(request_id, s3_path, local_filename, fin, finalize, context)
 
 
-def equal(val1, val2):
-    return val1 == val2
+def _get_s3_objects(s3_path):
+    s3_resource = get_s3_resource()
+    return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def not_equal(val1, val2):
-    return val1 != val2
-
-
-def get_comparison_fn(name):
-    return equal if name == "equal" else not_equal
-
-
-def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, *, manifest_id=None, metadata_kv=None, context=None):
-    """
-    Removes all files in a given prefix if they are not within the given set.
-    """
+def remove_s3_objects_matching_metadata(
+    request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
+):
     if not s3_path:
         return []
+
     if context is None:
         context = {}
 
-    if manifest_id:
-        metadata_key = "manifestid"
-        metadata_value_check = manifest_id
-        comparison_fn = not_equal
-    elif metadata_kv:
-        metadata_key, metadata_value_check, comparison_name = metadata_kv
-        comparison_fn = get_comparison_fn(comparison_name)
-    else:
-        raise ValueError("one of manifest_id or metadata_kv are required")
+    existing_objects = _get_s3_objects(s3_path)
+    keys_to_delete = []
+    for obj_summary in existing_objects:
+        existing_object = obj_summary.Object()
+        metadata_value = existing_object.metadata.get(metadata_key)
+        if metadata_value != metadata_value_check:
+            keys_to_delete.append(existing_object.key)
 
+    _delete_s3_objects(request_id, keys_to_delete, context)
+
+
+def remove_s3_objects_not_matching_metadata(
+    request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
+):
+    if not s3_path:
+        return []
+
+    if context is None:
+        context = {}
+
+    existing_objects = _get_s3_objects(s3_path)
+    keys_to_delete = []
+    for obj_summary in existing_objects:
+        existing_object = obj_summary.Object()
+        metadata_value = existing_object.metadata.get(metadata_key)
+        if metadata_value == metadata_value_check:
+            keys_to_delete.append(existing_object.key)
+
+    _delete_s3_objects(request_id, keys_to_delete, context)
+
+
+def _delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
     removed = []
     try:
         s3_resource = get_s3_resource()
-        existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
-        for obj_summary in existing_objects:
-            existing_object = obj_summary.Object()
-            metadata_value = existing_object.metadata.get(metadata_key)
-            key = existing_object.key
-            if comparison_fn(metadata_value, metadata_value_check):
-                s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
-                removed.append(key)
+        for key in keys_to_delete:
+            s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+            removed.append(key)
         if removed:
             LOG.info(
                 log_json(
@@ -522,6 +532,17 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, *, manifest_id=N
             exc_info=err,
         )
     return removed
+
+
+def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):
+    """
+    Removes all files in a given prefix if they are not within the given set.
+
+    This function should be deprecated and replaced with `remove_s3_objects_not_matching_metadata`.
+    """
+    return remove_s3_objects_not_matching_metadata(
+        request_id, s3_path, metadata_key="manifestid", metadata_value_check=manifest_id, context=context
+    )
 
 
 def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):

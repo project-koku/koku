@@ -26,7 +26,8 @@ from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import copy_data_to_s3_bucket
-from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.aws.common import remove_s3_objects_matching_metadata
+from masu.util.aws.common import remove_s3_objects_not_matching_metadata
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -123,7 +124,7 @@ class ParquetReportProcessor:
     @property
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
-        return self._context.get("split_files") if self._context.get("split_files") else [self._report_file]
+        return self._context.get("split_files") or [self._report_file]
 
     @property
     def error_context(self):
@@ -249,6 +250,14 @@ class ParquetReportProcessor:
         Path(local_path).mkdir(parents=True, exist_ok=True)
         return local_path
 
+    @property
+    def parquet_file_deleter(self):
+        return (
+            remove_s3_objects_matching_metadata
+            if self.provider_type == Provider.PROVIDER_OCP
+            else remove_s3_objects_not_matching_metadata
+        )
+
     def _set_post_processor(self):
         """Post processor based on provider type."""
         post_processor = None
@@ -338,17 +347,26 @@ class ParquetReportProcessor:
                 Provider.PROVIDER_OCI_LOCAL,
             )
         ):
-            metadata_key = self.get_metadata_key()
-            remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_path_s3, metadata_kv=metadata_key, context=self.error_context
+            metadata_key, metadata_value = self.get_metadata_key()
+            self.parquet_file_deleter(
+                self.tracing_id,
+                self.parquet_path_s3,
+                metadata_key=metadata_key,
+                metadata_value_check=metadata_value,
+                context=self.error_context,
             )
-            remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_daily_path_s3, metadata_kv=metadata_key, context=self.error_context
+            self.parquet_file_deleter(
+                self.tracing_id,
+                self.parquet_daily_path_s3,
+                metadata_key=metadata_key,
+                metadata_value_check=metadata_value,
+                context=self.error_context,
             )
-            remove_files_not_in_set_from_s3_bucket(
+            self.parquet_file_deleter(
                 self.tracing_id,
                 self.parquet_ocp_on_cloud_path_s3,
-                metadata_kv=metadata_key,
+                metadata_key=metadata_key,
+                metadata_value_check=metadata_value,
                 context=self.error_context,
             )
             manifest_accessor.mark_s3_parquet_cleared(manifest, self.report_type)
@@ -541,9 +559,9 @@ class ParquetReportProcessor:
         return metadata
 
     def get_metadata_key(self) -> tuple[str, str]:
-        metadata_key = ("manifestid", str(self.manifest_id), "not_equal")
+        metadata_key = ("manifestid", str(self.manifest_id))
         if self._provider_type == Provider.PROVIDER_OCP:
-            metadata_key = ("reportdate", self.start_date.strftime("%Y-%m-%d"), "equal")
+            metadata_key = ("reportdate", self.start_date.strftime("%Y-%m-%d"))
         return metadata_key
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):

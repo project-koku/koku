@@ -274,7 +274,9 @@ class Orchestrator:
                     if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
                 elif provider_type == Provider.PROVIDER_OCP:
-                    # set the report month to the start-date of the payload
+                    # The report month is used in the metadata of OCP files in s3.
+                    # Setting the report_month to the start date allows us to
+                    # delete the correct data for daily operator files
                     report_month = manifest.get("start")
                 # add the tracing id to the report context
                 # This defaults to the celery queue
