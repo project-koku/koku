@@ -28,7 +28,7 @@ def download_report(request):
     provider_uuid = params.get("provider_uuid")
     provider_type = params.get("provider_type")
     bill_date = params.get("bill_date")
-    scheduled = params.get("scheduled", "true").lower()
+    scheduled = params.get("scheduled", "false").lower()
     scheduled = True if scheduled == "true" else False
     summarize_reports = params.get("summarize_reports", "true").lower()
     summarize_reports = True if summarize_reports == "true" else False
