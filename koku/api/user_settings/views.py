@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Settings."""
+import typing as t
 from dataclasses import dataclass
 from dataclasses import field
 
@@ -12,6 +13,7 @@ from django.views.decorators.cache import never_cache
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.exceptions import APIException
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -44,9 +46,9 @@ class SettingsInvalidFilterException(APIException):
 @dataclass
 class SettingParamsHandler:
     setting: str
-    request: object
-    get_param: object = field(init=False)
-    update_param: object = field(init=False)
+    request: Request
+    get_param: t.Callable = field(init=False)
+    update_param: t.Callable = field(init=False)
 
     def __post_init__(self):
         if self.setting in ["cost-type"]:
@@ -73,7 +75,7 @@ class SettingParamsHandler:
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def retrieve_user_settings(self):
+    def get_user_settings(self):
         users_setting = {"settings": {self.setting: self.get_param(self.request)}}
         users_setting = UserSettingSerializer(users_setting, many=False).data
         return Response(users_setting)
@@ -95,7 +97,7 @@ class AccountSettings(APIView):
             user_settings = get_account_settings(request)
         else:
             param_handler = SettingParamsHandler(kwargs["setting"], request)
-            user_settings = param_handler.retrieve_user_settings().data
+            user_settings = param_handler.get_user_settings().data
         user_settings = UserSettingSerializer(user_settings, many=False).data
         paginated = ListPaginator(user_settings, request)
         return paginated.get_paginated_response(user_settings["settings"])
