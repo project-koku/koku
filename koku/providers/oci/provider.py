@@ -33,7 +33,10 @@ def _check_cost_report_access(bucket, namespace, region):
     config = OCI_CONFIG
     config["region"] = region
     key = ProviderErrors.OCI_REGION_NOT_SUPPORTED
-    message = f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}."
+    message = (
+        f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}. "
+        "Please reach out to the Cost Management team for enabling this region."
+    )
 
     try:
         object_storage = storage_client.ObjectStorageClient(config)
