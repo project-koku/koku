@@ -20,7 +20,6 @@ from koku import settings
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.util.common import convert_account
 
 LOG = logging.getLogger(__name__)
 
@@ -38,9 +37,16 @@ HCS_ACCEPTED_PROVIDERS = (
 QUEUE_LIST = [HCS_QUEUE]
 
 
+def check_schema_name(schema_name: str) -> str:
+    if schema_name and not schema_name.startswith(("acct", "org")):
+        schema_name = f"acct{schema_name}"
+
+    return schema_name
+
+
 def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for HCS."""
-    schema_name = convert_account(schema_name)
+    schema_name = check_schema_name(schema_name)
     context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
     return bool(
@@ -173,7 +179,7 @@ def collect_hcs_report_data(
     Returns:
         None
     """
-    schema_name = convert_account(schema_name)
+    schema_name = check_schema_name(schema_name)
 
     if start_date is None:
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
@@ -219,7 +225,7 @@ def collect_hcs_report_finalization(  # noqa: C901
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    schema_name = convert_account(schema_name)
+    schema_name = check_schema_name(schema_name)
 
     if provider_type is not None and provider_uuid is not None:
         LOG.warning(
