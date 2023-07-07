@@ -1108,6 +1108,9 @@ class ReportQueryHandler(QueryHandler):
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
 
+        if self.order_field == "subscription_name":
+            group_by_value.append("subscription_name")
+
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
             query.annotate(**self.annotations)
