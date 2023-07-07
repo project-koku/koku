@@ -236,3 +236,6 @@ password: unleash4all
 ```
 
 3. After that you can run the `make clowdapp` command to generate the main `clowdapp.yaml` file.
+
+Example:
+- https://github.com/project-koku/koku/pull/4551/files
