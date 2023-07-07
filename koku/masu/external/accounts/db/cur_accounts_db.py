@@ -91,14 +91,9 @@ class CURAccountsDB(CURAccountsInterface):
             )
 
             for _, provider in all_providers.items():
-                LOG.warning(f"is provider {provider.uuid} pollable?")
                 if scheduled and provider.type == Provider.PROVIDER_OCP:
-                    LOG.warning(f"scheduled and OCP provider: {scheduled and provider.type == Provider.PROVIDER_OCP}")
                     continue
                 if provider_type and provider_type not in provider.type:
-                    LOG.warning(
-                        f"provider_type and not provider.type: {provider_type and provider_type not in provider.type}"
-                    )
                     continue
                 if self.is_source_pollable(provider):
                     if len(accounts) < Config.POLLING_BATCH_SIZE:
@@ -111,8 +106,4 @@ class CURAccountsDB(CURAccountsInterface):
                                 schema=provider.customer_id,
                             )
                         )
-                    else:
-                        LOG.warning("provider not pollable")
-                else:
-                    LOG.warning("provider not pollable")
         return accounts
