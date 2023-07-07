@@ -217,3 +217,22 @@ The default credentials for Unleash are:
 username: admin
 password: unleash4all
 ```
+
+## Add environement variable to clowder ##
+
+1. Add it the [kustomize/patches](https://github.com/project-koku/koku/tree/main/deploy/kustomize/patches) yaml file.
+
+```
+- name: TAG_ENABLED_LIMIT
+  value: ${TAG_ENABLED_LIMIT}
+```
+
+2. Then you will need to add the variable under `parameters:` in this [base.yaml](https://github.com/project-koku/koku/blob/main/deploy/kustomize/base/base.yaml) file.
+
+```
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
+```
+
+3. After that you can run the `make clowdapp` command to generate the main `clowdapp.yaml` file.
