@@ -154,7 +154,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     # deprecated permissions
     @RbacPermissions(no_access)
     def test_no_access_to_get_request(self):
-        for acct_setting in self.account_settings.keys():
+        for acct_setting in self.account_settings:
             with self.subTest(acct_setting):
                 url = self.base_url + f"{acct_setting}/"
                 client = APIClient()
@@ -163,7 +163,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
 
     @RbacPermissions(read)
     def test_read_accesss_to_get_request(self):
-        for acct_setting in self.account_settings.keys():
+        for acct_setting in self.account_settings:
             with self.subTest(acct_setting=acct_setting):
                 url = self.base_url + f"{acct_setting}/"
                 client = APIClient()
@@ -193,7 +193,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     # Deprecated permissions
     @RbacPermissions(write)
     def test_write_on_get_request(self):
-        for acct_setting in self.account_settings.keys():
+        for acct_setting in self.account_settings:
             with self.subTest(acct_setting=acct_setting):
                 url = self.base_url + f"{acct_setting}/"
                 client = APIClient()
@@ -202,7 +202,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
 
     @RbacPermissions(read_write)
     def test_read_and_write_on_get_request(self):
-        for acct_setting in self.account_settings.keys():
+        for acct_setting in self.account_settings:
             with self.subTest(acct_setting=acct_setting):
                 url = self.base_url + f"{acct_setting}/"
                 client = APIClient()
