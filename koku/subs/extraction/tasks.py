@@ -7,12 +7,9 @@ import datetime
 import logging
 import uuid
 
-from botocore.exceptions import ClientError
-
 from api.common import log_json
 from api.utils import DateHelper
 from koku import celery_app
-from koku import settings
 from masu.util.common import convert_account
 
 LOG = logging.getLogger(__name__)
@@ -26,8 +23,6 @@ QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
 @celery_app.task(
     name="subs.extraction.tasks.collect_subs_extraction_report_data",
     bind=True,
-    autoretry_for=(ClientError,),
-    max_retries=settings.MAX_UPDATE_RETRIES,
     queue=SUBS_EXTRACTION_QUEUE,
 )
 def collect_subs_extraction_report_data(
@@ -59,11 +54,11 @@ def collect_subs_extraction_report_data(
         "start_date": start_date,
         "end_date": end_date,
     }
-    # if enable_subs_processing(schema_name) and provider_type in SUBS_ACCEPTED_PROVIDERS:
-    #     LOG.info(log_json(tracing_id, msg="collecting subs report data for extraction", context=ctx))
-    #     # TODO: instantiate the ReportSUBS class and call generate_report when implemented.
-    #     # reporter = ReportSUBS(schema_name, provider_type, provider_uuid, tracing_id)
-    #     # reporter.generate_report(start_date, end_date)
 
-    # else:
-    LOG.info(log_json(tracing_id, msg="skipping subs data extraction", context=ctx))
+    # TODO: uncomment after COST-3893 is merged
+    # if not (enable_subs_processing(schema_name) and provider_type in SUBS_ACCEPTED_PROVIDERS):
+    #     LOG.info(log_json(tracing_id, msg="skipping subs data extraction", context=ctx))
+    #     return
+
+    # TODO: instantiate the ReportSUBS class and call generate_report when implemented.
+    LOG.info(log_json(tracing_id, msg="collecting subs report data for extraction", context=ctx))

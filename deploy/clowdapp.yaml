@@ -4653,7 +4653,7 @@ parameters:
 - displayName: Minimum replicas
   name: WORKER_SUBS_EXTRACT_REPLICAS
   required: true
-  value: "1"
+  value: "0"
 - displayName: Memory Request
   name: WORKER_SUBS_EXTRACT_MEMORY_REQUEST
   required: true

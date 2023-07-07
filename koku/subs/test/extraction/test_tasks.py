@@ -36,7 +36,7 @@ class TestSUBSTasks(SUBSTestCase):
             }
         ]
 
-    def test_collect_subs_extraction_report_data_processing_disabled(self):
+    def test_collect_subs_extraction_report_data_processing_enabled(self):
         """Test collect_subs_extraction_report_data function"""
 
         with self.assertLogs("subs.extraction.tasks", "INFO") as _logs:
@@ -49,5 +49,4 @@ class TestSUBSTasks(SUBSTestCase):
                 self.tracing_id,
             )
 
-            self.assertIn("skipping subs data extraction", _logs.output[0])
-        # TODO: Add any additional assertions
+            self.assertIn("collecting subs report data for extraction", _logs.output[0])
