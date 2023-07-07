@@ -131,7 +131,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
             if not manifest_accessor.get_s3_csv_cleared(manifest):
-                remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+                remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id=manifest_id)
                 manifest_accessor.mark_s3_csv_cleared(manifest)
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"

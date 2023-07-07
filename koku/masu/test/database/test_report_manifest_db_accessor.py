@@ -229,7 +229,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         with schema_context(self.schema):
             # ocp manifest, daily files returns True:
             manifest = self.manifest_accessor.add(
-                **self.manifest_dict, cluster_id="cluster-id", operator_daily_files=True
+                **self.manifest_dict, cluster_id="cluster-id", operator_daily_reports=True
             )
             self.assertTrue(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
 

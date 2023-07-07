@@ -12,7 +12,12 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="costusagereportmanifest",
-            name="operator_daily_files",
+            name="operator_daily_reports",
             field=models.BooleanField(default=False, null=True),
+        ),
+        migrations.AddField(
+            model_name="costusagereportmanifest",
+            name="s3_parquet_cleared_tracker",
+            field=models.JSONField(default=dict, null=True),
         ),
     ]

@@ -311,7 +311,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
             if not manifest_accessor.get_s3_csv_cleared(manifest):
-                utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
+                utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id=manifest_id)
                 manifest_accessor.mark_s3_csv_cleared(manifest)
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))

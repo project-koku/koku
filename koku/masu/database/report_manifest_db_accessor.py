@@ -235,7 +235,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             return False
         if not manifest.cluster_id:
             return True
-        result = manifest.operator_daily_files
+        result = manifest.operator_daily_reports
         LOG.info(
             log_json(
                 msg=f"s3 bucket should be cleared: {result}",
@@ -245,18 +245,25 @@ class ReportManifestDBAccessor(KokuDBAccess):
         )
         return result
 
-    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> bool:
+    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
-        s3_parquet_cleared = False
-        if manifest:
-            s3_parquet_cleared = manifest.s3_parquet_cleared
-        return s3_parquet_cleared
+        if not manifest:
+            return False
+        if manifest.cluster_id:
+            return manifest.s3_parquet_cleared_tracker.get(report_type)
+        return manifest.s3_parquet_cleared
 
-    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest) -> None:
+    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type) -> None:
         """Mark Parquet files have been cleared from S3 for this manifest."""
-        if manifest:
-            manifest.s3_parquet_cleared = True
+        if not manifest:
+            return
+        if manifest.cluster_id:
+            manifest.s3_parquet_cleared_tracker[report_type] = True
             manifest.save()
+            return
+
+        manifest.s3_parquet_cleared = True
+        manifest.save()
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""

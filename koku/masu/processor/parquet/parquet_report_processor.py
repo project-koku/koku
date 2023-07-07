@@ -144,7 +144,6 @@ class ParquetReportProcessor:
         """The start date for processing.
         Used to determine the year/month partitions.
         """
-        # TODO something around here is messing up my start dates
         return self._start_date
 
     @start_date.setter
@@ -330,7 +329,7 @@ class ParquetReportProcessor:
         # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
         if (
             manifest_accessor.should_s3_parquet_be_cleared(manifest)
-            and not manifest_accessor.get_s3_parquet_cleared(manifest)
+            and not manifest_accessor.get_s3_parquet_cleared(manifest, self.report_type)
             and self.provider_type
             not in (
                 Provider.PROVIDER_GCP,
@@ -339,16 +338,17 @@ class ParquetReportProcessor:
                 Provider.PROVIDER_OCI_LOCAL,
             )
         ):
+            metadata_key = self.get_metadata_key()
             remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
+                self.tracing_id, self.parquet_path_s3, metadata_key, self.error_context
             )
             remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_daily_path_s3, self.manifest_id, self.error_context
+                self.tracing_id, self.parquet_daily_path_s3, metadata_key, self.error_context
             )
             remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_ocp_on_cloud_path_s3, self.manifest_id, self.error_context
+                self.tracing_id, self.parquet_ocp_on_cloud_path_s3, metadata_key, self.error_context
             )
-            manifest_accessor.mark_s3_parquet_cleared(manifest)
+            manifest_accessor.mark_s3_parquet_cleared(manifest, self.report_type)
             LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
 
         failed_conversion = []
@@ -424,7 +424,7 @@ class ParquetReportProcessor:
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
-            kwargs = {"compression": "gzip"}
+            kwargs["compression"] = "gzip"
 
         LOG.info(
             log_json(self.tracing_id, msg="converting csv to parquet", context=self._context, file_name=csv_filename)
@@ -531,6 +531,18 @@ class ParquetReportProcessor:
 
         return get_path_prefix(**kwargs)
 
+    def get_metadata(self) -> dict:
+        metadata = {"ManifestId": str(self.manifest_id)}
+        if self._provider_type == Provider.PROVIDER_OCP:
+            metadata["ReportDate"] = self.start_date.strftime("%Y-%m-%d")
+        return metadata
+
+    def get_metadata_key(self) -> tuple[str, str]:
+        metadata_key = ("manifestid", str(self.manifest_id), "not_equal")
+        if self._provider_type == Provider.PROVIDER_OCP:
+            metadata_key = ("reportdate", self.start_date.strftime("%Y-%m-%d"), "equal")
+        return metadata_key
+
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
@@ -540,10 +552,11 @@ class ParquetReportProcessor:
         else:
             s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
+        metadata = self.get_metadata()
         try:
             with open(file_path, "rb") as fin:
                 copy_data_to_s3_bucket(
-                    self.tracing_id, s3_path, file_name, fin, manifest_id=self.manifest_id, context=self.error_context
+                    self.tracing_id, s3_path, file_name, fin, metadata=metadata, context=self.error_context
                 )
                 LOG.info(
                     log_json(self.tracing_id, msg="file sent to s3", context=self.error_context, file_name=file_path)

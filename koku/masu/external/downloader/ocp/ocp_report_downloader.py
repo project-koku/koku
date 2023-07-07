@@ -28,7 +28,7 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path, filename):
+def divide_csv_daily(file_path, manifest_id):
     """
     Split local file into daily content.
     """
@@ -52,10 +52,19 @@ def divide_csv_daily(file_path, filename):
     for daily_data in daily_data_frames:
         day = daily_data.get("date")
         df = daily_data.get("data_frame")
-        day_file = f"{report_type}.{day}.csv"
+        file_prefix = f"{report_type}.{day}"
+        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        if not manifest.report_tracker.get(file_prefix):
+            manifest.report_tracker[file_prefix] = 0
+        counter = manifest.report_tracker[file_prefix]
+        manifest.report_tracker[file_prefix] = counter + 1
+        manifest.save()
+        day_file = f"{file_prefix}_{counter}.csv"
         day_filepath = f"{directory}/{day_file}"
         df.to_csv(day_filepath, index=False, header=True)
-        daily_files.append({"filename": day_file, "filepath": day_filepath})
+        daily_files.append(
+            {"filename": day_file, "filepath": day_filepath, "date": datetime.datetime.strptime(day, "%Y-%m-%d")}
+        )
     return daily_files
 
 
@@ -74,20 +83,19 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
-    if context.get("version"):
-        daily_files = [{"filepath": filepath, "filename": filename}]
-    else:
-        daily_files = divide_csv_daily(filepath, filename)
+    daily_files = divide_csv_daily(filepath, manifest_id)
     for daily_file in daily_files:
         # Push to S3
-        s3_csv_path = get_path_prefix(account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+        s3_csv_path = get_path_prefix(
+            account, Provider.PROVIDER_OCP, provider_uuid, daily_file.get("date"), Config.CSV_DATA_TYPE
+        )
         copy_local_report_file_to_s3_bucket(
             tracing_id,
             s3_csv_path,
             daily_file.get("filepath"),
             daily_file.get("filename"),
             manifest_id,
-            start_date,
+            daily_file.get("date"),
             context,
         )
         daily_file_names.append(daily_file.get("filepath"))
@@ -152,7 +160,7 @@ def process_cr(report_meta):
         "cluster_channel": None,
         "operator_airgapped": None,
         "operator_errors": None,
-        "operator_daily_files": report_meta.get("daily_reports", False),
+        "operator_daily_reports": report_meta.get("daily_reports", False),
     }
     if cr_status := report_meta.get("cr_status"):
         manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
@@ -202,6 +210,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         report_meta = utils.get_report_details(directory)
         self.context["version"] = report_meta.get("version")
+        LOG.debug(log_json(msg="report meta for OCP report", **report_meta))
         return report_meta
 
     def get_manifest_context_for_date(self, date):
@@ -219,29 +228,28 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-        report_dict = {}
         manifest = self._get_manifest(date)
-
-        if manifest == {}:
-            return report_dict
+        if not manifest:
+            return {}
 
         manifest_id = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(date)
 
-        if manifest:
-            report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest.get("uuid")
-            report_dict["compression"] = UNCOMPRESSED
-            files_list = []
-            for key in manifest.get("files"):
-                key_full_path = (
-                    f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date)}/{os.path.basename(key)}"
-                )
+        report_dict = {
+            "manifest_id": manifest_id,
+            "assembly_id": manifest.get("uuid"),
+            "compression": UNCOMPRESSED,
+            "start": manifest.get("start"),
+        }
 
-                file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
-                files_list.append(file_dict)
+        files_list = []
+        for key in manifest.get("files"):
+            key_full_path = f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date)}/{os.path.basename(key)}"
 
-            report_dict["files"] = files_list
+            file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
+            files_list.append(file_dict)
+
+        report_dict["files"] = files_list
         return report_dict
 
     def _remove_manifest_file(self, date_time):

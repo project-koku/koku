@@ -158,6 +158,8 @@ class ReportDownloader:
         """
         manifest = self._downloader.get_manifest_context_for_date(date)
         if not isinstance(manifest, list):
+            if not manifest:
+                return []
             manifest = [manifest]
         return manifest
 

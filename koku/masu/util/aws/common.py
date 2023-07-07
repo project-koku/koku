@@ -21,6 +21,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateConverter
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
@@ -387,19 +388,20 @@ def get_s3_resource():  # pragma: no cover
         aws_secret_access_key=settings.S3_SECRET,
         region_name=settings.S3_REGION,
     )
-    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
-    return s3_resource
+    return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
 
 
-def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, context={}):
+def copy_data_to_s3_bucket(request_id, path, filename, data, metadata, context=None):
     """
     Copies data to s3 bucket file
     """
+    if context is None:
+        context = {}
     upload = None
     upload_key = f"{path}/{filename}"
     extra_args = {}
-    if manifest_id:
-        extra_args = {"Metadata": {"ManifestId": str(manifest_id)}}
+    if metadata:
+        extra_args["Metadata"] = metadata
     try:
         s3_resource = get_s3_resource()
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
@@ -407,26 +409,32 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg=msg, context=context))
+        LOG.info(log_json(request_id, msg=msg, context=context), exc_info=err)
     return upload
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context={}
+    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context=None
 ):
     """
     Copies local report file to s3 bucket
     """
+    if context is None:
+        context = {}
     if s3_path:
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
+        report_date = DateConverter(start_date, "%Y-%m-%d").to_str()
+        metadata = {"manifestid": str(manifest_id), "reportdate": report_date}
         with open(full_file_path, "rb") as fin:
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
 
 
-def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False, context={}):
+def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False, context=None):
     """
     Copies HCS data to s3 bucket location
     """
+    if context is None:
+        context = {}
     upload = None
     upload_key = f"{path}/{filename}"
     extra_args = {"Metadata": {"finalized": str(finalize)}}
@@ -454,41 +462,65 @@ def copy_local_hcs_report_file_to_s3_bucket(
             copy_hcs_data_to_s3_bucket(request_id, s3_path, local_filename, fin, finalize, context)
 
 
-def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
+def equal(val1, val2):
+    return val1 == val2
+
+
+def not_equal(val1, val2):
+    return val1 != val2
+
+
+def get_comparison_fn(name):
+    return equal if name == "equal" else not_equal
+
+
+def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, *, manifest_id=None, metadata_kv=None, context=None):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
+    if not s3_path:
+        return []
+    if context is None:
+        context = {}
+
+    if manifest_id:
+        metadata_key = "manifestid"
+        metadata_value_check = manifest_id
+        comparison_fn = not_equal
+    elif metadata_kv:
+        metadata_key, metadata_value_check, comparison_name = metadata_kv
+        comparison_fn = get_comparison_fn(comparison_name)
+    else:
+        raise ValueError("one of manifest_id or metadata_kv are required")
+
     removed = []
-    if s3_path:
-        try:
-            s3_resource = get_s3_resource()
-            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
-            for obj_summary in existing_objects:
-                existing_object = obj_summary.Object()
-                metadata = existing_object.metadata
-                manifest = metadata.get("manifestid")
-                manifest_id_str = str(manifest_id)
-                key = existing_object.key
-                if manifest != manifest_id_str:
-                    s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
-                    removed.append(key)
-            if removed:
-                LOG.info(
-                    log_json(
-                        request_id,
-                        msg="removed files from s3 bucket",
-                        context=context,
-                        bucket=settings.S3_BUCKET_NAME,
-                        file_list=removed,
-                    )
-                )
-        except (EndpointConnectionError, ClientError) as err:
-            LOG.warning(
+    try:
+        s3_resource = get_s3_resource()
+        existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
+        for obj_summary in existing_objects:
+            existing_object = obj_summary.Object()
+            metadata_value = existing_object.metadata.get(metadata_key)
+            key = existing_object.key
+            if comparison_fn(metadata_value, metadata_value_check):
+                s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+                removed.append(key)
+        if removed:
+            LOG.info(
                 log_json(
-                    request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
-                ),
-                exc_info=err,
+                    request_id,
+                    msg="removed files from s3 bucket",
+                    context=context,
+                    bucket=settings.S3_BUCKET_NAME,
+                    file_list=removed,
+                )
             )
+    except (EndpointConnectionError, ClientError) as err:
+        LOG.warning(
+            log_json(
+                request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
+            ),
+            exc_info=err,
+        )
     return removed
 
 
