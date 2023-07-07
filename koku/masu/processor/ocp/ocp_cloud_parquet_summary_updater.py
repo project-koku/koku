@@ -14,6 +14,7 @@ from django_tenants.utils import schema_context
 from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
+from api.provider.provider_manager import ProviderManager
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -173,6 +174,11 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         """
         if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            # Do not attempt any processing if there is no available data
+            manager = ProviderManager(infra_provider_uuid)
+            if not manager.get_current_month_data_exists():
+                return
+
             self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
         elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
