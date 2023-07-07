@@ -152,13 +152,14 @@ class ModelBakeryDataLoader(DataLoader):
                 linked_openshift_provider.save()
             return provider
 
-    def create_manifest(self, provider, bill_date, num_files=1):
+    def create_manifest(self, provider, bill_date, *, num_files=1, cluster_id=None):
         """Create a manifest for the provider."""
         manifest = baker.make(
             "CostUsageReportManifest",
             provider=provider,
             billing_period_start_datetime=bill_date,
             num_total_files=num_files,
+            cluster_id=cluster_id,
             _fill_optional=True,
         )
         baker.make("CostUsageReportStatus", manifest=manifest, _fill_optional=True)
@@ -349,7 +350,7 @@ class ModelBakeryDataLoader(DataLoader):
 
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load ocp data for start: {start_date}, end: {end_date}")
-            self.create_manifest(provider, bill_date)
+            self.create_manifest(provider, bill_date, cluster_id=cluster_id)
             report_period = self.create_bill(
                 provider_type, provider, bill_date, cluster_id=cluster_id, cluster_alias=cluster_id
             )

@@ -35,6 +35,7 @@ from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
 from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
+from reporting_common.models import CostUsageReportManifest
 
 
 class TestParquetReportProcessor(MasuTestCase):
@@ -55,8 +56,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.test_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.test_etag = "fake_etag"
         self.tracing_id = 1
-        self.account_id = self.schema[4:]
-        self.manifest_id = 1
+        self.manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first().id
         self.start_date = DateHelper().today
         self.report_name = "koku-1.csv.gz"
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
@@ -370,7 +370,7 @@ class TestParquetReportProcessor(MasuTestCase):
                     with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
                         mock_os.path.split.return_value = ("path", "file.csv")
                         test_report_test_path = "./koku/masu/test/data/test_cur.csv.gz"
-                        local_path = f"{Config.TMP_DIR}/{self.account_id}/{self.aws_provider_uuid}"
+                        local_path = f"{Config.TMP_DIR}/{self.schema}/{self.aws_provider_uuid}"
                         Path(local_path).mkdir(parents=True, exist_ok=True)
                         test_report = f"{local_path}/test_cur.csv.gz"
                         shutil.copy2(test_report_test_path, test_report)
