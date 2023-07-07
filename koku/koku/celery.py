@@ -119,7 +119,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_DEF = {
         "task": download_task,
         "schedule": report_schedule,
-        "kwargs": {},
+        "kwargs": {"scheduled": True},
     }
     app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
 
