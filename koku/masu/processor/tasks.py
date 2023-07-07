@@ -1075,7 +1075,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         context={"tracing_id": tracing_id, "start_date": bill_date, "invoice_month": invoice_month},
     )
     remove_files_not_in_set_from_s3_bucket(
-        tracing_id, processor.parquet_ocp_on_cloud_path_s3, manifest_id=0, context=processor.error_context
+        tracing_id, processor.parquet_ocp_on_cloud_path_s3, 0, processor.error_context
     )
     for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
         query_sql = (
@@ -1144,9 +1144,7 @@ def process_daily_openshift_on_cloud(
             daily=True,
             partition_daily=True,
         )
-        remove_files_not_in_set_from_s3_bucket(
-            tracing_id, daily_s3_path, manifest_id=0, context=processor.error_context
-        )
+        remove_files_not_in_set_from_s3_bucket(tracing_id, daily_s3_path, 0, processor.error_context)
         for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
             query_sql = (
                 f"SELECT * FROM {table_name}"

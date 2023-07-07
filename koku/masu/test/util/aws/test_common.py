@@ -354,7 +354,7 @@ class TestAWSUtils(MasuTestCase):
 
     def test_remove_files_not_in_set_from_s3_bucket(self):
         """Test remove_files_not_in_set_from_s3_bucket."""
-        removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", None, manifest_id="manifest_id")
+        removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", None, "manifest_id")
         self.assertEqual(removed, [])
 
         date_accessor = DateAccessor()
@@ -368,16 +368,12 @@ class TestAWSUtils(MasuTestCase):
         mock_summary.Object.return_value = mock_object
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [mock_summary]
-            removed = utils.remove_files_not_in_set_from_s3_bucket(
-                "request_id", s3_csv_path, manifest_id="manifest_id"
-            )
+            removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
             self.assertEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
-            removed = utils.remove_files_not_in_set_from_s3_bucket(
-                "request_id", s3_csv_path, manifest_id="manifest_id"
-            )
+            removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
             self.assertEqual(removed, [])
 
     def test_copy_data_to_s3_bucket(self):
