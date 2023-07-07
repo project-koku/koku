@@ -3870,6 +3870,45 @@
                   }
                 }
               }
+            },
+            "put": {
+                "tags": [
+                    "Account Settings"
+                ],
+                "summary": "Modify a specific current user account setting.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PutAccountSettingRequestBody"
+                            }
+                        }
+                    },
+                    "description": "Modify account setting",
+                    "required": true
+                },
+                "operationId": "putAccountSettings",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
             }
           },
         "/sources/": {
@@ -9751,6 +9790,29 @@
                                 "example": [
                                     {
                                         "ids": ["be9b46e1-ae73-425c-a3bc-738018d2a41f"]
+                                    }
+                                ],
+                                "items": {}
+                            }
+                        }
+                    }
+                ]
+            },
+            "PutAccountSettingRequestBody": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "example": [
+                                    {
+                                        "cost_type": "blended_cost"
                                     }
                                 ],
                                 "items": {}
