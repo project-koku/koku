@@ -340,13 +340,16 @@ class ParquetReportProcessor:
         ):
             metadata_key = self.get_metadata_key()
             remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_path_s3, metadata_key, self.error_context
+                self.tracing_id, self.parquet_path_s3, metadata_kv=metadata_key, context=self.error_context
             )
             remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_daily_path_s3, metadata_key, self.error_context
+                self.tracing_id, self.parquet_daily_path_s3, metadata_kv=metadata_key, context=self.error_context
             )
             remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_ocp_on_cloud_path_s3, metadata_key, self.error_context
+                self.tracing_id,
+                self.parquet_ocp_on_cloud_path_s3,
+                metadata_kv=metadata_key,
+                context=self.error_context,
             )
             manifest_accessor.mark_s3_parquet_cleared(manifest, self.report_type)
             LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
