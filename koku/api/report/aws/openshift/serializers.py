@@ -8,6 +8,7 @@ from rest_framework import serializers
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import validate_field
+from masu.config import Config
 
 
 class OCPAWSGroupBySerializer(awsser.AWSGroupBySerializer, ocpser.OCPGroupBySerializer):
@@ -96,7 +97,7 @@ class OCPAWSQueryParamSerializer(awsser.AWSQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        if len(value) > 3:
+        if len(value) > Config.MAX_GROUP_BY:
             # Max support group_bys is 3
             error = {"group_by": ("Cost Management supports a max of two group_by options.")}
             raise serializers.ValidationError(error)

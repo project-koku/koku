@@ -16,6 +16,7 @@ from api.report.queries import ReportQueryHandler
 from api.utils import DateHelper
 from api.utils import get_currency
 from api.utils import materialized_view_month_start
+from masu.config import Config
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
@@ -454,7 +455,7 @@ class ParamSerializer(BaseSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        if len(value) > 3:
+        if len(value) > Config.MAX_GROUP_BY:
             # Max support group_bys is 3
             error = {"group_by": ("Cost Management supports a max of two group_by options.")}
             raise serializers.ValidationError(error)
