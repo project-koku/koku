@@ -135,8 +135,8 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        if len(value) > 2:
-            # Max support group_bys is 2
+        if len(value) > 3:
+            # Max support group_bys is 3
             error = {"group_by": ("Cost Management supports a max of two group_by options.")}
             raise serializers.ValidationError(error)
         validate_field(
