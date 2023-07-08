@@ -85,7 +85,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.num_total_files = set_num_of_files
             manifest.save()
 
-    def add(self, **kwargs):
+    def add(self, **kwargs) -> CostUsageReportManifest:
         """
         Add a new row to the CUR stats database.
 
