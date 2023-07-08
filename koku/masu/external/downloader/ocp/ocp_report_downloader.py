@@ -21,6 +21,7 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
@@ -53,7 +54,7 @@ def divide_csv_daily(file_path, manifest_id):
         day = daily_data.get("date")
         df = daily_data.get("data_frame")
         file_prefix = f"{report_type}.{day}"
-        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        manifest = CostUsageReportManifest.objects.get(id=manifest_id)
         if not manifest.report_tracker.get(file_prefix):
             manifest.report_tracker[file_prefix] = 0
         counter = manifest.report_tracker[file_prefix]
