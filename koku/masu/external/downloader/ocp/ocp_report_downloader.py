@@ -268,33 +268,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return None
 
-    def get_report_for(self, date_time):
-        """
-        Get OCP usage report files corresponding to a date.
-
-        Args:
-            date_time (DateTime): Start date of the usage report.
-
-        Returns:
-            ([]) List of file paths for a particular report.
-
-        """
-        dates = utils.month_date_range(date_time)
-        msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
-        LOG.debug(log_json(self.tracing_id, msg=msg, context=self.context))
-        directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
-
-        manifest = self._get_manifest(date_time)
-        msg = f"manifest found: {str(manifest)}"
-        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-
-        reports = []
-        for file in manifest.get("files", []):
-            report_full_path = os.path.join(directory, file)
-            reports.append(report_full_path)
-
-        return reports
-
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an OCP usage file.

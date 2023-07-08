@@ -252,7 +252,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
             with patch(
-                "masu.processor.parquet.parquet_report_processor.remove_files_not_in_set_from_s3_bucket"
+                "masu.processor.parquet.parquet_report_processor.remove_s3_objects_not_matching_metadata"
             ) as mock_remove:
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "convert_csv_to_parquet"

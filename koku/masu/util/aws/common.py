@@ -469,67 +469,77 @@ def _get_s3_objects(s3_path):
 
 def remove_s3_objects_matching_metadata(
     request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
-):
+) -> list[str]:
     if not s3_path:
         return []
 
     if context is None:
         context = {}
 
-    existing_objects = _get_s3_objects(s3_path)
-    keys_to_delete = []
-    for obj_summary in existing_objects:
-        existing_object = obj_summary.Object()
-        metadata_value = existing_object.metadata.get(metadata_key)
-        if metadata_value != metadata_value_check:
-            keys_to_delete.append(existing_object.key)
-
-    _delete_s3_objects(request_id, keys_to_delete, context)
-
-
-def remove_s3_objects_not_matching_metadata(
-    request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
-):
-    if not s3_path:
-        return []
-
-    if context is None:
-        context = {}
-
-    existing_objects = _get_s3_objects(s3_path)
-    keys_to_delete = []
-    for obj_summary in existing_objects:
-        existing_object = obj_summary.Object()
-        metadata_value = existing_object.metadata.get(metadata_key)
-        if metadata_value == metadata_value_check:
-            keys_to_delete.append(existing_object.key)
-
-    _delete_s3_objects(request_id, keys_to_delete, context)
-
-
-def _delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
-    removed = []
     try:
-        s3_resource = get_s3_resource()
-        for key in keys_to_delete:
-            s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
-            removed.append(key)
-        if removed:
-            LOG.info(
-                log_json(
-                    request_id,
-                    msg="removed files from s3 bucket",
-                    context=context,
-                    bucket=settings.S3_BUCKET_NAME,
-                    file_list=removed,
-                )
-            )
+        existing_objects = _get_s3_objects(s3_path)
+        keys_to_delete = []
+        for obj_summary in existing_objects:
+            existing_object = obj_summary.Object()
+            metadata_value = existing_object.metadata.get(metadata_key)
+            if metadata_value == metadata_value_check:
+                keys_to_delete.append(existing_object.key)
+
+        return _delete_s3_objects(request_id, keys_to_delete, context)
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
             log_json(
                 request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
             ),
             exc_info=err,
+        )
+    return []
+
+
+def remove_s3_objects_not_matching_metadata(
+    request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
+) -> list[str]:
+    if not s3_path:
+        return []
+
+    if context is None:
+        context = {}
+
+    try:
+        existing_objects = _get_s3_objects(s3_path)
+        keys_to_delete = []
+        for obj_summary in existing_objects:
+            existing_object = obj_summary.Object()
+            metadata_value = existing_object.metadata.get(metadata_key)
+            if metadata_value != metadata_value_check:
+                keys_to_delete.append(existing_object.key)
+
+        return _delete_s3_objects(request_id, keys_to_delete, context)
+    except (EndpointConnectionError, ClientError) as err:
+        LOG.warning(
+            log_json(
+                request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
+            ),
+            exc_info=err,
+        )
+    return []
+
+
+def _delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
+    removed = []
+    s3_resource = get_s3_resource()
+    for key in keys_to_delete:
+        s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+        removed.append(key)
+    if removed:
+        LOG.info(
+            log_json(
+                request_id,
+                msg="removed files from s3 bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+                file_list=removed,
+            )
         )
     return removed
 
