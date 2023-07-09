@@ -538,6 +538,7 @@ def summarize_manifest(report_meta, manifest_uuid):
         LOG.info(
             log_json(manifest_uuid, msg="missing start or end dates - cannot summarize ocp reports", context=context)
         )
+        return
 
     if "0001-01-01 00:00:00+00:00" not in [str(start_date), str(end_date)]:
         # we have valid dates, so we can summarize the payload

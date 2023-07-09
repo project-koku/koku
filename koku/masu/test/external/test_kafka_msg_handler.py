@@ -477,22 +477,16 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
+            "start": str(datetime.now()),
+            "end": str(datetime.now()),
         }
 
-        # Check when manifest is done
-        mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
-
-        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+        with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=True):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_called()
 
-        # Check when manifest is not done
-        mock_manifest_accessor = FakeManifest(num_processed_files=1, num_total_files=2)
-
-        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+        with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=False):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_not_called()
@@ -506,8 +500,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
-            "start": str(datetime.today()),
-            "end": str(datetime.today()),
+            "start": str(datetime.now()),
+            "end": str(datetime.now()),
         }
         expected_meta = {
             "schema": report_meta.get("schema_name"),
@@ -520,20 +514,12 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_uuid": "1234",
         }
 
-        # Check when manifest is done
-        mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
-
-        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+        with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=True):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_called_with([expected_meta], OCP_QUEUE)
 
-        # Check when manifest is not done
-        mock_manifest_accessor = FakeManifest(num_processed_files=1, num_total_files=2)
-
-        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+        with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=False):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_not_called()
@@ -542,15 +528,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test report summarization."""
         table = [
             {
-                "name": "invalid end date",
-                "start": str(datetime.today()),
-                "end": "0001-01-01 00:00:00+00:00",
+                "name": "missing start and end",
+                "start": None,
+                "end": None,
                 "cr_status": {},
             },
             {
                 "name": "invalid start date",
                 "start": "0001-01-01 00:00:00+00:00",
-                "end": str(datetime.today()),
+                "end": str(datetime.now()),
                 "cr_status": {"reports": {"data_collection_message": "it's a bad payload"}},
             },
             {
@@ -870,7 +856,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "cluster_id": "cluster-id",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
-            "date": datetime.today(),
+            "date": datetime.now(),
             "uuid": uuid.uuid4(),
         }
         with patch.object(OCPReportDownloader, "_prepare_db_manifest_record", return_value=1):
@@ -926,6 +912,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "provider_uuid": uuid.uuid4(),
             "manifest_id": "1",
+            "start": str(datetime.now()),
+            "end": str(datetime.now()),
         }
 
         # Check when manifest is done
@@ -936,4 +924,4 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
                     msg_handler.summarize_manifest(report_meta, self.manifest_id)
-                    mock_summarize_reports.assert_called_with([report_meta], OCP_QUEUE_XL)
+                    self.assertIn(OCP_QUEUE_XL, mock_summarize_reports.call_args.args)

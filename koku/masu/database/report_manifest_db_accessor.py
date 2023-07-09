@@ -37,8 +37,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
-        query = self._get_db_obj_query()
-        return query.filter(provider_id=provider_uuid).filter(assembly_id=assembly_id).first()
+        return self._get_db_obj_query().filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
@@ -131,10 +130,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         Return False otherwise.
 
         """
-        record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
-        if record:
-            return record.filter(last_completed_datetime__isnull=True).exists()
-        return True
+        return CostUsageReportStatus.objects.filter(
+            manifest_id=manifest_id,
+            last_completed_datetime__isnull=True,
+        ).exists()
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         """Return all manifests for a provider and bill date."""
@@ -143,16 +142,14 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_last_manifest_upload_datetime(self, provider_uuid=None):
         """Return all ocp manifests with lastest upload datetime."""
+        filters = {}
         if provider_uuid:
-            return (
-                CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
-                .values("provider_id")
-                .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
-            )
-        else:
-            return CostUsageReportManifest.objects.values("provider_id").annotate(
-                most_recent_manifest=Max("manifest_creation_datetime")
-            )
+            filters["provider_id"] = provider_uuid
+        return (
+            CostUsageReportManifest.objects.filter(**filters)
+            .values("provider_id")
+            .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
+        )
 
     def get_last_seen_manifest_ids(self, bill_date):
         """Return a tuple containing the assembly_id of the last seen manifest and a boolean
