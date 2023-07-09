@@ -113,6 +113,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Determine if the manifest is ready to summarize."""
         return not self.is_last_completed_datetime_null(manifest_id)
 
+    def number_of_files(self, manifest_id):
+        """Return the number of files processed in a manifest."""
+        return CostUsageReportStatus.objects.filter(manifest_id=manifest_id).count()
+
     def number_of_files_processed(self, manifest_id):
         """Return the number of files processed in a manifest."""
         return CostUsageReportStatus.objects.filter(

@@ -146,10 +146,11 @@ class ReportDownloader:
         Otherwise returns False.
 
         """
-        report_record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id, report_name=report_name)
-        if report_record:
-            return report_record.filter(last_completed_datetime__isnull=False).exists()
-        return False
+        return CostUsageReportStatus.objects.filter(
+            manifest_id=manifest_id,
+            report_name=report_name,
+            last_completed_datetime__isnull=False,
+        ).exists()
 
     def download_manifest(self, date):
         """
@@ -157,9 +158,9 @@ class ReportDownloader:
 
         """
         manifest = self._downloader.get_manifest_context_for_date(date)
+        if not manifest:
+            return []
         if not isinstance(manifest, list):
-            if not manifest:
-                return []
             manifest = [manifest]
         return manifest
 
