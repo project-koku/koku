@@ -239,7 +239,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, report_type)
         self.assertTrue(status)
 
-    def mark_s3_parquet_cleared_no_manifest(self):
+    def test_mark_s3_parquet_cleared_no_manifest(self):
         """Test mark_s3_parquet_cleared without manifest does not error."""
         self.assertIsNone(self.manifest_accessor.mark_s3_parquet_cleared(None))
 
