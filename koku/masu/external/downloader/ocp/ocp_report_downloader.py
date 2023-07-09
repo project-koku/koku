@@ -29,7 +29,7 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path, manifest_id):
+def divide_csv_daily(file_path: str, manifest: CostUsageReportManifest):
     """
     Split local file into daily content.
     """
@@ -54,7 +54,6 @@ def divide_csv_daily(file_path, manifest_id):
         day = daily_data.get("date")
         df = daily_data.get("data_frame")
         file_prefix = f"{report_type}.{day}"
-        manifest = CostUsageReportManifest.objects.get(id=manifest_id)
         if not manifest.report_tracker.get(file_prefix):
             manifest.report_tracker[file_prefix] = 0
         counter = manifest.report_tracker[file_prefix]
@@ -83,8 +82,18 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    manifest = CostUsageReportManifest.objects.get(id=manifest_id)
     daily_file_names = []
-    daily_files = divide_csv_daily(filepath, manifest_id)
+    # operator_version and NOT operator_daily_reports is used for payloads received from
+    # cost-mgmt-metrics-operators that are not generating daily reports
+    # These reports are additive and cannot be split
+    if manifest.operator_version and not manifest.operator_daily_reports:
+        daily_files = [{"filepath": filepath, "filename": filename, "date": start_date}]
+    else:
+        # we call divide_csv_daily for really old operators (those still relying on metering)
+        # or for operators sending daily files
+        daily_files = divide_csv_daily(filepath, manifest)
+
     for daily_file in daily_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
@@ -210,7 +219,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Looking for manifest at {directory}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         report_meta = utils.get_report_details(directory)
-        self.context["version"] = report_meta.get("version")
         LOG.debug(log_json(msg="report meta for OCP report", **report_meta))
         return report_meta
 
@@ -282,7 +290,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         if not self.manifest:
             self.manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
-        self.context["version"] = self.manifest.operator_version
         local_filename = utils.get_local_file_name(key)
 
         directory_path = f"{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}"

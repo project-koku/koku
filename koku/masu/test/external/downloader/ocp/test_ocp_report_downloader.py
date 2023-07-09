@@ -23,6 +23,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
@@ -77,6 +78,8 @@ class OCPReportDownloaderTest(MasuTestCase):
                 "provider_uuid": self.ocp_provider_uuid,
             }
         )
+        self.ocp_manifest = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first()
+        self.ocp_manifest_id = self.ocp_manifest.id
 
     def tearDown(self):
         """Remove created test data."""
@@ -179,7 +182,8 @@ class OCPReportDownloaderTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    daily_files = divide_csv_daily(file_path, 1)
+                    manifest = ReportManifestDBAccessor().get_manifest_by_id(self.ocp_manifest_id)
+                    daily_files = divide_csv_daily(file_path, manifest)
                     self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
                     gen_files = ["storage_usage.2020-01-01_0.csv", "storage_usage.2020-01-02_0.csv"]
@@ -206,7 +210,8 @@ class OCPReportDownloaderTest(MasuTestCase):
                     mock_pd.read_csv.side_effect = Exception(errorMsg)
                     with patch("masu.external.downloader.ocp.ocp_report_downloader.LOG.error") as mock_debug:
                         with self.assertRaises(Exception):
-                            divide_csv_daily(file_path, filename)
+                            manifest = ReportManifestDBAccessor().get_manifest_by_id(self.ocp_manifest_id)
+                            divide_csv_daily(file_path, manifest)
                         mock_debug.assert_called_once_with(f"File {file_path} could not be parsed. Reason: {errorMsg}")
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
@@ -227,7 +232,6 @@ class OCPReportDownloaderTest(MasuTestCase):
             "files": report_keys,
             "version": version,
         }
-        self.assertIsNone(self.ocp_report_downloader.context.get("version"))
         result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result.get("assembly_id"), assembly_id)
         self.assertEqual(result.get("compression"), compression)
@@ -236,7 +240,6 @@ class OCPReportDownloaderTest(MasuTestCase):
         manifest_id = result.get("manifest_id")
         manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
         self.assertEqual(manifest.operator_version, version)
-        self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
@@ -270,7 +273,6 @@ class OCPReportDownloaderTest(MasuTestCase):
                 "source": {"sources_path": "/api/sources/v1.0/", "name": "INSERT-SOURCE-NAME"},
             },
         }
-        self.assertIsNone(self.ocp_report_downloader.context.get("version"))
         result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result.get("assembly_id"), assembly_id)
         self.assertEqual(result.get("compression"), compression)
@@ -285,17 +287,20 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest.cluster_channel, "stable-4.6")
         self.assertEqual(manifest.cluster_id, "4e009161-4f40-42c8-877c-3e59f6baea3d")
         self.assertEqual(manifest.operator_errors, expected_errors)
-        self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")
-    def test_create_daily_archives(self, mock_divide, mock_s3_copy, mock_os):
+    def test_create_daily_archives_very_old_operator(self, mock_divide, *args):
         """Test that this method returns a file list."""
+        # modify the manifest to remove the operator version to test really old operators:
+        self.ocp_manifest.operator_version = None
+        self.ocp_manifest.save()
+
         start_date = DateHelper().this_month_start
         daily_files = [
-            {"filename": "file_one", "filepath": "path/to/file_one"},
-            {"filename": "file_two", "filepath": "path/to/file_two"},
+            {"filename": "file_one", "filepath": "path/to/file_one", "date": datetime.fromisoformat("2020-01-01")},
+            {"filename": "file_two", "filepath": "path/to/file_two", "date": datetime.fromisoformat("2020-01-01")},
         ]
         expected_filenames = ["path/to/file_one", "path/to/file_two"]
 
@@ -303,14 +308,48 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         file_name = "file"
         file_path = "path"
-        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_name, file_path, 1, start_date)
+        result = create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_name, file_path, self.ocp_manifest_id, start_date
+        )
 
         self.assertEqual(result, expected_filenames)
 
-        # TODO: FIGURE OUT WHY WE WERE DOING THINGS DIFFERENTLY WITH VERSION!
-        # context = {"version": "1"}
-        # expected = [file_path]
-        # result = create_daily_archives(
-        #     1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date, context=context
-        # )
-        # self.assertEqual(result, expected)
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_non_daily_operator_files(self, *args):
+        """Test that this method returns a file list."""
+        start_date = DateHelper().this_month_start
+
+        file_path = "path"
+
+        context = {"version": "1"}
+        expected = [file_path]
+        result = create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, "file", "path", self.ocp_manifest_id, start_date, context=context
+        )
+        self.assertEqual(result, expected)
+
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")
+    def test_create_daily_archives_daily_operator_files(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        self.ocp_manifest.operator_daily_reports = True
+        self.ocp_manifest.save()
+
+        start_date = DateHelper().this_month_start
+        daily_files = [
+            {"filename": "file_one", "filepath": "path/to/file_one", "date": datetime.fromisoformat("2020-01-01")},
+            {"filename": "file_two", "filepath": "path/to/file_two", "date": datetime.fromisoformat("2020-01-01")},
+        ]
+        expected_filenames = ["path/to/file_one", "path/to/file_two"]
+
+        mock_divide.return_value = daily_files
+
+        file_name = "file"
+        file_path = "path"
+        result = create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_name, file_path, self.ocp_manifest_id, start_date
+        )
+
+        self.assertEqual(result, expected_filenames)
