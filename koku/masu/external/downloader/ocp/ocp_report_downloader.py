@@ -84,10 +84,10 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
     """
     manifest = CostUsageReportManifest.objects.get(id=manifest_id)
     daily_file_names = []
-    # operator_version and NOT operator_daily_reports is used for payloads received from
-    # cost-mgmt-metrics-operators that are not generating daily reports
-    # These reports are additive and cannot be split
     if manifest.operator_version and not manifest.operator_daily_reports:
+        # operator_version and NOT operator_daily_reports is used for payloads received from
+        # cost-mgmt-metrics-operators that are not generating daily reports
+        # These reports are additive and cannot be split
         daily_files = [{"filepath": filepath, "filename": filename, "date": start_date}]
     else:
         # we call divide_csv_daily for really old operators (those still relying on metering)
