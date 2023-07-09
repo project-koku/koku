@@ -352,9 +352,13 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
-    def test_remove_files_not_in_set_from_s3_bucket(self):
-        """Test remove_files_not_in_set_from_s3_bucket."""
-        removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", None, "manifest_id")
+    def test_remove_s3_objects_not_matching_metadata(self):
+        """Test remove_s3_objects_not_matching_metadata."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        removed = utils.remove_s3_objects_not_matching_metadata(
+            "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
+        )
         self.assertEqual(removed, [])
 
         date_accessor = DateAccessor()
@@ -362,19 +366,70 @@ class TestAWSUtils(MasuTestCase):
         s3_csv_path = get_path_prefix(
             "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
-        expected_key = "removed_key"
-        mock_object = Mock(metadata={}, key=expected_key)
-        mock_summary = Mock()
-        mock_summary.Object.return_value = mock_object
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [mock_summary]
-            removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
-            self.assertEqual(removed, [expected_key])
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            removed = utils.remove_s3_objects_not_matching_metadata(
+                "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
-            removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
-            self.assertEqual(removed, [])
+            removed = utils.remove_s3_objects_not_matching_metadata(
+                "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(removed, [])
+
+    def test_remove_s3_objects_matching_metadata(self):
+        """Test remove_s3_objects_matching_metadata."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        removed = utils.remove_s3_objects_matching_metadata(
+            "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
+        )
+        self.assertEqual(removed, [])
+
+        date_accessor = DateAccessor()
+        start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+        s3_csv_path = get_path_prefix(
+            "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
+        )
+        not_expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will not be deleted"}, key=not_expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+
+        expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            removed = utils.remove_s3_objects_matching_metadata(
+                "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(removed, [expected_key])
+
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.side_effect = ClientError({}, "Error")
+            removed = utils.remove_s3_objects_matching_metadata(
+                "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(removed, [])
 
     def test_copy_data_to_s3_bucket(self):
         """Test copy_data_to_s3_bucket."""
@@ -385,7 +440,7 @@ class TestAWSUtils(MasuTestCase):
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
             upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-            self.assertEqual(upload, None)
+            self.assertIsNone(upload)
 
     def test_copy_hcs_data_to_s3_bucket(self):
         """Test copy_hcs_data_to_s3_bucket."""
@@ -396,7 +451,7 @@ class TestAWSUtils(MasuTestCase):
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
             upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertEqual(upload, None)
+            self.assertIsNone(upload)
 
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
