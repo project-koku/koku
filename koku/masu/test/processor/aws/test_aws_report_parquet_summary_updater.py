@@ -161,7 +161,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         ):
             with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logs:
                 start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
-                expected_log_msg = f"No bill was found for {start_return}. Skipping summarization"
+                expected_log_msg = "no bill was found, skipping summarization"
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
