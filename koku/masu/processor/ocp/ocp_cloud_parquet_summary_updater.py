@@ -226,6 +226,16 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         if not aws_bills:
             # Without bill data, we cannot populate the summary table
+            LOG.info(
+                log_json(
+                    msg="no AWS bill data found - skipping AWS summary table update",
+                    schema_name=self._schema,
+                    start_date=start_date,
+                    end_date=end_date,
+                    source_uuid=aws_provider_uuid,
+                    cluster_id=cluster_id,
+                )
+            )
             return
 
         with schema_context(self._schema):
