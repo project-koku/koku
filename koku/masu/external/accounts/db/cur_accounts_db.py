@@ -83,7 +83,11 @@ class CURAccountsDB(CURAccountsInterface):
                     return [self.get_account_information(provider)]
                 return []
 
-            LOG.info(log_json(msg="looping through providers polling for accounts"))
+            LOG.info(
+                log_json(
+                    msg="looping through providers polling for accounts",
+                )
+            )
 
             for _, provider in all_providers.items():
                 if scheduled and provider.type == Provider.PROVIDER_OCP:
