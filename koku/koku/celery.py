@@ -110,10 +110,10 @@ app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
-    download_expression = "0 * * * *"
+    download_expression = "* * * * *"
     download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
-    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_expression)
+    REPORT_DOWNLOAD_SCHEDULE = download_expression
     REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE)
     report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
     CHECK_REPORT_UPDATES_DEF = {

@@ -49,7 +49,7 @@ class CURAccountsDB(CURAccountsInterface):
         if not provider_uuid:
             poll_timestamp = provider.polling_timestamp
             dh = DateHelper()
-            timer = Config.POLLING_TIMER
+            timer = 10
             if poll_timestamp is not None:
                 if ((dh.now_utc - poll_timestamp).seconds) < timer:
                     return False
@@ -86,6 +86,7 @@ class CURAccountsDB(CURAccountsInterface):
             LOG.info(
                 log_json(
                     msg="looping through providers polling for accounts",
+                    scheduled=scheduled,
                 )
             )
 
