@@ -19,7 +19,6 @@ class TestSUBSDataExtractor(SUBSTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.tracing_id = str(uuid.uuid4())
-        cls.dh = DateHelper()
         cls.today = cls.dh.today
         cls.yesterday = cls.today - timedelta(days=1)
         with patch("subs.subs_data_extractor.get_subs_s3_client"):

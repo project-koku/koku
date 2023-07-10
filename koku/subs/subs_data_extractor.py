@@ -100,7 +100,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         self._execute_trino_raw_sql_query(delete_old_value_sql, log_ref="delete_subs_last_processed_time")
         sql = (
             f"INSERT INTO {self.schema}.{SUBS_TRINO_TABLE_NAME} (last_processed_time, source, year, month)"
-            " SELECT MAX(lineitem_usagestartdate), '{self.provider_uuid}', '{year}', '{month}' FROM aws_line_items"
+            f" SELECT MAX(lineitem_usagestartdate), '{self.provider_uuid}', '{year}', '{month}' FROM aws_line_items"
             f" WHERE source='{self.provider_uuid}' AND year='{year}' AND month='{month}'"
         )
         self._execute_trino_raw_sql_query(sql, log_ref="insert_subs_last_processed_time")

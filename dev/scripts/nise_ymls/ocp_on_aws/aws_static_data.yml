@@ -56,6 +56,7 @@ generators:
         resourceTags/user:version: gamma
         resourceTags/user:dashed-key-on-aws: dashed-value
         resourceTags/user:com_redhat_rhel: true
+        resourceTags/user:com_redhat_rhel_sla: Standard
       cost_category:
         costCategory/env: stage
         costCategory/Organization: Ninja

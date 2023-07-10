@@ -1,8 +1,9 @@
 SELECT
-  lineitem_resourceid as instance_id,
   identity_timeinterval as tstamp,
-  product_vcpu as cpu_count,
+  lineitem_resourceid as instance_id,
   lineitem_usageaccountid as billing_account_id,
+  product_physicalcores as physical_cores,
+  product_vcpu as cpu_count,
   coalesce(
     json_extract_scalar(
       tags, '$.com_redhat_rhel_variant'
@@ -20,10 +21,11 @@ SELECT
 FROM
   (
     SELECT
-      lineitem_resourceid,
       identity_timeinterval,
-      product_vcpu,
+      lineitem_resourceid,
       lineitem_usageaccountid,
+      product_physicalcores,
+      product_vcpu,
       cast(
         map_filter(
           cast(

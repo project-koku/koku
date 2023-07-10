@@ -19,13 +19,15 @@ from koku.feature_flags import UNLEASH_CLIENT
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import convert_account
 from subs.subs_data_extractor import SUBSDataExtractor
+from subs.subs_data_messenger import SUBSDataMessenger
 
 LOG = logging.getLogger(__name__)
 
 SUBS_EXTRACTION_QUEUE = "subs_extraction"
+SUBS_TRANSMISSION_QUEUE = "subs_transmission"
 
 # any additional queues should be added to this list
-QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
+QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
 
 SUBS_ACCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS,
@@ -90,10 +92,16 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
             end_date = DateAccessor().today().date()
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        if isinstance(end_date, str):
             end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d")
         LOG.info(log_json(tracing_id, msg="collecting subs report data", context=context))
         extractor = SUBSDataExtractor(schema_name, provider_type, provider_uuid, tracing_id, context=context)
-        _ = extractor.extract_data_to_s3(start_date, end_date)
+        upload_keys = extractor.extract_data_to_s3(start_date, end_date)
+        if upload_keys:
+            process_upload_keys_to_subs_message.delay(context, schema_name, tracing_id, upload_keys)
 
-        # TODO: COST-3892 kickoff data transmission task with upload_keys
+
+@celery_app.task(name="subs.tasks.process_upload_keys_to_subs_message", queue=SUBS_TRANSMISSION_QUEUE)
+def process_upload_keys_to_subs_message(context, schema_name, tracing_id, upload_keys):
+    LOG.info(log_json(tracing_id, msg="processing subs data to kafka", context=context))
+    messenger = SUBSDataMessenger(context, schema_name, tracing_id)
+    messenger.process_and_send_subs_message(upload_keys)

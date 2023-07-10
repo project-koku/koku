@@ -147,7 +147,7 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,subs_extraction,summary,cost_model,refresh']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,subs_extraction,subs_transmission,summary,cost_model,refresh']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
