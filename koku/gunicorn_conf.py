@@ -39,8 +39,8 @@ workers = 1 if SOURCES else gunicorn_workers
 gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
 if gunicorn_threads:
     threads = cpu_resources * 2 + 1
-timeout = ENVIRONMENT.int("TIMEOUT", default=90)
-graceful_timeout = ENVIRONMENT.int("GRACEFUL_TIMEOUT", default=180)
+timeout = ENVIRONMENT.int("TIMEOUT", default=3600)
+graceful_timeout = ENVIRONMENT.int("GRACEFUL_TIMEOUT", default=3600 + 1800)
 
 
 # Server Hooks (https://docs.gunicorn.org/en/stable/settings.html#server-hooks)
