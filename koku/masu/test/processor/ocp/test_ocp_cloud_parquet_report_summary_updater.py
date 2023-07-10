@@ -550,7 +550,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
                 )
                 found_it = False
                 for log_line in _logger.output:
-                    found_it = "No report period for AWS provider" in log_line
+                    found_it = "No report period for AWS provider".lower() in log_line.lower()
                     if found_it:
                         break
                 self.assertTrue(found_it)
@@ -571,7 +571,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
                 )
                 found_it = False
                 for log_line in _logger.output:
-                    found_it = "No report period for Azure provider" in log_line
+                    found_it = "No report period for Azure provider".lower() in log_line.lower()
                     if found_it:
                         break
                 self.assertTrue(found_it)
@@ -592,7 +592,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
                 )
                 found_it = False
                 for log_line in _logger.output:
-                    found_it = "No report period for GCP provider" in log_line
+                    found_it = "No report period for GCP provider".lower() in log_line.lower()
                     if found_it:
                         break
                 self.assertTrue(found_it)
