@@ -27,9 +27,17 @@ class AzureGroupBySerializer(GroupSerializer):
 class AzureOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("subscription_guid", "resource_location", "instance_type", "service_name", "date")
+    _opfields = (
+        "subscription_guid",
+        "subscription_name",
+        "resource_location",
+        "instance_type",
+        "service_name",
+        "date",
+    )
 
     subscription_guid = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    subscription_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     resource_location = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)

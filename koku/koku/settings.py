@@ -360,7 +360,7 @@ VERBOSE_FORMATTING = (
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(message)s"
+SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
