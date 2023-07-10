@@ -130,10 +130,9 @@ class ReportManifestDBAccessor(KokuDBAccess):
         Return False otherwise.
 
         """
-        return CostUsageReportStatus.objects.filter(
-            manifest_id=manifest_id,
-            last_completed_datetime__isnull=True,
-        ).exists()
+        if record := CostUsageReportStatus.objects.filter(manifest_id=manifest_id):
+            return record.filter(last_completed_datetime__isnull=True).exists()
+        return True
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         """Return all manifests for a provider and bill date."""
