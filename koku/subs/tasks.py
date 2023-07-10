@@ -1,0 +1,99 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Tasks for Subscriptions Watch"""
+import datetime
+import logging
+import uuid
+
+from dateutil import parser
+
+from api.common import log_json
+from api.provider.models import Provider
+from hcs.tasks import get_start_and_end_from_manifest_id
+from koku import celery_app
+from koku import settings
+from koku.feature_flags import fallback_development_true
+from koku.feature_flags import UNLEASH_CLIENT
+from masu.external.date_accessor import DateAccessor
+from masu.util.common import convert_account
+from subs.subs_data_extractor import SUBSDataExtractor
+
+LOG = logging.getLogger(__name__)
+
+SUBS_EXTRACTION_QUEUE = "subs_extraction"
+
+# any additional queues should be added to this list
+QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
+
+SUBS_ACCEPTED_PROVIDERS = (
+    Provider.PROVIDER_AWS,
+    Provider.PROVIDER_AWS_LOCAL,
+    # Add additional accepted providers here
+)
+
+
+def check_subs_source_gate(schema_name: str) -> bool:
+    """Checks if the specific source is selected for RHEL Metered processing."""
+    return False
+
+
+def enable_subs_processing(schema_name: str) -> bool:
+    """Helper to determine if source is enabled for SUBS processing."""
+
+    schema_name = convert_account(schema_name)
+    context = {"schema_name": schema_name}
+    LOG.info(log_json(msg="enable_subs_processing context", context=context))
+    return bool(
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-processing", context, fallback_development_true)
+        or settings.ENABLE_SUBS_DEBUG
+        or check_subs_source_gate(schema_name)
+    )
+
+
+@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", queue=SUBS_EXTRACTION_QUEUE)
+def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
+    """Implement the functionality of the new task"""
+    reports = [report for report in reports_to_subs_summarize if report]
+    reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
+    for report in reports_deduplicated:
+        schema_name = report.get("schema_name")
+        provider_type = report.get("provider_type")
+        provider_uuid = report.get("provider_uuid")
+        tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
+        context = {"schema": schema_name, "provider_type": provider_type, "provider_uuid": provider_uuid}
+        if provider_type not in SUBS_ACCEPTED_PROVIDERS:
+            LOG.info(log_json(tracing_id, msg="provider type not valid for subs processing", context=context))
+            continue
+        if not enable_subs_processing(schema_name):
+            LOG.info(log_json(tracing_id, msg="subs processing not enabled for provider", context=context))
+            continue
+        if report.get("start") and report.get("end"):
+            LOG.debug(
+                log_json(
+                    tracing_id, msg="using start and end dates from the manifest for subs processing", context=context
+                )
+            )
+            start_date = parser.parse(report.get("start")).date()
+            end_date = parser.parse(report.get("end")).date()
+        else:
+            # GCP and OCI set report start and report end, AWS/Azure do not
+            date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
+            if not date_tuple:
+                LOG.debug(log_json(tracing_id, msg="skipping report, no manifest found.", context=context))
+                continue
+            start_date, end_date = date_tuple
+        if start_date is None:
+            start_date = DateAccessor().today().date() - datetime.timedelta(days=2)
+        if end_date is None:
+            end_date = DateAccessor().today().date()
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        if isinstance(end_date, str):
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+        LOG.info(log_json(tracing_id, msg="collecting subs report data", context=context))
+        extractor = SUBSDataExtractor(schema_name, provider_type, provider_uuid, tracing_id, context=context)
+        _ = extractor.extract_data_to_s3(start_date, end_date)
+
+        # TODO: COST-3892 kickoff data transmission task with upload_keys

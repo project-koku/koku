@@ -32,6 +32,7 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
         resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:com_redhat_rhel: true
       cost_category:
         costCategory/env: prod
       instance_type:
@@ -54,6 +55,7 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: gamma
         resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:com_redhat_rhel: true
       cost_category:
         costCategory/env: stage
         costCategory/Organization: Ninja
