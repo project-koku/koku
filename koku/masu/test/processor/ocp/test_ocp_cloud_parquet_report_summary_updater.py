@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.conf import settings
 from django.db import connection
 from django_tenants.utils import schema_context
 
@@ -32,7 +33,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.dh = DateHelper()
+        cls.dh = DateHelper(utc=True)
 
     def setUp(self):
         """Set up tests."""
@@ -109,6 +110,25 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
+    def test_update_aws_summary_tables_no_billing_data(
+        self,
+        mock_aws_get_bills_from_provider,
+        mock_cluster_info,
+    ):
+        """Test that AWS summary tables are not updated when no billing data is available"""
+        mock_aws_get_bills_from_provider.return_value = False
+        mock_cluster_info.return_value = True
+        start_date = datetime.datetime(2023, 5, 27, tzinfo=settings.UTC)
+        end_date = start_date + datetime.timedelta(days=1)
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=provider, manifest=None)
+
+        updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
