@@ -103,6 +103,10 @@ class CURAccountsDB(CURAccountsInterface):
                                 provider_type=provider.type,
                                 provider_uuid=provider.uuid,
                                 schema=provider.customer_id,
+                                polling_count=len(accounts),
+                                polling_batch_count=Config.POLLING_BATCH_SIZE,
                             )
                         )
+                    else:
+                        break
         return accounts
