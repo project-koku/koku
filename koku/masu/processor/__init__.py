@@ -143,3 +143,10 @@ def is_ingress_rate_limiting_disabled():  # pragma: no cover
     if res:
         LOG.info(log_json(msg="ingress rate limiting disabled"))
     return res
+
+
+def override_customer_group_by_limit(account):  # pragma: no cover
+    """Flag the customer to override max group_by count."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.override_customer_group_by_limit", context)
