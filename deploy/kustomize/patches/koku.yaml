@@ -134,6 +134,8 @@
           value: ${RBAC_CACHE_TIMEOUT}
         - name: CACHE_TIMEOUT
           value: ${CACHE_TIMEOUT}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
