@@ -149,13 +149,12 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query.values(*query_group_by).annotate(**annotations)
+            query_sum = self._build_sum(query)
 
-            if "subscription_guid" in query_group_by:
+            if "subscription_guid" in query_group_by and not annotations.get("subscription_name"):
                 query_data = query_data.annotate(
                     subscription_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
                 )
-
-            query_sum = self._build_sum(query)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
