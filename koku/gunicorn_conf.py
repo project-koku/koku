@@ -1,5 +1,7 @@
 """Gunicorn configuration file."""
+import io
 import multiprocessing
+import traceback
 
 import environ
 
@@ -61,3 +63,13 @@ def worker_exit(server, worker):
     """Called just after a worker has been exited, in the worker process."""
     worker.log.info("Shutting down UNLEASH_CLIENT for gunicorn worker.")
     UNLEASH_CLIENT.destroy()
+
+
+def worker_abort(worker):
+    """Log the stack trace when a worker timeout occurs"""
+    buffer = io.StringIO()
+    traceback.print_stack(file=buffer)
+    data = buffer.getvalue()
+    buffer.close()
+
+    worker.log.error(f"Killing worker {worker.pid}\n{data}")
