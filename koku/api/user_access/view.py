@@ -109,6 +109,11 @@ class CostModelUserAccess(UIFeatureAccess):
     access_keys = ["cost_model"]
 
 
+class SettingsUserAccess(UIFeatureAccess):
+
+    access_keys = ["settings"]
+
+
 class AnyUserAccess(UIFeatureAccess):
     """Check for if the user has access to any features."""
 
@@ -135,6 +140,7 @@ class UserAccessView(APIView):
         {"type": "oci", "access_class": OCIUserAccess},
         {"type": "ibm", "access_class": IBMUserAccess, "pre_release_feature": True},
         {"type": "ocp", "access_class": OCPUserAccess},
+        {"type": "settings", "access_class": SettingsUserAccess},
     ]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
