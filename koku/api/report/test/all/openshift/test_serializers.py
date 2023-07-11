@@ -111,9 +111,9 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_fail_with_max_group_by(self):
-        """Test fail if more than 3 group bys given."""
+        """Test fail if more than 2 group bys given."""
         query_params = {
-            "group_by": {"account": ["account1"], "service": ["ser"], "region": ["reg"], "tag": ["reg"]},
+            "group_by": {"account": ["account1"], "service": ["ser"], "region": ["reg"]},
         }
         self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
         with self.assertRaises(serializers.ValidationError):
