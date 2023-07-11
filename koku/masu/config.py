@@ -24,6 +24,7 @@ DEFAULT_DEL_RECORD_LIMIT = 5000
 DEFAULT_MAX_ITERATIONS = 3
 DEFAULT_SEC_IN_DAY = 86400
 DEFAULT_POLLING_BATCH = 100
+DEFAULT_ENABLED_TAG_LIMIT = 200
 
 
 class Config:
@@ -82,6 +83,9 @@ class Config:
 
     # Specify minimal provider count to class customer as large, use XL pods
     LARGE_CUSTOMER_PROVIDER_COUNT = ENVIRONMENT.int("LARGE_CUSTOMER_PROVIDER_COUNT", default=4)
+
+    # Limit the number of enabled tags:
+    ENABLED_TAG_LIMIT = ENVIRONMENT.int("TAG_ENABLED_LIMIT", default=DEFAULT_ENABLED_TAG_LIMIT)
 
     # Insights Kafka
     INSIGHTS_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()

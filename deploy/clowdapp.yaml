@@ -136,6 +136,8 @@ objects:
           value: ${RBAC_CACHE_TIMEOUT}
         - name: CACHE_TIMEOUT
           value: ${CACHE_TIMEOUT}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -512,6 +514,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
@@ -1745,6 +1749,8 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1922,6 +1928,8 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2099,6 +2107,8 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2278,6 +2288,8 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2457,6 +2469,8 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2634,6 +2648,8 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3998,7 +4014,10 @@ parameters:
   value: "100"
 - displayName: Large customer provider count
   name: LARGE_CUSTOMER_PROVIDER_COUNT
-  value: "10"
+  value: "4"
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"

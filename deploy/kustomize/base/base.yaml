@@ -425,6 +425,9 @@ parameters:
 - displayName: Large customer provider count
   name: LARGE_CUSTOMER_PROVIDER_COUNT
   value: "4"
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
