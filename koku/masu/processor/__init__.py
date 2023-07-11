@@ -7,6 +7,7 @@ import logging
 from uuid import UUID
 
 from api.common import log_json
+from api.models import Customer
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
@@ -86,7 +87,10 @@ def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
     context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context):
+        return True
+    else:
+        return Customer.objects.filter(schema_name=account).get().large_customer
 
 
 def is_rate_limit_customer_large(account):  # pragma: no cover

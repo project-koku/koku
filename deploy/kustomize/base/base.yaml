@@ -422,6 +422,9 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: Large customer provider count
+  name: LARGE_CUSTOMER_PROVIDER_COUNT
+  value: "4"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"

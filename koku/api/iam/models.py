@@ -49,6 +49,7 @@ class Customer(models.Model):
     account_id = models.CharField(max_length=150, blank=False, null=True, unique=True)
     org_id = models.CharField(max_length=36, blank=False, null=True, unique=True)
     schema_name = models.TextField(unique=True, null=False, default="public")
+    large_customer = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["schema_name"]

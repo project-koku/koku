@@ -89,6 +89,8 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: LARGE_CUSTOMER_PROVIDER_COUNT
+          value: ${LARGE_CUSTOMER_PROVIDER_COUNT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT

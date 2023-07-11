@@ -1208,6 +1208,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: LARGE_CUSTOMER_PROVIDER_COUNT
+          value: ${LARGE_CUSTOMER_PROVIDER_COUNT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1385,10 +1387,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1568,10 +1566,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1751,10 +1745,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1932,10 +1922,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2113,10 +2099,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2296,10 +2278,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2479,10 +2457,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2660,10 +2634,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2841,10 +2811,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3024,10 +2990,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3207,10 +3169,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3390,10 +3348,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3575,10 +3529,6 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -4046,6 +3996,9 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: Large customer provider count
+  name: LARGE_CUSTOMER_PROVIDER_COUNT
+  value: "10"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"

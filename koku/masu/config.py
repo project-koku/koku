@@ -80,6 +80,9 @@ class Config:
     POLLING_BATCH_SIZE = ENVIRONMENT.int("POLLING_BATCH_SIZE", default=DEFAULT_POLLING_BATCH)
     POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=DEFAULT_SEC_IN_DAY)
 
+    # Specify minimal provider count to class customer as large, use XL pods
+    LARGE_CUSTOMER_PROVIDER_COUNT = ENVIRONMENT.int("LARGE_CUSTOMER_PROVIDER_COUNT", default=4)
+
     # Insights Kafka
     INSIGHTS_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
     INSIGHTS_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()

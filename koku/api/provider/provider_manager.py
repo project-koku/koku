@@ -76,6 +76,11 @@ class ProviderManager:
         """Get all providers created by a given customer."""
         return Provider.objects.filter(customer=customer)
 
+    @staticmethod
+    def get_active_provider_count_for_customer(customer):
+        """Get all providers created by a given customer."""
+        return len(Provider.objects.filter(customer=customer, active=True, paused=False))
+
     def get_name(self):
         """Get the name of the provider."""
         return self.model.name

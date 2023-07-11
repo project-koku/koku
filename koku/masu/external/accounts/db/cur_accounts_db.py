@@ -6,7 +6,9 @@
 import logging
 
 from api.common import log_json
+from api.models import Customer
 from api.models import Provider
+from api.provider.provider_manager import ProviderManager
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
@@ -55,6 +57,27 @@ class CURAccountsDB(CURAccountsInterface):
                     return False
         return True
 
+    def set_large_customer(self, provider):
+        """checks and sets large customer flag."""
+        provider_manager = ProviderManager(provider.uuid)
+        count = provider_manager.get_active_provider_count_for_customer(provider.customer_id)
+        large_customer = False
+        if count > Config.LARGE_CUSTOMER_PROVIDER_COUNT:
+            large_customer = True
+        customer_rec = Customer.objects.filter(id=provider.customer_id).get()
+        if customer_rec.large_customer != large_customer:
+            customer_rec.large_customer = large_customer
+            LOG.info(
+                log_json(
+                    msg="setting if customer is large",
+                    provider_type=provider.type,
+                    provider_uuid=provider.uuid,
+                    schema=provider.customer_id,
+                    is_customer_large=customer_rec.large_customer,
+                )
+            )
+            customer_rec.save()
+
     def get_accounts_from_source(self, provider_uuid=None, provider_type=None, scheduled=False):
         """
         Retrieve all accounts from the Koku database.
@@ -90,6 +113,7 @@ class CURAccountsDB(CURAccountsInterface):
 
             for _, provider in all_providers.items():
                 if len(accounts) < batch_size:
+                    self.set_large_customer(provider)
                     if scheduled and provider.type == Provider.PROVIDER_OCP:
                         continue
                     if provider_type and provider_type not in provider.type:
