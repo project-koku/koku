@@ -8,6 +8,7 @@ from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.iam.test.iam_test_case import RbacPermissions
 from api.settings.test.aws_category_keys.utils import TestAwsCategoryClass
 
 FAKE = Faker()
@@ -64,3 +65,56 @@ class AwsCategoryKeysSettingsViewTest(TestAwsCategoryClass):
         data = {"ids": ["bad_uuid", FAKE.uuid4()]}
         response = client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
+    """Test case for RBAC permissions to access settings."""
+
+    no_access = {"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}}
+    read = {"settings": {"read": ["*"]}}
+    write = {"settings": {"write": ["*"]}}
+    read_write = {"settings": {"read": ["*"], "write": ["*"]}}
+
+    @RbacPermissions(no_access)
+    def test_no_access_to_get_request(self):
+        url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(read)
+    def test_read_accesss_to_get_request(self):
+        url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions(read)
+    def test_read_access_to_put_request(self):
+        url = reverse("settings-aws-category-keys-disable")
+        client = APIClient()
+        data = {"ids": [self.uuid]}
+        response = client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(write)
+    def test_write_on_put_request(self):
+        url = reverse("settings-aws-category-keys-disable")
+        client = APIClient()
+        data = {"ids": [self.uuid]}
+        response = client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    @RbacPermissions(write)
+    def test_write_on_get_request(self):
+        url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(read_write)
+    def test_read_and_write_on_get_request(self):
+        url = reverse("settings-aws-category-keys") + "?" + f"filter[key]={str(self.key)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

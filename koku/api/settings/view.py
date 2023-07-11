@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
-from api.common.permissions.settings_access import SettingsAccessPermission
+from api.common.permissions.settings_access import DeprecatedSettingsAccessPermission
 from api.settings.settings import Settings
 
 SETTINGS_GENERATORS = {"settings": Settings}
@@ -21,7 +21,7 @@ class SettingsView(APIView):
     View to interact with settings for a customer.
     """
 
-    permission_classes = [SettingsAccessPermission]
+    permission_classes = [DeprecatedSettingsAccessPermission]
 
     @method_decorator(never_cache)
     def get(self, request):
