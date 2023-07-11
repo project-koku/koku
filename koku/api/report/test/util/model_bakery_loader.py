@@ -13,9 +13,9 @@ from itertools import product
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from api.currency.utils import exchange_dictionary
 from api.models import Provider
@@ -97,12 +97,15 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_aws_category_key_table(self):
         """Insert records for aws category keys."""
+        deduplicate_keys = []
         for item in AWS_COST_CATEGORIES:
             if isinstance(item, dict):
                 keys = item.keys()
                 for key in keys:
-                    with schema_context(self.schema):
-                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                    if key not in deduplicate_keys:
+                        with schema_context(self.schema):
+                            baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                        deduplicate_keys.append(key)
 
     def _populate_exchange_rates(self):
         rates = [
@@ -133,6 +136,14 @@ class ModelBakeryDataLoader(DataLoader):
                 data["billing_source__data_source"] = billing_source
 
             provider = baker.make("Provider", **data)
+            with schema_context(self.schema):
+                baker.make(
+                    "TenantAPIProvider",
+                    uuid=provider.uuid,
+                    type=provider.type,
+                    name=provider.name,
+                    provider=provider,
+                )
             if linked_openshift_provider:
                 infra_map = baker.make(
                     "ProviderInfrastructureMap", infrastructure_type=provider_type, infrastructure_provider=provider
@@ -158,7 +169,7 @@ class ModelBakeryDataLoader(DataLoader):
         with schema_context(self.schema):
             model_str = BILL_MODELS[provider_type]
             month_end = self.dh.month_end(bill_date)
-            data = {"provider": provider}
+            data = {"provider_id": provider.uuid}
             if provider_type == Provider.PROVIDER_OCP:
                 data["report_period_start"] = bill_date
                 data["report_period_end"] = month_end + timedelta(days=1)
@@ -168,12 +179,6 @@ class ModelBakeryDataLoader(DataLoader):
                 data["billing_period_start"] = bill_date
                 data["billing_period_end"] = month_end
             return baker.make(model_str, **data, **kwargs, _fill_optional=False)
-
-    def create_cost_entry(self, bill_date, bill):
-        """Create a cost entry object for the provider"""
-        with schema_context(self.schema):
-            month_end = self.dh.month_end(bill_date)
-            baker.make("AWSCostEntry", interval_start=bill_date, interval_end=month_end, bill=bill)
 
     def create_cost_model(self, provider):
         """Create a cost model and map entry."""
@@ -226,7 +231,6 @@ class ModelBakeryDataLoader(DataLoader):
                 self.create_manifest(provider, bill_date)
                 bill = self.create_bill(provider_type, provider, bill_date, payer_account_id=payer_account_id)
                 bills.append(bill)
-                self.create_cost_entry(bill_date, bill)
                 days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(  # Storage data_source
@@ -268,6 +272,7 @@ class ModelBakeryDataLoader(DataLoader):
             linked_openshift_provider=linked_openshift_provider,
         )
         sub_guid = self.faker.uuid4()
+        sub_name = f"{self.faker.company()} subscription"
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load azure data for start: {start_date}, end: {end_date}")
             self.create_manifest(provider, bill_date)
@@ -285,6 +290,7 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
+                        subscription_name=sub_name,
                     )
         bill_ids = [bill.id for bill in bills]
         with AzureReportDBAccessor(self.schema) as accessor:

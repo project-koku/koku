@@ -1,9 +1,6 @@
 """Tests for celery tasks."""
-import os
-import tempfile
 from collections import namedtuple
 from datetime import datetime
-from datetime import timedelta
 from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -18,12 +15,10 @@ from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest as APIExportRequest
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
-from api.utils import DateHelper
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ManifestCreationHelper
 from reporting.models import TRINO_MANAGED_TABLES
 
 fake = faker.Faker()
@@ -253,68 +248,6 @@ class TestCeleryTasks(MasuTestCase):
             calls.append(call(table, partition_column, provider_uuid))
         mock_delete_partitions.assert_has_calls(calls)
 
-    @patch("masu.celery.tasks.Config")
-    @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
-    def test_clean_volume(self, mock_date, mock_config):
-        """Test that the clean volume function is cleaning the appropriate files"""
-        # create a manifest
-        mock_date.return_value = ["2020-02-01"]
-        manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": "2020-02-01",
-            "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
-        # create two files on the temporary volume one with a matching prefix id
-        #  as the assembly_id in the manifest above
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            mock_config.PVC_DIR = tmpdirname
-            mock_config.VOLUME_FILE_RETENTION = 60 * 60 * 24
-            old_matching_file = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
-            new_no_match_file = os.path.join(tmpdirname, "newfile.csv")
-            old_no_match_file = os.path.join(tmpdirname, "oldfile.csv")
-            filepaths = [old_matching_file, new_no_match_file, old_no_match_file]
-            for path in filepaths:
-                open(path, "a").close()
-                self.assertEqual(os.path.exists(path), True)
-
-            # Update timestame for oldfile.csv
-            datehelper = DateHelper()
-            now = datehelper.now
-            old_datetime = now - timedelta(seconds=mock_config.VOLUME_FILE_RETENTION * 2)
-            oldtime = old_datetime.timestamp()
-            os.utime(old_matching_file, (oldtime, oldtime))
-            os.utime(old_no_match_file, (oldtime, oldtime))
-
-            # now run the clean volume task
-            tasks.clean_volume()
-            # make sure that the file with the matching id still exists and that
-            # the file with the other id is gone
-            self.assertEqual(os.path.exists(old_matching_file), True)
-            self.assertEqual(os.path.exists(new_no_match_file), True)
-            self.assertEqual(os.path.exists(old_no_match_file), False)
-            # now edit the manifest to say that all the files have been processed
-            # and rerun the clean_volumes task
-            manifest.num_processed_files = manifest_dict.get("num_total_files")
-            manifest_helper = ManifestCreationHelper(
-                manifest.id, manifest_dict.get("num_total_files"), manifest_dict.get("assembly_id")
-            )
-            manifest_helper.generate_test_report_files()
-            manifest_helper.process_all_files()
-
-            manifest.save()
-            tasks.clean_volume()
-            # ensure that the original file is deleted from the volume
-            self.assertEqual(os.path.exists(old_matching_file), False)
-            self.assertEqual(os.path.exists(new_no_match_file), True)
-
-        # assert the tempdir is cleaned up
-        self.assertEqual(os.path.exists(tmpdirname), False)
-        # test no files found for codecov
-        tasks.clean_volume()
-
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_with_provider_uuid(self, mock_crawler):
         """Test that only accounts associated with the provider_uuid are polled."""
@@ -328,6 +261,10 @@ class TestCeleryTasks(MasuTestCase):
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
         _, polling_accounts = Orchestrator.get_accounts()
+        providers = Provider.objects.all()
+        for provider in providers:
+            provider.polling_timestamp = None
+            provider.save()
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
@@ -413,20 +350,20 @@ class TestCeleryTasks(MasuTestCase):
             expected_log_msg = "does not exist"
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=False)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=False)
     def test_purge_s3_files_failed_unleash(self, _):
         """Test that the scheduled task calls the orchestrator."""
         msg = tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         expected_msg = "Schema act1111 not enabled in unleash."
         self.assertEqual(msg, expected_msg)
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     def test_purge_s3_files_missing_params(self, _):
         """Test that the scheduled task calls the orchestrator."""
         with self.assertRaises(TypeError):
             tasks.purge_s3_files(None, None, None, None)
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     @override_settings(SKIP_MINIO_DATA_DELETION=True)
     def test_purge_s3_files_skipped_minio_true(self, delete_call, *args):
@@ -434,7 +371,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         delete_call.assert_not_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     @override_settings(SKIP_MINIO_DATA_DELETION=False)
     def test_purge_s3_files_success(self, delete_call, *args):
@@ -442,7 +379,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
         delete_call.assert_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     def test_purge_manifest_success(self, _):
         """Test that the scheduled task calls the orchestrator."""
         dates = {"start_date": datetime.now().date(), "end_date": datetime.now().date()}
@@ -451,7 +388,7 @@ class TestCeleryTasks(MasuTestCase):
             mock_accessor.return_value.__enter__.return_value = FakeManifest()
             mock_accessor.assert_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=False)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=False)
     def test_purge_manifest_fail(self, _):
         """Test that the scheduled task calls the orchestrator."""
         dates = {"bill_date": datetime.now().date()}
@@ -460,7 +397,7 @@ class TestCeleryTasks(MasuTestCase):
             tasks.purge_manifest_records("act1111", "123456", dates)
             mock_accessor.assert_not_called()
 
-    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=True)
     def test_purge_manifest_fail_no_dates(self, _):
         """Test that the scheduled task calls the orchestrator."""
         dates = {}

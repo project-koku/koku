@@ -5,8 +5,9 @@
 """Test the AWSReportParquetProcessor."""
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.utils import DateHelper
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.test import MasuTestCase
@@ -68,7 +69,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_account_id=account_id,
-                provider=self.aws_provider,
+                provider=self.aws_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -87,7 +88,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 billing_period_start=start_date,
                 billing_period_end=end_date,
                 payer_account_id=account_id,
-                provider=self.aws_provider,
+                provider=self.aws_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -96,11 +97,10 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         bill_date = DateHelper().next_month_start
         pg_table = self.processor.postgres_summary_table._meta.db_table
         table_name = f"{pg_table}_{bill_date.strftime('%Y_%m')}"
-        expected_log = (
-            f"INFO:masu.processor.report_parquet_processor_base:"
-            f"Created a new partition for {pg_table} : {table_name}"
+        log_format = log_json(
+            msg="created a new partition", schema=self.schema_name, table=pg_table, partition=table_name
         )
-
+        expected_log = "INFO:masu.processor.report_parquet_processor_base:" + str(log_format)
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.get_or_create_postgres_partition(bill_date)
             self.assertIn(expected_log, logger.output)

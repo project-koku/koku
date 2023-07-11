@@ -5,10 +5,16 @@
 """Database source implementation to provide all CUR accounts for CURAccounts access."""
 import logging
 
+from api.common import log_json
+from api.models import Provider
+from api.utils import DateHelper
+from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
 from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
+from masu.processor import is_source_disabled
 
 LOG = logging.getLogger(__name__)
+dh = DateHelper()
 
 
 class CURAccountsDB(CURAccountsInterface):
@@ -26,7 +32,30 @@ class CURAccountsDB(CURAccountsInterface):
             "provider_uuid": provider.uuid,
         }
 
-    def get_accounts_from_source(self, provider_uuid=None):
+    def is_source_pollable(self, provider, provider_uuid=None):
+        """checks to see if a source is pollable."""
+        if is_source_disabled(provider.uuid):
+            return False
+        if provider.active is False or provider.paused:
+            LOG.info(
+                log_json(
+                    msg="processing suspended for provider",
+                    provider_uuid=provider.uuid,
+                    active=provider.active,
+                    paused=provider.paused,
+                )
+            )
+            return False
+        # This check is needed for OCP ingress reports
+        if not provider_uuid:
+            poll_timestamp = provider.polling_timestamp
+            timer = Config.POLLING_TIMER
+            if poll_timestamp is not None:
+                if ((dh.now_utc - poll_timestamp).seconds) < timer:
+                    return False
+        return True
+
+    def get_accounts_from_source(self, provider_uuid=None, provider_type=None, scheduled=False):
         """
         Retrieve all accounts from the Koku database.
 
@@ -40,32 +69,46 @@ class CURAccountsDB(CURAccountsInterface):
 
         """
         accounts = []
+        batch_size = Config.POLLING_BATCH_SIZE
         with ProviderCollector() as collector:
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
             if provider_uuid and not provider:
-                LOG.info(f"Provider for uuid {provider_uuid} does not exist its likely it has been deleted.")
+                LOG.info(log_json(msg="provider does not exist", provider_uuid=provider_uuid))
                 return []
             elif provider_uuid and provider:
-                if provider.active and not provider.paused:
+                if self.is_source_pollable(provider, provider_uuid):
                     return [self.get_account_information(provider)]
-                LOG.info(
-                    f"Provider {provider.uuid} is active={provider.active} "
-                    f"or paused={provider.paused}. Processing suspended..."
-                )
                 return []
 
+            LOG.info(
+                log_json(
+                    msg="looping through providers polling for accounts",
+                    scheduled=scheduled,
+                )
+            )
+
             for _, provider in all_providers.items():
-                if provider.active is False or provider.paused:
-                    LOG.info(
-                        f"Provider {provider.uuid} is active={provider.active} "
-                        f"or paused={provider.paused}. Processing suspended..."
-                    )
-                    continue
-                accounts.append(self.get_account_information(provider))
-        msg = f"""Looping through all providers to for polling:
-                provider_uuid: {provider_uuid},
-                provider: {provider}
-            """
-        LOG.info(msg)
+                if len(accounts) < batch_size:
+                    if scheduled and provider.type == Provider.PROVIDER_OCP:
+                        continue
+                    if provider_type and provider_type not in provider.type:
+                        continue
+                    if self.is_source_pollable(provider):
+                        accounts.append(self.get_account_information(provider))
+                        # Update provider polling time.
+                        provider.polling_timestamp = dh.now_utc
+                        provider.save()
+                        LOG.info(
+                            log_json(
+                                msg="adding provider to polling batch",
+                                provider_type=provider.type,
+                                provider_uuid=provider.uuid,
+                                schema=provider.customer_id,
+                                polling_count=len(accounts),
+                                polling_batch_count=batch_size,
+                            )
+                        )
+                else:
+                    break
         return accounts

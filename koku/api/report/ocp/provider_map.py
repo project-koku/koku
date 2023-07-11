@@ -271,6 +271,10 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_cost
+                            + self.cost_model_distributed_cost_by_project,
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -296,7 +300,19 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
                         },
-                        "capacity_aggregate": {"capacity": Max("cluster_capacity_cpu_core_hours")},
+                        "capacity_aggregate": {
+                            "cluster": {
+                                "capacity": Max("cluster_capacity_cpu_core_hours"),
+                                "capacity_count": Max("node_capacity_cpu_cores"),
+                                "capacity_count_units": Value("Core", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "node": {
+                                "capacity": Max("node_capacity_cpu_core_hours"),
+                                "capacity_count": Max("node_capacity_cpu_cores"),
+                                "capacity_count_units": Value("Core", output_field=CharField()),
+                            },
+                        },
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -319,7 +335,7 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
-                            "capacity": Max("cluster_capacity_cpu_core_hours"),
+                            "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -329,6 +345,10 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_cost
+                            + self.cost_model_distributed_cost_by_project,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
@@ -373,7 +393,19 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
                         },
-                        "capacity_aggregate": {"capacity": Max("cluster_capacity_memory_gigabyte_hours")},
+                        "capacity_aggregate": {
+                            "cluster": {
+                                "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
+                                "capacity_count": Max("node_capacity_memory_gigabytes"),
+                                "capacity_count_units": Value("GB", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "node": {
+                                "capacity": Max("node_capacity_memory_gigabyte_hours"),
+                                "capacity_count": Max("node_capacity_memory_gigabytes"),
+                                "capacity_count_units": Value("GB", output_field=CharField()),
+                            },
+                        },
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -397,7 +429,9 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
-                            "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
+                            "capacity": Max(
+                                "cluster_capacity_memory_gigabyte_hours"
+                            ),  # This is to keep the order, overwritten with capacity aggregate
                             "usage_units": Value("GB-Hours", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
@@ -456,6 +490,18 @@ class OCPProviderMap(ProviderMap):
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                         },
                         "default_ordering": {"usage": "desc"},
+                        "capacity_aggregate": {
+                            "cluster": {
+                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity_count_units": Value("GB", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "node": {
+                                "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity_count_units": Value("GB", output_field=CharField()),
+                            },
+                        },
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_volume_supplementary_cost,

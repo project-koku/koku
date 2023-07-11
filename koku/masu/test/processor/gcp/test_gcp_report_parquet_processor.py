@@ -5,8 +5,9 @@
 """Test the GCPReportParquetProcessor."""
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.utils import DateHelper
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.test import MasuTestCase
@@ -65,7 +66,9 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         self.processor.create_bill(bill_date.date())
         with schema_context(self.schema):
             bill = GCPCostEntryBill.objects.filter(
-                billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider
+                billing_period_start=start_date,
+                billing_period_end=end_date,
+                provider=self.gcp_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -81,7 +84,9 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         self.processor.create_bill(str(bill_date.date()))
         with schema_context(self.schema):
             bill = GCPCostEntryBill.objects.filter(
-                billing_period_start=start_date, billing_period_end=end_date, provider=self.gcp_provider
+                billing_period_start=start_date,
+                billing_period_end=end_date,
+                provider=self.gcp_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -90,10 +95,10 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         bill_date = DateHelper().next_month_start
         pg_table = self.processor.postgres_summary_table._meta.db_table
         table_name = f"{pg_table}_{bill_date.strftime('%Y_%m')}"
-        expected_log = (
-            f"INFO:masu.processor.report_parquet_processor_base:"
-            f"Created a new partition for {pg_table} : {table_name}"
+        log_format = log_json(
+            msg="created a new partition", schema=self.schema_name, table=pg_table, partition=table_name
         )
+        expected_log = "INFO:masu.processor.report_parquet_processor_base:" + str(log_format)
 
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.get_or_create_postgres_partition(bill_date)

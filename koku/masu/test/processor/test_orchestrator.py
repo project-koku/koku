@@ -146,13 +146,17 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch(
-        "masu.processor.orchestrator.disable_cloud_source_processing",
+        "masu.processor.orchestrator.is_cloud_source_processing_disabled",
         return_value=True,
     )
-    def test_unleash_disable_cloud_source_processing(self, mock_processing, mock_inspect):
-        """Test the disable_cloud_source_processing."""
-        expected_result = "Cloud source processing disabled for "
+    def test_unleash_is_cloud_source_processing_disabled(self, mock_processing, mock_inspect):
+        """Test the is_cloud_source_processing_disabled."""
+        expected_result = "processing disabled"
         orchestrator = Orchestrator()
+        providers = Provider.objects.all()
+        for provider in providers:
+            provider.polling_timestamp = None
+            provider.save()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
             orchestrator.get_accounts()
             self.assertIn(expected_result, captured_logs.output[0])

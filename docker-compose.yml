@@ -53,7 +53,9 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - OCI_CLI_USER=${OCI_CLI_USER}
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
@@ -115,7 +117,9 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - OCI_CLI_USER=${OCI_CLI_USER}
@@ -170,7 +174,7 @@ services:
       - S3_ENDPOINT
       - S3_ACCESS_KEY
       - S3_SECRET
-      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - DATA_DIR=${DATA_DIR-/testing/data}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - KOKU_CELERY_ENABLE_SENTRY
       - KOKU_CELERY_SENTRY_DSN
@@ -178,6 +182,8 @@ services:
       - DEMO_ACCOUNTS
       - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - POLLING_TIMER=${POLLING_TIMER-60}
+      - POLLING_BATCH_SIZE=${POLLING_BATCH_SIZE-100}
       - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
       - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
       - TRINO_HOST=${TRINO_HOST-trino}
@@ -190,7 +196,9 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - OCI_CLI_USER=${OCI_CLI_USER}
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
@@ -261,7 +269,9 @@ services:
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 7001-7020:9000
@@ -313,7 +323,9 @@ services:
       - GUNICORN_WORKERS=${GUNICORN_WORKERS-3}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - OCI_CLI_USER=${OCI_CLI_USER}
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
@@ -337,7 +349,7 @@ services:
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['celery', '--pidfile=', '-A', 'koku', 'beat', '-l', 'info']
+    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -354,11 +366,12 @@ services:
       - DJANGO_SETTINGS_MODULE=koku.settings
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - SCHEDULE_REPORT_CHECKS=True
-      - REPORT_DOWNLOAD_SCHEDULE="0 4,16 * * *"
       - SOURCE_STATUS_FREQUENCY_MINUTES
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
       - './koku:/koku/koku'
@@ -479,9 +492,9 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:3.9  # 3.9 to match clowder
+    image: unleashorg/unleash-server:4.21.0
     environment:
-      - AUTH_ENABLE_API_TOKEN=true
+      - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
       - CHECK_VERSION=false
       - DATABASE_HOST=db
       - DATABASE_NAME=unleash

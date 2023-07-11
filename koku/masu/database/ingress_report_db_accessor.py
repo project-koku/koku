@@ -5,8 +5,9 @@
 """Report database accessor for ingress reports."""
 import logging
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting.ingress.models import IngressReports
@@ -40,16 +41,17 @@ class IngressReportDBAccessor(KokuDBAccess):
         completed_datetime = self.date_accessor.today_with_timezone("UTC")
         if ingress_report_uuid:
             ingress_report = self._get_db_obj_query().filter(uuid=ingress_report_uuid).first()
-            if not ingress_report.completed_timestamp:
-                ingress_report.completed_timestamp = completed_datetime
-                ingress_report.save()
-            msg = (
-                f"Marking ingress report {ingress_report.uuid} "
-                f"\nfor source {ingress_report.source} "
-                f"\ncompleted_datetime: {ingress_report.completed_timestamp}."
-            )
+            ingress_report.completed_timestamp = completed_datetime
+            ingress_report.save()
             self.update_ingress_report_status(ingress_report_uuid, "Complete")
-            LOG.info(msg)
+            LOG.info(
+                log_json(
+                    msg="marking ingress report complete",
+                    ingress_report=ingress_report.uuid,
+                    provider_uuid=ingress_report.source,
+                    completed_datetime=ingress_report.completed_timestamp,
+                )
+            )
 
     def update_ingress_report_status(self, ingress_report_uuid, status):
         """Update the status field for ingress reports."""
@@ -57,9 +59,11 @@ class IngressReportDBAccessor(KokuDBAccess):
             ingress_report = self._get_db_obj_query().filter(uuid=ingress_report_uuid).first()
             ingress_report.status = status
             ingress_report.save()
-            msg = (
-                f"Updating ingress report {ingress_report.uuid} "
-                f"\nfor source {ingress_report.source} "
-                f"\nStatus: {ingress_report.status}"
+            LOG.info(
+                log_json(
+                    msg="updating ingress report status",
+                    ingress_report=ingress_report.uuid,
+                    provider_uuid=ingress_report.source,
+                    status=ingress_report.status,
+                )
             )
-            LOG.info(msg)

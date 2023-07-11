@@ -4,13 +4,10 @@
 #
 """Test the Azure Report views."""
 from django.urls import reverse
-from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-
-FAKE = Faker()
 
 
 class AzureReportViewTest(IamTestCase):

@@ -15,6 +15,7 @@ class ProviderErrors:
     # KEYS
     INVALID_SOURCE_TYPE = "source_type"
     DUPLICATE_AUTH = "source.duplicate"
+    BILLING_SOURCE = "billing_source"
 
     AWS_NO_REPORT_FOUND = "authentication.role_arn.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
@@ -45,6 +46,8 @@ class ProviderErrors:
 
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
+    BILLING_SOURCE_GENERAL_ERROR = "There is a problem with the given source."
+    REQUIRED_FIELD_MISSING = "The source is missing one or more required fields."
 
     AWS_MISSING_ROLE_ARN_MESSAGE = "Role ARN is a required parameter for AWS and must not be blank."
     AWS_ROLE_ARN_UNREACHABLE_MESSAGE = (
@@ -119,6 +122,10 @@ class ProviderErrors:
     AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE = (
         "The subscription ID was entered incorrectly for this source. "
         "Edit your Azure source and verify the subscription ID."
+    )
+    AZURE_UNAUTHORIZED_MESSAGE = (
+        "Azure reported an authorization error. "
+        "In Azure, check the resource group, storage account, cost export scope, and service principal."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
     OCI_BUCKET_MISSING_MESSAGE = (

@@ -6,15 +6,12 @@
 import logging
 import pkgutil
 
-from jinjasql import JinjaSql
-
 from api.common import log_json
 from api.iam.models import Customer
 from api.provider.models import Provider
 from hcs.csv_file_handler import CSVFileHandler
 from hcs.exceptions import HCSTableNotFoundError
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.external.date_accessor import DateAccessor
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
@@ -40,8 +37,6 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         hcs_cust = Customer.objects.filter(schema_name=schema).first()
         self._ebs_acct_num = hcs_cust.account_id
         self._org_id = hcs_cust.org_id
-        self.date_accessor = DateAccessor()
-        self.jinja_sql = JinjaSql()
 
     def get_hcs_daily_summary(self, date, provider, provider_uuid, sql_summary_file, tracing_id, finalize=False):
         """Build HCS daily report.
@@ -54,14 +49,15 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
 
         :returns (None)
         """
-        LOG.info(log_json(tracing_id, "acquiring marketplace data..."))
-        LOG.info(
-            log_json(
-                tracing_id,
-                f"schema: {self.schema}, provider: {provider}, "
-                + f"date: {date}, org_id: {self._org_id}, ebs_num: {self._ebs_acct_num}",
-            )
-        )
+        ctx = {
+            "schema": self.schema,
+            "provider_type": provider,
+            "provider_uuid": provider_uuid,
+            "date": date,
+            "org_id": self._org_id,
+            "ebs_account": self._ebs_acct_num,
+        }
+        LOG.info(log_json(tracing_id, msg="acquiring marketplace data", context=ctx))
 
         try:
             sql = pkgutil.get_data("hcs.database", sql_summary_file)
@@ -82,9 +78,6 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "table": table,
             }
 
-            LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
-
-            sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
             # trino-python-client 0.321.0 released a breaking change to map results to python types by default
             # This altered the timestamp values present in generated CSVs, impacting consumers of these files
             # legacy_primitive_types restores previous functionality of using primitive types
@@ -97,16 +90,11 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             cols = [col[0] for col in description]
 
             if len(data) > 0:
-                LOG.info(log_json(tracing_id, f"data found for date: {date}"))
+                LOG.info(log_json(tracing_id, msg="data found", context=ctx))
                 csv_handler = CSVFileHandler(self.schema, provider, provider_uuid)
                 csv_handler.write_csv_to_s3(date, data, cols, finalize, tracing_id)
             else:
-                LOG.info(
-                    log_json(
-                        tracing_id,
-                        f"no data found for date: {date}, " f"provider: {provider}, provider_uuid: {provider_uuid}",
-                    )
-                )
+                LOG.info(log_json(tracing_id, msg="no data found", context=ctx))
 
         except FileNotFoundError:
-            LOG.error(log_json(tracing_id, f"unable to locate SQL file: {sql_summary_file}"))
+            LOG.error(log_json(tracing_id, msg=f"unable to locate SQL file: {sql_summary_file}"))

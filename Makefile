@@ -34,7 +34,7 @@ endif
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
-PROVIDER_TEMP_DIR = $(TESTINGDIR)/pvc_dir
+PROVIDER_TEMP_DIR = $(TESTINGDIR)/data
 OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 
 # How to execute Django's manage.py
@@ -61,12 +61,13 @@ help:
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
 	@echo "  lint                                  run pre-commit against the project"
+	@echo "  get-release-commit                    show the latest commit that is safe to release"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
-	@echo "  clear-trino                           Remove stale files/subdirectories from the trino data directory."
-	@echo "  clear-trino-data                      Remove old trino data from .trino/parquet_data/koku-bucket/data."
-	@echo "  clear-cache                           Flushes cache keys inside of the redis container."
+	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
+	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
+	@echo "  delete-trino-data                     Delete old trino data from .trino/parquet_data/koku-bucket/."
+	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -94,8 +95,8 @@ help:
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
-	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
-	@echo "  remove-test-db                        remove the django test db"
+	@echo "  delete-db                             delete local directory $(TOPDIR)/pg_data"
+	@echo "  delete-test-db                        delete the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "                                          @param applabel - (optional) Use specified application"
@@ -104,7 +105,7 @@ help:
 	@echo "  serve                                 run the Django app on localhost"
 	@echo "  shell                                 run the Django interactive shell"
 	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
-	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
@@ -161,16 +162,16 @@ clean:
 lint:
 	pre-commit run --all-files
 
-clear-testing:
+delete-testing:
 	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
-clear-trino:
+delete-trino:
 	$(PREFIX) rm -fr ./.trino/
 
-clear-trino-data:
-	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data
+delete-trino-data:
+	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/**
 
-clear-cache:
+delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
 
 create-test-customer: run-migrations docker-up-koku
@@ -208,16 +209,16 @@ collect-static:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
-remove-db:
+delete-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
-remove-test-db:
+delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
                                          -d $$DATABASE_NAME \
                                          -U $$DATABASE_USER \
                                          -c "DROP DATABASE test_$$DATABASE_NAME;" >/dev/null
-	@echo "Test DB (test_$$DATABASE_NAME) has been removed."
+	@echo "Test DB (test_$$DATABASE_NAME) has been deleted."
 
 reset-db-statistics:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -286,8 +287,8 @@ endif
 
 docker-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	$(PREFIX) make clear-testing
-	$(PREFIX) make clear-trino-data
+	$(PREFIX) make delete-testing
+	$(PREFIX) make delete-trino-data
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
@@ -299,13 +300,13 @@ docker-logs:
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
 
-docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
+docker-reinitdb: docker-down-db delete-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
 
-docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
+docker-reinitdb-with-sources: docker-down-db delete-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
-docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+docker-reinitdb-with-sources-lite: docker-down-db delete-db docker-up-db run-migrations create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
@@ -374,22 +375,22 @@ _set-test-dir-permissions:
 	@$(PREFIX) chmod -R o+rw,g+rw ./testing
 	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
 
-docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_local_hccm.sh $(iqe_cmd)
 
-docker-iqe-smoke-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-smoke-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_smoke_tests.sh
 
 docker-iqe-smoke-tests-trino:
 	./testing/run_smoke_tests.sh
 
-docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_api_tests.sh
 
-docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-docker-trino-setup: clear-trino
+docker-trino-setup: delete-trino
 	mkdir -p -m a+rwx ./.trino
 	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
 
@@ -404,7 +405,7 @@ docker-trino-ps:
 
 docker-trino-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	make clear-trino
+	make delete-trino
 
 docker-trino-down-all: docker-trino-down docker-down
 
@@ -426,8 +427,8 @@ ifndef ocp_name
 	$(error param ocp_name is not set)
 endif
 	(command -v nise > /dev/null 2>&1) || (echo 'nise is not installed, please install nise.' && exit 1 )
-	mkdir -p testing/pvc_dir/insights_local
-	nise report ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
+	mkdir -p testing/data/insights_local
+	nise report ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/data/insights_local --static-report-file $(srf_yaml)
 	curl -d '{"name": "$(ocp_name)", "source_type": "OCP", "authentication": {"credentials": {"cluster_id": "$(cluster_id)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 # From here you can hit the http://127.0.0.1:5042/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
@@ -594,3 +595,7 @@ restore-local-db-dir:
 	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \
 	fi
 	@cd - >/dev/null
+
+
+get-release-commit:
+	@$(PYTHON) $(SCRIPTDIR)/get-release-commit.py

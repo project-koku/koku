@@ -61,63 +61,30 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        arn = credentials.get("role_arn")
-        bucket = data_source.get("bucket")
-        self.bucket = bucket
-        self.storage_only = data_source.get("storage_only")
-        self.ingress_reports = ingress_reports
-        # Existing schema will start with acct and we strip that prefix new customers
-        # include the org prefix in case an org-id and an account number might overlap
-        if customer_name.startswith("acct"):
-            demo_check = customer_name[4:]
-        else:
-            demo_check = customer_name
-        if demo_check in settings.DEMO_ACCOUNTS:
-            demo_account = settings.DEMO_ACCOUNTS.get(demo_check)
-            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
-            if arn in demo_account:
-                demo_info = demo_account.get(arn)
-                self.customer_name = customer_name.replace(" ", "_")
-                self._provider_uuid = kwargs.get("provider_uuid")
-                self.report_name = demo_info.get("report_name")
-                self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
-                self.s3_client = session.client("s3")
-                return
-
         self.customer_name = customer_name.replace(" ", "_")
+        self.credentials = credentials
+        self.data_source = data_source
+        self.report = None
+        self.report_name = report_name
+        self.ingress_reports = ingress_reports
+
+        self.bucket = data_source.get("bucket")
+        self.region_name = data_source.get("bucket_region")
+        self.storage_only = data_source.get("storage_only")
+
         self._provider_uuid = kwargs.get("provider_uuid")
+        self._region_kwargs = {"region_name": self.region_name} if self.region_name else {}
+
+        if self._demo_check():
+            return
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
+        self._session = utils.get_assume_role_session(
+            utils.AwsArn(credentials), "MasuDownloaderSession", **self._region_kwargs
+        )
+        self.s3_client = self._session.client("s3", **self._region_kwargs)
 
-        # Checking for storage only source
-        if self.storage_only:
-            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
-            report = [""]
-        else:
-            self.cur = session.client("cur")
-
-            # fetch details about the report from the cloud provider
-            defs = self.cur.describe_report_definitions()
-            if not report_name:
-                report_names = []
-                for report in defs.get("ReportDefinitions", []):
-                    if bucket == report.get("S3Bucket"):
-                        report_names.append(report["ReportName"])
-
-                # FIXME: Get the first report in the bucket until Koku can specify
-                # which report the user wants
-                if report_names:
-                    report_name = report_names[0]
-            self.report_name = report_name
-            report_defs = defs.get("ReportDefinitions", [])
-            report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
-            if not report:
-                raise MasuProviderError("Cost and Usage Report definition not found.")
-
-        self.report = report.pop()
-        self.s3_client = session.client("s3")
+        self._set_report()
 
     @property
     def manifest_date_format(self):
@@ -146,10 +113,10 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "AccessDenied":
                 msg = f"Unable to access S3 Bucket {self.bucket}: (AccessDenied)"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
             raise AWSReportDownloaderError(str(ex))
 
         if size < 0:
@@ -173,6 +140,59 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return size_ok
 
+    def _demo_check(self) -> bool:
+        # Existing schema will start with acct and we strip that prefix new customers
+        # include the org prefix in case an org-id and an account number might overlap
+        if self.customer_name.startswith("acct"):
+            demo_check = self.customer_name[4:]
+        else:
+            demo_check = self.customer_name
+
+        if demo_account := settings.DEMO_ACCOUNTS.get(demo_check):
+            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
+            if demo_info := demo_account.get(self.credentials.get("role_arn")):
+                self.report_name = demo_info.get("report_name")
+                self.report = {
+                    "S3Bucket": self.bucket,
+                    "S3Prefix": demo_info.get("report_prefix"),
+                    "Compression": "GZIP",
+                }
+                session = utils.get_assume_role_session(
+                    utils.AwsArn(self.credentials), "MasuDownloaderSession", **self._region_kwargs
+                )
+                self.s3_client = session.client("s3", **self._region_kwargs)
+
+                return True
+
+        return False
+
+    def _set_report(self):
+        # Checking for storage only source
+        if self.storage_only:
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
+            self.report = ""
+            return
+
+        # fetch details about the report from the cloud provider
+        defs = utils.get_cur_report_definitions(self._session.client("cur", region_name="us-east-1"))
+        if not self.report_name:
+            report_names = []
+            for report in defs.get("ReportDefinitions", []):
+                if self.bucket == report.get("S3Bucket"):
+                    report_names.append(report["ReportName"])
+
+            # FIXME: Get the first report in the bucket until Koku can specify
+            # which report the user wants
+            if report_names:
+                self.report_name = report_names[0]
+
+        report_defs = defs.get("ReportDefinitions", [])
+        report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
+        if not report:
+            raise MasuProviderError("Cost and Usage Report definition not found.")
+
+        self.report = report.pop()
+
     def _get_manifest(self, date_time):
         """
         Download and return the CUR manifest for the given date.
@@ -186,13 +206,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest = f"{self._get_report_path(date_time)}/{self.report_name}-Manifest.json"
         msg = f"Will attempt to download manifest: {manifest}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         try:
             manifest_file, _, manifest_modified_timestamp, __, ___ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             return "", self.empty_manifest, None
 
         manifest_json = None
@@ -208,7 +228,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.debug("Deleted manifest file at %s", manifest_file)
         except OSError:
             msg = f"Could not delete manifest file at {manifest_file}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
         return None
 
@@ -246,7 +266,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         local_s3_filename = utils.get_local_file_name(key)
         msg = f"Local S3 filename: {local_s3_filename}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         full_file_path = f"{directory_path}/{local_s3_filename}"
 
         # Make sure the data directory exists
@@ -260,24 +280,24 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
                 msg = f"Unable to find {s3_filename} in S3 Bucket: {self.bucket}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             if ex.response["Error"]["Code"] == "AccessDenied":
                 msg = f"Unable to access S3 Bucket {self.bucket}: (AccessDenied)"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                 raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
             raise AWSReportDownloaderError(str(ex))
 
         if not self._check_size(key, check_inflate=True):
             msg = f"Insufficient disk space to download file: {s3_file}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
             raise AWSReportDownloaderError(msg)
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading key: {key} to file path: {full_file_path}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             self.s3_client.download_file(self.bucket, key, full_file_path)
             # Push to S3
             s3_csv_path = get_path_prefix(
@@ -294,7 +314,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
                 manifest_accessor.mark_s3_csv_cleared(manifest)
         msg = f"Download complete for {key}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         return full_file_path, s3_etag, file_creation_date, [], {}
 
     def get_manifest_context_for_date(self, date):

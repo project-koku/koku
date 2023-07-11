@@ -14,8 +14,8 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
@@ -1441,8 +1441,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCPAzureExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
@@ -1483,8 +1482,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         url = "?"
         query_params = self.mocked_query_params("?", OCPAzureTagView)
@@ -1515,8 +1513,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = OCPAzureExcludeSerializer._opfields
         for ex_opt in exclude_opts:

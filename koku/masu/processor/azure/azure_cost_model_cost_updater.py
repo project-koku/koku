@@ -6,8 +6,9 @@
 import logging
 from decimal import Decimal
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -33,6 +34,10 @@ class AzureCostModelCostUpdater:
         """
         self._provider = provider
         self._schema = schema
+        self._context = {
+            "schema": self._schema,
+            "provider_uuid": self._provider.uuid,
+        }
 
     def _update_markup_cost(self, start_date, end_date):
         """Store markup costs."""
@@ -47,7 +52,7 @@ class AzureCostModelCostUpdater:
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(self._provider.uuid, markup_value, start_date, end_date, bill_ids)
         except AzureCostModelCostUpdaterError as error:
-            LOG.error("Unable to update markup costs. Error: %s", str(error))
+            LOG.error(log_json(msg="unable to update markup costs", context=self._context), exc_info=error)
 
     def update_summary_cost_model_costs(self, start_date=None, end_date=None):
         """Update the Azure summary table with the charge information.
@@ -61,20 +66,18 @@ class AzureCostModelCostUpdater:
 
         """
         LOG.debug(
-            "Starting charge calculation updates for provider: %s. Dates: %s-%s",
-            self._provider.uuid,
-            str(start_date),
-            str(end_date),
+            log_json(
+                msg="starting charge calculation updates",
+                context=self._context,
+                start_date=start_date,
+                end_date=end_date,
+            )
         )
 
         self._update_markup_cost(start_date, end_date)
 
         with AzureReportDBAccessor(self._schema) as accessor:
-            LOG.debug(
-                "Updating Azure derived cost summary for schema: %s and provider: %s",
-                self._schema,
-                self._provider.uuid,
-            )
+            LOG.debug(log_json(msg="updating Azure derived cost summary", context=self._context))
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):

@@ -99,9 +99,11 @@ class OCPAWSCostSummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -136,9 +138,11 @@ class OCPAWSCostSummaryByAccountP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -178,9 +182,11 @@ class OCPAWSCostSummaryByServiceP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -221,9 +227,11 @@ class OCPAWSCostSummaryByRegionP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -265,9 +273,11 @@ class OCPAWSComputeSummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -308,9 +318,11 @@ class OCPAWSStorageSummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -351,9 +363,11 @@ class OCPAWSNetworkSummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -394,9 +408,11 @@ class OCPAWSDatabaseSummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
@@ -486,6 +502,8 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
@@ -557,6 +575,8 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
     markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)  # this field is no longer used
     tags = JSONField(null=True)

@@ -5,16 +5,12 @@
 """Asynchronous tasks."""
 import logging
 import math
-import os
-from datetime import datetime
-from datetime import timedelta
 
 import requests
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
-from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
@@ -35,7 +31,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor import enable_purge_trino_files
+from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -78,7 +74,7 @@ def remove_expired_data(simulate=False):
 def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
     """Remove files in a particular path prefix."""
     LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
-    if not enable_purge_trino_files(schema_name):
+    if not is_purge_trino_files_enabled(schema_name):
         msg = f"Schema {schema_name} not enabled in unleash."
         LOG.info(msg)
         return msg
@@ -118,7 +114,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
 def purge_manifest_records(schema_name, provider_uuid, dates):
     """Remove files in a particular path prefix."""
     LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
-    if not enable_purge_trino_files(schema_name):
+    if not is_purge_trino_files_enabled(schema_name):
         msg = f"Schema {schema_name} not enabled in unleash."
         LOG.info(msg)
         return msg
@@ -326,49 +322,6 @@ def autovacuum_tune_schemas():
         LOG.info("Scheduling autovacuum tune task for %s", schema_name)
         # called in celery.py
         autovacuum_tune_schema.delay(schema_name)
-
-
-@celery_app.task(name="masu.celery.tasks.clean_volume", queue=DEFAULT)
-def clean_volume():
-    """Clean up the volume in the worker pod."""
-    LOG.info("Cleaning up the volume at %s " % Config.PVC_DIR)
-    # get the billing months to use below
-    months = DateAccessor().get_billing_months(Config.INITIAL_INGEST_NUM_MONTHS)
-    db_accessor = ReportManifestDBAccessor()
-    # this list is initialized with the .gitkeep file so that it does not get deleted
-    assembly_ids_to_exclude = [".gitkeep"]
-    # grab the assembly ids to exclude for each month
-    for month in months:
-        assembly_ids = db_accessor.get_last_seen_manifest_ids(month)
-        assembly_ids_to_exclude.extend(assembly_ids)
-    # now we want to loop through the files and clean up the ones that are not in the exclude list
-    deleted_files = []
-    retain_files = []
-
-    datehelper = DateHelper()
-    now = datehelper.now
-    expiration_date = now - timedelta(seconds=Config.VOLUME_FILE_RETENTION)
-    for [root, _, filenames] in os.walk(Config.PVC_DIR):
-        for file in filenames:
-            match = False
-            for assembly_id in assembly_ids_to_exclude:
-                if assembly_id in file:
-                    match = True
-            # if none of the assembly_ids that we care about were in the filename - we can safely delete it
-            if not match:
-                potential_delete = os.path.join(root, file)
-                if os.path.exists(potential_delete):
-                    file_datetime = datetime.fromtimestamp(os.path.getmtime(potential_delete))
-                    file_datetime = timezone.make_aware(file_datetime)
-                    if file_datetime < expiration_date:
-                        os.remove(potential_delete)
-                        deleted_files.append(potential_delete)
-                    else:
-                        retain_files.append(potential_delete)
-
-    LOG.info("Removing all files older than %s", expiration_date)
-    LOG.info("The following files were too new to delete: %s", retain_files)
-    LOG.info("The following files were deleted: %s", deleted_files)
 
 
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)

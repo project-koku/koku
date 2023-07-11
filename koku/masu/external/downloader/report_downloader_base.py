@@ -77,14 +77,14 @@ class ReportDownloaderBase:
     ):
         """Insert or update the manifest DB record."""
         msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
-        LOG.info(log_json(self.tracing_id, msg))
+        LOG.info(log_json(self.tracing_id, msg=msg))
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
                 msg = f"No manifest entry found in database. Adding for bill period start: {billing_start}"
-                LOG.info(log_json(self.tracing_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                 manifest_dict = {
                     "assembly_id": assembly_id,
                     "billing_period_start_datetime": billing_start,
@@ -104,7 +104,7 @@ class ReportDownloaderBase:
                         f"Manifest entry uniqueness collision: Error {error}. "
                         "Manifest already added, getting manifest_entry_id."
                     )
-                    LOG.warning(log_json(self.tracing_id, msg, self.context))
+                    LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
                     with ReportManifestDBAccessor() as manifest_accessor:
                         manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             if not manifest_entry:
@@ -113,9 +113,9 @@ class ReportDownloaderBase:
                     provider = provider_accessor.get_provider()
                     if not provider:
                         msg = f"Provider entry not found for {self._provider_uuid}."
-                        LOG.warning(log_json(self.tracing_id, msg, self.context))
+                        LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
                         raise ReportDownloaderError(msg)
-                LOG.warning(log_json(self.tracing_id, msg, self.context))
+                LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
                 raise IntegrityError(msg)
             else:
                 if num_of_files != manifest_entry.num_total_files:

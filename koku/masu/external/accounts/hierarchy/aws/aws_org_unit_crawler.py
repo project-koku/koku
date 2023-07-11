@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS org unit crawler."""
-# from tenant_schemas.utils import schema_context
+# from django_tenants.utils import schema_context
 import logging
 from datetime import timedelta
 
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 from django.db import transaction
+from django_tenants.utils import schema_context
 from requests.exceptions import ConnectionError as BotoConnectionError
-from tenant_schemas.utils import schema_context
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
@@ -34,7 +34,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             account (String): AWS IAM RoleArn
         """
         super().__init__(account)
-        self._auth_cred = self.account.get("credentials", {}).get("role_arn")
+        self._auth_cred = self.account.get("credentials", {})
         self._date_accessor = DateAccessor()
         self._client = None
         self._account_alias_map = None
@@ -54,7 +54,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         error_message = (
             "Unable to crawl AWS organizational structure with ARN {} and "
             "provider_uuid: {} and account_id: {}".format(
-                self.account, self.account.get("provider_uud"), self.account_id
+                self.account, self.account.get("provider_uuid"), self.account_id
             )
         )
         try:
@@ -73,8 +73,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 if not self.errors_raised:
                     self._mark_nodes_deleted()
         except ParamValidationError as param_error:
-            LOG.warn(msg=error_message)
-            LOG.warn(param_error)
+            LOG.warn(msg=error_message, exc_info=param_error)
         except ClientError as boto_error:
             LOG.warn(msg=error_message, exc_info=boto_error)
         except Exception as unknown_error:
@@ -290,7 +289,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             # we need to add a bit of self healing here to repair the
             # nodes that are currently in customer's databases.
             if not org_unit.provider and self.provider:
-                org_unit.provider = self.provider
+                org_unit.provider_id = self.provider.uuid
                 org_unit.save()
             return org_unit
 

@@ -6,8 +6,9 @@
 import logging
 from datetime import date
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -46,7 +47,14 @@ class AWSReportDBCleaner:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        LOG.info("Calling purge_expired_report_data for aws")
+        LOG.info(
+            log_json(
+                msg="calling purge_expired_report_data for AWS",
+                schema=self._schema,
+                provider_uuid=provider_uuid,
+                expired_date=expired_date,
+            )
+        )
 
         removed_items = []
         all_account_ids = set()
@@ -56,8 +64,12 @@ class AWSReportDBCleaner:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):
-                err = "This method must be called with either expired_date or provider_uuid"
-                raise AWSReportDBCleanerError(err)
+
+                error_msg = log_json(
+                    msg="purge_expired_report_data must be called with either expired_date or provider_uuid",
+                    provider_type="AWS",
+                )
+                raise AWSReportDBCleanerError(error_msg)
 
             if expired_date is not None:
                 return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
@@ -75,10 +87,15 @@ class AWSReportDBCleaner:
                     all_account_ids.add(bill.payer_account_id)
                     all_period_start.add(str(bill.billing_period_start))
 
-                LOG.info(
-                    f"Deleting data related to billing account ids {all_account_ids} "
-                    f"for billing periods starting {all_period_start}"
-                )
+                    LOG.info(
+                        log_json(
+                            msg="deleting provider billing data for AWS",
+                            schema=self._schema,
+                            provider_uuid=bill.payer_account_id,
+                            start_date=bill.billing_period_start,
+                        )
+                    )
+
                 if not simulate:
                     cascade_delete(bill_objects.query.model, bill_objects)
 
@@ -99,6 +116,15 @@ class AWSReportDBCleaner:
                 all_account_ids.add(bill.payer_account_id)
                 all_period_start.add(str(bill.billing_period_start))
 
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data for AWS",
+                        schema=self._schema,
+                        provider_uuid=bill.payer_account_id,
+                        start_date=bill.billing_period_start,
+                    )
+                )
+
             table_names = [
                 accessor._table_map["ocp_on_aws_daily_summary"],
                 accessor._table_map["ocp_on_aws_project_daily_summary"],
@@ -110,11 +136,15 @@ class AWSReportDBCleaner:
 
         with schema_context(self._schema):
             if not simulate:
-                # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
-                    "Deleting table partitions total for the following tables: "
-                    + f"{table_names} with partitions <= {partition_from}"
+                    log_json(
+                        msg="deleting table partitions",
+                        schema=self._schema,
+                        tables=table_names,
+                        partitions=partition_from,
+                    )
                 )
+                # Will call trigger to detach, truncate, and drop partitions
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
                         schema_name=self._schema,
@@ -123,11 +153,6 @@ class AWSReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(f"Deleted {del_count} table partitions")
-
-            LOG.info(
-                f"Deleting data related to billing account ids {all_account_ids} "
-                f"for billing periods starting {all_period_start}"
-            )
+                LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
         return removed_items

@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 from json import JSONDecodeError
+from zoneinfo import ZoneInfo
 
 from boto3.session import Session
 from botocore.exceptions import ClientError
@@ -71,6 +72,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_extensions",
     "django_filters",
+    "django_tenants",
     "corsheaders",
     "querystring_parser",
     "django_prometheus",
@@ -82,13 +84,12 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
-    "tenant_schemas",
 ]
 
-SILENCED_SYSTEM_CHECKS = ["tenant_schemas.W001"]
+SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 
 SHARED_APPS = (
-    "tenant_schemas",
+    "django_tenants",
     "api",
     "masu",
     "reporting_common",
@@ -101,8 +102,10 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = ("reporting", "cost_models")
+TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
+TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
 
-DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
+DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
 ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
@@ -145,7 +148,12 @@ if DEVELOPMENT:
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=False)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
-    MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
+    try:
+        from django_cprofile_middleware.middleware import ProfilerMiddleware
+
+        MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
+    except ImportError:
+        pass
     DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
 ### Feature Flags
@@ -218,8 +226,8 @@ if "test" in sys.argv:
         "default": {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         },
         "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
@@ -229,8 +237,8 @@ else:
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -261,7 +269,7 @@ if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
     CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
-DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 
 # Hive DB variables
 HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
@@ -271,6 +279,7 @@ HIVE_PARTITION_DELETE_RETRIES = 5
 
 #
 TENANT_MODEL = "api.Tenant"
+TENANT_DOMAIN_MODEL = "api.Domain"
 
 PROMETHEUS_EXPORT_MIGRATIONS = False
 
@@ -291,6 +300,8 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
+
+UTC = ZoneInfo("UTC")
 
 USE_I18N = True
 
@@ -348,7 +359,7 @@ VERBOSE_FORMATTING = (
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(message)s"
+SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
@@ -452,8 +463,6 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value("KOKU_DEFAULT_LOCALE", default="en_U
 CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_HEADERS = default_headers + ("x-rh-identity", "HTTP_X_RH_IDENTITY")
-
-APPEND_SLASH = False
 
 DISABLE_LOGGING = ENVIRONMENT.bool("DISABLE_LOGGING", default=False)
 # disable log messages less than CRITICAL when running unit tests.

@@ -15,8 +15,8 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
@@ -32,7 +32,6 @@ from api.utils import materialized_view_month_start
 from reporting.models import AzureComputeSummaryP
 from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
-from reporting.models import AzureCostEntryProductService
 from reporting.models import AzureCostSummaryByAccountP
 from reporting.models import AzureCostSummaryByLocationP
 from reporting.models import AzureCostSummaryByServiceP
@@ -327,34 +326,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 except ValueError as exc:
                     self.fail(exc)
                 self.assertIsInstance(month_item.get("service_names"), list)
-
-    def test_execute_query_with_counts(self):
-        """Test execute_query for with counts of unique resources."""
-        with tenant_context(self.tenant):
-            instance_type = AzureCostEntryProductService.objects.filter(service_name="Virtual Machines").first()
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
-        handler = AzureReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-
-        total = query_output.get("total")
-        filters = {**self.this_month_filter, "instance_type__isnull": False}
-        current_totals = self.get_totals_costs_by_time_scope(handler, filters)
-        expected_cost_total = current_totals.get("cost_total")
-        self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
-        self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
-
-        for data_item in data:
-            instance_types = data_item.get("instance_types")
-            for it in instance_types:
-                if it["instance_type"] == instance_type:
-                    actual_count = it["values"][0].get("count", {}).get("value")
-                    self.assertEqual(actual_count, 1)
 
     def test_execute_query_curr_month_by_subscription_guid_w_limit(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with limit."""
@@ -814,6 +785,26 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
+
+    def test_execute_query_orderby_subscription_name(self):
+        """Test execute_query with ordering by subscription_name ascending."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_name]=asc&group_by[subscription_guid]=*"  # noqa: E501
+        path = reverse("reports-azure-costs")
+        query_params = self.mocked_query_params(url, AzureCostView, path)
+        handler = AzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        for data_item in data:
+            month_val = data_item.get("date")
+            month_data = data_item.get("subscription_guids")
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get("subscription_guid"), str)
+                self.assertIsInstance(month_item.get("values"), list)
+                self.assertIsInstance(month_item.get("values")[0].get("subscription_name"), str)
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
@@ -1642,8 +1633,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = AzureExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
@@ -1684,8 +1674,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", AzureTagView)
         handler = AzureTagQueryHandler(query_params)
@@ -1715,8 +1704,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = AzureExcludeSerializer._opfields
         for ex_opt in exclude_opts:

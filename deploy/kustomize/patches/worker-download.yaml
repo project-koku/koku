@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-download
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
@@ -71,12 +77,6 @@
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: VOLUME_FILE_RETENTION
-          value: ${VOLUME_FILE_RETENTION}
-        - name: CLEAN_VOLUME_DAY_OF_WEEK
-          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
-        - name: CLEAN_VOLUME_UTC_TIME
-          value: ${CLEAN_VOLUME_UTC_TIME}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -85,6 +85,10 @@
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT

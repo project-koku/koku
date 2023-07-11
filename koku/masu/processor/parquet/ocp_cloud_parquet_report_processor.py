@@ -8,8 +8,9 @@ import logging
 from functools import cached_property
 
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import get_cached_matching_tags
@@ -146,16 +147,22 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Get tags that match between OCP and the cloud source."""
         # Get matching tags
         matched_tags = get_cached_matching_tags(self.schema_name, self.provider_type)
+        ctx = {
+            "schema": self.schema_name,
+            "provider_uuid": self.provider_uuid,
+            "provider_type": self.provider_type,
+        }
         if matched_tags:
-            LOG.info("Retreived matching tags from cache.")
+            LOG.info(log_json(msg="retreived matching tags from cache", context=ctx))
             return matched_tags
         if self.has_enabled_ocp_labels:
             enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
             if enabled_tags:
-                LOG.info("Getting matching tags from Postgres.")
+                LOG.info(log_json(msg="getting matching tags from Postgres", context=ctx))
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
             if not matched_tags and enabled_tags:
-                LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
+                LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+                LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid,
                     ocp_provider_uuids,
@@ -185,20 +192,28 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def get_ocp_provider_uuids_tuple(self):
         """Get a list of provider UUIDs to process against."""
         ocp_provider_uuids = []
+        ctx = {
+            "schema": self.schema_name,
+            "provider_uuid": self.provider_uuid,
+            "provider_type": self.provider_type,
+        }
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             infra_provider_uuid = infra_tuple[0]
             if infra_provider_uuid != self.provider_uuid:
                 continue
-            msg = (
-                f"Processing OpenShift on {self.provider_type} to parquet for Openshift source {ocp_provider_uuid}"
-                f"\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
-            )
-            LOG.info(msg)
+            ctx |= {
+                "ocp_provider_uuid": ocp_provider_uuid,
+                "start_date": self.start_date,
+                "report_file": self.report_file,
+            }
+            LOG.info(log_json(msg=f"processing OCP on {self.provider_type} to parquet", context=ctx))
             with OCPReportDBAccessor(self.schema_name) as accessor:
                 if not accessor.get_cluster_for_provider(ocp_provider_uuid):
                     LOG.info(
-                        f"No cluster information available for OCP Provider: {ocp_provider_uuid},"
-                        + "skipping OCP on Cloud parquet processing."
+                        log_json(
+                            msg=f"no cluster information available - skipping OCP on {self.provider_type} parquet processing",  # noqa: E501
+                            context=ctx,
+                        )
                     )
                     continue
                 ocp_provider_uuids.append(ocp_provider_uuid)
@@ -211,7 +226,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
+            if self.provider_type == Provider.PROVIDER_GCP:
+                cluster_topology = accessor.get_filtered_openshift_topology_for_multiple_providers(
+                    ocp_provider_uuids, self.start_date, self.end_date
+                )
+            else:
+                cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
             # Get matching tags
             matched_tags = self.get_matched_tags(ocp_provider_uuids)
             for i, daily_data_frame in enumerate(daily_data_frames):

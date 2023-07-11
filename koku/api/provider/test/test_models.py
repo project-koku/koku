@@ -9,8 +9,8 @@ from unittest.mock import patch
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
+from django_tenants.utils import tenant_context
 from faker import Faker
-from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources

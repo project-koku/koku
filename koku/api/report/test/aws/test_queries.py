@@ -22,8 +22,8 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
@@ -912,6 +912,18 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(total_cost_total)
         self.assertIsNotNone(data)
         self.assertAlmostEqual(sum(expected_value), difference)
+
+    def test_aws_category_disabled_key(self):
+        """Test using a disabled key."""
+        aws_cat_key = "disabled_key"
+        query_params = self.mocked_query_params(
+            f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*", AWSCostView, reverse("reports-aws-costs")
+        )
+        handler = AWSReportQueryHandler(query_params)
+        handler._aws_category = {f"{AWS_CATEGORY_PREFIX}{aws_cat_key}"}
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertEqual(data, [])
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
@@ -2716,15 +2728,13 @@ class AWSReportQueryTest(IamTestCase):
         """Test that the cost group_by and filter match."""
         excluded_org_unit = "OU_002"
         url = "?group_by[org_unit_id]=R_001&filter[org_unit_id]=R_001&exclude[org_unit_id]=OU_002"
-        with patch("api.query_params.enable_negative_filtering") as unleash_flag:
-            unleash_flag.return_value = True
-            with tenant_context(self.tenant):
-                _params = self.mocked_query_params(url, AWSCostView, "costs")
-                _handler = AWSReportQueryHandler(_params)
-                data = _handler.execute_query().get("data")
-                for org_unit_data in data:
-                    for org_unit in org_unit_data.get("org_entities"):
-                        self.assertNotEqual(org_unit.get("id"), excluded_org_unit)
+        with tenant_context(self.tenant):
+            _params = self.mocked_query_params(url, AWSCostView, "costs")
+            _handler = AWSReportQueryHandler(_params)
+            data = _handler.execute_query().get("data")
+            for org_unit_data in data:
+                for org_unit in org_unit_data.get("org_entities"):
+                    self.assertNotEqual(org_unit.get("id"), excluded_org_unit)
 
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
@@ -2925,8 +2935,7 @@ class AWSReportQueryTest(IamTestCase):
             expected_sub_org_units = self.ou_to_account_subou_map.get(org_unit).get("org_units")
             self.assertEqual(sub_orgs_ids, expected_sub_org_units)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_organizational_unit(self, _):
+    def test_exclude_organizational_unit(self):
         """Test that the exclude feature works for all options."""
         exclude_opt = "org_unit_id"
         parent_org_unit = "R_001"
@@ -3111,82 +3120,6 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertTrue(region_1_exists)
         self.assertTrue(region_2_exists)
 
-    def test_query_no_account_group_check_tags_no_tags(self):
-        """Test "tags_exist" is not present if not grouping by account, and has "check_tags" parameter."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2&check_tags=true"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-
-        for data_item in data:
-            for account_item in data_item["services"]:
-                for value_item in account_item["values"]:
-                    self.assertTrue("tags_exist" not in value_item)
-
-    def test_query_account_group_no_check_tags_no_tags(self):
-        """Test "tags_exist" is not present if grouping by account, but missing "check_tags" parameter."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-
-        for data_item in data:
-            for account_item in data_item["accounts"]:
-                for value_item in account_item["values"]:
-                    self.assertTrue("tags_exist" not in value_item)
-
-    def test_query_account_group_check_tags_has_tags(self):
-        """Test "tags_exist" is present if grouping by account and has "check_tags" parameter."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&check_tags=true"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-
-        for data_item in data:
-            for account_item in data_item["accounts"]:
-                for value_item in account_item["values"]:
-                    self.assertTrue("tags_exist" in value_item)
-
-    def test_query_account_group_no_check_tags_has_tags_base_table(self):
-        """Test "tags_exist" is not present if grouping by account as well as
-        another group and has"check_tags" parameter."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:account]=*&group_by[or:service]=AmazonEC2&check_tags=true"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-
-        for data_item in data:
-            for account_item in data_item["accounts"]:
-                for service_item in account_item["services"]:
-                    for value_item in service_item["values"]:
-                        self.assertTrue("tags_exist" in value_item)
-
-    def test_query_cost_type_default(self):
-        """Test "cost_type" is defaulted when not passed in."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        cost_type = query_output.get("cost_type")
-        self.assertEqual(cost_type, "unblended_cost")
-
-    def test_query_cost_type_passed_in(self):
-        """Test "cost_type" is recognized when passed in."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true&cost_type=blended_cost"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        cost_type = query_output.get("cost_type")
-        self.assertEqual(cost_type, "blended_cost")
-
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         with tenant_context(self.tenant):
@@ -3288,8 +3221,7 @@ class AWSQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_functionality(self, _):
+    def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(AWSExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
@@ -3329,8 +3261,7 @@ class AWSQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_exclude_tags(self, _):
+    def test_exclude_tags(self):
         """Test that the exclude works for our tags."""
         query_params = self.mocked_query_params("?", AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -3360,8 +3291,7 @@ class AWSQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    @patch("api.query_params.enable_negative_filtering", return_value=True)
-    def test_multi_exclude_functionality(self, _):
+    def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
         exclude_opts = list(AWSExcludeSerializer._opfields)
         exclude_opts.remove("org_unit_id")

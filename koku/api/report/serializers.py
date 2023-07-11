@@ -98,10 +98,11 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 
 
 def add_operator_specified_fields(fields, field_list):
-    """Add the specified and: and or: fields to the serialzer."""
+    """Add the specified and:, or: and exact: fields to the serialzer."""
     for field in field_list:
         fields[f"and:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
         fields[f"or:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
+        fields[f"exact:{field}"] = StringOrListField(child=serializers.CharField(), required=False)
     return fields
 
 
@@ -317,7 +318,17 @@ class ParamSerializer(BaseSerializer):
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
 
-    order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
+    order_by_allowlist = (
+        "cost",
+        "supplementary",
+        "infrastructure",
+        "delta",
+        "usage",
+        "request",
+        "limit",
+        "capacity",
+        "cost_total_distributed",
+    )
 
     def validate(self, data):
         """Validate incoming data.
@@ -443,6 +454,10 @@ class ParamSerializer(BaseSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
+        if len(value) > 2:
+            # Max support group_bys is 2
+            error = {"group_by": ("Cost Management supports a max of two group_by options.")}
+            raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value
 
@@ -485,6 +500,10 @@ class ParamSerializer(BaseSerializer):
 
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
+                    continue  # special case: we order by subscription_name, but we group by subscription_guid.
+                if key == "subscription_name" and (
+                    "subscription_guid" in group_keys or "subscription_guid" in or_keys
+                ):
                     continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:
@@ -575,13 +594,11 @@ class ReportQueryParamSerializer(ParamSerializer):
 
     def validate_delta(self, value):
         """Validate incoming delta value based on path."""
-        valid_delta = "usage"
+        valid_deltas = ["usage"]
         request = self.context.get("request")
         if request and "costs" in request.path:
-            valid_delta = "cost_total"
-            if value == "cost":
-                return valid_delta
-        if value != valid_delta:
+            valid_deltas = ["cost", "cost_total", "distributed_cost"]
+        if value not in valid_deltas:
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         return value

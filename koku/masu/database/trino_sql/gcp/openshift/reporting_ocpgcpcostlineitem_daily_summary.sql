@@ -172,7 +172,7 @@ SELECT gcp.uuid as gcp_uuid,
     cast(NULL as varchar) as persistentvolumeclaim,
     cast(NULL as varchar) as persistentvolume,
     cast(NULL as varchar) as storageclass,
-    max(ocp.pod_labels) as pod_labels,
+    ocp.pod_labels,
     max(ocp.resource_id) as resource_id,
     max(gcp.usage_start_time) as usage_start,
     max(gcp.usage_start_time) as usage_end,
@@ -204,7 +204,7 @@ SELECT gcp.uuid as gcp_uuid,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    NULL as volume_labels,
+    ocp.volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
     max(ocp.cost_category_id) as cost_category_id,
     {{ocp_source_uuid}} as ocp_source,
@@ -228,7 +228,7 @@ WHERE gcp.source = {{gcp_source_uuid}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days | inclause}}
     AND ocp.data_source = 'Pod' -- this cost is only associated with pod costs
-GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source
+GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
 -- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
@@ -335,8 +335,8 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
                 OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
                 OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
-                -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
-                -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
         AND ocp.namespace != 'Worker unallocated'
         AND ocp.namespace != 'Platform unallocated'
@@ -498,6 +498,7 @@ SELECT pds.gcp_uuid,
 FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
     ON pds.gcp_uuid = r.gcp_uuid
+WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (

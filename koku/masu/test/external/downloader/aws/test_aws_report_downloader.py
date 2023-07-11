@@ -59,7 +59,7 @@ class FakeSession:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with a report."""
         fake_report = {
             "ReportDefinitions": [
@@ -70,7 +70,7 @@ class FakeSession:
                     "Compression": random.choice(["ZIP", "GZIP"]),
                     "S3Bucket": BUCKET,
                     "S3Prefix": PREFIX,
-                    "S3Region": REGION,
+                    "S3Region": region_name or REGION,
                 }
             ]
         }
@@ -90,7 +90,7 @@ class FakeSessionNoReport:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with no report."""
         fake_report = {"ReportDefinitions": []}
 
@@ -110,7 +110,7 @@ class FakeSessionDownloadError:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with an error."""
         fake_report = {
             "ReportDefinitions": [
@@ -121,7 +121,7 @@ class FakeSessionDownloadError:
                     "Compression": random.choice(["ZIP", "GZIP"]),
                     "S3Bucket": BUCKET,
                     "S3Prefix": PREFIX,
-                    "S3Region": REGION,
+                    "S3Region": region_name or REGION,
                 }
             ]
         }
@@ -297,8 +297,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.assertEqual(downloader.report, "")
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionNoReport)
-    @patch("masu.util.aws.common.get_cur_report_definitions", return_value=[])
-    def test_download_default_report_no_report_found(self, fake_session, fake_report_list):
+    def test_download_default_report_no_report_found(self, fake_session):
         """Test download fails when no reports are found."""
         with self.assertRaises(MasuProviderError):
             AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)

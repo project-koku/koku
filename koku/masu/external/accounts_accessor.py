@@ -5,6 +5,7 @@
 """Provider external interface for koku to consume."""
 import logging
 
+from api.common import log_json
 from masu.config import Config
 from masu.exceptions import CURAccountsInterfaceError
 from masu.external import POLL_INGEST
@@ -72,17 +73,18 @@ class AccountsAccessor:
         if utils.ingest_method_for_provider(
             account.get("provider_type")
         ) == POLL_INGEST or ocp_utils.poll_ingest_override_for_provider(account.get("provider_uuid")):
-            log_statement = (
-                f"Polling for\n"
-                f' schema_name: {account.get("schema_name")}\n'
-                f' provider: {account.get("provider_type")}\n'
-                f' account (provider uuid): {account.get("provider_uuid")}'
+            LOG.info(
+                log_json(
+                    msg="polling for account",
+                    schema=account.get("schema_name"),
+                    provider_type=account.get("provider_type"),
+                    provider_uuid=account.get("provider_uuid"),
+                )
             )
-            LOG.info(log_statement)
             return True
         return False
 
-    def get_accounts(self, provider_uuid=None):
+    def get_accounts(self, provider_uuid=None, provider_type=None, scheduled=False):
         """
         Return all of the CUR accounts setup in Koku.
 
@@ -96,7 +98,7 @@ class AccountsAccessor:
 
         """
         try:
-            accounts = self.source.get_accounts_from_source(provider_uuid)
+            accounts = self.source.get_accounts_from_source(provider_uuid, provider_type, scheduled)
         except CURAccountsInterfaceError as error:
             raise AccountsAccessorError(str(error))
 

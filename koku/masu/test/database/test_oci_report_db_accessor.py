@@ -11,7 +11,7 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.database import OCI_CUR_TABLE_MAP
@@ -20,7 +20,6 @@ from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import OCITagsSummary
@@ -36,7 +35,6 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
         cls.accessor = OCIReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
 
         cls.all_tables = list(OCI_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [

@@ -9,13 +9,11 @@ import logging
 from datetime import timedelta
 
 import ciso8601
-import pytz
 from dateutil import parser
-from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.user_settings.settings import USER_SETTINGS
@@ -86,7 +84,7 @@ class DateHelper:
     def __init__(self, utc=False):
         """Initialize when now is."""
         if utc:
-            self._now = datetime.datetime.now(tz=pytz.UTC)
+            self._now = datetime.datetime.now(tz=settings.UTC)
         else:
             self._now = timezone.now()
 
@@ -98,7 +96,7 @@ class DateHelper:
     @property
     def now_utc(self):
         """Return current time at timezone."""
-        return datetime.datetime.now(tz=pytz.UTC)
+        return datetime.datetime.now(tz=settings.UTC)
 
     @property
     def midnight(self):
@@ -401,7 +399,7 @@ class DateHelper:
             (datetime.datetime)
         """
         if isinstance(bill_date, str):
-            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=pytz.UTC)
+            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=settings.UTC)
         date_obj = bill_date.strftime("%Y%m")
         return date_obj
 
@@ -409,7 +407,7 @@ class DateHelper:
         """Find the year from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=pytz.UTC)
+            date = ciso8601.parse_datetime(date).replace(tzinfo=settings.UTC)
         date_obj = date.strftime("%Y")
         return date_obj
 
@@ -417,7 +415,7 @@ class DateHelper:
         """Find the month from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=pytz.UTC)
+            date = ciso8601.parse_datetime(date).replace(tzinfo=settings.UTC)
         date_obj = date.strftime("%m")
         return date_obj
 
@@ -460,11 +458,11 @@ def get_months_in_date_range(
     invoice_date_format = "%Y%m"
 
     # Converting inputs to datetime objects
-    dt_start = parser.parse(start).astimezone(tz.UTC) if start else None
-    dt_end = parser.parse(end).astimezone(tz.UTC) if end else None
+    dt_start = parser.parse(start).astimezone(tz=settings.UTC) if start else None
+    dt_end = parser.parse(end).astimezone(tz=settings.UTC) if end else None
     # invoice_date_format not supported by dateutil parser
     dt_invoice_month = (
-        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=pytz.UTC)
+        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=settings.UTC)
         if invoice_month
         else None
     )
@@ -476,19 +474,20 @@ def get_months_in_date_range(
 
         if manifest_start and manifest_end:
             LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
-            dt_start = parser.parse(manifest_start).astimezone(tz.UTC)
-            dt_end = parser.parse(manifest_end).astimezone(tz.UTC)
+            dt_start = parser.parse(manifest_start).astimezone(tz=settings.UTC)
+            dt_end = parser.parse(manifest_end).astimezone(tz=settings.UTC)
             if manifest_invoice_month:
                 LOG.info(f"using invoice_month: {manifest_invoice_month}")
                 dt_invoice_month = datetime.datetime.strptime(manifest_invoice_month, invoice_date_format).replace(
-                    tzinfo=pytz.UTC
+                    tzinfo=settings.UTC
                 )
         else:
             LOG.info("generating start and end dates for manifest")
-            dt_start = dh.today - datetime.timedelta(days=2)
+            dt_start = dh.today - datetime.timedelta(days=2) if dh.today.date().day > 2 else dh.today.replace(day=1)
             dt_end = dh.today
 
     elif dt_invoice_month:
+        dt_start = dh.today if not dt_start else dt_start
         dt_end = dh.today if not dt_end else dt_end
 
         # For report_data masu API
@@ -513,7 +512,7 @@ def get_months_in_date_range(
             (
                 dt_start.strftime(date_format),
                 dt_end.strftime(date_format),
-                dt_invoice_month.strftime(invoice_date_format),
+                dt_invoice_month.strftime(invoice_date_format) if dt_invoice_month else None,
             )
         ]
 

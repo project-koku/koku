@@ -5,6 +5,7 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.cost_model_rate_type = 'worker_distributed'
 ;
 
+{% if populate %}
 WITH worker_cost AS (
     SELECT SUM(
             COALESCE(infrastructure_raw_cost, 0) +
@@ -150,6 +151,7 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND cluster_capacity_cpu_core_hours != 0
     AND (cost_category_id IS NULL OR cat.name != 'Platform')
 GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id;
+{% endif %}
 
 -- Notes:
 -- The sql below calculates the worker unallocated cost at the cluster

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Accessor for Account alias information from koku database."""
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
 from reporting.models import AWSAccountAlias

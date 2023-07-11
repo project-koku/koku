@@ -49,32 +49,29 @@ def _get_report_files(
     """
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
-    context = {}
+    context = {
+        "schema": customer_name,
+        "provider_uuid": provider_uuid,
+        "provider_type": provider_type,
+        "date": report_month,
+        "report_month": report_month.strftime("%B %Y"),
+    }
     if customer_name.startswith("acct"):
         context["account"] = customer_name[4:]
         download_acct = customer_name[4:]
     else:
         context["org_id"] = customer_name[3:]
         download_acct = customer_name
-    context["provider_uuid"] = provider_uuid
-    month_string = report_month.strftime("%B %Y")
+
     report_context["date"] = report_month
     function_name = "masu.processor._tasks.download._get_report_files"
-    log_statement = (
-        f"{function_name}: "
-        f"Downloading report for: "
-        f" schema_name: {customer_name} "
-        f" provider: {provider_type} "
-        f" account (provider uuid): {provider_uuid} "
-        f" report_month: {month_string} "
-    )
-    LOG.info(log_json(tracing_id, log_statement, context))
+    LOG.info(log_json(tracing_id, msg="downloading report", context=context))
     try:
-        disk = psutil.disk_usage(Config.PVC_DIR)
+        disk = psutil.disk_usage(Config.DATA_DIR)
         disk_msg = f"{function_name}: Available disk space: {disk.free} bytes ({100 - disk.percent}%)"
     except OSError:
-        disk_msg = f"{function_name}: Unable to find available disk space. {Config.PVC_DIR} does not exist"
-    LOG.info(log_json(tracing_id, disk_msg, context))
+        disk_msg = f"{function_name}: Unable to find available disk space. {Config.DATA_DIR} does not exist"
+    LOG.info(log_json(tracing_id, msg=disk_msg, context=context))
 
     downloader = ReportDownloader(
         customer_name=customer_name,

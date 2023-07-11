@@ -14,9 +14,9 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from django_tenants.utils import tenant_context
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant
 from api.models import User
@@ -30,39 +30,12 @@ from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
-from koku.feature_flags import fallback_development_true
-from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
-
-
-def enable_negative_filtering(org_id):
-    """Helper to determine if account is enabled for negative filtering."""
-    # Developing Note: To test this you will have to run gunicorn locally
-    # since the unleash client is initilized in the gunicorn_conf
-    if not org_id:
-        return False
-    if isinstance(org_id, str) and not org_id.startswith("org"):
-        # TODO: So since we only pass in the org_id, the schema is
-        # showing up as acct1234567, but our actual schema is
-        # org1234567. Which may be a little confusing.
-        org_id = f"acct{org_id}"
-    elif not isinstance(org_id, str):
-        org_id = f"acct{org_id}"
-
-    context = {"schema": org_id}
-    LOG.info(f"enable_negative_filtering context: {context}")
-    result = bool(
-        UNLEASH_CLIENT.is_enabled(
-            "cost-management.backend.cost-enable-negative-filtering", context, fallback_development_true
-        )
-    )
-    LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
-    return result
 
 
 class QueryParameters:
@@ -127,15 +100,7 @@ class QueryParameters:
         self._set_aws_category_keys(query_params)
         self._validate(query_params)  # sets self.parameters
 
-        if settings.DEVELOPMENT:
-            parameter_set_list = ["filter", "group_by", "order_by", "access", "exclude"]
-        else:
-            parameter_set_list = ["filter", "group_by", "order_by", "access"]
-            org_id = self.request.user.customer.org_id
-            if enable_negative_filtering(org_id):
-                parameter_set_list.append("exclude")
-            elif self.parameters.get("exclude"):
-                del self.parameters["exclude"]
+        parameter_set_list = ["filter", "group_by", "order_by", "access", "exclude"]
 
         for item in parameter_set_list:
             if item not in self.parameters:
@@ -312,7 +277,7 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
-            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
+            elif "org_unit_id" in filters and not access_list and self.parameters.get("aws_use_or_operator", False):
                 org_unit_filter = filters.get("org_unit_id")
                 access_list = set(
                     AWSOrganizationalUnit.objects.filter(
@@ -429,9 +394,7 @@ class QueryParameters:
             return
         enabled_category_keys = set()
         with tenant_context(self.tenant):
-            enabled_category_keys.update(
-                AWSEnabledCategoryKeys.objects.values_list("key", flat=True).filter(enabled=True).distinct()
-            )
+            enabled_category_keys.update(AWSEnabledCategoryKeys.objects.values_list("key", flat=True).distinct())
         if not enabled_category_keys:
             return
         # Make sure keys passed in exist in the DB.

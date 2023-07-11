@@ -3,8 +3,9 @@ import logging
 
 import ciso8601
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -25,6 +26,10 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._provider = provider
         self._manifest = manifest
         self._date_accessor = DateAccessor()
+        self._context = {
+            "schema": self._schema,
+            "provider_uuid": self._provider.uuid,
+        }
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -44,28 +49,14 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    LOG.info("Overriding start and end date to process full month.")
+                    LOG.info(
+                        log_json(msg="overriding start and end date to process full month", context=self._context)
+                    )
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
         if isinstance(end_date, str):
             end_date = ciso8601.parse_datetime(end_date).date()
-
-        return start_date, end_date
-
-    def update_daily_tables(self, start_date, end_date, **kwargs):
-        """Populate the daily tables for reporting.
-
-        Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
-
-        Returns
-            (str, str): A start date and end date.
-
-        """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
 
         return start_date, end_date
 
@@ -96,14 +87,24 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
+            if current_bill_id is None:
+                LOG.info(
+                    log_json(
+                        msg="no bill was found, skipping summarization",
+                        context=self._context,
+                        start_date=start_date,
+                    )
+                )
+                return start_date, end_date
+
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating Azure report summary tables via Trino: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s",
-                    self._schema,
-                    self._provider.uuid,
-                    start,
-                    end,
+                    log_json(
+                        msg="updating Azure report summary tables via Trino",
+                        context=self._context,
+                        start_date=start,
+                        end_date=end,
+                    )
                 )
                 filters = {
                     "cost_entry_bill_id": current_bill_id

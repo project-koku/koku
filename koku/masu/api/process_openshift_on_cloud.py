@@ -18,8 +18,12 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from masu.processor import is_customer_large
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
+from masu.processor.tasks import process_daily_openshift_on_cloud as process_daily_openshift_on_cloud_task
 from masu.processor.tasks import process_openshift_on_cloud as process_openshift_on_cloud_task
 from masu.processor.tasks import QUEUE_LIST
 
@@ -39,7 +43,10 @@ def process_openshift_on_cloud(request):
     schema_name = params.get("schema")
     start_date = params.get("start_date")
     end_date = params.get("end_date")
-    queue_name = params.get("queue") or GET_REPORT_FILES_QUEUE
+    fallback_queue = GET_REPORT_FILES_QUEUE
+    if is_customer_large(schema_name):
+        fallback_queue = GET_REPORT_FILES_QUEUE_XL
+    queue_name = params.get("queue") or fallback_queue
 
     if cloud_provider_uuid is None:
         errmsg = "provider_uuid is a required parameter."
@@ -75,10 +82,21 @@ def process_openshift_on_cloud(request):
             "bill_date": bill_date,
             "tracing_id": tracing_id,
         }
-        LOG.info("Triggering process_openshift_on_cloud task with params:")
-        LOG.info(params)
-        LOG.info("on queue: %s", queue_name)
-        async_result = process_openshift_on_cloud_task.s(**params).apply_async(queue=queue_name)
+        if provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            bill_end = DateHelper().month_end(bill_date)
+            bill_start = DateHelper().month_start(bill_date)
+            start = ciso8601.parse_datetime(start_date).date()
+            end = ciso8601.parse_datetime(end_date).date() if end_date else bill_end
+            params["start_date"] = max(start, bill_start)
+            params["end_date"] = min(bill_end, end)
+            LOG.info("Triggering process_daily_openshift_on_cloud task with params:")
+            LOG.info(params)
+            LOG.info("on queue: %s", queue_name)
+            async_result = process_daily_openshift_on_cloud_task.s(**params).apply_async(queue=queue_name)
+        else:
+            LOG.info("Triggering process_openshift_on_cloud task with params:")
+            LOG.info(params)
+            LOG.info("on queue: %s", queue_name)
+            async_result = process_openshift_on_cloud_task.s(**params).apply_async(queue=queue_name)
         async_results.append({str(bill_date): str(async_result)})
-
     return Response({REPORT_DATA_KEY: async_results})

@@ -9,8 +9,9 @@ import logging
 import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -31,6 +32,10 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._provider = provider
         self._manifest = manifest
         self._date_accessor = DateAccessor()
+        self._context = {
+            "schema": self._schema,
+            "provider_uuid": self._provider.uuid,
+        }
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -51,8 +56,14 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
                     start_date, end_date = self._adjust_start_date_if_finalized(bill_date, start_date, end_date)
-                    msg = f"Overriding start date to {start_date} and end date to {end_date}."
-                    LOG.info(msg)
+                    LOG.info(
+                        log_json(
+                            msg="overriding start and end date to process full month",
+                            context=self._context,
+                            start_date=start_date,
+                            end_date=end_date,
+                        )
+                    )
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
@@ -70,28 +81,11 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             with AWSReportDBAccessor(self._schema) as accessor:
                 invoice_ids = accessor.check_for_invoice_id_trino(str(self._provider.uuid), bill_date)
                 if invoice_ids:
-                    msg = f"Report for billing date {bill_date} is finalized."
-                    LOG.info(msg)
+                    msg = "report is finalized"
                 else:
-                    msg = f"Report for billing date {bill_date} is NOT finalized."
-                    LOG.info(msg)
+                    msg = "report is not finalized"
                     start_date = end_date - relativedelta(days=2)
-        return start_date, end_date
-
-    def update_daily_tables(self, start_date, end_date, **kwargs):
-        """Populate the daily tables for reporting.
-
-        Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
-
-        Returns
-            (str, str): A start date and end date.
-
-        """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
-
+                LOG.info(log_json(msg=msg, context=self._context, bill_date=bill_date, start_date=start_date))
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date, **kwargs):
@@ -121,14 +115,24 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
+            if current_bill_id is None:
+                LOG.info(
+                    log_json(
+                        msg="no bill was found, skipping summarization",
+                        context=self._context,
+                        start_date=start_date,
+                    )
+                )
+                return start_date, end_date
+
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
-                    "Updating AWS report summary tables from parquet: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s",
-                    self._schema,
-                    self._provider.uuid,
-                    start,
-                    end,
+                    log_json(
+                        msg="updating AWS report summary tables via Trino",
+                        context=self._context,
+                        start_date=start,
+                        end_date=end,
+                    )
                 )
                 filters = {
                     "cost_entry_bill_id": current_bill_id

@@ -7,6 +7,7 @@ from rest_framework import serializers
 
 from api.common import error_obj
 from api.utils import DateHelper
+from masu.processor import is_ingress_rate_limiting_disabled
 from providers.provider_access import ProviderAccessor
 from reporting.ingress.models import IngressReports
 
@@ -59,6 +60,20 @@ class IngressReportsSerializer(serializers.ModelSerializer):
             if bill_month in month_range and bill_year in year_range:
                 interface = ProviderAccessor(source_type)
                 interface.check_file_access(data.get("source"), data.get("reports_list"))
+                ingress_reports = IngressReports.objects.filter(
+                    source=data.get("source"),
+                    bill_year=bill_year,
+                    bill_month=bill_month,
+                    status="pending",
+                    created_timestamp__gte=DateHelper().today,
+                )
+                if ingress_reports and not is_ingress_rate_limiting_disabled():
+                    key = "Processing"
+                    message = (
+                        f"Reports for billing month {bill_month} are currently already being processed. "
+                        "New reports cannot be processed until the current reports are completed."
+                    )
+                    raise serializers.ValidationError(error_obj(key, message))
                 return data
             key = "bill_period"
             message = (

@@ -8,11 +8,12 @@ import copy
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models.functions import Coalesce
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.constants import AWS_MARKUP_COST
 from api.report.queries import is_grouped_by_project
 
 
@@ -43,6 +44,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
+        if self._contains_disabled_aws_category_keys():
+            return self._format_query_response()
         query_sum = self.initialize_totals()
         data = []
 
@@ -120,11 +123,15 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAWSProviderMap(
-            provider=self.provider,
-            report_type=parameters.report_type,
-            cost_type=parameters.cost_type,
-        )
+        kwargs = {
+            "provider": self.provider,
+            "report_type": parameters.report_type,
+            "cost_type": parameters.cost_type,
+        }
+        if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
+            kwargs["markup_cost"] = markup_cost
+
+        self._mapper = OCPAWSProviderMap(**kwargs)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 

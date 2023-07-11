@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportParquetProcessor."""
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
@@ -54,7 +54,9 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             bill = AzureCostEntryBill.objects.filter(
-                billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
+                billing_period_start=start_date,
+                billing_period_end=end_date,
+                provider=self.azure_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
 
@@ -68,6 +70,8 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             bill = AzureCostEntryBill.objects.filter(
-                billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
+                billing_period_start=start_date,
+                billing_period_end=end_date,
+                provider=self.azure_provider_uuid,
             )
             self.assertIsNotNone(bill.first())

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportDBAccessor utility object."""
+import datetime
 import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -14,12 +15,12 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
+from api.models import Provider
 from api.utils import DateHelper
-from koku.database import get_model
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -47,8 +48,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
         cls.all_tables = list(GCP_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             GCP_REPORT_TABLE_MAP["bill"],
-            GCP_REPORT_TABLE_MAP["product"],
-            GCP_REPORT_TABLE_MAP["project"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -187,6 +186,19 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_gcp_ui_summary_tables_trino(
+        self,
+        mock_trino,
+    ):
+        """Test that Trino is used to populate UI summary."""
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        self.accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
+            start_date, end_date, self.gcp_test_provider_uuid, self.ocp_test_provider_uuid
+        )
+        mock_trino.assert_called()
+
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
         dh = DateHelper()
@@ -253,7 +265,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.line_item_table, get_model("GCPCostEntryLineItem"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
@@ -311,6 +322,12 @@ class GCPReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         for distribution in ["cpu", "memory"]:
+            gcp_provider = Provider.objects.filter(uuid=self.gcp_provider_uuid).first()
+            gcp_provider.polling_timestamp = None
+            gcp_provider.save()
+            ocp_provider = Provider.objects.filter(uuid=self.ocp_provider_uuid).first()
+            ocp_provider.polling_timestamp = None
+            ocp_provider.save()
             with self.subTest(distribution=distribution):
                 expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
                 with patch(
@@ -512,10 +529,19 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_ocp_on_gcp_tags_summary_table(mock_gcp_bills, start_date, end_date)
         mock_trino.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_gcp_hive_partition_by_day(self, mock_trino, mock_table_exist):
+    def test_delete_ocp_on_gcp_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
         """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_gcp_hive_partition_by_day(
+            [1], self.gcp_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+        )
+        mock_trino.assert_not_called()
+
+        mock_schema_exists.return_value = True
+        mock_trino.reset_mock()
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):

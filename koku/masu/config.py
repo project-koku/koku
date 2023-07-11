@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration loader for Masu application."""
+from tempfile import mkdtemp
+
 from django.conf import settings
 
 from koku.configurator import CONFIGURATOR
@@ -10,8 +12,7 @@ from koku.env import ENVIRONMENT
 
 
 DEFAULT_ACCOUNT_ACCCESS_TYPE = "db"
-DEFAULT_PVC_DIR = "/var/tmp/masu"
-DEFAULT_VOLUME_FILE_RETENTION = 60 * 60 * 24
+DEFAULT_TMP_DIR = mkdtemp()
 DEFAULT_REPORT_PROCESSING_BATCH_SIZE = 100000
 DEFAULT_MASU_DATE_OVERRIDE = None
 DEFAULT_MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = 1
@@ -21,6 +22,8 @@ DEFAULT_KAFKA_CONNECT = True
 DEFAULT_RETRY_SECONDS = 10
 DEFAULT_DEL_RECORD_LIMIT = 5000
 DEFAULT_MAX_ITERATIONS = 3
+DEFAULT_SEC_IN_DAY = 86400
+DEFAULT_POLLING_BATCH = 100
 
 
 class Config:
@@ -31,17 +34,14 @@ class Config:
     # Set method for retreiving CUR accounts. 'db' or 'network'
     ACCOUNT_ACCESS_TYPE = ENVIRONMENT.get_value("ACCOUNT_ACCESS_TYPE", default=DEFAULT_ACCOUNT_ACCCESS_TYPE)
 
-    # Data directory for processing incoming data.  This is the OCP PVC mount point.
-    PVC_DIR = ENVIRONMENT.get_value("PVC_DIR", default=DEFAULT_PVC_DIR)
-
-    # File retention time for cleaning out the volume (in seconds) # defaults to 1 day
-    VOLUME_FILE_RETENTION = ENVIRONMENT.int("VOLUME_FILE_RETENTION", default=DEFAULT_VOLUME_FILE_RETENTION)
+    # Data directory for processing incoming data
+    DATA_DIR = ENVIRONMENT.get_value("DATA_DIR", default=DEFAULT_TMP_DIR)
 
     # OCP intermediate report storage
-    INSIGHTS_LOCAL_REPORT_DIR = f"{PVC_DIR}/insights_local"
+    INSIGHTS_LOCAL_REPORT_DIR = f"{DATA_DIR}/insights_local"
 
     # Processing intermediate report storage
-    TMP_DIR = f"{PVC_DIR}/processing"
+    TMP_DIR = f"{DATA_DIR}/processing"
 
     # S3 path root for warehoused data
     WAREHOUSE_PATH = "data"
@@ -75,6 +75,10 @@ class Config:
 
     # Override the initial ingest requirement to allow INITIAL_INGEST_NUM_MONTHS
     INGEST_OVERRIDE = ENVIRONMENT.bool("INITIAL_INGEST_OVERRIDE", default=DEFAULT_INGEST_OVERRIDE)
+
+    # Override batch polling rate
+    POLLING_BATCH_SIZE = ENVIRONMENT.int("POLLING_BATCH_SIZE", default=DEFAULT_POLLING_BATCH)
+    POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=DEFAULT_SEC_IN_DAY)
 
     # Insights Kafka
     INSIGHTS_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()

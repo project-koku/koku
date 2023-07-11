@@ -81,6 +81,13 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
+def validate_cron_expression(expresssion):
+    if not croniter.is_valid(expresssion):
+        print(f"Invalid report-download-schedule {expresssion}. Falling back to default `0 4,16 * * *`")
+        expresssion = "0 4,16 * * *"
+    return expresssion
+
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 print("starting celery")
@@ -103,22 +110,18 @@ app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
+    download_expression = "0 * * * *"
+    download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
-    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value(
-        "REPORT_DOWNLOAD_SCHEDULE", default="0 4,16 * * *"
-    )  # default: “At minute 0 past hour 4 and 16.”
-    if not croniter.is_valid(REPORT_DOWNLOAD_SCHEDULE):
-        print(f"Invalid report-download-schedule {REPORT_DOWNLOAD_SCHEDULE}. Falling back to default `0 4,16 * * *`")
-        REPORT_DOWNLOAD_SCHEDULE = "0 4,16 * * *"
+    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_expression)
+    REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE)
     report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
-
     CHECK_REPORT_UPDATES_DEF = {
-        "task": "masu.celery.tasks.check_report_updates",
+        "task": download_task,
         "schedule": report_schedule,
-        "args": [],
+        "kwargs": {"scheduled": True},
     }
-    app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF
-
+    app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
 
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
@@ -181,18 +184,6 @@ app.conf.beat_schedule["source_status_beat"] = {
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
 
 
-# optionally specify the weekday and time you would like the clean volume task to run
-CLEAN_VOLUME_DAY_OF_WEEK = ENVIRONMENT.get_value("CLEAN_VOLUME_DAY_OF_WEEK", default="sunday")
-CLEAN_VOLUME_UTC_TIME = ENVIRONMENT.get_value("CLEAN_VOLUME_UTC_TIME", default="00:00")
-CLEAN_HOUR, CLEAN_MINUTE = CLEAN_VOLUME_UTC_TIME.split(":")
-# create a task to clean up the volumes - defaults to running every sunday at midnight
-if not settings.DEVELOPMENT:
-    app.conf.beat_schedule["clean_volume"] = {
-        "task": "masu.celery.tasks.clean_volume",
-        "schedule": crontab(day_of_week=CLEAN_VOLUME_DAY_OF_WEEK, hour=int(CLEAN_HOUR), minute=int(CLEAN_MINUTE)),
-    }
-
-
 # Beat used to crawl the account hierarchy
 app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "task": "masu.celery.tasks.crawl_account_hierarchy",
@@ -203,12 +194,6 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
 app.conf.beat_schedule["get_daily_currency_rates"] = {
     "task": "masu.celery.tasks.get_daily_currency_rates",
     "schedule": crontab(hour=1, minute=0),
-}
-
-# Beat used to remove stale tenant data
-app.conf.beat_schedule["remove_stale_tenants"] = {
-    "task": "masu.processor.tasks.remove_stale_tenants",
-    "schedule": crontab(hour=0, minute=0),
 }
 
 # Beat used for HCS report finalization

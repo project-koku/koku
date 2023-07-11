@@ -14,6 +14,7 @@ class MasuTestCase(IamTestCase):
 
         cls.schema = "org1234567"
         cls.acct = "10001"
+        cls.org_id = "1234567"
 
     def setUp(self):
         """Set up each test case."""

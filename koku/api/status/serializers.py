@@ -13,11 +13,6 @@ class ConfigSerializer(serializers.Serializer):
 
     debug = serializers.BooleanField(source="DEBUG", read_only=True)
     account_access_type = serializers.CharField(source="ACCOUNT_ACCESS_TYPE", read_only=True)
-    pvc_dir = serializers.CharField(source="PVC_DIR", read_only=True)
-    volume_file_retention = serializers.IntegerField(source="VOLUME_FILE_RETENTION", read_only=True)
-    insights_local_report_dir = serializers.CharField(source="INSIGHTS_LOCAL_REPORT_DIR", read_only=True)
-    tmp_dir = serializers.CharField(source="TMP_DIR", read_only=True)
-    warehouse_path = serializers.CharField(source="WAREHOUSE_PATH", read_only=True)
     csv_data_type = serializers.CharField(source="CSV_DATA_TYPE", read_only=True)
     parquet_data_type = serializers.CharField(source="PARQUET_DATA_TYPE", read_only=True)
     report_processing_batch_size = serializers.IntegerField(source="REPORT_PROCESSING_BATCH_SIZE", read_only=True)

@@ -4,11 +4,13 @@
 #
 """Processor for OCP Parquet files."""
 import datetime
+import logging
 
 import ciso8601
-import pytz
-from tenant_schemas.utils import schema_context
+from django.conf import settings
+from django_tenants.utils import schema_context
 
+from api.common import log_json
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util.common import month_date_range
 from masu.util.ocp import common as utils
@@ -16,6 +18,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
@@ -66,8 +70,8 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         report_date_range = month_date_range(bill_date)
         start_date, end_date = report_date_range.split("-")
 
-        report_period_start = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-        report_period_end = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        report_period_start = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
+        report_period_end = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
         # Make end date first of next month
         report_period_end = report_period_end + datetime.timedelta(days=1)
 
@@ -76,11 +80,22 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         cluster_id = utils.get_cluster_id_from_provider(provider.uuid)
         cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
 
+        LOG.info(
+            log_json(
+                msg="getting or creating bill",
+                cluster_id=cluster_id,
+                cluster_alias=cluster_alias,
+                provider_uuid=provider.uuid,
+                provider_name=provider.name,
+                provider_type=provider.type,
+                schema=self._schema_name,
+            )
+        )
         with schema_context(self._schema_name):
             OCPUsageReportPeriod.objects.get_or_create(
                 cluster_id=cluster_id,
                 cluster_alias=cluster_alias,
                 report_period_start=report_period_start,
                 report_period_end=report_period_end,
-                provider=provider,
+                provider_id=provider.uuid,
             )

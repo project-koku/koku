@@ -84,7 +84,7 @@ class OCICostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
 
 
 class OCICostEntryLineItemDailySummary(models.Model):
@@ -202,7 +202,7 @@ class OCICostSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -235,7 +235,7 @@ class OCICostSummaryByServiceP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -264,7 +264,7 @@ class OCICostSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -297,7 +297,7 @@ class OCICostSummaryByRegionP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -333,7 +333,7 @@ class OCIComputeSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -370,7 +370,7 @@ class OCIComputeSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -401,7 +401,7 @@ class OCIStorageSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -433,7 +433,7 @@ class OCIStorageSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -468,7 +468,7 @@ class OCINetworkSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -503,5 +503,5 @@ class OCIDatabaseSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )

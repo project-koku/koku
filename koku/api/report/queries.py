@@ -16,7 +16,7 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
-from urllib.parse import quote_plus
+from urllib.parse import quote_from_bytes
 
 import ciso8601
 import numpy as np
@@ -71,6 +71,11 @@ def is_grouped_by_project(parameters):
     return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["project", "and:project", "or:project"])
 
 
+def is_grouped_by_node(parameters):
+    """Determine if grouped by node."""
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["node", "and:node", "or:node"])
+
+
 def check_if_valid_date_str(date_str):
     """Check to see if a valid date has been passed in."""
     try:
@@ -108,7 +113,8 @@ class ReportQueryHandler(QueryHandler):
         self._category = parameters.category
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
-        self._delta = parameters.delta
+        replace_delta = {"cost": "cost_total"}
+        self._delta = replace_delta.get(parameters.delta, parameters.delta)
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
@@ -281,7 +287,8 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        exact_composed_filters = self._set_operator_specified_filters("exact")
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -293,10 +300,11 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
+        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -311,16 +319,18 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        # TODO: find a better name for ou_or_operator and ou_or_filter
-        ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
-        if ou_or_operator:
-            ou_or_filters = filters.compose()
+
+        aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
+        if aws_use_or_operator:
+            aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+
         if self._category:
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
         composed_exclusions = None
+
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -378,12 +388,12 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters
+        if aws_use_or_operator and aws_or_filter_collections:
+            composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
-            if ou_or_operator:
+            if aws_use_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
-                composed_filters = ou_or_filters & composed_access_filters
+                composed_filters = aws_or_filter_collections & composed_access_filters
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
@@ -559,7 +569,7 @@ class ReportQueryHandler(QueryHandler):
             # This is a flexibilty feature allowing a user to set
             # a single and: value and still get a result instead
             # of erroring on validation
-            if len(list_) < 2:
+            if len(list_) < 2 and logical_operator != "exact":
                 logical_operator = "or"
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 if isinstance(filt, list):
@@ -659,11 +669,10 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
-            group_data = self.parameters.get_group_by(tag)
-            if group_data:
-                tag = quote_plus(tag, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(tag)
-                group_by.append((tag_db_name, group_pos))
+            tag = str.encode(tag)
+            tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(tag)
+            group_by.append((tag_db_name, group_pos))
         return group_by
 
     def _get_aws_category_group_by(self):
@@ -673,11 +682,10 @@ class ReportQueryHandler(QueryHandler):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
                 db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                group_data = self.parameters.get_group_by(aws_category)
-                if group_data:
-                    aws_category = quote_plus(aws_category, safe=URL_ENCODED_SAFE)
-                    group_pos = self.parameters.url_data.index(aws_category)
-                    group_by.append((db_name, group_pos))
+                aws_category = str.encode(aws_category)
+                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(aws_category)
+                group_by.append((db_name, group_pos))
         return group_by
 
     @cached_property
@@ -734,6 +742,7 @@ class ReportQueryHandler(QueryHandler):
 
         Args:
             group_by_list (List): list of strings to group data by
+            group_index (Int): Position in group_by_list that contains group to group by
             data    (List): list of query results
         Returns:
             (Dict): dictionary of grouped query results or the original data
@@ -746,23 +755,34 @@ class ReportQueryHandler(QueryHandler):
         out_data = OrderedDict()
         curr_group = group_by_list[group_index]
 
+        # FIXME: data needs to be sorted before passing to groupby because
+        #        groupby aggregates new groups every time it hits a new item while
+        #        iterating with no regard for what groups already exist.
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
-            datapoint = out_data.get(key)
-            if datapoint and isinstance(datapoint, dict):
-                if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):
-                    datapoint_keys = list(datapoint.keys())
-                    grouped_keys = list(grouped.keys())
-                    intersect_keys = list(set(datapoint_keys).intersection(grouped_keys))
-                    if intersect_keys != []:
-                        for inter_key in intersect_keys:
-                            grouped[inter_key].update(datapoint[inter_key])
-                out_data[key].update(grouped)
-            elif datapoint and isinstance(datapoint, list):
-                out_data[key] = grouped + datapoint
+
+            # Default to empty list for use in the set() constructor later on
+            if datapoint := out_data.get(key, []):
+                try:
+                    # If datapoint is a list, combine it with grouped
+                    out_data[key] = grouped + datapoint
+                except TypeError:
+                    # datapoint is a dictionary
+                    #
+                    # Update the data if any keys in the grouped dictionary exist in the datapoint.
+                    for inter_key in set(datapoint).intersection(grouped):
+                        data_to_update = grouped[inter_key]
+                        try:
+                            data_to_update.update(datapoint[inter_key])
+                        except AttributeError:
+                            # data_to_update is a list of dicts
+                            data_to_update.extend(datapoint[inter_key])
+
+                    out_data[key].update(grouped)
             else:
                 out_data[key] = grouped
+
         return out_data
 
     def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
@@ -793,7 +813,7 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         for group in groupby:
-            if group in data and pd.isnull(data.get(group)):
+            if group in data and pd.isnull(data.get(group)) or data.get(group) == "":
                 value = self._clean_prefix_grouping_labels(group)
                 group_label = f"No-{value}"
                 data[group] = group_label
@@ -854,9 +874,9 @@ class ReportQueryHandler(QueryHandler):
             key_units = pack_def.get("units")
             if isinstance(key_items, dict):
                 for data_key, group_info in key_items.items():
-                    value = data.get(data_key)
                     units = data.get(key_units)
-                    if value is not None and units is not None:
+                    value = data.get(data_key)
+                    if value is not None:
                         group_key = group_info.get("group")
                         new_key = group_info.get("key")
                         if data.get(group_key):
@@ -864,10 +884,12 @@ class ReportQueryHandler(QueryHandler):
                                 # This if is to overwrite the "cost": "No-cost"
                                 # that is provided by the order_by function.
                                 data[group_key] = {}
-                            data[group_key][new_key] = {"value": value, "units": units}
                         else:
                             data[group_key] = {}
+                        if units:
                             data[group_key][new_key] = {"value": value, "units": units}
+                        else:
+                            data[group_key][new_key] = value
                         remove_keys.append(data_key)
             else:
                 if key_items:
@@ -880,7 +902,8 @@ class ReportQueryHandler(QueryHandler):
             if units is not None:
                 del data[key_units]
             for key in remove_keys:
-                del data[key]
+                if key in data:
+                    del data[key]
         delete_keys = []
         new_data = {}
         for data_key in data.keys():
@@ -978,6 +1001,7 @@ class ReportQueryHandler(QueryHandler):
             "sup_total",
             "infra_total",
             "cost_total",
+            "cost_total_distributed",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
@@ -1070,13 +1094,22 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
-            for key, val in self.default_ordering.items():
-                order_field, order_direction = key, val
-            rank_annotations = {order_field: self.report_annotations.get(order_field)}
-            rank_orders.append(getattr(F(order_field), order_direction)())
+            if self.order_field not in self.report_annotations.keys():
+                for key, val in self.default_ordering.items():
+                    order_field, order_direction = key, val
+                rank_annotations = {order_field: self.report_annotations.get(order_field)}
+                rank_orders.append(getattr(F(order_field), order_direction)())
+            else:
+                rank_annotations = {
+                    self.order_field: self.report_annotations.get(self.order_field, self.order_direction)
+                }
+                rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
+
+        if self.order_field == "subscription_name":
+            group_by_value.append("subscription_name")
 
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
@@ -1117,7 +1150,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = self._get_group_by()
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
-        drop_columns = {"cost_units", "source_uuid"}
+        drop_columns = {"source_uuid"}
         if self.is_openshift:
             drop_columns.add("clusters")
 
@@ -1126,17 +1159,18 @@ class ReportQueryHandler(QueryHandler):
         data_frame = pd.DataFrame(data_list)
 
         rank_data_frame = pd.DataFrame(ranks)
-        rank_data_frame.drop(columns=["cost_total", "usage"], inplace=True, errors="ignore")
+        rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
-        agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
-        if "costs" not in self._report_type:
-            agg_fields.update({"usage_units": ["max"]})
-            drop_columns.add("usage_units")
+
+        agg_fields = {}
+        for col in [col for col in self.report_annotations if "units" in col]:
+            drop_columns.add(col)
+            agg_fields[col] = ["max"]
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
@@ -1265,6 +1299,7 @@ class ReportQueryHandler(QueryHandler):
         # e.g. date, account, region, availability zone, et cetera
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         delta_annotation = {self._delta: delta_field}
+
         previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
         previous_dict = OrderedDict()
         for row in previous_sums:

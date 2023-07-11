@@ -22,8 +22,8 @@ from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
+from django_tenants.utils import schema_context
 from psycopg2.errors import DeadlockDetected
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
@@ -56,9 +56,6 @@ class ReportSchemaTest(MasuTestCase):
         self.all_tables = list(AWS_CUR_TABLE_MAP.values())
         self.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
-            AWS_CUR_TABLE_MAP["product"],
-            AWS_CUR_TABLE_MAP["pricing"],
-            AWS_CUR_TABLE_MAP["reservation"],
         ]
 
     def test_init(self):
@@ -159,9 +156,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
-            AWS_CUR_TABLE_MAP["product"],
-            AWS_CUR_TABLE_MAP["pricing"],
-            AWS_CUR_TABLE_MAP["reservation"],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -179,9 +173,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "num_total_files": 2,
             "provider_id": self.aws_provider.uuid,
         }
-        self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_pricing()
-        self.creator.create_cost_entry_product()
 
     def test_initializer(self):
         """Test initializer."""
@@ -328,6 +319,20 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         self.accessor.populate_line_item_daily_summary_table_trino(
             start_date, end_date, self.aws_provider_uuid, current_bill_id, markup_value
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_aws_ui_summary_tables_trino(self, mock_trino):
+        """Test that Trino is used to populate UI summary."""
+        start_date = datetime.datetime.strptime("2023-05-01", "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime("2023-05-31", "%Y-%m-%d").date()
+
+        self.accessor.populate_ocp_on_aws_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.aws_provider_uuid,
         )
         mock_trino.assert_called()
 
@@ -514,8 +519,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
-        self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
-        self.assertEqual(self.accessor.cost_entry_table, get_model("AWSCostEntry"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
@@ -542,10 +545,19 @@ class AWSReportDBAccessorTest(MasuTestCase):
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
 
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
+    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
         """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+            [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+        )
+        mock_trino.assert_not_called()
+
+        mock_schema_exists.return_value = True
+        mock_trino.reset_mock()
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with self.assertRaises(TrinoExternalError):
@@ -572,7 +584,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertTrue(value)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
-    @patch("masu.database.aws_report_db_accessor.enable_ocp_savings_plan_cost")
+    @patch("masu.database.aws_report_db_accessor.is_ocp_savings_plan_cost_enabled")
     def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_execute):
         """Test that we back populate raw cost to OCP."""
         is_savingsplan_cost = True
@@ -595,11 +607,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         mock_jinja = Mock()
 
-        mock_jinja.prepare_query.return_value = sql, sql_params
+        mock_jinja.return_value = sql, sql_params
         accessor = AWSReportDBAccessor(schema=self.schema)
-        accessor.jinja_sql = mock_jinja
+        accessor.prepare_query = mock_jinja
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
-        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
+        accessor.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
         mock_jinja.reset_mock()
@@ -617,7 +629,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "is_savingsplan_cost": is_savingsplan_cost,
         }
 
-        accessor.jinja_sql.prepare_query.assert_called_with(sql, sql_params)
+        accessor.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")

@@ -8,10 +8,10 @@ import uuid
 from unittest.mock import patch
 
 import django
-import pytz
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
@@ -21,7 +21,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleanerError
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from reporting.models import PartitionedTable
 
 
@@ -50,21 +49,10 @@ class AzureReportDBCleanerTest(MasuTestCase):
         super().setUpClass()
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AZURE_REPORT_TABLE_MAP["bill"],
-            AZURE_REPORT_TABLE_MAP["product"],
-            AZURE_REPORT_TABLE_MAP["meter"],
         ]
-
-    def setUp(self):
-        """Set up a test with database objects."""
-        super().setUp()
-        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
-        product_id = self.creator.create_azure_cost_entry_product(provider_uuid=self.azure_provider_uuid)
-        meter_id = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
-        self.creator.create_azure_cost_entry_line_item(bill_id, product_id, meter_id)
 
     def test_initializer(self):
         """Test initializer."""
@@ -86,7 +74,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
     def test_purge_expired_report_data_on_date(self):
         """Test to remove report data on a provided date."""
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        line_item_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
 
         cleaner = AzureReportDBCleaner(self.schema)
         with schema_context(self.schema):
@@ -95,7 +82,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
             cutoff_date = first_bill.billing_period_start
 
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
         removed_data = cleaner.purge_expired_report_data(cutoff_date)
 
@@ -106,7 +92,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
     def test_purge_expired_report_data_before_date(self):
         """Test to remove report data before a provided date."""
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        line_item_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
 
         cleaner = AzureReportDBCleaner(self.schema)
 
@@ -117,7 +102,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
             earlier_cutoff = cutoff_date.replace(day=15) + relativedelta.relativedelta(months=-1)
 
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
         removed_data = cleaner.purge_expired_report_data(earlier_cutoff)
 
@@ -125,14 +109,10 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_expired_report_data_after_date(self):
         """Test to remove report data after a provided date."""
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        line_item_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
-
-        # cleaner = AzureReportDBCleaner(self.schema)
 
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date > billing_period_start
@@ -140,9 +120,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
             cutoff_date = first_bill.billing_period_start
             later_date = cutoff_date + relativedelta.relativedelta(months=+1)
             later_cutoff = later_date.replace(month=later_date.month, day=15)
-            # expected_count = (
-            #     self.accessor._get_db_obj_query(bill_table_name).filter(billing_period_start__lte=later_cutoff).count()
-            # )
 
             self.assertNotEqual(
                 self.accessor._get_db_obj_query(bill_table_name)
@@ -151,23 +128,10 @@ class AzureReportDBCleanerTest(MasuTestCase):
                 0,
             )
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-
-        # removed_data = cleaner.purge_expired_report_data(later_cutoff)
-
-        # self.assertEqual(len(removed_data), expected_count)
-        # self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
-        # self.assertIn(
-        #     str(first_bill.billing_period_start), [entry.get("billing_period_start") for entry in removed_data]
-        # )
-        # with schema_context(self.schema):
-        #     self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        #     self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_expired_report_data_on_date_simulate(self):
         """Test to simulate removing report data on a provided date."""
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        line_item_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
 
         cleaner = AzureReportDBCleaner(self.schema)
 
@@ -177,7 +141,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
             cutoff_date = first_bill.billing_period_start
 
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
         removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=True)
 
@@ -187,12 +150,10 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_expired_report_data_for_provider(self):
         """Test that the provider_uuid deletes all data for the provider."""
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        line_item_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
 
         cleaner = AzureReportDBCleaner(self.schema)
 
@@ -208,7 +169,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
             )
 
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
         removed_data = cleaner.purge_expired_report_data(provider_uuid=self.azure_provider_uuid)
 
@@ -220,7 +180,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_correct_expired_report_data_for_provider(self):
         """Test that the provider_uuid deletes all data for the provider when another provider exists."""
@@ -248,13 +207,8 @@ class AzureReportDBCleanerTest(MasuTestCase):
                 setup_complete=False,
             )
         azure_provider.save()
-        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=azure_provider.uuid)
-        product_id = self.creator.create_azure_cost_entry_product(provider_uuid=azure_provider.uuid)
-        meter_id = self.creator.create_azure_meter(provider_uuid=azure_provider.uuid)
-        self.creator.create_azure_cost_entry_line_item(bill_id, product_id, meter_id)
 
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
-        line_item_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
 
         cleaner = AzureReportDBCleaner(self.schema)
 
@@ -269,16 +223,8 @@ class AzureReportDBCleanerTest(MasuTestCase):
             expected_count = (
                 self.accessor._get_db_obj_query(bill_table_name).filter(provider_id=self.azure_provider_uuid).count()
             )
-            expected_line_item_count = (
-                self.accessor._get_db_obj_query(line_item_table_name)
-                .filter(cost_entry_bill__provider_id=self.azure_provider_uuid)
-                .count()
-            )
 
-            self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).count(), expected_count + 1)
-            self.assertEqual(
-                self.accessor._get_db_obj_query(line_item_table_name).count(), expected_line_item_count + 1
-            )
+            self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).count(), expected_count)
 
         removed_data = cleaner.purge_expired_report_data(provider_uuid=self.azure_provider_uuid)
 
@@ -289,8 +235,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
         )
 
         with schema_context(self.schema):
-            self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 1)
-            self.assertEqual(self.accessor._get_db_obj_query(line_item_table_name).count(), 1)
+            self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 0)
 
     def test_drop_report_partitions(self):
         """Test that cleaner drops report line item daily summary parititons"""
@@ -326,8 +271,8 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
             self.assertTrue(table_exists(self.schema, test_part.table_name))
 
-            report_period_start = datetime.datetime(2016, 1, 1, tzinfo=pytz.UTC)
-            report_period_end = datetime.datetime(2016, 1, 31, tzinfo=pytz.UTC)
+            report_period_start = datetime.datetime(2016, 1, 1, tzinfo=settings.UTC)
+            report_period_end = datetime.datetime(2016, 1, 31, tzinfo=settings.UTC)
             report_period = report_period_model(
                 billing_period_start=report_period_start,
                 billing_period_end=report_period_end,
@@ -341,7 +286,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
             )
             lids_rec.save()
 
-            cutoff_date = datetime.datetime(2016, 12, 31, tzinfo=pytz.UTC)
+            cutoff_date = datetime.datetime(2016, 12, 31, tzinfo=settings.UTC)
             cleaner = AzureReportDBCleaner(self.schema)
             removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
 

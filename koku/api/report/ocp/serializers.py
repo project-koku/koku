@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Serializers."""
+from collections.abc import Mapping
+
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -13,6 +15,8 @@ from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
+
+DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 
 
 class OCPGroupBySerializer(GroupSerializer):
@@ -28,12 +32,22 @@ class OCPGroupBySerializer(GroupSerializer):
 class OCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("project", "cluster", "node", "date")
+    _opfields = ("project", "cluster", "node", "date", "distributed_cost")
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
+    cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        if isinstance(data, Mapping):
+            for serializer_key, internal_key in DISTRIBUTED_COST_INTERNAL.items():
+                if serializer_key in data.keys():
+                    data[internal_key] = data.pop(serializer_key)
+
+        return super().to_internal_value(data)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
@@ -120,6 +134,16 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
     FILTER_SERIALIZER = OCPFilterSerializer
     EXCLUDE_SERIALIZER = OCPExcludeSerializer
 
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        if delta_value := data.get("delta"):
+            if isinstance(delta_value, str):
+                if internal_value := DISTRIBUTED_COST_INTERNAL.get(delta_value):
+                    data["delta"] = internal_value
+                if delta_value == "cost":
+                    data["delta"] = "cost_total"
+        return super().to_internal_value(data)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -136,7 +160,29 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
         if "delta" in data.get("order_by", {}) and "delta" not in data:
             error["order_by"] = _("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
+        if DISTRIBUTED_COST_INTERNAL["distributed_cost"] in data.get("order_by", {}) and "project" not in data.get(
+            "group_by", {}
+        ):
+            error["order_by"] = _("Cannot order by distributed_cost without grouping by project.")
+            raise serializers.ValidationError(error)
+        if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
+            "group_by", {}
+        ):
+            error["delta"] = _("Cannot use distributed_cost delta without grouping by project.")
+            raise serializers.ValidationError(error)
+
         return data
+
+    def validate_delta(self, value):
+        """Validate incoming delta value based on path."""
+        valid_deltas = ["usage"]
+        request = self.context.get("request")
+        if request and "costs" in request.path:
+            valid_deltas = ["cost_total", DISTRIBUTED_COST_INTERNAL["distributed_cost"]]
+        if value not in valid_deltas:
+            error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
 
 
 class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
@@ -144,9 +190,9 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 
     ORDER_BY_SERIALIZER = InventoryOrderBySerializer
 
-    delta_choices = ("cost", "usage", "request", "cost_total")
+    delta_choices = ("cost", "usage", "request", "cost_total", DISTRIBUTED_COST_INTERNAL["distributed_cost"])
 
-    delta_fields = ("usage", "request", "limit", "capacity")
+    delta_fields = ("usage", "request", "limit", "capacity", DISTRIBUTED_COST_INTERNAL["distributed_cost"])
 
     delta = serializers.CharField(required=False)
 
@@ -163,8 +209,6 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
                     error[value] = _("Unsupported parameter")
                     raise serializers.ValidationError(error)
         else:
-            if value == "cost":
-                return "cost_total"
             if value not in self.delta_choices:
                 error[value] = _("Unsupported parameter")
                 raise serializers.ValidationError(error)
@@ -174,6 +218,10 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
 
-    DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"))
+    DELTA_CHOICES = (
+        ("cost", "cost"),
+        ("cost_total", "cost_total"),
+        (DISTRIBUTED_COST_INTERNAL["distributed_cost"], DISTRIBUTED_COST_INTERNAL["distributed_cost"]),
+    )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)

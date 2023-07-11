@@ -16,6 +16,7 @@ from api.common import log_json
 from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
@@ -77,11 +78,11 @@ class ROSReportShipper:
         the uploaded reports and relevant information to the hccm.ros.events topic.
         """
         if not reports_to_upload:
-            msg = "No ROS reports to handle for manifest."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            msg = "No ROS reports to handle in the current payload."
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
         msg = "Preparing to upload ROS reports to S3 bucket."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         report_urls = []
         upload_keys = []
         for filename, report in reports_to_upload:
@@ -90,11 +91,17 @@ class ROSReportShipper:
                 upload_keys.append(upload_tuple[1])
         if not report_urls:
             msg = "ROS reports did not upload cleanly to S3, skipping kafka message."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
+
+        if not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context):
+            msg = "ROS report handling gated by unleash - not sending kafka msg"
+            LOG.info(log_json(self.request_id, msg=msg, context=self.context))
+            return
+
         kafka_msg = self.build_ros_msg(report_urls, upload_keys)
         msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         self.send_kafka_message(kafka_msg)
 
     def copy_local_report_file_to_ros_s3_bucket(self, filename, report):
@@ -112,7 +119,7 @@ class ROSReportShipper:
             uploaded_obj_url = generate_s3_object_url(self.s3_client, upload_key)
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_ROS_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.warning(log_json(self.request_id, msg))
+            LOG.warning(log_json(self.request_id, msg=msg))
             return
         return uploaded_obj_url, upload_key
 
@@ -121,10 +128,7 @@ class ROSReportShipper:
         """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
         producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)
-        # Wait up to 1 second for events. Callbacks will be invoked during
-        # this method call if the message is acknowledged.
-        # `flush` makes this process synchronous compared to async with `poll`
-        producer.flush(1)
+        producer.poll(0)
 
     def build_ros_msg(self, presigned_urls, upload_keys):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""

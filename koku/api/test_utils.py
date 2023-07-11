@@ -8,13 +8,12 @@ import unittest
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-import pytz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.user_settings.settings import USER_SETTINGS
@@ -283,12 +282,12 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """Set up get_months_in_date_range tests."""
         super().setUp()
 
-        self.start_date = datetime.datetime(2023, 4, 3, tzinfo=pytz.UTC)
-        self.end_date = datetime.datetime(2023, 4, 12, tzinfo=pytz.UTC)
-        self.first_of_year = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
-        self.first_of_month = datetime.datetime(2023, 1, 1, tzinfo=pytz.UTC)
-        self.early_start_date = datetime.datetime(2022, 4, 3, tzinfo=pytz.UTC)
-        self.early_end_date = datetime.datetime(2022, 4, 12, tzinfo=pytz.UTC)
+        self.start_date = datetime.datetime(2023, 4, 3, tzinfo=settings.UTC)
+        self.end_date = datetime.datetime(2023, 4, 12, tzinfo=settings.UTC)
+        self.first_of_year = datetime.datetime(2023, 1, 1, tzinfo=settings.UTC)
+        self.first_of_month = datetime.datetime(2023, 1, 1, tzinfo=settings.UTC)
+        self.early_start_date = datetime.datetime(2022, 4, 3, tzinfo=settings.UTC)
+        self.early_end_date = datetime.datetime(2022, 4, 12, tzinfo=settings.UTC)
 
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
     def test_get_months_in_date_range__report_with_dates(self, mock_dh_today):
@@ -345,12 +344,8 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        _start_date_1 = self.first_of_year - datetime.timedelta(days=2)
-        expected_start_1 = _start_date_1.strftime("%Y-%m-%d")
-        _end_date_1 = _start_date_1 + relativedelta(day=31)
-        expected_end_1 = _end_date_1.date().strftime("%Y-%m-%d")
         expected_date_2 = self.first_of_year.strftime("%Y-%m-%d")
-        expected_months = [(expected_start_1, expected_end_1, None), (expected_date_2, expected_date_2, None)]
+        expected_months = [(expected_date_2, expected_date_2, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -364,18 +359,14 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         with a report missing start, end or both dates
         returns list of month tuples during first of a month
         """
-
-        mock_dh_today.return_value = self.first_of_month
+        end_date = self.first_of_month.replace(day=3)
+        mock_dh_today.return_value = end_date
         test_report = {
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        _start_date_1 = self.first_of_month - datetime.timedelta(days=2)
-        expected_start_1 = _start_date_1.strftime("%Y-%m-%d")
-        _end_date_1 = _start_date_1 + relativedelta(day=31)
-        expected_end_1 = _end_date_1.date().strftime("%Y-%m-%d")
-        expected_date_2 = self.first_of_month.strftime("%Y-%m-%d")
-        expected_months = [(expected_start_1, expected_end_1, None), (expected_date_2, expected_date_2, None)]
+        expected_date = self.first_of_month.strftime("%Y-%m-%d")
+        expected_months = [(expected_date, end_date.strftime("%Y-%m-%d"), None)]
 
         returned_months = get_months_in_date_range(test_report)
 
