@@ -15,7 +15,7 @@ from api.iam.test.iam_test_case import RbacPermissions
 class UserAccessViewTest(IamTestCase):
     """Tests the resource types views."""
 
-    NUM_ACCESS_CLASSES = 8
+    NUM_ACCESS_CLASSES = 9
 
     def setUp(self):
         """Set up the UserAccess view tests."""
