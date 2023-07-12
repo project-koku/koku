@@ -160,7 +160,7 @@ class Orchestrator:
                 )
                 continue
             poll_timestamp = provider.polling_timestamp
-            if not poll_timestamp or ((DH.now_utc - poll_timestamp).seconds) > Config.POLLING_TIMER:
+            if not poll_timestamp or ((DH.now_utc - poll_timestamp).total_seconds()) > Config.POLLING_TIMER:
                 batch.append(account)
                 provider.polling_timestamp = DH.now_utc
                 provider.save()
