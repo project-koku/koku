@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 from api.models import Provider
 from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.test import MasuTestCase
 
 
@@ -83,8 +82,3 @@ class AccountsAccessorTest(MasuTestCase):
         ocp_account = account_objects.pop()
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
         self.assertTrue(AccountsAccessor().is_polling_account(ocp_account))
-
-    def test_invalid_source_specification(self):
-        """Test that error is thrown with invalid account source."""
-        with self.assertRaises(AccountsAccessorError):
-            AccountsAccessor("bad")

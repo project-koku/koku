@@ -75,7 +75,7 @@ def get_accounts_from_source(provider_uuid=None, provider_type=None, scheduled=F
 
     filters = {}
     if provider_uuid:
-        filters["provider_id"] = provider_uuid
+        filters["uuid"] = provider_uuid
     if provider_type:
         filters["provider_type"] = provider_type
 
@@ -185,7 +185,7 @@ class AccountsAccessor:
     def get_account_from_uuid(self, provider_uuid):
         if (
             provider := Provider.objects.select_related("authentication", "billing_source", "customer")
-            .filter(provider_id=provider_uuid)
+            .filter(uuid=provider_uuid)
             .first()
         ):
             return get_account_information(provider)

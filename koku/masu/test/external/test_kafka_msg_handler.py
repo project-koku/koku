@@ -855,7 +855,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertIsNotNone(ocp_account)
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
 
-    @patch.object(AccountsAccessor, "get_accounts")
+    @patch.object(AccountsAccessor, "get_account_from_uuid")
     def test_get_account_exception(self, mock_accessor):
         """Test that no account is returned upon exception."""
         mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
