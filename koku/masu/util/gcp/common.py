@@ -198,10 +198,9 @@ def deduplicate_reports_for_gcp(report_list):
 
 def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
-    account = AccountsAccessor().get_accounts(gcp_provider_uuid)
-    if account != []:
-        if is_gcp_resource_matching_disabled(account[0].get("schema_name")):
-            LOG.info(f"GCP resource matching disabled for {account[0].get('schema_name')}")
+    if account := AccountsAccessor().get_account_from_uuid(gcp_provider_uuid):
+        if is_gcp_resource_matching_disabled(account.get("schema_name")):
+            LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
             return False
     else:
         LOG.info("Account not returned, source likely has processing suspended.")
