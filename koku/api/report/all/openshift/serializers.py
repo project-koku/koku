@@ -9,8 +9,7 @@ import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
-from masu.config import Config
-from masu.processor import override_customer_group_by_limit
+from masu.processor import get_customer_group_by_limit
 
 
 class OCPAllGroupBySerializer(awsser.AWSGroupBySerializer, ocpser.OCPGroupBySerializer):
@@ -94,9 +93,8 @@ class OCPAllQueryParamSerializer(awsser.AWSQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        max_value = 2 if not override_customer_group_by_limit(self.schema) else Config.MAX_GROUP_BY
+        max_value = get_customer_group_by_limit(self.schema)
         if len(value) > max_value:
-            # Max support group_bys is 2
             error = {"group_by": (f"Cost Management supports a max of {max_value} group_by options.")}
             raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)

@@ -70,9 +70,6 @@ class Config:
     # The decimal precision of our database Numeric columns
     REPORTING_DECIMAL_PRECISION = 9
 
-    # Set max group by options
-    MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
-
     # Specify the number of months (bills) to ingest
     INITIAL_INGEST_NUM_MONTHS = ENVIRONMENT.int("INITIAL_INGEST_NUM_MONTHS", default=DEFAULT_INITIAL_INGEST_NUM_MONTHS)
 
