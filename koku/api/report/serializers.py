@@ -142,6 +142,7 @@ class BaseSerializer(serializers.Serializer):
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
+        self.schema = None
         self.tag_keys = kwargs.pop("tag_keys", set())
         self.aws_category_keys = kwargs.pop("aws_category_keys", set())
         super().__init__(*args, **kwargs)
