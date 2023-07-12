@@ -51,6 +51,7 @@ class CURAccountsDB(CURAccountsInterface):
             poll_timestamp = provider.polling_timestamp
             timer = Config.POLLING_TIMER
             if poll_timestamp is not None:
+                total_provider_seconds = (dh.now_utc - poll_timestamp).total_seconds()
                 LOG.info(
                     log_json(
                         msg="checking provider polling time",
@@ -59,12 +60,12 @@ class CURAccountsDB(CURAccountsInterface):
                         schema=provider.customer_id,
                         timestamp_now=dh.now_utc,
                         provider_timestamp=poll_timestamp,
-                        provider_time_seconds=(dh.now_utc - poll_timestamp).seconds,
+                        provider_time_seconds=total_provider_seconds,
                         required_polling_time=timer,
-                        is_selected=((dh.now_utc - poll_timestamp).seconds) < timer,
+                        dont_poll=(total_provider_seconds) < timer,
                     )
                 )
-                if ((dh.now_utc - poll_timestamp).seconds) < timer:
+                if (total_provider_seconds) < timer:
                     return False
         return True
 

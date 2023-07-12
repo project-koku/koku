@@ -49,12 +49,13 @@ class AWSGroupBySerializer(GroupSerializer):
 class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("usage", "account_alias", "region", "service", "product_family", "date")
+    _opfields = ("usage", "account", "account_alias", "region", "service", "product_family", "date")
     _aws_category = True
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     # ordering by alias is supported, but ordering by account is not due to the
     # probability that a human-recognizable alias is more useful than account number.
+    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
