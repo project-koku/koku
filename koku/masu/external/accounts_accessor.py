@@ -6,14 +6,121 @@
 import logging
 
 from api.common import log_json
+from api.models import Provider
+from api.models import Tenant
+from api.utils import DateHelper
 from masu.config import Config
-from masu.exceptions import CURAccountsInterfaceError
 from masu.external import POLL_INGEST
-from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
+from masu.processor import is_source_disabled
 from masu.util import common as utils
 from masu.util.ocp import common as ocp_utils
 
 LOG = logging.getLogger(__name__)
+dh = DateHelper()
+
+
+def get_provider_uuid_map(providers):
+    return {str(provider.uuid): provider for provider in providers}
+
+
+def get_pollable_providers(filters: dict):
+    return Provider.objects.select_related("authentication", "billing_source", "customer").filter(
+        active=True, paused=False, **filters
+    )
+
+
+def get_all_tenants():
+    return list(Tenant.objects.exclude(schema_name__in=["public", "template0"]).values_list("schema_name", flat=True))
+
+
+def get_account_information(provider):
+    """Return account information in dictionary."""
+    return {
+        "customer_name": getattr(provider.customer, "schema_name", None),
+        "credentials": getattr(provider.authentication, "credentials", None),
+        "data_source": getattr(provider.billing_source, "data_source", None),
+        "provider_type": provider.type,
+        "schema_name": getattr(provider.customer, "schema_name", None),
+        "provider_uuid": provider.uuid,
+    }
+
+
+def is_source_pollable(provider, provider_uuid=None):
+    """checks to see if a source is pollable."""
+    if is_source_disabled(provider.uuid):
+        return False
+
+    # This check is needed for OCP ingress reports
+    if not provider_uuid:
+        poll_timestamp = provider.polling_timestamp
+        if poll_timestamp is not None and ((dh.now_utc - poll_timestamp).seconds) < Config.POLLING_TIMER:
+            return False
+    return True
+
+
+def get_accounts_from_source(provider_uuid=None, provider_type=None, scheduled=False):
+    """
+    Retrieve all accounts from the Koku database.
+
+    This will return a list of dicts for the Orchestrator to use to access reports.
+
+    Args:
+        provider_uuid (String) - Optional, return specific account
+
+    Returns:
+        ([{}]) : A list of dicts
+
+    """
+    accounts = []
+
+    filters = {}
+    if provider_uuid:
+        filters["provider_id"] = provider_uuid
+    if provider_type:
+        filters["provider_type"] = provider_type
+
+    pollable_providers = get_pollable_providers(filters)
+    if provider_uuid:
+        if pollable_providers.count() != 1:
+            LOG.info(log_json(msg="provider does not exist", provider_uuid=provider_uuid))
+        else:
+            provider = pollable_providers.first()
+            if is_source_pollable(provider, provider_uuid):
+                return [get_account_information(provider)]
+        return []
+
+    if scheduled:
+        pollable_providers = pollable_providers.exclude(provider_type=Provider.PROVIDER_OCP)
+    all_providers = get_provider_uuid_map(pollable_providers)
+
+    LOG.info(
+        log_json(
+            msg="looping through providers polling for accounts",
+            scheduled=scheduled,
+        )
+    )
+
+    for _, provider in all_providers.items():
+        if len(accounts) >= Config.POLLING_BATCH_SIZE:
+            break
+        if not is_source_pollable(provider):
+            continue
+        accounts.append(get_account_information(provider))
+        # Update provider polling time.
+        provider.polling_timestamp = dh.now_utc
+        provider.save()
+        LOG.info(
+            log_json(
+                msg="adding provider to polling batch",
+                provider_type=provider.type,
+                provider_uuid=provider.uuid,
+                schema=provider.customer_id,
+                polling_count=len(accounts),
+                polling_batch_count=Config.POLLING_BATCH_SIZE,
+            )
+        )
+
+    return accounts
 
 
 class AccountsAccessorError(Exception):
@@ -22,31 +129,6 @@ class AccountsAccessorError(Exception):
 
 class AccountsAccessor:
     """Interface for masu to use to get CUR accounts."""
-
-    def __init__(self, source_type=Config.ACCOUNT_ACCESS_TYPE):
-        """Set the CUR accounts external source."""
-        self.source_type = source_type.lower()
-        self.source = self._set_source()
-        if not self.source:
-            raise AccountsAccessorError("Invalid source type specified.")
-
-    def _set_source(self):
-        """
-        Create the provider service object.
-
-        Set what source should be used to get CUR accounts.
-
-        Args:
-            None
-
-        Returns:
-            (Object) : Some object that is a child of CURAccountsInterface
-
-        """
-        if self.source_type == "db":
-            return CURAccountsDB()
-
-        return None
 
     @staticmethod
     def is_polling_account(account):
@@ -97,9 +179,15 @@ class AccountsAccessor:
             ([{}]) : A list of account access dictionaries
 
         """
-        try:
-            accounts = self.source.get_accounts_from_source(provider_uuid, provider_type, scheduled)
-        except CURAccountsInterfaceError as error:
-            raise AccountsAccessorError(str(error))
 
-        return accounts
+        return get_accounts_from_source(provider_uuid, provider_type, scheduled)
+
+    def get_account_from_uuid(self, provider_uuid):
+        if (
+            provider := Provider.objects.select_related("authentication", "billing_source", "customer")
+            .filter(provider_id=provider_uuid)
+            .first()
+        ):
+            return get_account_information(provider)
+        else:
+            raise AccountsAccessorError("provider not found")

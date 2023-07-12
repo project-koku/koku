@@ -475,15 +475,12 @@ def get_account(provider_uuid, manifest_uuid, context={}):
                  provider_uuid: String
 
     """
-    all_accounts = []
     try:
-        all_accounts = AccountsAccessor().get_accounts(provider_uuid)
+        return AccountsAccessor().get_account_from_uuid(provider_uuid)
     except AccountsAccessorError as error:
         msg = f"Unable to get accounts. Error: {str(error)}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
         return None
-
-    return all_accounts.pop() if all_accounts else None
 
 
 def summarize_manifest(report_meta, manifest_uuid):
