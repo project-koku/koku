@@ -89,6 +89,8 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
