@@ -110,7 +110,6 @@ class CURAccountsDB(CURAccountsInterface):
                     if self.is_source_pollable(provider):
                         accounts.append(self.get_account_information(provider))
                         # Update provider polling time.
-                        LOG.info(f"\n\n WHAT PROVIDER {provider.uuid} \n\n")
                         provider.polling_timestamp = dh.now_utc
                         provider.save()
                         LOG.info(
