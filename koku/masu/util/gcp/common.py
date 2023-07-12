@@ -13,6 +13,7 @@ from django_tenants.utils import schema_context
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
+from masu.external.accounts_accessor import AccountsAccessorError
 from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -198,16 +199,17 @@ def deduplicate_reports_for_gcp(report_list):
 
 def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
-    if account := AccountsAccessor().get_account_from_uuid(gcp_provider_uuid):
-        if is_gcp_resource_matching_disabled(account.get("schema_name")):
-            LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
-            return False
-    else:
+    try:
+        account = AccountsAccessor().get_account_from_uuid(gcp_provider_uuid)
+    except AccountsAccessorError:
         LOG.info("Account not returned, source likely has processing suspended.")
         return False
+
+    if is_gcp_resource_matching_disabled(account.get("schema_name")):
+        LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
+        return False
     with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
-        source = provider_accessor.get_data_source()
-        if source:
+        if source := provider_accessor.get_data_source():
             if not source.get("storage_only"):
                 if "resource" in source.get("table_id"):
                     LOG.info("OCP GCP matching set to resource level")
