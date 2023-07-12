@@ -57,28 +57,25 @@ class AccountsAccessorTest(MasuTestCase):
 
     def test_get_aws_account_is_poll(self):
         """Test that the AWS account is returned given a provider uuid and it's a poll account."""
-        account_objects = AccountsAccessor().get_account_from_uuid(self.aws_provider_uuid)
-        self.assertEqual(len(account_objects), 1)
+        aws_account = AccountsAccessor().get_account_from_uuid(self.aws_provider_uuid)
+        self.assertIsNotNone(aws_account)
 
-        aws_account = account_objects.pop()
         self.assertIn(aws_account.get("provider_type"), (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL))
         self.assertTrue(AccountsAccessor().is_polling_account(aws_account))
 
     def test_get_ocp_account_is_not_poll(self):
         """Test that the OCP account is returned given a provider uuid and it's a listen account."""
-        account_objects = AccountsAccessor().get_account_from_uuid(self.ocp_test_provider_uuid)
-        self.assertEqual(len(account_objects), 1)
+        ocp_account = AccountsAccessor().get_account_from_uuid(self.ocp_test_provider_uuid)
+        self.assertIsNotNone(ocp_account)
 
-        ocp_account = account_objects.pop()
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
         self.assertFalse(AccountsAccessor().is_polling_account(ocp_account))
 
     @patch("masu.util.ocp.common.poll_ingest_override_for_provider", return_value=True)
     def test_get_ocp_override_account_is_poll(self, ocp_override):
         """Test that the OCP path returns OCP as a listen account."""
-        account_objects = AccountsAccessor().get_account_from_uuid(self.ocp_test_provider_uuid)
-        self.assertEqual(len(account_objects), 1)
+        ocp_account = AccountsAccessor().get_account_from_uuid(self.ocp_test_provider_uuid)
+        self.assertIsNotNone(ocp_account)
 
-        ocp_account = account_objects.pop()
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
         self.assertTrue(AccountsAccessor().is_polling_account(ocp_account))

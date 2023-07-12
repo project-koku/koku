@@ -31,9 +31,9 @@ def get_pollable_providers(filters: dict):
     return get_all_providers().filter(active=True, paused=False, **filters)
 
 
-def get_account_from_uuid(provider_uuid) -> list:
+def get_account_from_uuid(provider_uuid):
     if provider := get_all_providers().filter(uuid=provider_uuid).first():
-        return [get_account_information(provider)]
+        return get_account_information(provider)
     else:
         raise AccountsAccessorError("provider not found")
 
