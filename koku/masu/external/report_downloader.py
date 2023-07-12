@@ -213,4 +213,6 @@ class ReportDownloader:
             "start": date_range.get("start"),
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
+            "metadata_start_date": report_context.get("start"),
+            "metadata_end_date": report_context.get("end"),
         }

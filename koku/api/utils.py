@@ -78,22 +78,6 @@ def merge_dicts(*list_of_dicts):
     return output
 
 
-class DateConverter:
-    def __init__(self, date, format=""):
-        self.date = date
-        self.format = format
-
-    def to_str(self):
-        if isinstance(self.date, str):
-            date = ciso8601.parse_datetime(self.date)
-        elif isinstance(self.date, (datetime.datetime, datetime.date)):
-            date = self.date
-        else:
-            raise ValueError("date cannot be converted to string")
-
-        return date.strftime(self.format)
-
-
 class DateHelper:
     """Helper class with convenience functions."""
 

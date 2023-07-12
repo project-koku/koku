@@ -14,6 +14,7 @@ import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
+from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper as dh
 from masu.config import Config
@@ -203,38 +204,35 @@ def get_report_details(report_directory):
              end: DateTime
 
     """
-    manifest_path = "{}/{}".format(report_directory, "manifest.json")
-    payload_dict = {}
-    if os.path.exists(manifest_path):
-        try:
-            with open(manifest_path) as file:
-                payload_dict = json.load(file)
-                payload_dict["date"] = parser.parse(payload_dict["date"])
-                payload_dict["manifest_path"] = manifest_path
-                # parse start and end dates if in manifest
-                payload_start = None
-                if payload_dict.get("start"):
-                    payload_start = payload_dict.get("start")
-                    payload_dict["start"] = parser.parse(payload_start)
-                if payload_start and payload_dict.get("end"):
-                    payload_end = payload_dict.get("end")
-                    start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
-                    end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
-                    start_month = start.strftime("%Y-%m")
-                    end_month = end.strftime("%Y-%m")
-                    end_day = end.strftime("%Y-%m-%d")
-                    end_day_check = end.strftime("%Y-%m-01")
-                    # We override the end date from the first of the next month to the end of current month
-                    # We do this to prevent summary from triggering unnecessarily on the next month
-                    if start_month != end_month and end_day == end_day_check:
-                        payload_end = dh().month_end(start)
-                    payload_dict["end"] = parser.parse(str(payload_end))
-        except (OSError, KeyError) as exc:
-            LOG.error("Unable to extract manifest data: %s", exc)
-    else:
-        msg = f"No manifest available at {manifest_path}"
-        LOG.info(msg)
+    manifest_path = f"{report_directory}/manifest.json"
+    if not os.path.exists(manifest_path):
+        LOG.info(log_json(msg="no manifest available", manifest_path=manifest_path))
+        return {}
+    try:
+        with open(manifest_path) as file:
+            payload_dict = json.load(file)
+            payload_dict["date"] = parser.parse(payload_dict["date"])
+    except (OSError, KeyError) as exc:
+        LOG.error("unable to extract manifest data", exc_info=exc)
+        return {}
 
+    payload_dict["manifest_path"] = manifest_path
+    # parse start and end dates if in manifest
+    if payload_start := payload_dict.get("start"):
+        payload_dict["start"] = parser.parse(payload_start)
+        if "0001-01-01 00:00:00+00:00" not in payload_start:
+            # if we have a valid start date, set the date to the start
+            # so that a manifest created at midnight on the first of the month
+            # will associate the data with the correct reporting month
+            payload_dict["date"] = payload_dict["start"]
+    if payload_start and (payload_end := payload_dict.get("end")):
+        start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
+        end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
+        # We override the end date from the first of the next month to the end of current month
+        # We do this to prevent summary from triggering unnecessarily on the next month
+        if start.month != end.month and end.day == 1:
+            payload_end = dh().month_end(start)
+        payload_dict["end"] = parser.parse(payload_end)
     return payload_dict
 
 

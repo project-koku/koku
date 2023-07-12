@@ -609,6 +609,8 @@ def process_report(request_id, report):
         "tracing_id": report.get("tracing_id"),
         "provider_type": "OCP",
         "start_date": date,
+        "metadata_start_date": report.get("start"),
+        "metadata_end_date": report.get("end"),
         "create_table": True,
     }
     try:
@@ -634,14 +636,7 @@ def report_metas_complete(report_metas):
         True if all report files for the payload have completed line item processing.
 
     """
-    process_complete = False
-    for report_meta in report_metas:
-        if not report_meta.get("process_complete"):
-            process_complete = False
-            break
-        else:
-            process_complete = True
-    return process_complete
+    return all(report_meta.get("process_complete") for report_meta in report_metas)
 
 
 def process_messages(msg):

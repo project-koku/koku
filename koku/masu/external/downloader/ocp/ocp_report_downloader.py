@@ -219,7 +219,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Looking for manifest at {directory}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         report_meta = utils.get_report_details(directory)
-        LOG.debug(log_json(msg="report meta for OCP report", **report_meta))
         return report_meta
 
     def get_manifest_context_for_date(self, date):
@@ -249,6 +248,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "assembly_id": manifest.get("uuid"),
             "compression": UNCOMPRESSED,
             "start": manifest.get("start"),
+            "end": manifest.get("end"),
         }
 
         files_list = []
@@ -259,7 +259,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             files_list.append(file_dict)
 
         report_dict["files"] = files_list
-        return report_dict
+        return [report_dict]
 
     def _remove_manifest_file(self, date_time):
         """Clean up the manifest file after extracting information."""

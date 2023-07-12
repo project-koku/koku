@@ -14,6 +14,7 @@ from api.models import Provider
 from koku.database_exc import get_extended_exception_by_type
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
 
 LOG = logging.getLogger(__name__)
 
@@ -113,6 +114,8 @@ class ReportProcessor:
             if self.ocp_on_cloud_processor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
             return daily_data_frames != []
+        except ReportsAlreadyProcessed:
+            return True
         except (InterfaceError, DjangoInterfaceError) as err:
             raise ReportProcessorDBError(f"Interface error: {err}") from err
         except OperationalError as o_err:

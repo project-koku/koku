@@ -21,7 +21,6 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateConverter
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
@@ -391,25 +390,25 @@ def get_s3_resource():  # pragma: no cover
     return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
 
 
-def copy_data_to_s3_bucket(request_id, path, filename, data, metadata, context=None):
+def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, context=None):
     """
     Copies data to s3 bucket file
     """
     if context is None:
         context = {}
-    upload = None
     upload_key = f"{path}/{filename}"
     extra_args = {}
     if metadata:
         extra_args["Metadata"] = metadata
+    s3_resource = get_s3_resource()
+    s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
+    upload = s3_resource.Object(**s3_obj)
     try:
-        s3_resource = get_s3_resource()
-        s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
-        upload = s3_resource.Object(**s3_obj)
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
-        msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg=msg, context=context), exc_info=err)
+        msg = "unable to copy data to bucket"
+        LOG.info(log_json(request_id, msg=msg, context=context, upload_key=upload_key), exc_info=err)
+        return None
     return upload
 
 
@@ -423,8 +422,7 @@ def copy_local_report_file_to_s3_bucket(
         context = {}
     if s3_path:
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
-        report_date = DateConverter(start_date, "%Y-%m-%d").to_str()
-        metadata = {"manifestid": str(manifest_id), "reportdate": report_date}
+        metadata = {"manifestid": str(manifest_id)}
         with open(full_file_path, "rb") as fin:
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
 
@@ -467,54 +465,131 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def remove_s3_objects_matching_metadata(
-    request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
+def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
+    if context is None:
+        context = {}
+    s3_resource = get_s3_resource()
+    try:
+        filtered = []
+        for key in keys:
+            obj = s3_resource.Object(settings.S3_BUCKET_NAME, key)
+            metadata_value = obj.metadata.get(metadata_key)
+            if metadata_value < metadata_value_check:
+                filtered.append(key)
+        return filtered
+    except (EndpointConnectionError, ClientError) as err:
+        LOG.warning(
+            log_json(
+                request_id,
+                msg="unable to get matching data in bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+            ),
+            exc_info=err,
+        )
+    return []
+
+
+def get_s3_objects_matching_metadata(
+    request_id, s3_path, *, metadata_key, metadata_value_check, context=None
 ) -> list[str]:
     if not s3_path:
         return []
-
     if context is None:
         context = {}
-
     try:
-        existing_objects = _get_s3_objects(s3_path)
-        keys_to_delete = []
-        for obj_summary in existing_objects:
+        keys = []
+        for obj_summary in _get_s3_objects(s3_path):
             existing_object = obj_summary.Object()
             metadata_value = existing_object.metadata.get(metadata_key)
             if metadata_value == metadata_value_check:
-                keys_to_delete.append(existing_object.key)
-
-        return _delete_s3_objects(request_id, keys_to_delete, context)
+                keys.append(existing_object.key)
+        return keys
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
             log_json(
-                request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
+                request_id,
+                msg="unable to get matching data in bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
             ),
             exc_info=err,
         )
     return []
 
 
-def remove_s3_objects_not_matching_metadata(
-    request_id, s3_path, *, metadata_key=None, metadata_value_check=None, context=None
+def get_s3_objects_not_matching_metadata(
+    request_id, s3_path, *, metadata_key, metadata_value_check, context=None
 ) -> list[str]:
     if not s3_path:
         return []
-
     if context is None:
         context = {}
-
     try:
-        existing_objects = _get_s3_objects(s3_path)
-        keys_to_delete = []
-        for obj_summary in existing_objects:
+        keys = []
+        for obj_summary in _get_s3_objects(s3_path):
             existing_object = obj_summary.Object()
             metadata_value = existing_object.metadata.get(metadata_key)
             if metadata_value != metadata_value_check:
-                keys_to_delete.append(existing_object.key)
+                keys.append(existing_object.key)
+        return keys
+    except (EndpointConnectionError, ClientError) as err:
+        LOG.warning(
+            log_json(
+                request_id,
+                msg="unable to get non-matching data in bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+            ),
+            exc_info=err,
+        )
+    return []
 
-        return _delete_s3_objects(request_id, keys_to_delete, context)
+
+def delete_s3_objects_matching_metadata(
+    request_id, s3_path, *, metadata_key, metadata_value_check, context=None
+) -> list[str]:
+    keys_to_delete = get_s3_objects_matching_metadata(
+        request_id,
+        s3_path,
+        metadata_key=metadata_key,
+        metadata_value_check=metadata_value_check,
+        context=context,
+    )
+    return delete_s3_objects(request_id, keys_to_delete, context)
+
+
+def delete_s3_objects_not_matching_metadata(
+    request_id, s3_path, *, metadata_key, metadata_value_check, context=None
+) -> list[str]:
+    keys_to_delete = get_s3_objects_not_matching_metadata(
+        request_id,
+        s3_path,
+        metadata_key=metadata_key,
+        metadata_value_check=metadata_value_check,
+        context=context,
+    )
+    return delete_s3_objects(request_id, keys_to_delete, context)
+
+
+def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
+    s3_resource = get_s3_resource()
+    try:
+        removed = []
+        for key in keys_to_delete:
+            s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+            removed.append(key)
+        if removed:
+            LOG.info(
+                log_json(
+                    request_id,
+                    msg="removed files from s3 bucket",
+                    context=context,
+                    bucket=settings.S3_BUCKET_NAME,
+                    file_list=removed,
+                )
+            )
+        return removed
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
             log_json(
@@ -523,34 +598,15 @@ def remove_s3_objects_not_matching_metadata(
             exc_info=err,
         )
     return []
-
-
-def _delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
-    removed = []
-    s3_resource = get_s3_resource()
-    for key in keys_to_delete:
-        s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
-        removed.append(key)
-    if removed:
-        LOG.info(
-            log_json(
-                request_id,
-                msg="removed files from s3 bucket",
-                context=context,
-                bucket=settings.S3_BUCKET_NAME,
-                file_list=removed,
-            )
-        )
-    return removed
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):
     """
     Removes all files in a given prefix if they are not within the given set.
 
-    This function should be deprecated and replaced with `remove_s3_objects_not_matching_metadata`.
+    This function should be deprecated and replaced with `delete_s3_objects_not_matching_metadata`.
     """
-    return remove_s3_objects_not_matching_metadata(
+    return delete_s3_objects_not_matching_metadata(
         request_id, s3_path, metadata_key="manifestid", metadata_value_check=manifest_id, context=context
     )
 

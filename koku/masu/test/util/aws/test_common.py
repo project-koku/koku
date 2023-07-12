@@ -356,7 +356,7 @@ class TestAWSUtils(MasuTestCase):
         """Test remove_s3_objects_not_matching_metadata."""
         metadata_key = "manifestid"
         metadata_value = "manifest_id"
-        removed = utils.remove_s3_objects_not_matching_metadata(
+        removed = utils.delete_s3_objects_not_matching_metadata(
             "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
         )
         self.assertEqual(removed, [])
@@ -379,14 +379,14 @@ class TestAWSUtils(MasuTestCase):
                 not_matching_summary,
                 matching_summary,
             ]
-            removed = utils.remove_s3_objects_not_matching_metadata(
+            removed = utils.delete_s3_objects_not_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
             self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
-            removed = utils.remove_s3_objects_not_matching_metadata(
+            removed = utils.delete_s3_objects_not_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
             self.assertListEqual(removed, [])
@@ -395,7 +395,7 @@ class TestAWSUtils(MasuTestCase):
         """Test remove_s3_objects_matching_metadata."""
         metadata_key = "manifestid"
         metadata_value = "manifest_id"
-        removed = utils.remove_s3_objects_matching_metadata(
+        removed = utils.delete_s3_objects_matching_metadata(
             "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
         )
         self.assertEqual(removed, [])
@@ -419,14 +419,14 @@ class TestAWSUtils(MasuTestCase):
                 not_matching_summary,
                 matching_summary,
             ]
-            removed = utils.remove_s3_objects_matching_metadata(
+            removed = utils.delete_s3_objects_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
             self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.side_effect = ClientError({}, "Error")
-            removed = utils.remove_s3_objects_matching_metadata(
+            removed = utils.delete_s3_objects_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
             self.assertListEqual(removed, [])
