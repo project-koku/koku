@@ -106,17 +106,18 @@ class Orchestrator:
             [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
 
         """
+        accounts = []
         polling_accounts = []
         try:
             accessor = AccountsAccessor()
             if provider_uuid:
-                all_accounts = [accessor.get_account_from_uuid(provider_uuid)]
+                accounts = [accessor.get_account_from_uuid(provider_uuid)]
             else:
-                all_accounts = accessor.get_accounts(provider_type, scheduled)
+                accounts = accessor.get_accounts(provider_type, scheduled)
         except AccountsAccessorError as error:
             LOG.error("Unable to get accounts. Error: %s", str(error))
 
-        for account in all_accounts:
+        for account in accounts:
             schema_name = account.get("schema_name")
             if is_cloud_source_processing_disabled(schema_name) and not provider_uuid:
                 LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
