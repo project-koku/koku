@@ -28,120 +28,87 @@ class UIFeatureAccess:
         1. to keep UI and API in sync about RBAC permissions
         2. to provide the UI (both our UI and the platform's chroming) with a simple boolean response regarding whether
             a user has access to specific features of the UI.
-
-    Class attributes:
-
-        access_keys (list) - a list of access keys to check. must be implemented by sub-classes.
-                             multiple keys will be ORed; i.e. if a user has access to anything in the list,
-                             this API returns True
     """
 
-    def __init__(self, access):
+    PRERELEASE = ["ibm"]
+    CHECK_READ_ONLY = ["cost_model", "settings"]
+
+    def __init__(self, access, admin_user, access_key_list=None):
         """Class Constructor.
 
         Args:
             access (dict) - an RBAC dict; see: koku.koku.middleware.IdentityHeaderMiddleware
 
         """
+        if not access_key_list:
+            self.access_key_list = self.access_key_mapping.keys()
         self.access_dict = access if access else {}
+        self.admin_user = admin_user
+        self.access_key_list = []
+
+    def set_access_key_list(self, query_param):
+        """Checks the access key list."""
+        if query_param:
+            if query_param in self.access_key_mapping:
+                self.access_key_list = [query_param]
+        else:
+            self.access_key_list = self.access_key_mapping.keys()
+        return bool(self.access_key_list)
+
+    @property
+    def access_key_mapping(self):
+        mapping = {}
+        mapping["aws"] = ["aws.account", "aws.organizational_unit"]
+        mapping["ocp"] = ["openshift.cluster", "openshift.node", "openshift.project"]
+        mapping["azure"] = ["azure.subscription_guid"]
+        mapping["gcp"] = ["gcp.account", "gcp.project"]
+        mapping["oci"] = ["oci.payer_tenant_id"]
+        mapping["ibm"] = ["ibm.account"]
+        mapping["cost_model"] = ["cost_model"]
+        mapping["setting"] = ["setting"]
+        mapping["any"] = mapping["aws"] + mapping["azure"] + mapping["gcp"] + mapping["oci"] + mapping["ocp"]
+        return mapping
 
     def _get_access_value(self, key1, key2, default=None):
         """Return the access value from the inner dict."""
         return self.access_dict.get(key1, {}).get(key2, default)
 
-    def access(self, admin_user, pre_release_feature):
+    def _check_access(self, pre_release_feature, access_key):
         """Access property returns whether the user has the requested access.
 
         Return:
-            (bool)
+            (access, read_only)
+            acesss = bool or None
+            read_only = bool or none
         """
+
         if pre_release_feature and not settings.ENABLE_PRERELEASE_FEATURES:
-            return False
+            return False, None
+        if self.admin_user:
+            return True, False
+        for rbac_setting in self.access_key_mapping[access_key]:
+            if self._get_access_value(rbac_setting, "write"):
+                return True, False
+            elif self._get_access_value(rbac_setting, "read"):
+                return True, True
 
-        if admin_user:
-            return True
-
-        for key in self.access_keys:
-            if self._get_access_value(key, "read") or self._get_access_value(key, "write"):
-                return True
-        return False
-
-
-class AWSUserAccess(UIFeatureAccess):
-    """Access to AWS UI Features."""
-
-    access_keys = ["aws.account", "aws.organizational_unit"]
-
-
-class OCPUserAccess(UIFeatureAccess):
-    """Access to OCP UI Features."""
-
-    access_keys = ["openshift.cluster", "openshift.node", "openshift.project"]
-
-
-class AzureUserAccess(UIFeatureAccess):
-    """Access to Azure UI Features."""
-
-    access_keys = ["azure.subscription_guid"]
-
-
-class GCPUserAccess(UIFeatureAccess):
-    """Access to GCP UI Features."""
-
-    access_keys = ["gcp.account", "gcp.project"]
-
-
-class OCIUserAccess(UIFeatureAccess):
-    """Access to OCI UI Features."""
-
-    access_keys = ["oci.payer_tenant_id"]
-
-
-class IBMUserAccess(UIFeatureAccess):
-    """Access to IBM UI Features."""
-
-    access_keys = ["ibm.account"]
-
-
-class CostModelUserAccess(UIFeatureAccess):
-    """Access to Cost Model UI Features."""
-
-    access_keys = ["cost_model"]
-
-
-class SettingsUserAccess(UIFeatureAccess):
-
-    access_keys = ["settings"]
-
-
-class AnyUserAccess(UIFeatureAccess):
-    """Check for if the user has access to any features."""
-
-    access_keys = (
-        AWSUserAccess.access_keys
-        + AzureUserAccess.access_keys
-        + GCPUserAccess.access_keys
-        + OCIUserAccess.access_keys
-        + OCPUserAccess.access_keys
-    )
+    def generate_data(self):
+        data = []
+        for access_key in self.access_key_list:
+            pre_release_feature = bool(access_key in self.PRERELEASE)
+            access, read_only = self._check_access(pre_release_feature, access_key)
+            dikt_format = {"type": access_key, "access": access, "read_only": read_only}
+            if len(self.access_key_list) == 1:
+                # for backwards compatability, hoping to deprecate soon.
+                dikt_format["data"] = access
+            data.append(dikt_format)
+        return data
 
 
 class UserAccessView(APIView):
     """View class for handling requests to determine a user's access to a resource."""
 
     permission_classes = [AllowAny]
-
-    _source_types = [
-        {"type": "any", "access_class": AnyUserAccess},
-        {"type": "aws", "access_class": AWSUserAccess},
-        {"type": "azure", "access_class": AzureUserAccess},
-        {"type": "cost_model", "access_class": CostModelUserAccess},
-        {"type": "gcp", "access_class": GCPUserAccess},
-        {"type": "oci", "access_class": OCIUserAccess},
-        {"type": "ibm", "access_class": IBMUserAccess, "pre_release_feature": True},
-        {"type": "ocp", "access_class": OCPUserAccess},
-        {"type": "settings", "access_class": SettingsUserAccess},
-    ]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
@@ -164,26 +131,11 @@ class UserAccessView(APIView):
         if flag.lower() == "true" and not beta:
             return Response({"data": False})
 
-        source_type = query_params.get("type")
-        if source_type:
-            source_accessor = next(
-                (item for item in self._source_types if item.get("type") == source_type.lower()), False
-            )
-            if source_accessor:
-                access_class = source_accessor.get("access_class")
-                pre_release_feature = source_accessor.get("pre_release_feature")
-                access_granted = access_class(user_access).access(admin_user, pre_release_feature)
-                return Response({"data": access_granted})
-            else:
-                return Response({f"Unknown source type: {source_type}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        data = []
-        for source_type in self._source_types:
-            access_granted = False
-            access_granted = source_type.get("access_class")(user_access).access(
-                admin_user, source_type.get("pre_release_feature")
-            )
-            data.append({"type": source_type.get("type"), "access": access_granted})
+        ui_feature_access = UIFeatureAccess(user_access, admin_user)
+        is_valid_param = ui_feature_access.set_access_key_list(query_params.get("type"))
+        if not is_valid_param:
+            return Response({f"Unknown source type: {query_params.get('type')}"}, status=status.HTTP_400_BAD_REQUEST)
+        data = ui_feature_access.generate_data()
 
         paginator = ListPaginator(data, request)
 
