@@ -9,9 +9,7 @@ from api.common import log_json
 from api.models import Provider
 from api.models import Tenant
 from api.utils import DateHelper
-from masu.config import Config
 from masu.external import POLL_INGEST
-from masu.processor import is_source_disabled
 from masu.util import common as utils
 from masu.util.ocp import common as ocp_utils
 
@@ -56,19 +54,6 @@ def get_account_information(provider) -> dict:
         "schema_name": getattr(provider.customer, "schema_name", None),
         "provider_uuid": provider.uuid,
     }
-
-
-def is_source_pollable(provider, provider_uuid=None) -> bool:
-    """checks to see if a source is pollable."""
-    if is_source_disabled(provider.uuid):
-        return False
-
-    # This check is needed for OCP ingress reports
-    if not provider_uuid:
-        poll_timestamp = provider.polling_timestamp
-        if poll_timestamp is not None and ((dh.now_utc - poll_timestamp).seconds) < Config.POLLING_TIMER:
-            return False
-    return True
 
 
 def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
