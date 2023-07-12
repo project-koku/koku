@@ -20,6 +20,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.accounts_accessor import get_account_information
 from masu.external.accounts_accessor import get_all_providers
+from masu.external.accounts_accessor import get_pollable_providers
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
@@ -38,6 +39,7 @@ from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
+DH = DateHelper()
 
 
 class Orchestrator:
@@ -74,6 +76,7 @@ class Orchestrator:
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
+        self.pollable_providers = get_pollable_providers(excludes={"type": Provider.PROVIDER_OCP})
         self._polling_accounts = self.get_polling_accounts(
             self.provider_uuid,
             self.provider_type,
@@ -103,7 +106,6 @@ class Orchestrator:
             [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
 
         """
-        all_accounts = []
         polling_accounts = []
         try:
             accessor = AccountsAccessor()
@@ -134,6 +136,34 @@ class Orchestrator:
                 polling_accounts.append(account)
 
         return polling_accounts
+
+    def get_polling_batch(self):
+        batch = []
+        for provider in self.pollable_providers:
+            if len(batch) >= Config.POLLING_BATCH_SIZE:
+                break
+            account = get_account_information(provider)
+            schema_name = account.get("schema_name")
+            if is_cloud_source_processing_disabled(schema_name):
+                LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
+                continue
+            provider_uuid = account.get("provider_uuid")
+            if is_source_disabled(provider_uuid):
+                LOG.info(
+                    log_json(
+                        "get_accounts",
+                        msg="processing disabled for source",
+                        schema=schema_name,
+                        provider_uuid=provider_uuid,
+                    )
+                )
+                continue
+            poll_timestamp = provider.polling_timestamp
+            if not poll_timestamp or ((DH.now_utc - poll_timestamp).seconds) > Config.POLLING_TIMER:
+                batch.append(account)
+                provider.polling_timestamp = DH.now_utc
+                provider.save()
+        return batch
 
     def get_reports(self, provider_uuid):
         """
@@ -314,7 +344,7 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        for account in self._polling_accounts:
+        for account in self.get_polling_batch():
             provider_uuid = account.get("provider_uuid")
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()

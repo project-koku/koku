@@ -27,8 +27,12 @@ def get_all_providers():
     return Provider.objects.select_related("authentication", "billing_source", "customer")
 
 
-def get_pollable_providers(filters: dict):
-    return get_all_providers().filter(active=True, paused=False, **filters)
+def get_pollable_providers(filters: dict = None, excludes: dict = None):
+    if not filters:
+        filters = {}
+    if not excludes:
+        excludes = {}
+    return get_all_providers().filter(active=True, paused=False, **filters).exclude(**excludes)
 
 
 def get_account_from_uuid(provider_uuid):
@@ -80,8 +84,6 @@ def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
         ([{}]) : A list of dicts
 
     """
-    accounts = []
-
     filters = {}
     if provider_type:
         filters["type"] = provider_type
@@ -90,7 +92,6 @@ def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
 
     if scheduled:
         pollable_providers = pollable_providers.exclude(provider_type=Provider.PROVIDER_OCP)
-    all_providers = get_provider_uuid_map(pollable_providers)
 
     LOG.info(
         log_json(
@@ -99,27 +100,7 @@ def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
         )
     )
 
-    for _, provider in all_providers.items():
-        if len(accounts) >= Config.POLLING_BATCH_SIZE:
-            break
-        if not is_source_pollable(provider):
-            continue
-        accounts.append(get_account_information(provider))
-        # Update provider polling time.
-        provider.polling_timestamp = dh.now_utc
-        provider.save()
-        LOG.info(
-            log_json(
-                msg="adding provider to polling batch",
-                provider_type=provider.type,
-                provider_uuid=provider.uuid,
-                schema=provider.customer_id,
-                polling_count=len(accounts),
-                polling_batch_count=Config.POLLING_BATCH_SIZE,
-            )
-        )
-
-    return accounts
+    return [get_account_information(p) for p in pollable_providers]
 
 
 class AccountsAccessorError(Exception):
