@@ -359,9 +359,9 @@ def get_daily_currency_rates():
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
     if provider_uuid:
-        _, polling_accounts = Orchestrator.get_accounts(provider_uuid=provider_uuid)
+        polling_accounts = Orchestrator.get_polling_accounts(provider_uuid=provider_uuid)
     else:
-        _, polling_accounts = Orchestrator.get_accounts()
+        polling_accounts = Orchestrator.get_polling_accounts()
     LOG.info("Account hierarchy crawler found %s accounts to scan" % len(polling_accounts))
     processed = 0
     skipped = 0
@@ -407,7 +407,7 @@ def check_cost_model_status(provider_uuid=None):
     skipped = 0
     for provider in providers:
         uuid = provider_uuid if provider_uuid else provider.uuid
-        account = AccountsAccessor().get_accounts(uuid)[0]
+        account = AccountsAccessor().get_account_from_uuid(uuid)
         cost_model_map = CostModelDBAccessor(account.get("schema_name"), uuid)
         if cost_model_map.cost_model:
             skipped += 1
@@ -434,8 +434,8 @@ def check_for_stale_ocp_source(provider_uuid=None):
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                accounts = AccountsAccessor().get_accounts(data.get("provider_id"))
-                NotificationService().ocp_stale_source_notification(accounts[0])
+                account = AccountsAccessor().get_account_from_uuid(data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(account)
                 processed += 1
             else:
                 skipped += 1

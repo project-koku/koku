@@ -18,6 +18,8 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.accounts_accessor import get_account_information
+from masu.external.accounts_accessor import get_all_providers
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
@@ -50,7 +52,6 @@ class Orchestrator:
 
     def __init__(
         self,
-        billing_source=None,
         provider_uuid=None,
         provider_type=None,
         scheduled=False,
@@ -66,7 +67,6 @@ class Orchestrator:
 
         """
         self.worker_cache = WorkerCache()
-        self.billing_source = billing_source
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.provider_type = provider_type
@@ -74,8 +74,7 @@ class Orchestrator:
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._accounts, self._polling_accounts = self.get_accounts(
-            self.billing_source,
+        self._polling_accounts = self.get_polling_accounts(
             self.provider_uuid,
             self.provider_type,
             self.scheduled,
@@ -83,7 +82,11 @@ class Orchestrator:
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None, scheduled=False):
+    def get_all_accounts():
+        return [get_account_information(p) for p in get_all_providers()]
+
+    @staticmethod
+    def get_polling_accounts(provider_uuid=None, provider_type=None, scheduled=False):
         """
         Prepare a list of accounts for the orchestrator to get CUR from.
 
@@ -93,7 +96,6 @@ class Orchestrator:
         Still a work in progress, but works for now.
 
         Args:
-            billing_source (String): Individual account to retrieve.
             provider_uuid  (String): Individual provider UUID.
             provider_type  (String): Specific provider type.
 
@@ -104,14 +106,13 @@ class Orchestrator:
         all_accounts = []
         polling_accounts = []
         try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type, scheduled)
+            accessor = AccountsAccessor()
+            if provider_uuid:
+                all_accounts = [accessor.get_account_from_uuid(provider_uuid)]
+            else:
+                all_accounts = accessor.get_accounts(provider_type, scheduled)
         except AccountsAccessorError as error:
             LOG.error("Unable to get accounts. Error: %s", str(error))
-
-        if billing_source:
-            for account in all_accounts:
-                if billing_source == account.get("billing_source"):
-                    all_accounts = [account]
 
         for account in all_accounts:
             schema_name = account.get("schema_name")
@@ -132,7 +133,7 @@ class Orchestrator:
             if AccountsAccessor().is_polling_account(account):
                 polling_accounts.append(account)
 
-        return all_accounts, polling_accounts
+        return polling_accounts
 
     def get_reports(self, provider_uuid):
         """
@@ -453,7 +454,7 @@ class Orchestrator:
 
         """
         async_results = []
-        for account in self._accounts:
+        for account in self.get_all_accounts():
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
                 schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate

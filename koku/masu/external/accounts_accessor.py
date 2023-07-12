@@ -23,17 +23,26 @@ def get_provider_uuid_map(providers):
     return {str(provider.uuid): provider for provider in providers}
 
 
+def get_all_providers():
+    return Provider.objects.select_related("authentication", "billing_source", "customer")
+
+
 def get_pollable_providers(filters: dict):
-    return Provider.objects.select_related("authentication", "billing_source", "customer").filter(
-        active=True, paused=False, **filters
-    )
+    return get_all_providers().filter(active=True, paused=False, **filters)
+
+
+def get_account_from_uuid(provider_uuid) -> list:
+    if provider := get_all_providers().filter(uuid=provider_uuid).first():
+        return [get_account_information(provider)]
+    else:
+        raise AccountsAccessorError("provider not found")
 
 
 def get_all_tenants():
-    return list(Tenant.objects.exclude(schema_name__in=["public", "template0"]).values_list("schema_name", flat=True))
+    return Tenant.objects.exclude(schema_name__in=["public", "template0"]).values_list("schema_name", flat=True)
 
 
-def get_account_information(provider):
+def get_account_information(provider) -> dict:
     """Return account information in dictionary."""
     return {
         "customer_name": getattr(provider.customer, "schema_name", None),
@@ -45,7 +54,7 @@ def get_account_information(provider):
     }
 
 
-def is_source_pollable(provider, provider_uuid=None):
+def is_source_pollable(provider, provider_uuid=None) -> bool:
     """checks to see if a source is pollable."""
     if is_source_disabled(provider.uuid):
         return False
@@ -58,7 +67,7 @@ def is_source_pollable(provider, provider_uuid=None):
     return True
 
 
-def get_accounts_from_source(provider_uuid=None, provider_type=None, scheduled=False):
+def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
     """
     Retrieve all accounts from the Koku database.
 
@@ -74,20 +83,10 @@ def get_accounts_from_source(provider_uuid=None, provider_type=None, scheduled=F
     accounts = []
 
     filters = {}
-    if provider_uuid:
-        filters["uuid"] = provider_uuid
     if provider_type:
-        filters["provider_type"] = provider_type
+        filters["type"] = provider_type
 
     pollable_providers = get_pollable_providers(filters)
-    if provider_uuid:
-        if pollable_providers.count() != 1:
-            LOG.info(log_json(msg="provider does not exist", provider_uuid=provider_uuid))
-        else:
-            provider = pollable_providers.first()
-            if is_source_pollable(provider, provider_uuid):
-                return [get_account_information(provider)]
-        return []
 
     if scheduled:
         pollable_providers = pollable_providers.exclude(provider_type=Provider.PROVIDER_OCP)
@@ -166,7 +165,7 @@ class AccountsAccessor:
             return True
         return False
 
-    def get_accounts(self, provider_uuid=None, provider_type=None, scheduled=False):
+    def get_accounts(self, provider_type=None, scheduled=False):
         """
         Return all of the CUR accounts setup in Koku.
 
@@ -180,14 +179,7 @@ class AccountsAccessor:
 
         """
 
-        return get_accounts_from_source(provider_uuid, provider_type, scheduled)
+        return get_accounts_from_source(provider_type, scheduled)
 
     def get_account_from_uuid(self, provider_uuid):
-        if (
-            provider := Provider.objects.select_related("authentication", "billing_source", "customer")
-            .filter(uuid=provider_uuid)
-            .first()
-        ):
-            return get_account_information(provider)
-        else:
-            raise AccountsAccessorError("provider not found")
+        return get_account_from_uuid(provider_uuid)

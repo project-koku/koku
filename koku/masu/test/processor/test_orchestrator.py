@@ -80,11 +80,11 @@ class OrchestratorTest(MasuTestCase):
     def test_initializer(self, mock_inspect):  # noqa: C901
         """Test to init."""
         orchestrator = Orchestrator()
-        provider_count = Provider.objects.filter(active=True).count()
-        if len(orchestrator._accounts) != provider_count:
+        provider_count = Provider.objects.filter(active=True).exclude(type=Provider.PROVIDER_OCP).count()
+        if len(orchestrator._polling_accounts) != provider_count:
             self.fail("Unexpected number of test accounts")
 
-        for account in orchestrator._accounts:
+        for account in orchestrator._polling_accounts:
             with self.subTest(provider_type=account.get("provider_type")):
                 if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                     self.assertEqual(account.get("credentials"), self.aws_credentials)
@@ -158,32 +158,8 @@ class OrchestratorTest(MasuTestCase):
             provider.polling_timestamp = None
             provider.save()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
-            orchestrator.get_accounts()
+            orchestrator.get_polling_accounts()
             self.assertIn(expected_result, captured_logs.output[0])
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_all_accounts(self, mock_accessor, mock_inspect):
-        """Test initializing orchestrator with forced billing source."""
-        mock_accessor.return_value = self.mock_accounts
-        orchestrator_all = Orchestrator()
-        self.assertEqual(orchestrator_all._accounts, self.mock_accounts)
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_with_billing_source(self, mock_accessor, mock_inspect):
-        """Test initializing orchestrator with forced billing source."""
-        mock_accessor.return_value = self.mock_accounts
-
-        fake_source = random.choice(self.mock_accounts)
-
-        individual = Orchestrator(fake_source.get("data_source"))
-        self.assertEqual(len(individual._accounts), len(self.mock_accounts))
-        data_sources = []
-        for mocked in self.mock_accounts:
-            data_sources.append(mocked.get("data_source"))
-        for found_account in individual._accounts:
-            self.assertIn(found_account.get("data_source"), data_sources)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
@@ -217,17 +193,17 @@ class OrchestratorTest(MasuTestCase):
             self.assertIn(expected.format(async_id), logger.output)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
     @patch.object(ExpiredDataRemover, "remove")
     @patch("masu.processor.orchestrator.remove_expired_data.apply_async", return_value=True)
-    def test_remove_expired_report_data_no_accounts(self, mock_task, mock_remover, mock_accessor, mock_inspect):
+    def test_remove_expired_report_data_no_accounts(self, mock_task, mock_remover, mock_inspect):
         """Test removing expired report data with no accounts."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
-        mock_accessor.return_value = []
 
-        orchestrator = Orchestrator()
-        results = orchestrator.remove_expired_report_data()
+        with patch.object(Orchestrator, "get_all_accounts") as submethod_mocked:
+            submethod_mocked.return_value = []
+            orchestrator = Orchestrator()
+            results = orchestrator.remove_expired_report_data()
 
         self.assertEqual(results, [])
 
