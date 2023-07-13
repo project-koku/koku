@@ -100,7 +100,8 @@ class UIFeatureAccess:
             data.append({"type": access_key, "access": access, "read_only": read_only})
 
         if len(self.access_key_list) == 1:
-            data = access
+            # For backwards compatability.
+            data = {"data": access, "access": access, "read_only": read_only}
         return data
 
 
@@ -135,6 +136,9 @@ class UserAccessView(APIView):
         if not is_valid_param:
             return Response({f"Unknown source type: {query_params.get('type')}"}, status=status.HTTP_400_BAD_REQUEST)
         data = ui_feature_access.generate_data()
+        if isinstance(data, dict):
+            # backwards compatability
+            return Response(data)
 
         paginator = ListPaginator(data, request)
 
