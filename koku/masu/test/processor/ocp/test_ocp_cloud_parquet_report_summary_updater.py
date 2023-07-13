@@ -78,14 +78,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_cluster_info,
     ):
         """Test that summary tables are properly run for an OCP provider."""
-        fake_bills = MagicMock()
-        fake_bills.__iter__.return_value = [Mock(), Mock()]
-        first = Mock()
-        bill_id = 1
-        first.return_value.id = bill_id
+        fake_bills = [Mock(id=1), Mock(id=2)]
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True
-        fake_bills.first = first
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
         end_date = start_date + datetime.timedelta(days=1)
@@ -106,7 +101,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.ocpaws_provider_uuid,
             self.aws_test_provider_uuid,
             current_ocp_report_period_id,
-            bill_id,
+            1,
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
