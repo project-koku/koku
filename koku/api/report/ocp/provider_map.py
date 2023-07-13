@@ -24,7 +24,6 @@ from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
-from reporting.provider.ocp.models import OCPPodSummaryByNodeP
 from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
@@ -565,14 +564,12 @@ class OCPProviderMap(ProviderMap):
             "cpu": {
                 "default": OCPPodSummaryP,
                 ("cluster",): OCPPodSummaryP,
-                ("node",): OCPPodSummaryByNodeP,
                 ("project",): OCPPodSummaryByProjectP,
                 ("cluster", "project"): OCPPodSummaryByProjectP,
             },
             "memory": {
                 "default": OCPPodSummaryP,
                 ("cluster",): OCPPodSummaryP,
-                ("node",): OCPPodSummaryByNodeP,
                 ("project",): OCPPodSummaryByProjectP,
                 ("cluster", "project"): OCPPodSummaryByProjectP,
             },
