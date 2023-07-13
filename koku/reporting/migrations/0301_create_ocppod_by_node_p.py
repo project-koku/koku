@@ -57,6 +57,13 @@ class Migration(migrations.Migration):
                     "cluster_capacity_memory_gigabyte_hours",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
+                ("node_capacity_cpu_core_hours", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("node_capacity_cpu_cores", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                (
+                    "node_capacity_memory_gigabyte_hours",
+                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                ("node_capacity_memory_gigabytes", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("raw_currency", models.TextField(null=True)),
                 ("distributed_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("cost_model_cpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
@@ -85,6 +92,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             "alter table reporting_ocp_pod_summary_by_node_p alter column id set default uuid_generate_v4();",
+            reverse_sql="select 1;",
         ),
         migrations.AddIndex(
             model_name="ocppodsummarybynodep",

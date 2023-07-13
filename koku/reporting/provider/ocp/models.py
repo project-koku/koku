@@ -623,6 +623,10 @@ class OCPPodSummaryByNodeP(models.Model):
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
