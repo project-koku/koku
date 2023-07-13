@@ -261,7 +261,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 end_date,
             )
 
-            aws_bill_ids = [str(bill.id) for bill in aws_bills]
+            aws_bill_ids = [bill.id for bill in aws_bills]
             current_aws_bill_id = aws_bill_ids[0] if aws_bills else None
             current_ocp_report_period_id = report_period.id
 
