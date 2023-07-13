@@ -4,11 +4,10 @@
 #
 """Test the SUBS task."""
 import datetime
-import uuid
 from unittest.mock import patch
 
+from subs.extraction.tasks import collect_subs_extraction_report_data
 from subs.test import SUBSTestCase
-from subs.transmission.tasks import collect_subs_transmission_report_data
 
 
 class TestSUBSTasks(SUBSTestCase):
@@ -25,7 +24,6 @@ class TestSUBSTasks(SUBSTestCase):
 
         self.start_date = self.dh.today - datetime.timedelta(days=2)
         self.end_date = self.dh.today
-        self.tracing_id = str(uuid.uuid4())
         self.reports_to_subs_summarize = [
             {
                 "schema_name": self.schema,
@@ -37,13 +35,13 @@ class TestSUBSTasks(SUBSTestCase):
             }
         ]
 
-    @patch("subs.transmission.tasks.enable_subs_processing")
-    def test_collect_subs_transmission_report_data_processing_enabled(self, mock_enable_subs_process):
-        """Test collect_subs_report_data function with subs processing enabled."""
+    @patch("subs.extraction.tasks.enable_subs_processing")
+    def test_collect_subs_extraction_report_data_processing_enabled(self, mock_enable_subs_process):
+        """Test collect_subs_extraction_report_data function"""
 
         mock_enable_subs_process.return_value = True
-        with self.assertLogs("subs.transmission.tasks", "INFO") as _logs:
-            collect_subs_transmission_report_data(
+        with self.assertLogs("subs.extraction.tasks", "INFO") as _logs:
+            collect_subs_extraction_report_data(
                 self.schema_name,
                 self.aws_provider_type,
                 self.aws_provider_uuid,
@@ -52,16 +50,15 @@ class TestSUBSTasks(SUBSTestCase):
                 self.tracing_id,
             )
 
-            self.assertIn("collecting subs report data", _logs.output[0])
+            self.assertIn("collecting subs report data for extraction", _logs.output[0])
 
-    @patch("subs.transmission.tasks.enable_subs_processing")
-    def test_collect_subs_report_data_processing_disabled(self, mock_enable_subs_process):
-        """Test collect_subs_report_data function with subs processing disabled."""
+    @patch("subs.extraction.tasks.enable_subs_processing")
+    def test_collect_subs_extraction_report_data_processing_disabled(self, mock_enable_subs_process):
+        """Test collect_subs_extraction_report_data function when processing is disabled."""
 
         mock_enable_subs_process.return_value = False
-
-        with self.assertLogs("subs.transmission.tasks", "INFO") as _logs:
-            collect_subs_transmission_report_data(
+        with self.assertLogs("subs.extraction.tasks", "INFO") as _logs:
+            collect_subs_extraction_report_data(
                 self.schema_name,
                 self.aws_provider_type,
                 self.aws_provider_uuid,
@@ -70,4 +67,4 @@ class TestSUBSTasks(SUBSTestCase):
                 self.tracing_id,
             )
 
-            self.assertIn("skipping subs report generation for transmission", _logs.output[0])
+            self.assertIn("skipping subs data extraction", _logs.output[0])

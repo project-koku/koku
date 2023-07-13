@@ -420,7 +420,7 @@ def trino_table_exists(schema_name, table_name):
     return bool(table)
 
 
-def convert_account(account):
+def convert_account(account: str) -> str:
     """Process the account string for Unleash checks."""
     if account and not account.startswith("acct") and not account.startswith("org"):
         account = f"acct{account}"

@@ -30,5 +30,5 @@ def enable_subs_processing(schema_name: str) -> bool:
 
     return bool(
         UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-processing", context)
-        or settings.ENABLE_SUBS_PROCESSING_DEBUG
+        or settings.ENABLE_SUBS_DEBUG
     )

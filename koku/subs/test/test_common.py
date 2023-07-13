@@ -22,7 +22,7 @@ class TestSUBSCommonFunctions(SUBSTestCase):
 
     @patch("subs.common.settings")
     def test_enable_subs_processing(self, mock_settings):
-        mock_settings.ENABLE_SUBS_PROCESSING_DEBUG = True
+        mock_settings.ENABLE_SUBS_DEBUG = True
 
         result = enable_subs_processing(self.schema_name)
 

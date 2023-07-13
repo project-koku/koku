@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "cost_models",
     "sources",
     "subs.transmission",
+    "subs.extraction",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
@@ -552,6 +553,5 @@ CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
 # HCS debugging
 ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
 
-
-# SUBS Data Transmission debugging
-ENABLE_SUBS_PROCESSING_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_PROCESSING_DEBUG", default=False)
+# SUBS debugging
+ENABLE_SUBS_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_DEBUG", default=False)
