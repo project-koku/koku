@@ -217,14 +217,14 @@
     displayName: CPU Request
     name: KOKU_CPU_REQUEST
     required: true
-    value: 300m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: KOKU_CPU_LIMIT
     required: true
-    value: 600m
+    value: 300m
 - op: add
   path: /parameters/-
   value:
