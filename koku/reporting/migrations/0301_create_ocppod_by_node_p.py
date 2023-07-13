@@ -85,7 +85,6 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             "alter table reporting_ocp_pod_summary_by_node_p alter column id set default uuid_generate_v4();",
-            reverse_code=migrations.RunPython.noop,
         ),
         migrations.AddIndex(
             model_name="ocppodsummarybynodep",
