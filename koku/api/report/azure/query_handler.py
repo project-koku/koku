@@ -151,7 +151,11 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_data = query.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
-            if "subscription_guid" in query_group_by and not annotations.get("subscription_name"):
+            if (
+                "subscription_guid" in query_group_by
+                and "subscription_name" not in query_order_by
+                and "-subscription_name" not in query_order_by
+            ):
                 query_data = query_data.annotate(
                     subscription_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
                 )
