@@ -385,7 +385,7 @@ class TestAWSUtils(MasuTestCase):
             self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
+            mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
             removed = utils.delete_s3_objects_not_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
@@ -425,7 +425,7 @@ class TestAWSUtils(MasuTestCase):
             self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
+            mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
             removed = utils.delete_s3_objects_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
@@ -438,7 +438,7 @@ class TestAWSUtils(MasuTestCase):
             self.assertIsNotNone(upload)
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
+            mock_s3.return_value.Object.return_value.upload_fileobj.side_effect = ClientError({}, "Error")
             upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
             self.assertIsNone(upload)
 
