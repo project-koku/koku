@@ -16,6 +16,7 @@ from api.report.queries import ReportQueryHandler
 from api.utils import DateHelper
 from api.utils import get_currency
 from api.utils import materialized_view_month_start
+from masu.processor import get_customer_group_by_limit
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
@@ -141,6 +142,7 @@ class BaseSerializer(serializers.Serializer):
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
+        self.schema = None
         self.tag_keys = kwargs.pop("tag_keys", set())
         self.aws_category_keys = kwargs.pop("aws_category_keys", set())
         super().__init__(*args, **kwargs)
@@ -150,6 +152,8 @@ class BaseSerializer(serializers.Serializer):
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
+        if self.context.get("request"):
+            self.schema = self.context["request"].user.customer.schema_name
 
     def validate(self, data):
         """Validate incoming data.
@@ -454,9 +458,9 @@ class ParamSerializer(BaseSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        if len(value) > 2:
-            # Max support group_bys is 2
-            error = {"group_by": ("Cost Management supports a max of two group_by options.")}
+        max_value = get_customer_group_by_limit(self.schema)
+        if len(value) > max_value:
+            error = {"group_by": (f"Cost Management supports a max of {max_value} group_by options.")}
             raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value

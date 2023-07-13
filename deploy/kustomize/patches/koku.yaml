@@ -48,6 +48,8 @@
           value: ${API_PATH_PREFIX}
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
+        - name: MAX_GROUP_BY_OVERRIDE
+          value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: GUNICORN_LOG_LEVEL

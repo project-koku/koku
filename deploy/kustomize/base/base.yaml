@@ -283,6 +283,9 @@ parameters:
   name: API_PATH_PREFIX
   required: true
   value: /api/cost-management
+- displayName: Max support group by
+  name: MAX_GROUP_BY_OVERRIDE
+  value: "3"
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
