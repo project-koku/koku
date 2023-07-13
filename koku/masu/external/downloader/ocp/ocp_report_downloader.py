@@ -259,7 +259,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             files_list.append(file_dict)
 
         report_dict["files"] = files_list
-        return [report_dict]
+        return report_dict
 
     def _remove_manifest_file(self, date_time):
         """Clean up the manifest file after extracting information."""
