@@ -353,9 +353,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if not annotations:
             return None
         cap_key = list(annotations.keys())[0]
-        q_table = self.query_table
-        LOG.debug(f"Using query table: {q_table}")
-        query = q_table.objects.filter(self.query_filter)
+        LOG.debug(f"Using query table: {self.query_table}")
+        query = self.query_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         with tenant_context(self.tenant):
