@@ -3876,6 +3876,17 @@
                     "Account Settings"
                 ],
                 "summary": "Modify a specific current user account setting.",
+                "parameters": [
+                    {
+                      "name": "setting",
+                      "in": "path",
+                      "description": "Name of a setting to get",
+                      "required": true,
+                      "schema": {
+                        "type": "string"
+                      }
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -3910,7 +3921,7 @@
                     "basic_auth": []
                 }]
             }
-          },
+        },
         "/sources/": {
             "get": {
                 "tags": [

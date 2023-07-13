@@ -443,6 +443,12 @@ class OrderBySerializerTest(TestCase):
         serializer = AWSOrderBySerializer(data=order_params)
         self.assertTrue(serializer.is_valid())
 
+    def test_parse_order_by_params_account_success(self):
+        """Test parse of a order_by param account successfully."""
+        order_params = {"account": "asc"}
+        serializer = AWSOrderBySerializer(data=order_params)
+        self.assertTrue(serializer.is_valid())
+
     def test_parse_azure_order_by_params_success(self):
         """Test parse of a order_by param successfully."""
         order_params = {"subscription_name": "asc"}
