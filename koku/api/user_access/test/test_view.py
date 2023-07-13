@@ -12,6 +12,19 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 
 
+def build_expected_ouput(testing_dict={}):
+    expected_output = []
+    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "oci", "ibm", "azure", "cost_model", "settings"]
+    for key in matrix_keys:
+        if overwrite_default := testing_dict.get(key):
+            expected_format = {"type": key, "access": overwrite_default[0], "read_only": overwrite_default[1]}
+            expected_output.append(expected_format)
+        else:
+            default_format = {"type": key, "access": False, "read_only": None}
+            expected_output.append(default_format)
+    return expected_output
+
+
 class UserAccessViewTest(IamTestCase):
     """Tests the resource types views."""
 
@@ -43,14 +56,24 @@ class UserAccessViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
 
         self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        testing_matrix = {
+            "any": [True, True],
+            "aws": [True, True],
+        }
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
+        {"type": "setting", "access": False, "read_only": None}
+        {"type": "settings", "access": False, "read_only": None}
+        # self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
+        # self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        # self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        # self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        # self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
+        # self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
+        # self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        # self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions(
         {

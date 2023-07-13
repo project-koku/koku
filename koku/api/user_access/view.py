@@ -31,7 +31,6 @@ class UIFeatureAccess:
     """
 
     PRERELEASE = ["ibm"]
-    CHECK_READ_ONLY = ["cost_model", "settings"]
 
     def __init__(self, access, admin_user, access_key_list=None):
         """Class Constructor.
@@ -65,7 +64,7 @@ class UIFeatureAccess:
         mapping["oci"] = ["oci.payer_tenant_id"]
         mapping["ibm"] = ["ibm.account"]
         mapping["cost_model"] = ["cost_model"]
-        mapping["setting"] = ["setting"]
+        mapping["settings"] = ["settings"]
         mapping["any"] = mapping["aws"] + mapping["azure"] + mapping["gcp"] + mapping["oci"] + mapping["ocp"]
         return mapping
 
@@ -91,17 +90,17 @@ class UIFeatureAccess:
                 return True, False
             elif self._get_access_value(rbac_setting, "read"):
                 return True, True
+        return False, None
 
     def generate_data(self):
         data = []
         for access_key in self.access_key_list:
             pre_release_feature = bool(access_key in self.PRERELEASE)
             access, read_only = self._check_access(pre_release_feature, access_key)
-            dikt_format = {"type": access_key, "access": access, "read_only": read_only}
-            if len(self.access_key_list) == 1:
-                # for backwards compatability, hoping to deprecate soon.
-                dikt_format["data"] = access
-            data.append(dikt_format)
+            data.append({"type": access_key, "access": access, "read_only": read_only})
+
+        if len(self.access_key_list) == 1:
+            data = access
         return data
 
 
