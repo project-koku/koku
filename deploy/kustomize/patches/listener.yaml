@@ -183,14 +183,14 @@
     displayName: CPU Request
     name: LISTENER_CPU_REQUEST
     required: true
-    value: 100m
+    value: 150m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: LISTENER_CPU_LIMIT
     required: true
-    value: 200m
+    value: 300m
 - op: add
   path: /parameters/-
   value:

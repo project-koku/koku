@@ -4164,11 +4164,11 @@ parameters:
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 100m
+  value: 250m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 300m
+  value: 500m
 - displayName: Log Level for koku-api
   name: KOKU_KOKU_LOG_LEVEL
   required: true
@@ -4212,11 +4212,11 @@ parameters:
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
-  value: 100m
+  value: 150m
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Log Level for listener
   name: LISTENER_KOKU_LOG_LEVEL
   required: true
@@ -4228,7 +4228,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 350Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
