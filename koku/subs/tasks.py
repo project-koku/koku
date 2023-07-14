@@ -20,14 +20,15 @@ from subs.common import SUBS_ACCEPTED_PROVIDERS
 LOG = logging.getLogger(__name__)
 
 SUBS_EXTRACTION_QUEUE = "subs_extraction"
+SUBS_TRANSMISSION_QUEUE = "subs_tansmission"
 
 # any additional queues should be added to this list
-QUEUE_LIST = [SUBS_EXTRACTION_QUEUE]
+QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
 
 
-@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", bind=True, queue=SUBS_EXTRACTION_QUEUE)
+@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", queue=SUBS_EXTRACTION_QUEUE)
 def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
-    """Implement the functionality of the new task"""
+    """A celery task to process a list of reports data to subscription watch."""
 
     dh = DateHelper()
     date_str_fmt = "%Y-%m-%d"
@@ -70,3 +71,9 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
             end_date = datetime.datetime.strptime(end_date, date_str_fmt)
         LOG.info(log_json(tracing_id, msg="collecting subs report data", context=context))
         # TODO: To call SUBS extractor here
+
+
+@celery_app.task(name="subs.tasks.process_upload_keys_to_subs_message", queue=SUBS_TRANSMISSION_QUEUE)
+def process_upload_keys_to_subs_message(context, schema_name, tracing_id, upload_keys):
+    LOG.info(log_json(tracing_id, msg="processing subs data to kafka", context=context, schema=schema_name))
+    # TODO: TO call SUBSDataMessenger here
