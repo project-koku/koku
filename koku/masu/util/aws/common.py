@@ -95,7 +95,7 @@ class AwsArn:
 
 
 def get_assume_role_session(
-    arn: AwsArn, session: str = "MasuSession", region: str = "us-east-1"
+    arn: AwsArn, session: str = "MasuSession", region_name: str = "us-east-1"
 ) -> boto3.session.Session:
     """
     Assume a Role and obtain session credentials for the given role.
@@ -112,7 +112,7 @@ def get_assume_role_session(
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
 
     """
-    client = boto3.client("sts")
+    client = boto3.client("sts", region_name=region_name)
     if arn.external_id:
         response = client.assume_role(RoleArn=str(arn), RoleSessionName=session, ExternalId=arn.external_id)
     else:
@@ -121,7 +121,7 @@ def get_assume_role_session(
         aws_access_key_id=response["Credentials"]["AccessKeyId"],
         aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
         aws_session_token=response["Credentials"]["SessionToken"],
-        region_name=region,
+        region_name=region_name,
     )
 
 
@@ -158,7 +158,7 @@ def get_cur_report_definitions(cur_client, role_arn=None, retries=7, max_wait_ti
     """
     if role_arn:
         session = get_assume_role_session(role_arn)
-        cur_client = session.client("cur")
+        cur_client = session.client("cur", region_name="us-east-1")
     for i in range(retries):  # Common retry logic added because AWS is randomly dropping connections
         try:
             defs = cur_client.describe_report_definitions()
@@ -473,11 +473,22 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
                     s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:
-                msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
-                LOG.info(log_json(request_id, msg=msg, context=context))
+                LOG.info(
+                    log_json(
+                        request_id,
+                        msg="removed files from s3 bucket",
+                        context=context,
+                        bucket=settings.S3_BUCKET_NAME,
+                        file_list=removed,
+                    )
+                )
         except (EndpointConnectionError, ClientError) as err:
-            msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.info(log_json(request_id, msg=msg, context=context))
+            LOG.warning(
+                log_json(
+                    request_id, msg="unable to remove data in bucket", context=context, bucket=settings.S3_BUCKET_NAME
+                ),
+                exc_info=err,
+            )
     return removed
 
 

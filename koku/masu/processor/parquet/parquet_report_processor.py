@@ -158,10 +158,10 @@ class ParquetReportProcessor:
         try:
             self._start_date = parser.parse(new_start_date).date()
             return
-        except (ValueError, TypeError):
-            msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
-            LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context))
-            raise ParquetReportProcessorError(msg)
+        except (ValueError, TypeError) as ex:
+            msg = "parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format"
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context), exc_info=ex)
+            raise ParquetReportProcessorError(msg) from ex
 
     @property
     def create_table(self):
@@ -177,7 +177,7 @@ class ParquetReportProcessor:
         elif first_file.lower().endswith(CSV_GZIP_EXT):
             return CSV_GZIP_EXT
         else:
-            msg = f"File {first_file} is not valid CSV. Conversion to parquet skipped."
+            msg = f"file {first_file} is not valid CSV - conversion to parquet skipped"
             LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context))
             raise ParquetReportProcessorError(msg)
 
@@ -250,7 +250,7 @@ class ParquetReportProcessor:
         Path(local_path).mkdir(parents=True, exist_ok=True)
         return local_path
 
-    def set_post_processor(self):
+    def _set_post_processor(self):
         """Post processor based on provider type."""
         post_processor = None
         if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
@@ -311,11 +311,16 @@ class ParquetReportProcessor:
         parquet_base_filename = ""
 
         if self.csv_path_s3 is None or self.parquet_path_s3 is None or self.local_path is None:
-            msg = (
-                f"Invalid paths provided to convert_csv_to_parquet."
-                f"CSV path={self.csv_path_s3}, Parquet path={self.parquet_path_s3}, and local_path={self.local_path}."
+            LOG.error(
+                log_json(
+                    self.tracing_id,
+                    msg="invalid paths provided to convert_csv_to_parquet",
+                    context=self.error_context,
+                    csv_path=self.csv_path_s3,
+                    local_path=self.local_path,
+                    parquet_path=self.parquet_path_s3,
+                )
             )
-            LOG.error(log_json(self.tracing_id, msg=msg, context=self.error_context))
             return "", pd.DataFrame()
 
         manifest_accessor = ReportManifestDBAccessor()
@@ -340,13 +345,20 @@ class ParquetReportProcessor:
                 self.tracing_id, self.parquet_ocp_on_cloud_path_s3, self.manifest_id, self.error_context
             )
             manifest_accessor.mark_s3_parquet_cleared(manifest)
+            LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
 
         failed_conversion = []
         daily_data_frames = []
         for csv_filename in self.file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
-                msg = f"Could not establish report type for {csv_filename}."
-                LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
+                LOG.warn(
+                    log_json(
+                        self.tracing_id,
+                        msg="could not establish report type",
+                        context=self.error_context,
+                        filename=csv_filename,
+                    )
+                )
                 failed_conversion.append(csv_filename)
                 continue
             if self.provider_type == Provider.PROVIDER_OCI:
@@ -360,8 +372,14 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
 
         if failed_conversion:
-            msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
-            LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="failed to convert files to parquet",
+                    context=self.error_context,
+                    file_list=failed_conversion,
+                )
+            )
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
@@ -378,17 +396,22 @@ class ParquetReportProcessor:
         processor.sync_hive_partitions()
         self.trino_table_exists[self.report_type] = True
 
+    def check_required_columns_for_ingress_reports(self, post_processor, col_names):
+        LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
+        if missing_cols := post_processor.check_ingress_required_columns(col_names):
+            message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
+            if self.ingress_reports_uuid:
+                with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
+                    ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
+            raise ValidationError(message, code="Missing_columns")
+
     def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
-        post_processor = self.set_post_processor()
+        post_processor = self._set_post_processor()
         if not post_processor:
-            msg = "Unrecongized provider type can't convert csv."
-            context = {
-                "schema": self._schema_name,
-                "provider_type": self.provider_type,
-                "provider_uuid": self.provider_uuid,
-            }
-            LOG.warn(log_json(self.tracing_id, msg=msg, context=context))
+            LOG.warn(
+                log_json(self.tracing_id, msg="unrecongized provider type - cannot convert csv", context=self._context)
+            )
             return None, None, False
 
         daily_data_frames = []
@@ -399,19 +422,15 @@ class ParquetReportProcessor:
         if self.file_extension == CSV_GZIP_EXT:
             kwargs = {"compression": "gzip"}
 
-        msg = f"Running convert_csv_to_parquet on file {csv_filename}."
-        LOG.info(log_json(self.tracing_id, msg=msg, context=self.error_context))
+        LOG.info(
+            log_json(self.tracing_id, msg="converting csv to parquet", context=self._context, file_name=csv_filename)
+        )
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
-                missing_cols = post_processor.check_ingress_required_columns(col_names)
-                if missing_cols:
-                    message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
-                    if self.ingress_reports_uuid:
-                        with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
-                            ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
-                    raise ValidationError(message, code="Missing_columns")
+                self.check_required_columns_for_ingress_reports(post_processor, col_names)
+
             csv_converters, kwargs = post_processor.get_column_converters(col_names, kwargs)
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
@@ -423,18 +442,39 @@ class ParquetReportProcessor:
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     data_frame, daily_frames = post_processor.process_dataframe(data_frame)
                     daily_data_frames.append(daily_frames)
+                    LOG.info(
+                        log_json(
+                            self.tracing_id,
+                            msg=f"writing part {i} to parquet file",
+                            context=self._context,
+                            file_name=csv_filename,
+                        )
+                    )
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
+                LOG.info(
+                    log_json(
+                        self.tracing_id,
+                        msg="finalizing post processing",
+                        context=self._context,
+                        file_name=csv_filename,
+                    )
+                )
                 post_processor.finalize_post_processing()
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
 
         except Exception as err:
-            msg = (
-                f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="could not write parquet to temp file",
+                    context=self.error_context,
+                    file_name=csv_filename,
+                ),
+                exc_info=err,
             )
-            LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
@@ -462,35 +502,30 @@ class ParquetReportProcessor:
         invoice_month = gcp_file_name.split("_")[0]
         dh = DateHelper()
         start_of_invoice = dh.invoice_month_start(invoice_month)
+        kwargs = {
+            "account": self.account,
+            "provider_type": self.provider_type,
+            "provider_uuid": self.provider_uuid,
+            "start_date": start_of_invoice,
+            "data_type": Config.PARQUET_DATA_TYPE,
+            "report_type": None,
+            "daily": False,
+            "partition_daily": False,
+        }
         if file_type == DAILY_FILE_TYPE:
             report_type = self.report_type
             if report_type is None:
                 report_type = "raw"
-            return get_path_prefix(
-                self.account,
-                self.provider_type,
-                self.provider_uuid,
-                start_of_invoice,
-                Config.PARQUET_DATA_TYPE,
-                report_type=report_type,
-                daily=True,
-            )
-        else:
-            if self.report_type == OPENSHIFT_REPORT_TYPE:
-                return get_path_prefix(
-                    self.account,
-                    self.provider_type,
-                    self.provider_uuid,
-                    self.start_date,
-                    Config.PARQUET_DATA_TYPE,
-                    report_type=self.report_type,
-                    daily=True,
-                    partition_daily=True,
-                )
-            else:
-                return get_path_prefix(
-                    self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
-                )
+            kwargs["report_type"] = report_type
+            kwargs["daily"] = True
+
+        elif self.report_type == OPENSHIFT_REPORT_TYPE:
+            kwargs["start_date"] = self.start_date
+            kwargs["report_type"] = self.report_type
+            kwargs["daily"] = True
+            kwargs["partition_daily"] = True
+
+        return get_path_prefix(**kwargs)
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
@@ -506,12 +541,21 @@ class ParquetReportProcessor:
                 copy_data_to_s3_bucket(
                     self.tracing_id, s3_path, file_name, fin, manifest_id=self.manifest_id, context=self.error_context
                 )
-                msg = f"{file_path} sent to S3."
-                LOG.info(log_json(self.tracing_id, msg=msg, context=self.error_context))
+                LOG.info(
+                    log_json(self.tracing_id, msg="file sent to s3", context=self.error_context, file_name=file_path)
+                )
         except Exception as err:
             s3_key = f"{self.parquet_path_s3}/{file_path}"
-            msg = f"File {file_name} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
-            LOG.warn(log_json(self.tracing_id, msg=msg, context=self.error_context))
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="file could not be written to s3",
+                    context=self.error_context,
+                    file_name=file_name,
+                    s3_key=s3_key,
+                ),
+                exc_info=err,
+            )
             return False
         finally:
             self.files_to_remove.append(file_path)

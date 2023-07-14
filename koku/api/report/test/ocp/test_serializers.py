@@ -324,6 +324,17 @@ class OCPQueryParamSerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_fail_with_max_group_by(self):
+        """Test fail if more than 2 group bys given."""
+        query_params = {
+            "group_by": {"cluster": ["cluster"], "node": ["node"], "project": ["project"]},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+        with self.assertRaises(serializers.ValidationError):
+            serializer = OCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertFalse(serializer.is_valid())
+            serializer.is_valid(raise_exception=True)
+
 
 class OCPInventoryQueryParamSerializerTest(IamTestCase):
     """Tests for the handling inventory query parameter parsing serializer."""

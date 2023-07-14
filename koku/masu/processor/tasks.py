@@ -42,6 +42,7 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderWarn
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_customer_large
 from masu.processor import is_ocp_on_cloud_summary_disabled
+from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
 from masu.processor import is_summary_processing_disabled
 from masu.processor._tasks.download import _get_report_files
@@ -502,6 +503,7 @@ def update_summary_tables(  # noqa: C901
     cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
     is_large_customer = is_customer_large(schema)
+    is_large_customer_rate_limited = is_rate_limit_customer_large(schema)
     fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE
     fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE
     fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE
@@ -516,7 +518,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        if is_large_customer:
+        if is_large_customer_rate_limited:
             rate_limited = rate_limit_tasks(task_name, schema)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
@@ -562,15 +564,14 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
 
-    except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
             log_json(
                 tracing_id,
-                msg=(
-                    f"{pnf_ex} Possible source/provider delete during processing. "
-                    + "Processing for this provier will halt."
-                ),
-            )
+                msg="possible source/provider delete during processing - halting processing",
+                context=context,
+            ),
+            exc_info=ex,
         )
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -781,7 +782,14 @@ def update_openshift_on_cloud(
             ),
             exc_info=ex,
         )
-        raise ReportSummaryUpdaterCloudError
+        raise ReportSummaryUpdaterCloudError from ex
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id, msg="possible source/provider delete during processing - halting processing", context=ctx
+            ),
+            exc_info=ex,
+        )
     finally:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

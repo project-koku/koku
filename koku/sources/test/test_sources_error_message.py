@@ -121,6 +121,21 @@ class SourcesErrorMessageTest(TestCase):
                 "internal_message": "Random azure error",
                 "expected_message": ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE,
             },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": (
+                    "The client 'xxxxx' with object id 'xxxxx' does not have authorization to perform action "
+                    "'Microsoft.Storage/storageAccounts/listKeys/action' over scope "
+                    "'/subscriptions/xxxxx/resourceGroups/xxxxx/providers/Microsoft.Storage/storageAccounts/xxxxx' "
+                    "or the scope is invalid. If access was recently granted, please refresh your credentials."
+                ),
+                "expected_message": ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE,
+            },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": "'(RBACAccessDenied) The client does not have authorization to perform action.",
+                "expected_message": ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE,
+            },
         ]
         for test in test_matrix:
             with self.subTest(test=test):

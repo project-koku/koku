@@ -3870,8 +3870,58 @@
                   }
                 }
               }
+            },
+            "put": {
+                "tags": [
+                    "Account Settings"
+                ],
+                "summary": "Modify a specific current user account setting.",
+                "parameters": [
+                    {
+                      "name": "setting",
+                      "in": "path",
+                      "description": "Name of a setting to get",
+                      "required": true,
+                      "schema": {
+                        "type": "string"
+                      }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PutAccountSettingRequestBody"
+                            }
+                        }
+                    },
+                    "description": "Modify account setting",
+                    "required": true
+                },
+                "operationId": "putAccountSettings",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
             }
-          },
+        },
         "/sources/": {
             "get": {
                 "tags": [
@@ -8753,13 +8803,13 @@
                                         [{
                                             "date": "2018-07",
                                             "accounts": [{
-                                                    "account": "4418636104713",
+                                                    "account": "9420673783214",
                                                     "values": [{
                                                         "date": "2018-07",
                                                         "source_uuid": [
                                                             "56c3d549-0ebb-4648-8467-e4274687fcff"
                                                         ],
-                                                        "account": "4418636104713",
+                                                        "account": "9420673783214",
                                                         "usage": {
                                                             "value": 1826.74238146924,
                                                             "units": "GB-Mo"
@@ -9751,6 +9801,29 @@
                                 "example": [
                                     {
                                         "ids": ["be9b46e1-ae73-425c-a3bc-738018d2a41f"]
+                                    }
+                                ],
+                                "items": {}
+                            }
+                        }
+                    }
+                ]
+            },
+            "PutAccountSettingRequestBody": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "example": [
+                                    {
+                                        "cost_type": "blended_cost"
                                     }
                                 ],
                                 "items": {}

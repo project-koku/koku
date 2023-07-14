@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-priority
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{WORKER_PRIORITY_REPLICAS}}
     webServices:
       public:
@@ -82,6 +85,12 @@
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT

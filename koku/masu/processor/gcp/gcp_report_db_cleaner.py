@@ -8,6 +8,7 @@ from datetime import date
 
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -46,7 +47,9 @@ class GCPReportDBCleaner:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        LOG.info("Calling purge_expired_report_data for gcp")
+        LOG.info(
+            log_json(msg="calling purge_expired_report_data for GCP", schema=self._schema, provider_uuid=provider_uuid)
+        )
 
         with GCPReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
@@ -71,7 +74,14 @@ class GCPReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data for GCP",
+                        schema=self._schema,
+                        provider_uuid=bill.provider_id,
+                        start_date=bill.billing_period_start,
+                    )
+                )
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -97,8 +107,12 @@ class GCPReportDBCleaner:
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
-                    "Deleting table partitions total for the following tables: "
-                    + f"{table_names} with partitions <= {partition_from}"
+                    log_json(
+                        msg="deleting table partitions",
+                        schema=self._schema,
+                        tables=table_names,
+                        partitions=partition_from,
+                    )
                 )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
@@ -108,7 +122,7 @@ class GCPReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(f"Deleted {del_count} table partitions")
+                LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
                 # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:
@@ -118,6 +132,13 @@ class GCPReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data for GCP",
+                        schema=self._schema,
+                        provider_uuid=bill.provider_id,
+                        start_date=bill.billing_period_start,
+                    )
+                )
 
         return removed_items
