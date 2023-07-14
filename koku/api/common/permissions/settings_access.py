@@ -21,9 +21,8 @@ class SettingsAccessPermission(permissions.BasePermission):
             return False
 
         if request.method in permissions.SAFE_METHODS:
-            # TODO: Uncomment this during deprecated setting removal
-            # if request.user.access.get(self.resource_type, {}).get("read", []):
-            return True
+            if request.user.access.get(self.resource_type, {}).get("read", []):
+                return True
         else:
             setting_write = request.user.access.get(self.resource_type, {}).get("write", [])
             if "*" in setting_write:
