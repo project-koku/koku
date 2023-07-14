@@ -6,6 +6,8 @@
 import logging
 from uuid import UUID
 
+from django.conf import settings
+
 from api.common import log_json
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
@@ -89,6 +91,13 @@ def is_customer_large(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
 
 
+def is_rate_limit_customer_large(account):  # pragma: no cover
+    """Flag the customer as large and to be rate limited."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
+
+
 def is_ocp_savings_plan_cost_enabled(account):  # pragma: no cover
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     account = convert_account(account)
@@ -136,3 +145,14 @@ def is_ingress_rate_limiting_disabled():  # pragma: no cover
     if res:
         LOG.info(log_json(msg="ingress rate limiting disabled"))
     return res
+
+
+def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
+    """Get the group_by limit for an account."""
+    limit = 2
+    account = convert_account(account)
+    context = {"schema": account}
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.override_customer_group_by_limit", context):
+        limit = settings.MAX_GROUP_BY
+
+    return limit

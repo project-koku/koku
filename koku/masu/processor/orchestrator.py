@@ -51,7 +51,14 @@ class Orchestrator:
     """
 
     def __init__(
-        self, billing_source=None, provider_uuid=None, provider_type=None, bill_date=None, queue_name=None, **kwargs
+        self,
+        billing_source=None,
+        provider_uuid=None,
+        provider_type=None,
+        scheduled=False,
+        bill_date=None,
+        queue_name=None,
+        **kwargs,
     ):
         """
         Orchestrator for processing.
@@ -65,16 +72,20 @@ class Orchestrator:
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.provider_type = provider_type
+        self.scheduled = scheduled
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._accounts, self._polling_accounts = self.get_accounts(
-            self.billing_source, self.provider_uuid, self.provider_type
+            self.billing_source,
+            self.provider_uuid,
+            self.provider_type,
+            self.scheduled,
         )
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None):
+    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None, scheduled=False):
         """
         Prepare a list of accounts for the orchestrator to get CUR from.
 
@@ -95,7 +106,7 @@ class Orchestrator:
         all_accounts = []
         polling_accounts = []
         try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type)
+            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type, scheduled)
         except AccountsAccessorError as error:
             LOG.error("Unable to get accounts. Error: %s", str(error))
 

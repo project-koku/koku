@@ -19,6 +19,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
+from api.models import Provider
 from api.utils import DateHelper
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -321,6 +322,12 @@ class GCPReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         for distribution in ["cpu", "memory"]:
+            gcp_provider = Provider.objects.filter(uuid=self.gcp_provider_uuid).first()
+            gcp_provider.polling_timestamp = None
+            gcp_provider.save()
+            ocp_provider = Provider.objects.filter(uuid=self.ocp_provider_uuid).first()
+            ocp_provider.polling_timestamp = None
+            ocp_provider.save()
             with self.subTest(distribution=distribution):
                 expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
                 with patch(
