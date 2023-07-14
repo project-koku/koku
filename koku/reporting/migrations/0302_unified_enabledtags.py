@@ -60,6 +60,10 @@ class Migration(migrations.Migration):
             model_name="enabledtagkeys",
             index=models.Index(fields=["key", "enabled"], name="tag_enabled_key_index"),
         ),
+        migrations.AlterUniqueTogether(
+            name="enabledtagkeys",
+            unique_together={("key", "provider_type")},
+        ),
         migrations.AddIndex(
             model_name="enabledtagkeys",
             index=models.Index(fields=["provider_type"], name="tag_provider_type_index"),

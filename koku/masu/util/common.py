@@ -376,7 +376,6 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=
     return changed
 
 
-
 def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
     ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
     LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
