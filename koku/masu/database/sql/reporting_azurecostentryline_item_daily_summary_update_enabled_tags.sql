@@ -11,9 +11,6 @@ update {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary as li
    and lids.usage_start >= date({{start_date}})
    and lids.usage_start <= date({{end_date}})
 {% if bill_ids %}
-   and lids.cost_entry_bill_id IN (
-       {%- for bill_id in bill_ids  -%}
-           {{bill_id}}{% if not loop.last %},{% endif %}
-       {%- endfor -%})
+   and lids.cost_entry_bill_id in {{ bill_ids | inclause }}
 {% endif %}
 ;
