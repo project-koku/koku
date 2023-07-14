@@ -668,7 +668,7 @@ def update_openshift_on_cloud(  # noqa: C901
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-        if is_rate_limit_customer_large:
+        if is_rate_limit_customer_large(schema):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if is_customer_large(schema_name):
