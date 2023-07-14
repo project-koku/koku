@@ -30,12 +30,7 @@ from masu.processor import is_aws_category_settings_enabled
 from masu.processor import is_ddf_tag_form_disabled
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
-from reporting.models import AWSEnabledTagKeys
-from reporting.models import AzureEnabledTagKeys
 from reporting.models import EnabledTagKeys
-from reporting.models import GCPEnabledTagKeys
-from reporting.models import OCIEnabledTagKeys
-from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
