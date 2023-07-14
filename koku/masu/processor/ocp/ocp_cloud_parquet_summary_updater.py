@@ -262,7 +262,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             )
 
             aws_bill_ids = [bill.id for bill in aws_bills]
-            current_aws_bill_id = aws_bill_ids[0] if aws_bills else None
+            current_aws_bill_id = aws_bill_ids[0]
             current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
