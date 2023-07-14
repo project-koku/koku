@@ -43,37 +43,17 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_tags_summary_table"  # noqa: E501
-    )
-    @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_ui_summary_tables_trino"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_trino"  # noqa: E501
     )
-    @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
-    )
-    @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
-    )
-    @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
-    )
-    @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
-    )
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
     def test_update_aws_summary_tables(
         self,
         mock_utility,
-        mock_delete,
-        mock_ocpall_proj_summ,
-        mock_ocpall_summ,
-        mock_ocpall_persp,
         mock_ocp_on_aws,
         mock_ui_summary,
-        mock_tag_summary,
         mock_map,
         mock_cluster_info,
     ):
