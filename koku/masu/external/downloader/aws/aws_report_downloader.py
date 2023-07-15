@@ -24,6 +24,8 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
+from masu.util.aws.common import INGRESS_ALT_COLUMNS
+from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import check_setup_complete
 from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
@@ -38,6 +40,50 @@ class AWSReportDownloaderError(Exception):
 
 class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
+
+
+def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, context, tracing_id):
+    """
+    Fetch initial dataframe from CSV plus start_delta and time_inteval.
+
+    Args:
+        local_file (str): The full path name of the file
+        provider_uuid (str): The uuid of a provider
+        filepath (str): The full path name of the file
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+        tracing_id (str): The tracing id
+    """
+    usecols = set()
+    dh = DateHelper()
+    try:
+        data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("resourcetags"))
+        data_frame = data_frame.dropna(axis=1, how="all")
+        tag_cols = data_frame.columns
+        for col in tag_cols:
+            usecols.add(col)
+    except ValueError:
+        LOG.info(log_json(tracing_id, msg="customer has no tag data to parse", context=context))
+    if hasattr(data_frame, "bill_invoice_id"):
+        invoice_bill = "bill_invoice_id"
+        time_interval = "identity_time_interval"
+        usecols.union(INGRESS_ALT_COLUMNS)
+    else:
+        invoice_bill = "bill/InvoiceId"
+        time_interval = "identity/TimeInterval"
+        usecols.union(INGRESS_REQUIRED_COLUMNS)
+    data_frame = pd.read_csv(local_file, usecols=usecols)
+
+    if data_frame[invoice_bill].any() or not check_setup_complete(provider_uuid):
+        start_delta = start_date
+    else:
+        if start_date.year == dh.today.year and start_date.month == dh.today.month:
+            # grab data from last completion time
+            start_delta = dh.today - datetime.timedelta(days=5) if dh.today.date().day > 5 else dh.today.replace(day=1)
+        else:
+            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
+        start_delta = start_delta.replace(tzinfo=None)
+    return data_frame, time_interval, start_delta
 
 
 def create_daily_archives(
@@ -56,39 +102,27 @@ def create_daily_archives(
         tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
-        filepath (str): The full path name of the file
+        local_file (str): The full path name of the file
         manifest_id (int): The manifest identifier
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
     date_range = {}
-    dh = DateHelper()
     manifest = get_manifest(manifest_id)
     directory = os.path.dirname(local_file)
-    data_frame = pd.read_csv(local_file)
-    days = []
-    invoice_bill = "bill/InvoiceId"
-    time_interval = "identity/TimeInterval"
-    if hasattr(data_frame, "bill_invoice_id"):
-        invoice_bill = "bill_invoice_id"
-        time_interval = "identity_time_interval"
-    if data_frame[invoice_bill].any() or not check_setup_complete(provider_uuid):
-        start_delta = start_date
-    else:
-        if start_date.year == dh.today.year and start_date.month == dh.today.month:
-            start_delta = dh.today - datetime.timedelta(days=5) if dh.today.date().day > 5 else dh.today.replace(day=1)
-        else:
-            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
-        start_delta = start_delta.replace(tzinfo=None)
-
+    data_frame, time_interval, start_delta = get_initial_dataframe_with_delta(
+        local_file, provider_uuid, start_date, context, tracing_id
+    )
     intervals = data_frame[time_interval].unique()
+    days = []
     for interval in intervals:
         if datetime.datetime.strptime(interval.split("T")[0], "%Y-%m-%d") >= start_delta:
             if interval.split("T")[0] not in days:
                 days.append(interval.split("T")[0])
     if days:
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
+        data_frame = data_frame[data_frame[time_interval].str.contains("|".join(days))]
         for day in days:
             daily_data = data_frame[data_frame[time_interval].str.match(day)]
             s3_csv_path = get_path_prefix(
