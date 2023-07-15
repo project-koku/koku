@@ -110,6 +110,8 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
@@ -208,7 +210,7 @@
     displayName: Memory Request
     name: MASU_MEMORY_REQUEST
     required: true
-    value: 350Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:

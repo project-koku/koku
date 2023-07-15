@@ -89,6 +89,8 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -209,14 +211,14 @@
     displayName: CPU Request
     name: WORKER_PRIORITY_CPU_REQUEST
     required: true
-    value: 150m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_PRIORITY_CPU_LIMIT
     required: true
-    value: 300m
+    value: 200m
 - op: add
   path: /parameters/-
   value:

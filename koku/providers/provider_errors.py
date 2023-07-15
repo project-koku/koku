@@ -16,6 +16,7 @@ class ProviderErrors:
     INVALID_SOURCE_TYPE = "source_type"
     DUPLICATE_AUTH = "source.duplicate"
     BILLING_SOURCE = "billing_source"
+    PROVIDER_NOT_FOUND = "source.provider"
 
     AWS_NO_REPORT_FOUND = "authentication.role_arn.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
