@@ -54,25 +54,25 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
         context (Dict): Logging context dictionary
         tracing_id (str): The tracing id
     """
-    usecols = set()
     dh = DateHelper()
+    invoice_bill = "bill/InvoiceId"
+    time_interval = "identity/TimeInterval"
+    use_cols = INGRESS_REQUIRED_COLUMNS
+    try:
+        data_frame = pd.read_csv(local_file, usecols=[invoice_bill])
+    except ValueError:
+        invoice_bill = "bill_invoice_id"
+        time_interval = "identity_time_interval"
+        use_cols = INGRESS_ALT_COLUMNS
     try:
         data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("resourcetags"))
         data_frame = data_frame.dropna(axis=1, how="all")
         tag_cols = data_frame.columns
         for col in tag_cols:
-            usecols.add(col)
+            use_cols.add(col)
     except ValueError:
         LOG.info(log_json(tracing_id, msg="customer has no tag data to parse", context=context))
-    if hasattr(data_frame, "bill_invoice_id"):
-        invoice_bill = "bill_invoice_id"
-        time_interval = "identity_time_interval"
-        usecols.union(INGRESS_ALT_COLUMNS)
-    else:
-        invoice_bill = "bill/InvoiceId"
-        time_interval = "identity/TimeInterval"
-        usecols.union(INGRESS_REQUIRED_COLUMNS)
-    data_frame = pd.read_csv(local_file, usecols=usecols)
+    data_frame = pd.read_csv(local_file, usecols=use_cols)
 
     if data_frame[invoice_bill].any() or not check_setup_complete(provider_uuid):
         start_delta = start_date
