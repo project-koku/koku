@@ -169,14 +169,14 @@
     displayName: Memory Request
     name: LISTENER_MEMORY_REQUEST
     required: true
-    value: 500Mi
+    value: 300Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: LISTENER_MEMORY_LIMIT
     required: true
-    value: 750Mi
+    value: 600Mi
 - op: add
   path: /parameters/-
   value:

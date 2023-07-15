@@ -283,6 +283,9 @@ parameters:
   name: API_PATH_PREFIX
   required: true
   value: /api/cost-management
+- displayName: Max support group by
+  name: MAX_GROUP_BY_OVERRIDE
+  value: "3"
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
@@ -422,6 +425,9 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"

@@ -50,6 +50,8 @@ objects:
           value: ${API_PATH_PREFIX}
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
+        - name: MAX_GROUP_BY_OVERRIDE
+          value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: GUNICORN_LOG_LEVEL
@@ -136,6 +138,8 @@ objects:
           value: ${RBAC_CACHE_TIMEOUT}
         - name: CACHE_TIMEOUT
           value: ${CACHE_TIMEOUT}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -412,7 +416,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-masu
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently it supports only internal administrative api
+      name: clowder-masu
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -508,6 +516,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
@@ -603,7 +613,15 @@ objects:
           enabled: true
         public:
           enabled: false
-    - name: clowder-scheduler
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently scheduling is a singleton
+          ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery
+            beat which does not easily support liveness checks
+          ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery
+            beat which does not easily support readiness checks
+      name: clowder-scheduler
       podSpec:
         command:
         - /bin/bash
@@ -770,7 +788,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-sources-client
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-sources-client
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -938,7 +960,12 @@ objects:
           enabled: true
         public:
           enabled: false
-    - name: clowder-sources-listener
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently sources integration requires in order message handling,
+            which can fail with multiple consumers due to race conditions
+      name: clowder-sources-listener
       podSpec:
         command:
         - /bin/bash
@@ -1109,7 +1136,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-celery
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-celery
       podSpec:
         command:
         - /bin/bash
@@ -1286,7 +1317,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-cost-model
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-cost-model
       podSpec:
         command:
         - /bin/bash
@@ -1465,7 +1500,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-cost-model-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-cost-model-xl
       podSpec:
         command:
         - /bin/bash
@@ -1644,7 +1683,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-download
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-download
       podSpec:
         command:
         - /bin/bash
@@ -1718,6 +1761,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1821,7 +1866,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-download-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-download-xl
       podSpec:
         command:
         - /bin/bash
@@ -1895,6 +1944,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1998,7 +2049,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-ocp
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-ocp
       podSpec:
         command:
         - /bin/bash
@@ -2072,6 +2127,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2177,7 +2234,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-ocp-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-ocp-xl
       podSpec:
         command:
         - /bin/bash
@@ -2251,6 +2312,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2356,7 +2419,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-priority
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-priority
       podSpec:
         command:
         - /bin/bash
@@ -2430,6 +2497,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2533,7 +2602,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-priority-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-priority-xl
       podSpec:
         command:
         - /bin/bash
@@ -2607,6 +2680,8 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2710,7 +2785,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-refresh
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-refresh
       podSpec:
         command:
         - /bin/bash
@@ -2889,7 +2968,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-refresh-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-refresh-xl
       podSpec:
         command:
         - /bin/bash
@@ -3068,7 +3151,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-summary
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-summary
       podSpec:
         command:
         - /bin/bash
@@ -3247,7 +3334,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-summary-xl
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-summary-xl
       podSpec:
         command:
         - /bin/bash
@@ -3426,7 +3517,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-hcs
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-hcs
       podSpec:
         command:
         - /bin/bash
@@ -3835,6 +3930,9 @@ parameters:
   name: API_PATH_PREFIX
   required: true
   value: /api/cost-management
+- displayName: Max support group by
+  name: MAX_GROUP_BY_OVERRIDE
+  value: "3"
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
@@ -3969,6 +4067,9 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
@@ -4063,11 +4164,11 @@ parameters:
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 300m
+  value: 250m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 600m
+  value: 500m
 - displayName: Log Level for koku-api
   name: KOKU_KOKU_LOG_LEVEL
   required: true
@@ -4079,19 +4180,19 @@ parameters:
 - displayName: Memory Request
   name: NGINX_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 100Mi
 - displayName: Memory Limit
   name: NGINX_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 200Mi
 - displayName: CPU Request
   name: NGINX_CPU_REQUEST
   required: true
-  value: 300m
+  value: 100m
 - displayName: CPU Limit
   name: NGINX_CPU_LIMIT
   required: true
-  value: 600m
+  value: 200m
 - displayName: ROS OCP API Name
   name: ROS_OCP_API
   required: true
@@ -4103,11 +4204,11 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 300Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 750Mi
+  value: 600Mi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
@@ -4127,7 +4228,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 350Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
@@ -4405,11 +4506,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 150m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 300m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
@@ -4541,11 +4642,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_HCS_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 300Mi
 - displayName: Memory Limit
   name: WORKER_HCS_MEMORY_LIMIT
   required: true
-  value: 700Mi
+  value: 500Mi
 - displayName: CPU Request
   name: WORKER_HCS_CPU_REQUEST
   required: true

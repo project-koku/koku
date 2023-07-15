@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-hcs
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{WORKER_HCS_REPLICAS}}
     webServices:
       public:
@@ -196,14 +199,14 @@
     displayName: Memory Request
     name: WORKER_HCS_MEMORY_REQUEST
     required: true
-    value: 500Mi
+    value: 300Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_HCS_MEMORY_LIMIT
     required: true
-    value: 700Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:

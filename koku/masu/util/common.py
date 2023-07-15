@@ -23,6 +23,7 @@ from django.conf import settings
 from django_tenants.utils import schema_context
 
 import koku.trino_database as trino_db
+from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -331,10 +332,13 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
     Creates enabled key records.
     """
 
+    ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
+
     if not enabled_keys:
-        LOG.info("No enabled keys found")
+        LOG.info(log_json(msg="no enabled keys found", context=ctx))
         return
-    LOG.info(f"Creating enabled key records: {str(enabled_keys_model._meta.model_name)}.")
+
+    LOG.info(log_json(msg="creating enabled key records", context=ctx))
     changed = False
 
     with schema_context(schema):
@@ -344,18 +348,23 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
             # Processing in batches for increased efficiency
             for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
                 batch_size = len(new_batch)
-                LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                LOG.info(
+                    log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
+                )
                 for ix in range(batch_size):
                     new_batch[ix] = enabled_keys_model(key=new_batch[ix])
                 enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
     if not changed:
-        LOG.info("No enabled keys added")
+        LOG.info(log_json(msg="no enabled keys added", context=ctx))
 
     return changed
 
 
 def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
-    LOG.info("Updating enabled tag keys records")
+
+    ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
+
+    LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
     changed = False
 
     enabled_keys_set = set(enabled_keys)
@@ -374,15 +383,19 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
         if update_keys_enabled or update_keys_disabled:
             changed = True
             if update_keys_enabled:
-                LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
+                LOG.info(
+                    log_json(msg="updating keys to ENABLED", keys_to_update=len(update_keys_enabled), context=ctx)
+                )
                 enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
 
             if update_keys_disabled:
-                LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
+                LOG.info(
+                    log_json(msg="updating keys to DISABLED", keys_to_update=len(update_keys_disabled), context=ctx)
+                )
                 enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
 
     if not changed:
-        LOG.info("No enabled keys updated.")
+        LOG.info(log_json(msg="no enabled keys updated", context=ctx))
 
     return changed
 
@@ -402,7 +415,8 @@ def execute_trino_query(schema_name, sql, params=None):
 
 def trino_table_exists(schema_name, table_name):
     """Given a schema and table name, check for an existing table in Trino."""
-    LOG.info(f"Checking for Trino table {schema_name}.{table_name}")
+
+    LOG.info(log_json(msg="checking for Trino table", schema=schema_name, table=table_name))
     table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
     table, _ = execute_trino_query(schema_name, table_check_sql)
     return bool(table)

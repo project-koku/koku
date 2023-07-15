@@ -2,6 +2,11 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-scheduler
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently scheduling is a singleton
+        ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery beat which does not easily support readiness checks
+        ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery beat which does not easily support liveness checks
     replicas: ${{SCHEDULER_REPLICAS}}
     webServices:
       public:
