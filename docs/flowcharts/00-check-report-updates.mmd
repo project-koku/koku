@@ -1,12 +1,11 @@
 ```mermaid
-
-graph;
+graph
     A["check_report_updates (scheduled task)"] -->|"masu.celery.tasks.check_report_updates (default queue)"| B["Orchestrator(scheduled=True).prepare()"];
     B --> b[for provider in pollable_providers];
     b -->|AWS/Azure| C[O.prepare_monthly_report_sources];
     C --> E["report_months = O.get_reports\n(there is some masu API specific logic in\nhere. But also, this returns\nmonths to iterate over...)"];
     E --> F["for month in report_months\n(list of datetime.date)"];
-    F --> G["chuck month into `account['report_month'] = month`\nself.start_manifest_processing [./01-start-manifest-processing.mmd]()"];
+    F --> G["chuck month into `account['report_month'] = month`\nself.start_manifest_processing"];
     G -->|Success| H[label accounts];
     H -->|Success/Exception| F;
     G -->|Exception| F;
