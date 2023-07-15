@@ -6,7 +6,7 @@ graph
     b -->|AWS/Azure| C[O.prepare_monthly_report_sources]
     C --> E["report_months = O.get_reports\n(there is some masu API specific logic in\nhere. But also, this returns\nmonths to iterate over...)"]
     E --> F["for month in report_months\n(list of datetime.date)"]
-    F --> G["chuck month into `account['report_month'] = month`\nself.start_manifest_processing" <a href='./01-start-manifest-processing.md'>link</a>]
+    F --> G["chuck month into `account['report_month'] = month`\nself.start_manifest_processing" <a href='01-start-manifest-processing.md'>link</a>]
     G -->|Success| H[label accounts]
     H -->|Success/Exception| F
     G -->|Exception| F
