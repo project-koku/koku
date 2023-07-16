@@ -10,6 +10,7 @@ import os
 import shutil
 
 import pandas as pd
+from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -29,7 +30,7 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path: str, manifest: CostUsageReportManifest):
+def divide_csv_daily(file_path: str, manifest_id: int):
     """
     Split local file into daily content.
     """
@@ -54,11 +55,16 @@ def divide_csv_daily(file_path: str, manifest: CostUsageReportManifest):
         day = daily_data.get("date")
         df = daily_data.get("data_frame")
         file_prefix = f"{report_type}.{day}"
-        if not manifest.report_tracker.get(file_prefix):
-            manifest.report_tracker[file_prefix] = 0
-        counter = manifest.report_tracker[file_prefix]
-        manifest.report_tracker[file_prefix] = counter + 1
-        manifest.save()
+        with transaction.atomic():
+            # With split payloads, we could have a race condition trying to update the `report_tracker`.
+            # using a transaction and `select_for_update` should minimize the risk of multiple
+            # workers trying to update this field at the same time by locking the manifest during update.
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if not manifest.report_tracker.get(file_prefix):
+                manifest.report_tracker[file_prefix] = 0
+            counter = manifest.report_tracker[file_prefix]
+            manifest.report_tracker[file_prefix] = counter + 1
+            manifest.save(update_fields=["report_tracker"])
         day_file = f"{file_prefix}_{counter}.csv"
         day_filepath = f"{directory}/{day_file}"
         df.to_csv(day_filepath, index=False, header=True)
@@ -92,7 +98,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
     else:
         # we call divide_csv_daily for really old operators (those still relying on metering)
         # or for operators sending daily files
-        daily_files = divide_csv_daily(filepath, manifest)
+        daily_files = divide_csv_daily(filepath, manifest.id)
 
     for daily_file in daily_files:
         # Push to S3
