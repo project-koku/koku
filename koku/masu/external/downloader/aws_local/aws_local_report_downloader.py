@@ -208,6 +208,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        clear_parquet = False
         file_names = []
         date_range = {}
         local_s3_filename = utils.get_local_file_name(key)
@@ -233,7 +234,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
             if not key.endswith(".json"):
-                file_names, date_range = create_daily_archives(
+                file_names, date_range, clear_parquet = create_daily_archives(
                     self.tracing_id,
                     self.account,
                     self._provider_uuid,
@@ -246,7 +247,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
-        return full_file_path, s3_etag, file_creation_date, file_names, date_range
+        return full_file_path, s3_etag, file_creation_date, file_names, date_range, clear_parquet
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

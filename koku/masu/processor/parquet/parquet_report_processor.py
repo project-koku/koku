@@ -18,6 +18,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -25,6 +26,7 @@ from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import copy_data_to_s3_bucket
+from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -295,7 +297,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def convert_to_parquet(self):  # noqa: C901
+    def convert_to_parquet(self, clear_parquet=False):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -321,32 +323,21 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        # TODO This can qbe completely dropped
-        # manifest_accessor = ReportManifestDBAccessor()
-        # manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-
-        # OCP data is daily chunked report files.
-        # Azure are monthly reports. Previous reports should be removed so data isn't duplicated
-        # if not manifest_accessor.get_s3_parquet_cleared(manifest) and self.provider_type not in (
-        #     Provider.PROVIDER_OCP,
-        #     Provider.PROVIDER_GCP,
-        #     Provider.PROVIDER_GCP_LOCAL,
-        #     Provider.PROVIDER_AWS,
-        #     Provider.PROVIDER_AWS_LOCAL,
-        #     Provider.PROVIDER_OCI,
-        #     Provider.PROVIDER_OCI_LOCAL,
-        # ):
-        #     remove_files_not_in_set_from_s3_bucket(
-        #         self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
-        #     )
-        #     remove_files_not_in_set_from_s3_bucket(
-        #         self.tracing_id, self.parquet_daily_path_s3, self.manifest_id, self.error_context
-        #     )
-        #     remove_files_not_in_set_from_s3_bucket(
-        #         self.tracing_id, self.parquet_ocp_on_cloud_path_s3, self.manifest_id, self.error_context
-        #     )
-        #     manifest_accessor.mark_s3_parquet_cleared(manifest)
-        #     LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
+        # This is ONLY for AZURE and AWS to clean all files before processing final reports.
+        if clear_parquet:
+            manifest_accessor = ReportManifestDBAccessor()
+            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            remove_files_not_in_set_from_s3_bucket(
+                self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
+            )
+            remove_files_not_in_set_from_s3_bucket(
+                self.tracing_id, self.parquet_daily_path_s3, self.manifest_id, self.error_context
+            )
+            remove_files_not_in_set_from_s3_bucket(
+                self.tracing_id, self.parquet_ocp_on_cloud_path_s3, self.manifest_id, self.error_context
+            )
+            manifest_accessor.mark_s3_parquet_cleared(manifest)
+            LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
 
         failed_conversion = []
         daily_data_frames = []
@@ -563,13 +554,13 @@ class ParquetReportProcessor:
 
         return True
 
-    def process(self):
+    def process(self, clear_parquet=False):
         """Convert to parquet."""
         msg = (
             f"Converting CSV files to Parquet.\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
         )
         LOG.info(msg)
-        parquet_base_filename, daily_data_frames = self.convert_to_parquet()
+        parquet_base_filename, daily_data_frames = self.convert_to_parquet(clear_parquet=clear_parquet)
 
         # Clean up the original downloaded file
         for f in self.file_list:

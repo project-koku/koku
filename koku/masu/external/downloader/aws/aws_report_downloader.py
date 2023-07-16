@@ -55,6 +55,7 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
         context (Dict): Logging context dictionary
         tracing_id (str): The tracing id
     """
+    clear_parquet = False
     dh = DateHelper()
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
@@ -77,6 +78,7 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
 
     if data_frame[invoice_bill].any() or not check_setup_complete(provider_uuid):
         start_delta = start_date
+        clear_parquet = True
     else:
         if start_date.year == dh.today.year and start_date.month == dh.today.month:
             last_update_day = get_provider_updated_timestamp(provider_uuid)
@@ -88,7 +90,7 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
         else:
             start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
         start_delta = start_delta.replace(tzinfo=None)
-    return data_frame, time_interval, start_delta
+    return data_frame, time_interval, start_delta, clear_parquet
 
 
 def create_daily_archives(
@@ -112,12 +114,13 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    clear_parquet = False
     daily_file_names = []
     date_range = {}
     days = []
     manifest = get_manifest(manifest_id)
     directory = os.path.dirname(local_file)
-    data_frame, time_interval, start_delta = get_initial_dataframe_with_delta(
+    data_frame, time_interval, start_delta, clear_parquet = get_initial_dataframe_with_delta(
         local_file, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
@@ -145,7 +148,7 @@ def create_daily_archives(
                 tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
             )
             daily_file_names.append(day_filepath)
-    return daily_file_names, date_range
+    return daily_file_names, date_range, clear_parquet
 
 
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -386,6 +389,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_creation_date = None
         file_names = []
         date_range = {}
+        clear_parquet = False
         try:
             s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
             s3_etag = s3_file.get("ETag")
@@ -414,7 +418,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.s3_client.download_file(self.bucket, key, full_file_path)
 
             if not key.endswith(".json"):
-                file_names, date_range = create_daily_archives(
+                file_names, date_range, clear_parquet = create_daily_archives(
                     self.tracing_id,
                     self.account,
                     self._provider_uuid,
@@ -427,7 +431,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
-        return full_file_path, s3_etag, file_creation_date, file_names, date_range
+        return full_file_path, s3_etag, file_creation_date, file_names, date_range, clear_parquet
 
     def get_manifest_context_for_date(self, date):
         """

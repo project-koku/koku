@@ -536,7 +536,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.ingress_reports,
         )
 
-        return key, None, DateHelper().today, file_names, date_range
+        return key, None, DateHelper().today, file_names, date_range, False
 
     def _get_local_directory_path(self):
         """

@@ -250,7 +250,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, etag, dh.today, file_names, date_range
+        return full_local_path, etag, dh.today, file_names, date_range, False
 
     def _get_local_file_path(self, key, etag):
         """
