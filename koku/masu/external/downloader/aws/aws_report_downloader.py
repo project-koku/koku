@@ -29,6 +29,7 @@ from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import check_setup_complete
 from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
+from masu.util.common import get_provider_updated_timestamp
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -78,8 +79,12 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
         start_delta = start_date
     else:
         if start_date.year == dh.today.year and start_date.month == dh.today.month:
-            # grab data from last completion time
-            start_delta = dh.today - datetime.timedelta(days=5) if dh.today.date().day > 5 else dh.today.replace(day=1)
+            last_update_day = get_provider_updated_timestamp(provider_uuid)
+            start_delta = (
+                last_update_day - datetime.timedelta(days=3)
+                if last_update_day.day > 3
+                else last_update_day.replace(day=1)
+            )
         else:
             start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
         start_delta = start_delta.replace(tzinfo=None)
@@ -109,13 +114,13 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
+    days = []
     manifest = get_manifest(manifest_id)
     directory = os.path.dirname(local_file)
     data_frame, time_interval, start_delta = get_initial_dataframe_with_delta(
         local_file, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
-    days = []
     for interval in intervals:
         if datetime.datetime.strptime(interval.split("T")[0], "%Y-%m-%d") >= start_delta:
             if interval.split("T")[0] not in days:

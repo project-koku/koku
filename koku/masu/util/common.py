@@ -467,3 +467,8 @@ def get_manifest(manifest_id):
 def check_setup_complete(provider_uuid):
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         return provider_accessor.get_setup_complete()
+
+
+def get_provider_updated_timestamp(provider_uuid):
+    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
+        return provider_accessor.get_data_updated_timestamp()

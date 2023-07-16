@@ -24,10 +24,13 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.azure import common as utils
 from masu.util.azure.common import AzureBlobExtension
+from masu.util.azure.common import INGRESS_ALT_COLUMNS
+from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import check_setup_complete
 from masu.util.common import extract_uuids_from_string
 from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
+from masu.util.common import get_provider_updated_timestamp
 from masu.util.common import month_date_range
 
 DATA_DIR = Config.TMP_DIR
@@ -40,6 +43,54 @@ class AzureReportDownloaderError(Exception):
 
 class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
+
+
+def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, context, tracing_id):
+    """
+    Fetch initial dataframe from CSV plus start_delta and time_inteval.
+
+    Args:
+        local_file (str): The full path name of the file
+        provider_uuid (str): The uuid of a provider
+        filepath (str): The full path name of the file
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+        tracing_id (str): The tracing id
+    """
+    dh = DateHelper()
+    time_interval = "UsageDateTime"
+    format = "%Y-%m-%d"
+    use_cols = INGRESS_REQUIRED_COLUMNS
+    try:
+        data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
+    except ValueError:
+        time_interval = "Date"
+        format = "%m/%d/%Y"
+        use_cols = INGRESS_ALT_COLUMNS
+    try:
+        data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("tags"))
+        data_frame = data_frame.dropna(axis=1, how="all")
+        tag_cols = data_frame.columns
+        for col in tag_cols:
+            use_cols.add(col)
+    except ValueError:
+        LOG.info(log_json(tracing_id, msg="customer has no tag data to parse", context=context))
+    data_frame = pd.read_csv(local_file, usecols=use_cols)
+    # Azure does not have an invoce month so we have to do some guessing here
+    if start_date.month < dh.today.month and dh.today.day > 3 or not check_setup_complete(provider_uuid):
+        start_delta = start_date
+    else:
+        if start_date.year == dh.today.year and start_date.month == dh.today.month:
+            last_update_day = get_provider_updated_timestamp(provider_uuid)
+            start_delta = (
+                last_update_day - datetime.timedelta(days=3)
+                if last_update_day.day > 3
+                else last_update_day.replace(day=1)
+            )
+        else:
+            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
+        start_delta = start_delta.replace(tzinfo=None)
+    return data_frame, time_interval, start_delta, format
 
 
 def create_daily_archives(
@@ -65,29 +116,15 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
+    days = []
     file_name = os.path.basename(local_file).split("/")[-1]
-    dh = DateHelper()
     manifest = get_manifest(manifest_id)
     directory = os.path.dirname(local_file)
-    data_frame = pd.read_csv(local_file)
-    days = []
-    time_interval = "UsageDateTime"
-    format = "%Y-%m-%d"
-    if hasattr(data_frame, "Date"):
-        time_interval = "Date"
-        format = "%m/%d/%Y"
-    # Ideally this if below would look at the invoice month column! But as far as I can tell Azure DONT update this!
-    if start_date.month < dh.today.month and dh.today.day > 5 or not check_setup_complete(provider_uuid):
-        start_delta = start_date
-    else:
-        if start_date.year == dh.today.year and start_date.month == dh.today.month:
-            start_delta = dh.today - datetime.timedelta(days=5) if dh.today.date().day > 5 else dh.today.replace(day=1)
-        else:
-            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
-        start_delta = start_delta.replace(tzinfo=None)
+    data_frame, time_interval, start_delta, format = get_initial_dataframe_with_delta(
+        local_file, provider_uuid, start_date, context, tracing_id
+    )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        LOG.info(f"\n\n DATES {datetime.datetime.strptime(interval, format), start_delta} \n\n")
         if datetime.datetime.strptime(interval, format) >= start_delta:
             if interval not in days:
                 days.append(interval)

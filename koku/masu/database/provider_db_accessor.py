@@ -324,6 +324,11 @@ class ProviderDBAccessor(KokuDBAccess):
             self.provider.save()
             invalidate_view_cache_for_tenant_and_cache_key(self.schema)
 
+    def get_data_updated_timestamp(self):
+        """get the data updated timestamp."""
+        if self.provider:
+            return self.provider.data_updated_timestamp
+
     def set_additional_context(self, new_value):
         """Sets the additional context value."""
         if self.provider:
