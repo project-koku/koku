@@ -226,13 +226,13 @@ def get_report_details(report_directory):
             # will associate the data with the correct reporting month
             payload_dict["date"] = payload_dict["start"]
     if payload_start and (payload_end := payload_dict.get("end")):
+        payload_dict["end"] = parser.parse(payload_end)
         start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
         end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
         # We override the end date from the first of the next month to the end of current month
         # We do this to prevent summary from triggering unnecessarily on the next month
         if start.month != end.month and end.day == 1:
-            payload_end = dh().month_end(start)
-        payload_dict["end"] = parser.parse(payload_end)
+            payload_dict["end"] = dh().month_end(start)
     return payload_dict
 
 

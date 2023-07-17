@@ -182,8 +182,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    manifest = ReportManifestDBAccessor().get_manifest_by_id(self.ocp_manifest_id)
-                    daily_files = divide_csv_daily(file_path, manifest)
+                    daily_files = divide_csv_daily(file_path, self.ocp_manifest_id)
                     self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
                     gen_files = ["storage_usage.2020-01-01_0.csv", "storage_usage.2020-01-02_0.csv"]
