@@ -277,7 +277,6 @@ class Orchestrator:
                     # The report month is used in the metadata of OCP files in s3.
                     # Setting the report_month to the start date allows us to
                     # delete the correct data for daily operator files
-                    LOG.warning(log_json(msg="CHECK THE MANIFEST HERE", **report_context))
                     report_month = manifest.get("start")
                 # add the tracing id to the report context
                 # This defaults to the celery queue
