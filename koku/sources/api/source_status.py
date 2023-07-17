@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.views.decorators.cache import never_cache
+from rest_framework import serializers
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -18,9 +19,11 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
 
+from api.common import error_obj as error_object
 from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import ProviderErrors
 from providers.provider_errors import SkipStatusPush
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
@@ -49,12 +52,15 @@ class SourceStatus:
     def _set_provider_active_status(self, active_status):
         """Set provider active status."""
         if self.source.koku_uuid:
+            prov_exists = True
             try:
                 provider = Provider.objects.get(uuid=self.source.koku_uuid)
                 provider.active = active_status
                 provider.save()
             except Provider.DoesNotExist:
                 LOG.info(f"No provider found for Source ID: {self.source.source_id}")
+                prov_exists = False
+            return prov_exists
 
     def determine_status(self, provider_type, source_authentication, source_billing_source):
         """Check cloud configuration status."""
@@ -63,10 +69,15 @@ class SourceStatus:
         try:
             if self.source.account_id not in settings.DEMO_ACCOUNTS:
                 interface.cost_usage_source_ready(source_authentication, source_billing_source)
-            self._set_provider_active_status(True)
+            prov_exists = self._set_provider_active_status(True)
         except ValidationError as validation_error:
-            self._set_provider_active_status(False)
+            prov_exists = self._set_provider_active_status(False)
             error_obj = validation_error
+        if not error_obj and not prov_exists:
+            key = ProviderErrors.PROVIDER_NOT_FOUND
+            msg = "Something went wrong creating your source, please try again."
+            error_obj = serializers.ValidationError(error_object(key, msg))
+
         self.source.refresh_from_db()
         return error_obj
 
