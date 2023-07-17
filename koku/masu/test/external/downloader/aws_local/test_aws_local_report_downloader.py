@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from datetime import datetime
 from tarfile import TarFile
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
@@ -28,11 +29,43 @@ DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
+BUCKET = FAKE.word()
 PREFIX = FAKE.word()
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
 REGION = random.choice(AWS_REGIONS)
+
+
+class FakeSession:
+    """
+    Fake Boto Session object.
+
+    This is here because Moto doesn't mock out the 'cur' endpoint yet. As soon
+    as Moto supports 'cur', this can be removed.
+    """
+
+    @staticmethod
+    def client(service, region_name=None):
+        """Return a fake AWS Client with a report."""
+        fake_report = {
+            "ReportDefinitions": [
+                {
+                    "ReportName": REPORT,
+                    "TimeUnit": random.choice(["HOURLY", "DAILY"]),
+                    "Format": random.choice(["text", "csv"]),
+                    "Compression": random.choice(["ZIP", "GZIP"]),
+                    "S3Bucket": BUCKET,
+                    "S3Prefix": PREFIX,
+                    "S3Region": region_name or REGION,
+                }
+            ]
+        }
+
+        if "cur" in service:
+            return Mock(**{"describe_report_definitions.return_value": fake_report})
+        else:
+            return Mock()
 
 
 class AWSLocalReportDownloaderTest(MasuTestCase):
@@ -86,33 +119,21 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
         shutil.rmtree(self.fake_bucket_name)
 
-    @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
-    def test_download_bucket(self, *args):
+    def test_download_report(self):
         """Test to verify that basic report downloading works."""
-        with patch("masu.processor.parquet.parquet_report_processor.Path"):
-            with patch("masu.processor.parquet.parquet_report_processor.pd"):
-                with patch("masu.processor.parquet.parquet_report_processor.open"):
-                    with patch("masu.util.aws.common.copy_data_to_s3_bucket"):
+        split_files = ["file_one", "file_two"]
+        with patch("masu.external.downloader.aws_local.aws_local_report_downloader.os.path.isfile"):
+            with patch("masu.external.downloader.aws_local.aws_local_report_downloader.shutil.copy2"):
+                with patch("masu.external.downloader.aws_local.aws_local_report_downloader.os.path.getmtime"):
+                    with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                         with patch(
-                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
-                            "create_parquet_table"
+                            "masu.external.downloader.aws_local.aws_local_report_downloader.create_daily_archives",
+                            return_value=[split_files, {"start": "", "end": ""}, True],
                         ):
-                            test_report_date = datetime(year=2018, month=8, day=7)
-                            with patch.object(DateAccessor, "today", return_value=test_report_date):
-                                with patch("masu.external.downloader.aws.aws_report_downloader.open"):
-                                    with patch(
-                                        "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
-                                        return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
-                                    ):
-                                        report_context = {
-                                            "date": test_report_date.date(),
-                                            "manifest_id": 1,
-                                            "comporession": "GZIP",
-                                            "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
-                                        }
-                                        self.report_downloader.download_report(report_context)
-                            expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
-                            self.assertTrue(os.path.isdir(expected_path))
+                            result = self.aws_local_report_downloader.download_file(
+                                self.fake.file_path(), manifest_id=1
+                            )
+                            self.assertIn(split_files, result)
 
     def test_report_name_provided(self):
         """Test initializer when report_name is  provided."""
@@ -146,9 +167,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                             self.assertEqual(report_downloader.report_name, self.fake_report_name)
                             self.assertIsNone(report_downloader.report_prefix)
 
-    @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
-    @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
-    def test_download_bucket_with_prefix(self, *args):
+    def test_download_bucket_with_prefix(self):
         """Test to verify that basic report downloading works."""
         fake_bucket = tempfile.mkdtemp()
         mytar = TarFile.open("./koku/masu/test/data/test_local_bucket_prefix.tar.gz")
@@ -158,8 +177,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                 with patch(
-                    "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
-                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                    "masu.external.downloader.aws_local.aws_local_report_downloader.create_daily_archives",
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}, False],
                 ):
                     report_downloader = ReportDownloader(
                         self.fake_customer_name,

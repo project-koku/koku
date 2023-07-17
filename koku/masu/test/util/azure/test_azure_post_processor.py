@@ -13,6 +13,7 @@ from pandas import DataFrame
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from masu.util.azure.azure_post_processor import AzurePostProcessor
+from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import TRINO_COLUMNS
 
@@ -104,7 +105,8 @@ class TestAzurePostProcessor(MasuTestCase):
 
     def test_ingress_required_columns(self):
         """Test the ingress required columns."""
-        ingress_required_columns = list(copy.deepcopy(self.post_processor.INGRESS_REQUIRED_COLUMNS))
+        ingress_required_columns = list(copy.deepcopy(INGRESS_REQUIRED_COLUMNS))
+        print(ingress_required_columns)
         self.assertIsNone(self.post_processor.check_ingress_required_columns(ingress_required_columns))
         expected_missing_column = ingress_required_columns[-1]
         missing_column = self.post_processor.check_ingress_required_columns(set(ingress_required_columns[:-1]))

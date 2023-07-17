@@ -192,7 +192,7 @@ class ReportDownloaderTest(MasuTestCase):
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
-        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today(), [], {})
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today(), [], {}, True)
 
         report_context = {
             "date": mock_date,

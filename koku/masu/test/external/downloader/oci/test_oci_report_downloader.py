@@ -276,7 +276,7 @@ class OCIReportDownloaderTest(MasuTestCase):
                     "masu.external.downloader.oci.oci_report_downloader.create_monthly_archives",
                     return_value=[[key], {"start_date": start_date, "end_date": start_date}],
                 ):
-                    full_path, etag, date, _, __ = downloader.download_file(key)
+                    full_path, etag, date, _, __, ___ = downloader.download_file(key)
                     mock_makedirs.assert_called()
                     self.assertEqual(full_path, expected_full_path)
 

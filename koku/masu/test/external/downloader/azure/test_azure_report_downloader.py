@@ -295,9 +295,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.azure.azure_report_downloader.open"):
             with patch(
                 "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
             ):
-                full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
+                full_file_path, etag, _, __, ___, ____ = self.downloader.download_file(self.mock_data.export_key)
                 self.assertEqual(full_file_path, expected_full_path)
                 self.assertEqual(etag, self.mock_data.export_etag)
 
@@ -316,9 +316,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.azure.azure_report_downloader.open"):
             with patch(
                 "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
             ):
-                full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
+                full_file_path, etag, _, __, ___, ____ = self.ingress_downloader.download_file(self.ingress_reports[0])
                 self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
