@@ -185,7 +185,10 @@ class OCPReportDownloaderTest(MasuTestCase):
                     daily_files = divide_csv_daily(file_path, self.ocp_manifest_id)
                     self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
-                    gen_files = ["storage_usage.2020-01-01_0.csv", "storage_usage.2020-01-02_0.csv"]
+                    gen_files = [
+                        f"storage_usage.2020-01-01.{self.ocp_manifest_id}.0.csv",
+                        f"storage_usage.2020-01-02.{self.ocp_manifest_id}.0.csv",
+                    ]
                     expected_dates = [datetime.strptime(date[:10], "%Y-%m-%d") for date in dates]
                     expected = [
                         {"filename": gen_file, "filepath": f"{td}/{gen_file}", "date": expected_dates[i]}
