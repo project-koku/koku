@@ -138,7 +138,7 @@ QUEUES = {
     "priority": PRIORITY_BACKLOG,
     "priority_xl": PRIORITY_XL_BACKLOG,
     "refresh": REFRESH_BACKLOG,
-    "refresh_x;": REFRESH_XL_BACKLOG,
+    "refresh_xl": REFRESH_XL_BACKLOG,
     "cost_model": COST_MODEL_BACKLOG,
     "cost_model_xl": COST_MODEL_XL_BACKLOG,
     "celery": DEFAULT_BACKLOG,
