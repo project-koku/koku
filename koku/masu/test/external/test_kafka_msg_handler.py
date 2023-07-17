@@ -450,6 +450,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
+            "start": datetime.now(),
+            "end": datetime.now(),
         }
         with patch("masu.external.kafka_msg_handler._process_report_file") as mock_process:
             msg_handler.process_report("request_id", report_meta)
@@ -465,6 +467,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
+            "start": datetime.now(),
+            "end": datetime.now(),
         }
         self.assertTrue(msg_handler.process_report("request_id", report_meta))
 
