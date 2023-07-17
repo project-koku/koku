@@ -57,6 +57,7 @@ generators:
         resourceTags/user:dashed-key-on-aws: dashed-value
         resourceTags/user:com_redhat_rhel: true
         resourceTags/user:com_redhat_rhel_sla: Standard
+        resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
       cost_category:
         costCategory/env: stage
         costCategory/Organization: Ninja

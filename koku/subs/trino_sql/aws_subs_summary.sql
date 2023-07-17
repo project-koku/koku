@@ -1,43 +1,37 @@
 SELECT
-  identity_timeinterval as tstamp,
-  lineitem_resourceid as instance_id,
-  lineitem_usageaccountid as billing_account_id,
-  product_physicalcores as physical_cores,
-  product_vcpu as cpu_count,
-  coalesce(
-    json_extract_scalar(
-      tags, '$.com_redhat_rhel_variant'
-    ),
-    'Server'
-  ) as variant,
-  coalesce(
-    json_extract_scalar(tags, '$.com_redhat_rhel_usage'),
-    'Production'
-  ) as usage,
-  coalesce(
-    json_extract_scalar(tags, '$.com_redhat_rhel_sla'),
-    'Premium'
-  ) as sla
+  *,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+    WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
+    ELSE 'Red Hat Enterprise Linux Server'
+  END as subs_role,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_usage'))
+    WHEN 'development/test' THEN 'Development/Test'
+    WHEN 'disaster recover' THEN 'Disaster Recovery'
+    ELSE 'Production'
+  END as subs_usage,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_sla'))
+    WHEN 'standard' THEN 'Standard'
+    WHEN 'self-support' THEN 'Self-Support'
+    ELSE 'Premium'
+  END as subs_sla
 FROM
   (
-    SELECT
-      identity_timeinterval,
-      lineitem_resourceid,
-      lineitem_usageaccountid,
-      product_physicalcores,
-      product_vcpu,
+    SELECT *,
       cast(
-        map_filter(
-          cast(
-            json_parse(resourcetags) as map(varchar, varchar)
+        transform_keys(
+          map_filter(
+            cast(
+              json_parse(resourcetags) as map(varchar, varchar)
+            ),
+            (k, v) -> contains(
+              ARRAY[ 'com_redhat_rhel',
+              'com_redhat_rhel_variant',
+              'com_redhat_rhel_usage',
+              'com_redhat_rhel_sla' ],
+              lower(k)
+            )
           ),
-          (k, v) -> contains(
-            ARRAY[ 'com_redhat_rhel',
-            'com_redhat_rhel_variant',
-            'com_redhat_rhel_usage',
-            'com_redhat_rhel_sla' ],
-            lower(k)
-          )
+          (k, v) -> lower(k)
         ) as json
       ) as tags
     from

@@ -5,8 +5,9 @@
 import csv
 import json
 import logging
+import os
 import uuid
-from io import StringIO
+from tempfile import mkdtemp
 
 from django.conf import settings
 
@@ -30,42 +31,41 @@ class SUBSDataMessenger:
         subs_cust = Customer.objects.filter(schema_name=schema_name).first()
         self.account_id = subs_cust.account_id
         self.org_id = subs_cust.org_id
+        self.download_path = mkdtemp(prefix="subs")
 
     def process_and_send_subs_message(self, upload_keys):
         """
         Takes a list of object keys, reads the objects from the S3 bucket and processes a message to kafka.
-
-        Sample row that gets processed:
-        {'tstamp': '2023-07-01T01:00:00Z/2023-07-01T02:00:00Z', 'instance_id': 'i-55555556',
-        'billing_account_id': '9999999999999', 'physical_cores': '1', 'cpu_count': '2',
-        'variant': 'Server', 'usage': 'Production', 'sla': 'Premium'}
         """
-        for obj_key in upload_keys:
-            data = self.s3_client.get_object(Bucket=settings.S3_SUBS_BUCKET_NAME, Key=obj_key)
-            reader = csv.DictReader(StringIO(data["Body"].read().decode("utf-8")))
-            LOG.info(
-                log_json(
-                    self.tracing_id,
-                    msg="iterating over records and sending kafka messages",
-                    context=self.context,
+        for i, obj_key in enumerate(upload_keys):
+            csv_path = f"{self.download_path}/subs_{self.tracing_id}_{i}.csv"
+            self.s3_client.download_file(settings.S3_SUBS_BUCKET_NAME, obj_key, csv_path)
+            with open(csv_path) as csv_file:
+                reader = csv.DictReader(csv_file)
+                LOG.info(
+                    log_json(
+                        self.tracing_id,
+                        msg="iterating over records and sending kafka messages",
+                        context=self.context,
+                    )
                 )
-            )
-            msg_count = 0
-            for row in reader:
-                msg = self.build_subs_msg(
-                    row["instance_id"],
-                    row["tstamp"],
-                    row["cpu_count"],
-                    row["sla"],
-                    row["usage"],
-                    row["billing_account_id"],
-                )
-                if masu_config.DEBUG:
-                    LOG.debug(log_json(self.tracing_id, msg=msg))
-                else:
-                    self.send_kafka_message(msg)
-                msg_count += 1
-
+                msg_count = 0
+                for row in reader:
+                    msg = self.build_subs_msg(
+                        row["lineitem_resourceid"],
+                        row["lineitem_usagestartdate"],
+                        row["lineitem_usageenddate"],
+                        row["product_vcpu"],
+                        row["subs_sla"],
+                        row["subs_usage"],
+                        row["subs_role"],
+                        row["lineitem_usageaccountid"],
+                    )
+                    if masu_config.DEBUG:
+                        LOG.debug(log_json(self.tracing_id, msg=msg))
+                    else:
+                        self.send_kafka_message(msg)
+                    msg_count += 1
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -73,6 +73,7 @@ class SUBSDataMessenger:
                     context=self.context,
                 )
             )
+            os.remove(csv_path)
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
     def send_kafka_message(self, msg):
@@ -81,7 +82,7 @@ class SUBSDataMessenger:
         producer.produce(masu_config.SUBS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
-    def build_subs_msg(self, instance_id, tstamp, cpu_count, sla, usage, billing_account_id):
+    def build_subs_msg(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, billing_account_id):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         subs_json = {
             "event_id": str(uuid.uuid4()),
@@ -92,18 +93,18 @@ class SUBSDataMessenger:
             "service_type": "RHEL System",
             "instance_id": instance_id,
             "timestamp": tstamp,
-            "expiration": "date-time-offset",
+            "expiration": expiration,
             "display_name": "system name",
-            # "inventory_id": "string", # likely wont have
-            # "insights_id": "string", # likely wont have
-            # "subscription_manager_id": "string", # likely wont have
-            # "correlation_ids": ["id"],
+            "inventory_id": "string",  # likely wont have
+            "insights_id": "string",  # likely wont have
+            "subscription_manager_id": "string",  # likely wont have
+            "correlation_ids": ["id"],
             "measurements": [{"value": cpu_count, "uom": "Cores"}],
             "cloud_provider": "AWS",
             "hardware_type": "Cloud",
-            # "hypervisor_uuid": "string", # wont have
-            # "product_ids": ["69"],
-            "role": "Red Hat Enterprise Linux Server",
+            "hypervisor_uuid": "string",  # wont have
+            "product_ids": ["69"],
+            "role": role,
             "sla": sla,
             "usage": usage,
             "uom": "Cores",
