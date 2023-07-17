@@ -86,16 +86,32 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             DEFAULT_DISTRIBUTION_TYPE,
         )
 
-    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
-    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.report_periods_for_provider_uuid",
+        return_value=Mock(id=4),
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.delete_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider", return_value=False)
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.PartitionHandlerMixin._handle_partitions")
     def test_update_aws_summary_tables_no_billing_data(
         self,
+        mock_handle_partitions,
         mock_aws_get_bills_from_provider,
-        mock_cluster_info,
+        mock_delete_infrastructure_raw_cost_from_daily_summary,
+        mock_report_periods_for_provider_uuid,
+        mock_get_cluster_for_provider,
     ):
         """Test that AWS summary tables are not updated when no billing data is available"""
-        mock_aws_get_bills_from_provider.return_value = False
-        mock_cluster_info.return_value = True
+        mock_handle_partitions.side_effect = AttributeError(
+            "Test failure. Should return before getting here when there is no AWS billing data"
+        )
+
         start_date = datetime.datetime(2023, 5, 27, tzinfo=settings.UTC)
         end_date = start_date + datetime.timedelta(days=1)
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
