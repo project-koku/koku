@@ -159,7 +159,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
                 url = self.base_url + f"{acct_setting}/"
                 client = APIClient()
                 response = client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions(read)
     def test_read_accesss_to_get_request(self):
@@ -190,6 +190,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
                 response = client.put(url, data, format="json", **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
+    # Deprecated permissions
     @RbacPermissions(write)
     def test_write_on_get_request(self):
         for acct_setting in self.account_settings:
@@ -197,7 +198,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
                 url = self.base_url + f"{acct_setting}/"
                 client = APIClient()
                 response = client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions(read_write)
     def test_read_and_write_on_get_request(self):
