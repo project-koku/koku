@@ -609,8 +609,8 @@ def process_report(request_id, report):
         "tracing_id": report.get("tracing_id"),
         "provider_type": "OCP",
         "start_date": date,
-        "metadata_start_date": report.get("start"),
-        "metadata_end_date": report.get("end"),
+        "metadata_start_date": report.get("start").isoformat(),
+        "metadata_end_date": report.get("end").isoformat(),
         "create_table": True,
     }
     try:
