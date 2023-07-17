@@ -13,11 +13,7 @@ WITH cte_tag_value AS (
         AND li.usage_start <= {{end_date}}
         AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys WHERE enabled=true)
     {% if bill_ids %}
-        AND li.cost_entry_bill_id IN (
-        {%- for bill_id in bill_ids -%}
-        {{bill_id}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
-    )
+        AND li.cost_entry_bill_id IN {{ bill_ids | inclause }}
     {% endif %}
     GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id, li.report_period_id, li.namespace, li.node
 ),

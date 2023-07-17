@@ -19,9 +19,6 @@ from cte_enabled_keys as ek
         and lids.usage_start >= date({{start_date}})
         and lids.usage_start <= date({{end_date}})
         {% if report_period_ids %}
-            and lids.report_period_id IN (
-                {%- for rp_id in report_period_ids  -%}
-                    {{rp_id}}{% if not loop.last %},{% endif %}
-                {%- endfor -%})
+            and lids.report_period_id IN {{ report_period_ids | inclause }}
         {% endif %}
 ;
