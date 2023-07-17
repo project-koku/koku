@@ -91,8 +91,8 @@ class ParquetReportProcessor:
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
 
-        self.metadata_start_date: datetime.datetime = self._context.get("metadata_start_date")
-        self.metadata_end_date: datetime.datetime = self._context.get("metadata_end_date")
+        self.metadata_start_date: str = self._context.get("metadata_start_date")
+        self.metadata_end_date: str = self._context.get("metadata_end_date")
 
     @property
     def schema_name(self):
