@@ -54,7 +54,7 @@ def divide_csv_daily(file_path: str, manifest_id: int):
     for daily_data in daily_data_frames:
         day = daily_data.get("date")
         df = daily_data.get("data_frame")
-        file_prefix = f"{report_type}.{day}"
+        file_prefix = f"{report_type}.{day}.{manifest_id}"
         with transaction.atomic():
             # With split payloads, we could have a race condition trying to update the `report_tracker`.
             # using a transaction and `select_for_update` should minimize the risk of multiple
@@ -65,7 +65,7 @@ def divide_csv_daily(file_path: str, manifest_id: int):
             counter = manifest.report_tracker[file_prefix]
             manifest.report_tracker[file_prefix] = counter + 1
             manifest.save(update_fields=["report_tracker"])
-        day_file = f"{file_prefix}_{counter}.csv"
+        day_file = f"{file_prefix}.{counter}.csv"
         day_filepath = f"{directory}/{day_file}"
         df.to_csv(day_filepath, index=False, header=True)
         daily_files.append(
