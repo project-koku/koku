@@ -21,8 +21,13 @@ from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
 
-def create_default_access(access_dict={}, default_write={"write": [], "read": []}, default_read={"read": []}):
+def create_default_access(access_dict=None, default_write=None):
     """Helper function for defaulting access permissions."""
+    if access_dict is None:
+        access_dict = {}
+       
+   if default_write is None:
+       default_write = {"write": [], "read": []}, default_read={"read": []}
     default = {
         "cost_model": default_write,
         "settings": default_write,
@@ -37,9 +42,7 @@ def create_default_access(access_dict={}, default_write={"write": [], "read": []
         "ibm.account": default_read,
         "oci.payer_tenant_id": default_read,
     }
-    for key, value in access_dict.items():
-        default[key] = value
-    return default
+    return default | access_dict
 
 
 LIMITED_AWS_ACCESS = {
