@@ -7,6 +7,7 @@ import datetime
 import logging
 import re
 import time
+import typing as t
 import uuid
 from itertools import chain
 
@@ -25,6 +26,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
 from masu.util.ocp.common import match_openshift_labels
+from reporting.provider.aws.models import AWSCostEntryBill
 
 LOG = logging.getLogger(__name__)
 
@@ -439,7 +441,12 @@ def get_account_names_by_organization(arn, session=None):
     return all_accounts
 
 
-def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+def get_bills_from_provider(
+    provider_uuid: str,
+    schema: str,
+    start_date: t.Union[datetime.datetime, str] = None,
+    end_date: t.Union[datetime.datetime, str] = None,
+) -> list[AWSCostEntryBill]:
     """
     Return the AWS bill IDs given a provider UUID.
 
@@ -480,7 +487,8 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
                 bills = bills.filter(billing_period_start__lte=end_date)
-            bills = bills.all()
+
+            bills = list(bills.all())
 
     return bills
 
