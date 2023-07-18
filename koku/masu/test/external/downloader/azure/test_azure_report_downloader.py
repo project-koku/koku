@@ -374,7 +374,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(result.get("compression"), compression)
         self.assertIsNotNone(result.get("files"))
 
-    def test_create_daily_archives_alt_columns(self):
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
+    def test_create_daily_archives_alt_columns(self, _):
         """Test that we correctly create daily archive files with alt columns."""
         file_name = "azure_version_2.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
@@ -404,7 +405,8 @@ class AzureReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
             os.remove(temp_path)
 
-    def test_create_daily_archives(self):
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
+    def test_create_daily_archives(self, _):
         """Test that we correctly create daily archive files."""
         file_name = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"

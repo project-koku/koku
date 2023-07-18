@@ -222,10 +222,13 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_download_ingress_report_file(self, fake_session, mock_check_size):
         """Test the download file method."""
-        split_files = ["file_one", "file_two"]
         mock_check_size.return_value = True
+        customer_name = self.fake_customer_name
+        expected_full_path = "{}/{}/aws/{}".format(
+            Config.TMP_DIR, customer_name.replace(" ", "_"), self.ingress_reports[0]
+        )
         downloader = AWSReportDownloader(
-            self.fake_customer_name,
+            customer_name,
             self.credentials,
             self.storage_only_data_source,
             ingress_reports=self.ingress_reports,
@@ -233,10 +236,10 @@ class AWSReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.aws.aws_report_downloader.open"):
             with patch(
                 "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
-                return_value=[split_files, {"start": "", "end": ""}, True],
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
             ):
-                result = downloader.download_file(self.fake.file_path(), manifest_id=1)
-                self.assertIn(split_files, result)
+                full_file_path, etag, _, __, ___, ____ = downloader.download_file(self.ingress_reports[0])
+                self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.report_downloader.ReportStatsDBAccessor")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionDownloadError)
@@ -633,7 +636,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
 
-    def test_create_daily_archives(self):
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_create_daily_archives(self, _):
         """Test that we correctly create daily archive files."""
         file_name = "2023-06-01.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
@@ -660,7 +664,8 @@ class AWSReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
             os.remove(temp_path)
 
-    def test_create_daily_archives_alt_columns(self):
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_create_daily_archives_alt_columns(self, _):
         """Test that we correctly create daily archive files with alt columns."""
         file_name = "2022-07-01-alt-columns.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
