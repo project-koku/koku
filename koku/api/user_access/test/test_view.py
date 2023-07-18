@@ -28,13 +28,14 @@ def build_rbac_permissions(rbac_dict):
         "cost_model": {"read": [], "write": []},
         "settings": {"read": [], "write": []},
     }
-    for key, value in rbac_dict.items():
-        rbac_defaults[key] = value
-    return rbac_defaults
+    return rbac_defaults | rbac_dict
 
 
-def build_expected_ouput(testing_dict={}, default_access=False, default_write=False):
+def build_expected_ouput(testing_dict=None, default_access=False, default_write=False):
     """Helper function to allow you to build expected outputs bases on permissions."""
+    if testing_dict is None:
+        testing_dict = {}
+
     expected_output = []
     matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "oci", "ibm", "azure", "cost_model", "settings"]
     for key in matrix_keys:
