@@ -32,6 +32,7 @@ RESOURCE_TYPES = {
     "openshift.node": ["read"],
     "openshift.project": ["read"],
     "cost_model": ["read", "write"],
+    "settings": ["read", "write"],
     "ibm.account": ["read"],
     "oci.payer_tenant_id": ["read"],
 }
