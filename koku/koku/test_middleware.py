@@ -4,6 +4,7 @@
 #
 """Test the project middleware."""
 import base64
+import dataclasses
 import json
 import logging
 import time
@@ -619,4 +620,4 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         client = APIClient()
         url = reverse("user-access")
         result = client.get(url, **request_context["request"].META)
-        self.assertEqual(len(result.json().get("data")), len(ACCESS_KEY_MAPPING))
+        self.assertEqual(len(result.json().get("data")), len(list(dataclasses.asdict(ACCESS_KEY_MAPPING))))

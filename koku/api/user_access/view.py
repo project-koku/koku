@@ -115,7 +115,7 @@ class UIFeatureAccess:
         if pre_release_feature and not settings.ENABLE_PRERELEASE_FEATURES:
             return False, False
         if self.admin_user:
-            return True, False
+            return True, True
         for rbac_setting in ACCESS_KEY_MAPPING[access_key]:
             if self._get_access_value(rbac_setting, "write"):
                 return True, True

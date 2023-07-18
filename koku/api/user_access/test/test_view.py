@@ -291,7 +291,7 @@ class UserAccessViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         # ibm is a prerelease feature
         expected_output = build_expected_ouput(
-            {"ibm": {"access": False, "write": False}}, default_access=True, default_write=False
+            {"ibm": {"access": False, "write": False}}, default_access=True, default_write=True
         )
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -303,7 +303,7 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
         # ibm is a prerelease feature
-        expected_output = build_expected_ouput(default_access=True)
+        expected_output = build_expected_ouput(default_access=True, default_write=True)
         for result in response.data.get("data"):
             with self.subTest(result=result):
                 self.assertIn(result, expected_output)
