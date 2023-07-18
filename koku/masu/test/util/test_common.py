@@ -23,8 +23,10 @@ from api.iam.test.iam_test_case import FakeTrinoCur
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
+from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSEnabledTagKeys
@@ -568,6 +570,13 @@ class CommonUtilTests(MasuTestCase):
         expected = {"good_key": "good_value"}
         result = common_utils.filter_dictionary(test_dictionary, keys_to_keep)
         self.assertEqual(result, expected)
+
+    def test_get_provider_updated_timestamp(self):
+        """Test to fetch provider updated timestamp"""
+        now = DateAccessor().today_with_timezone("UTC")
+        ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
+        get_timestamp = common_utils.get_provider_updated_timestamp(self.aws_provider_uuid)
+        self.assertGreater(get_timestamp, now)
 
 
 class NamedTemporaryGZipTests(TestCase):

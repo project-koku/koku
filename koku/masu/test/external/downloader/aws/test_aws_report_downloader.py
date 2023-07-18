@@ -8,6 +8,7 @@ import logging
 import os.path
 import random
 import shutil
+import tempfile
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -15,6 +16,7 @@ from botocore.exceptions import ClientError
 from faker import Faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -24,9 +26,11 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
+from masu.external.downloader.aws.aws_report_downloader import create_daily_archives
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -628,3 +632,57 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
+
+    def test_create_daily_archives(self):
+        """Test that we correctly create daily archive files."""
+        file_name = "2023-06-01.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/2023-06-01_0.csv",
+        ]
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.get_manifest",
+            return_value=CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first(),
+        ):
+            daily_file_names, date_range, clear_parquet = create_daily_archives(
+                "trace_id", "account", self.aws_provider_uuid, temp_path, None, start_date, None
+            )
+            expected_date_range = {"start": "2023-06-01", "end": "2023-06-01", "invoice_month": None}
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)
+
+    def test_create_daily_archives_alt_columns(self):
+        """Test that we correctly create daily archive files with alt columns."""
+        file_name = "2022-07-01-alt-columns.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/2022-07-01_0.csv",
+        ]
+        start_date = DateHelper().this_month_start.replace(year=2022, month=7, tzinfo=None)
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.get_manifest",
+            return_value=CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first(),
+        ):
+            daily_file_names, date_range, clear_parquet = create_daily_archives(
+                "trace_id", "account", self.aws_provider_uuid, temp_path, None, start_date, None
+            )
+            expected_date_range = {"start": "2022-07-01", "end": "2022-07-01", "invoice_month": None}
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)

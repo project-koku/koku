@@ -120,7 +120,6 @@ def create_daily_archives(
     date_range = {}
     days = []
     clear_parquet = False
-    file_name = os.path.basename(local_file).split("/")[-1]
     manifest = get_manifest(manifest_id)
     directory = os.path.dirname(local_file)
     data_frame, time_interval, start_delta, format, clear_parquet = get_initial_dataframe_with_delta(
@@ -133,17 +132,24 @@ def create_daily_archives(
                 days.append(interval)
     if days:
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
+        if time_interval == "Date":
+            date_range = {
+                "start": datetime.datetime.strptime(min(days), format).strftime("%Y-%m-%d"),
+                "end": datetime.datetime.strptime(min(days), format).strftime("%Y-%m-%d"),
+                "invoice_month": None,
+            }
         for day in days:
+            day_path = day
             daily_data = data_frame[data_frame[time_interval].str.match(day)]
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
-            day = f"{day.split('/')[2]}-{day.split('/')[0]}-{day.split('/')[1]}"
-            day_file = f"{day}_{file_name}"
+            if time_interval == "Date":
+                day_path = f"{day.split('/')[2]}-{day.split('/')[0]}-{day.split('/')[1]}"
             if not manifest.report_tracker.get(day):
                 manifest.report_tracker[day] = 0
             counter = manifest.report_tracker[day]
-            day_file = f"{day}_{counter}.csv"
+            day_file = f"{day_path}_{counter}.csv"
             manifest.report_tracker[day] = counter + 1
             manifest.save()
             day_filepath = f"{directory}/{day_file}"
