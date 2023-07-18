@@ -33,15 +33,16 @@ def build_rbac_permissions(rbac_dict):
     return rbac_defaults
 
 
-def build_expected_ouput(testing_dict={}):
+def build_expected_ouput(testing_dict={}, default_access=False, default_write=False):
+    """Helper function to allow you to build expected outputs bases on permissions."""
     expected_output = []
     matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "oci", "ibm", "azure", "cost_model", "settings"]
     for key in matrix_keys:
         test_info = testing_dict.get(key, {})
         expected_format = {
             "type": key,
-            "access": test_info.get("access", False),
-            "read_only": test_info.get("read_only", None),
+            "access": test_info.get("access", default_access),
+            "write": test_info.get("write", default_write),
         }
         expected_output.append(expected_format)
     return expected_output
@@ -62,7 +63,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with aws read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "aws": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "aws": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -73,7 +74,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with aws read specific account permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "aws": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "aws": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -92,7 +93,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with openshift cluster read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "ocp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
         expected_output = build_expected_ouput(testing_matrix)
@@ -113,7 +114,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with openshift project read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "ocp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -132,7 +133,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with openshift node read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "ocp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -143,7 +144,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with openshift cluster wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "ocp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -156,7 +157,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with openshift project wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "ocp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -167,7 +168,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with openshift node wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "ocp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -178,7 +179,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with gcp account read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "gcp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -189,7 +190,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with gcp project read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "gcp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -200,7 +201,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with gcp account wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "gcp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -211,7 +212,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with gcp project wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "gcp": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -223,7 +224,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with ibm account read wildcard permission and pre_release env=true."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"ibm": {"access": True, "read_only": True}}
+        testing_matrix = {"ibm": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -245,7 +246,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with azure subscription read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "azure": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "azure": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -256,7 +257,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with azure subscription wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "azure": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "azure": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -267,7 +268,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with oci tenant wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True, "read_only": True}, "oci": {"access": True, "read_only": True}}
+        testing_matrix = {"any": {"access": True}, "oci": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -289,17 +290,9 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
         # ibm is a prerelease feature
-        testing_matrix = {
-            "any": {"access": True, "read_only": False},
-            "azure": {"access": True, "read_only": False},
-            "aws": {"access": True, "read_only": False},
-            "ocp": {"access": True, "read_only": False},
-            "oci": {"access": True, "read_only": False},
-            "gcp": {"access": True, "read_only": False},
-            "cost_model": {"access": True, "read_only": False},
-            "settings": {"access": True, "read_only": False},
-        }
-        expected_output = build_expected_ouput(testing_matrix)
+        expected_output = build_expected_ouput(
+            {"ibm": {"access": False, "write": False}}, default_access=True, default_write=False
+        )
         for result in response.data.get("data"):
             with self.subTest(result=result):
                 self.assertIn(result, expected_output)
@@ -310,18 +303,7 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
         # ibm is a prerelease feature
-        testing_matrix = {
-            "any": {"access": True, "read_only": False},
-            "azure": {"access": True, "read_only": False},
-            "aws": {"access": True, "read_only": False},
-            "ocp": {"access": True, "read_only": False},
-            "oci": {"access": True, "read_only": False},
-            "gcp": {"access": True, "read_only": False},
-            "ibm": {"access": True, "read_only": False},
-            "cost_model": {"access": True, "read_only": False},
-            "settings": {"access": True, "read_only": False},
-        }
-        expected_output = build_expected_ouput(testing_matrix)
+        expected_output = build_expected_ouput(default_access=True)
         for result in response.data.get("data"):
             with self.subTest(result=result):
                 self.assertIn(result, expected_output)
@@ -469,7 +451,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with azure subscription read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"settings": {"access": True, "read_only": True}}
+        testing_matrix = {"settings": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):
@@ -480,7 +462,7 @@ class UserAccessViewTest(IamTestCase):
         """Test user-access view with azure subscription read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        testing_matrix = {"settings": {"access": True, "read_only": False}}
+        testing_matrix = {"settings": {"access": True, "write": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):

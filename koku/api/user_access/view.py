@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for UserAccess."""
+import dataclasses
 import logging
 
 from django.conf import settings
@@ -30,23 +31,38 @@ LOG = logging.getLogger(__name__)
 # I have marked areas where we are special casing to return the structure
 # console dot expects for now.
 
-ACCESS_KEY_MAPPING = {
-    "aws": ["aws.account", "aws.organizational_unit"],
-    "azure": ["azure.subscription_guid"],
-    "gcp": ["gcp.account", "gcp.project"],
-    "ibm": ["ibm.account"],
-    "oci": ["oci.payer_tenant_id"],
-    "ocp": ["openshift.cluster", "openshift.node", "openshift.project"],
-    "cost_model": ["cost_model"],
-    "settings": ["settings"],
-}
-ACCESS_KEY_MAPPING["any"] = (
-    ACCESS_KEY_MAPPING["aws"]
-    + ACCESS_KEY_MAPPING["azure"]
-    + ACCESS_KEY_MAPPING["gcp"]
-    + ACCESS_KEY_MAPPING["oci"]
-    + ACCESS_KEY_MAPPING["ocp"]
-)
+
+@dataclasses.dataclass
+class AccessMapping:
+    aws: tuple[str, str] = ("aws.account", "aws.organizational_unit")
+    azure: tuple[str] = ("azure.subscription_guid",)
+    gcp: tuple[str, str] = ("gcp.account", "gcp.project")
+    ibm: tuple[str] = ("ibm.account",)
+    oci: tuple[str] = ("oci.payer_tenant_id",)
+    ocp: tuple[str, str, str] = ("openshift.cluster", "openshift.node", "openshift.project")
+    cost_model: tuple[str] = ("cost_model",)
+    settings: tuple[str] = ("settings",)
+    any: tuple[str, ...] = None
+
+    def __post_init__(self):
+        result = []
+        for field in dataclasses.fields(self):
+            if field.name in ["any", "cost_model", "settings", "ibm"]:
+                continue
+
+            result.extend(getattr(self, field.name))
+
+        # any is any cloud provider.
+        self.any = tuple(result)
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def get(self, item, default=None):
+        return getattr(self, item, default)
+
+
+ACCESS_KEY_MAPPING = AccessMapping()
 
 
 class UIFeatureAccess:
@@ -70,15 +86,18 @@ class UIFeatureAccess:
             admin_user (boolean) - Indicates if the user is an admin
 
         """
-        self.access_key_list = ACCESS_KEY_MAPPING.keys()
+        self.access_key_list = list(dataclasses.asdict(ACCESS_KEY_MAPPING))
         self.access_dict = access if access else {}
         self.admin_user = admin_user
 
     def check_if_valid_param(self, query_param):
         if query_param := ACCESS_KEY_MAPPING.get(query_param):
-            self.access_key_list = [query_param]
             return True
         return False
+
+    def set_access_key_to_query_param(self, query_param):
+        """Sets the access key list to what is passed."""
+        self.access_key_list = [query_param]
 
     def _get_access_value(self, key1, key2, default=None):
         """Return the access value from the inner dict."""
@@ -88,36 +107,32 @@ class UIFeatureAccess:
         """Access property returns whether the user has the requested access.
 
         Return:
-            (access, read_only)
+            (access, write)
             acesss = bool
-            read_only = bool or none
-
-        read_only = True (User only has read access)
-        read_only = False (User has write access)
-        read_only = None (User has no access)
+            write = bool
         """
 
         if pre_release_feature and not settings.ENABLE_PRERELEASE_FEATURES:
-            return False, None
+            return False, False
         if self.admin_user:
             return True, False
         for rbac_setting in ACCESS_KEY_MAPPING[access_key]:
             if self._get_access_value(rbac_setting, "write"):
-                return True, False
-            elif self._get_access_value(rbac_setting, "read"):
                 return True, True
-        return False, None
+            elif self._get_access_value(rbac_setting, "read"):
+                return True, False
+        return False, False
 
     def generate_data(self):
         data = []
         for access_key in self.access_key_list:
             pre_release_feature = access_key in self.PRERELEASE
-            access, read_only = self._check_access(pre_release_feature, access_key)
-            data.append({"type": access_key, "access": access, "read_only": read_only})
+            access, write = self._check_access(pre_release_feature, access_key)
+            data.append({"type": access_key, "access": access, "write": write})
 
         if len(self.access_key_list) == 1:
             # For backwards compatability.
-            data = {"data": access, "access": access, "read_only": read_only}
+            data = {"data": access, "access": access, "write": write}
         return data
 
 
@@ -153,6 +168,7 @@ class UserAccessView(APIView):
                 return Response(
                     {f"Unknown source type: {query_params.get('type')}"}, status=status.HTTP_400_BAD_REQUEST
                 )
+            ui_feature_access.set_access_key_to_query_param(access_type)
 
         data = ui_feature_access.generate_data()
         if isinstance(data, dict):
