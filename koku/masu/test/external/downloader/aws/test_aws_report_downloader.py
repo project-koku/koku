@@ -636,8 +636,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
 
-    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_create_daily_archives(self, _):
+    @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_copy):
         """Test that we correctly create daily archive files."""
         file_name = "2023-06-01.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
@@ -656,6 +656,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "trace_id", "account", self.aws_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2023-06-01", "end": "2023-06-01", "invoice_month": None}
+            mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
             self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
@@ -664,8 +665,8 @@ class AWSReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
             os.remove(temp_path)
 
-    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_create_daily_archives_alt_columns(self, _):
+    @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_alt_columns(self, mock_copy):
         """Test that we correctly create daily archive files with alt columns."""
         file_name = "2022-07-01-alt-columns.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
@@ -684,6 +685,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "trace_id", "account", self.aws_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2022-07-01", "end": "2022-07-01", "invoice_month": None}
+            mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
             self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))

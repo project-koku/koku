@@ -374,8 +374,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(result.get("compression"), compression)
         self.assertIsNotNone(result.get("files"))
 
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
-    def test_create_daily_archives_alt_columns(self, _):
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_alt_columns(self, mock_copy):
         """Test that we correctly create daily archive files with alt columns."""
         file_name = "azure_version_2.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
@@ -397,6 +397,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                 "trace_id", "account", self.azure_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2020-09-01", "end": "2020-09-01", "invoice_month": None}
+            mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
             self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
@@ -405,8 +406,8 @@ class AzureReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
             os.remove(temp_path)
 
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
-    def test_create_daily_archives(self, _):
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_copy):
         """Test that we correctly create daily archive files."""
         file_name = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
@@ -423,6 +424,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                 "trace_id", "account", self.azure_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}
+            mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
             self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
