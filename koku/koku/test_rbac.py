@@ -21,13 +21,16 @@ from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
 
-def create_default_access(access_dict=None, default_write=None):
+def create_expected_access(access_dict=None, default_write=None, default_read=None):
     """Helper function for defaulting access permissions."""
     if access_dict is None:
         access_dict = {}
-       
-   if default_write is None:
-       default_write = {"write": [], "read": []}, default_read={"read": []}
+
+    if default_write is None:
+        default_write = {"write": [], "read": []}
+    if default_read is None:
+        default_read = {"read": []}
+
     default = {
         "cost_model": default_write,
         "settings": default_write,
@@ -314,14 +317,14 @@ class RbacServiceTest(TestCase):
         """Test handling exception _get_operation used in apply access method."""
         processed_acls = {"*": [{"operation": "*", "resources": ["1", "3"]}]}
         res_access = _apply_access(processed_acls)
-        expected = create_default_access()
+        expected = create_expected_access()
         self.assertEqual(res_access, expected)
         mock_get_operation.assert_called()
 
     def test_apply_access_none(self):
         """Test handling none input for apply access method."""
         res_access = _apply_access(None)
-        expected = create_default_access()
+        expected = create_expected_access()
         self.assertEqual(res_access, expected)
 
     def test_apply_access_all_wildcard(self):
@@ -330,7 +333,7 @@ class RbacServiceTest(TestCase):
         res_access = _apply_access(processed_acls)
         rw_access = {"write": ["1", "3"], "read": ["1", "3"]}
         read_access = {"read": ["1", "3"]}
-        expected = create_default_access(default_write=rw_access, default_read=read_access)
+        expected = create_expected_access(default_write=rw_access, default_read=read_access)
         self.assertEqual(res_access, expected)
 
     def test_apply_access_wildcard(self):
@@ -341,7 +344,7 @@ class RbacServiceTest(TestCase):
         res_access = _apply_access(processed_acls)
         rw_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
         read_access = {"read": ["2"]}
-        expected = create_default_access(default_write=rw_access, default_read=read_access)
+        expected = create_expected_access(default_write=rw_access, default_read=read_access)
         self.assertEqual(res_access, expected)
 
     def test_apply_access_limited(self):
@@ -350,14 +353,14 @@ class RbacServiceTest(TestCase):
             "cost_model": [{"operation": "write", "resources": ["1", "3"]}, {"operation": "read", "resources": ["2"]}]
         }
         res_access = _apply_access(processed_acls)
-        expected = create_default_access({"cost_model": {"write": ["1", "3"], "read": ["1", "3", "2"]}})
+        expected = create_expected_access({"cost_model": {"write": ["1", "3"], "read": ["1", "3", "2"]}})
         self.assertEqual(res_access, expected)
 
     def test_apply_access_limited_no_read_write(self):
         """Test handling of limited resource access data for apply access method."""
         processed_acls = {}
         res_access = _apply_access(processed_acls)
-        expected = create_default_access()
+        expected = create_expected_access()
         self.assertEqual(res_access, expected)
 
     def test_apply_case(self):
@@ -367,7 +370,7 @@ class RbacServiceTest(TestCase):
             "aws.account": [{"operation": "read", "resources": ["myaccount"]}],
         }
         res_access = _apply_access(processed_acls)
-        expected = create_default_access(
+        expected = create_expected_access(
             {"cost_model": {"write": ["*"], "read": ["*"]}, "aws.account": {"read": ["myaccount"]}}
         )
         self.assertEqual(res_access, expected)
@@ -389,7 +392,7 @@ class RbacServiceTest(TestCase):
         mock_user = Mock()
         mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
         access = rbac.get_access_for_user(mock_user)
-        expected = create_default_access({"aws.account": {"read": ["123456"]}})
+        expected = create_expected_access({"aws.account": {"read": ["123456"]}})
         self.assertEqual(access, expected)
         mock_get.assert_called()
 
@@ -400,7 +403,7 @@ class RbacServiceTest(TestCase):
         mock_user = Mock()
         mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
         access = rbac.get_access_for_user(mock_user)
-        expected = create_default_access({"ibm.account": {"read": ["*"]}})
+        expected = create_expected_access({"ibm.account": {"read": ["*"]}})
         self.assertEqual(access, expected)
         mock_get.assert_called()
 
