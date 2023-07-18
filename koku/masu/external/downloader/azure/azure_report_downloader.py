@@ -78,7 +78,7 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
         LOG.info(log_json(tracing_id, msg="customer has no tag data to parse", context=context))
     data_frame = pd.read_csv(local_file, usecols=use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
-    if start_date.month < dh.today.month and dh.today.day > 16 or not check_setup_complete(provider_uuid):
+    if start_date.month < dh.today.month and dh.today.day > 1 or not check_setup_complete(provider_uuid):
         start_delta = start_date
         clear_parquet_files = True
     else:
