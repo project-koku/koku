@@ -278,9 +278,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self._project_classification_annotation(query_data)
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
-                if not self.parameters.get("order_by") or self.parameters.get("order_by", {}).get(
-                    "cost_total_distributed"
-                ):
+                order_by = self.parameters.get("order_by")
+                if not order_by or set(order_by).intersection(["cost_total", "cost_total_distributed"]):
                     # https://issues.redhat.com/browse/COST-3901
                     # order_by[distributed_cost] is required for distributing platform cost,
                     # therefore others must be at the end.

@@ -8,11 +8,7 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} as
         jsonb_each_text(li.volume_labels) labels
     WHERE li.data_source = 'Storage'
     {% if report_period_ids %}
-        AND li.report_period_id IN (
-        {%- for report_period_id in report_period_ids -%}
-        {{report_period_id}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
-    )
+        AND li.report_period_id IN {{ report_period_ids | inclause }}
     {% endif %}
         AND li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
