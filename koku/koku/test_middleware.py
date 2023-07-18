@@ -31,7 +31,7 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from api.user_access.view import UIFeatureAccess
+from api.user_access.view import ACCESS_KEY_MAPPING
 from koku import middleware as MD
 from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
@@ -619,5 +619,4 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         client = APIClient()
         url = reverse("user-access")
         result = client.get(url, **request_context["request"].META)
-        ui_feature_access = UIFeatureAccess(user_data["access"], True)
-        self.assertEqual(len(result.json().get("data")), len(ui_feature_access.access_key_mapping))
+        self.assertEqual(len(result.json().get("data")), len(ACCESS_KEY_MAPPING))
