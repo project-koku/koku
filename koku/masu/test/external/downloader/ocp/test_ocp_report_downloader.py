@@ -245,6 +245,16 @@ class OCPReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
+    def test_get_manifest_context_for_date_no_manifest(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+
+        mock_manifest.return_value = {}
+        result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
+        self.assertDictEqual(result, {})
+
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
     def test_get_manifest_context_new_info(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)

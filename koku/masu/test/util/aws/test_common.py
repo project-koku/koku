@@ -385,7 +385,22 @@ class TestAWSUtils(MasuTestCase):
             self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            client_error_object = Mock()
+            client_error_object.Object.side_effect = ClientError({}, "Error")
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                client_error_object,
+            ]
+            removed = utils.delete_s3_objects_not_matching_metadata(
+                "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(removed, [])
+
+        with patch("masu.util.aws.common.get_s3_objects_not_matching_metadata") as mock_get_objects, patch(
+            "masu.util.aws.common.get_s3_resource"
+        ) as mock_s3:
             mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
+            mock_get_objects.return_value = [expected_key]
             removed = utils.delete_s3_objects_not_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
@@ -425,7 +440,22 @@ class TestAWSUtils(MasuTestCase):
             self.assertListEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            client_error_object = Mock()
+            client_error_object.Object.side_effect = ClientError({}, "Error")
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                client_error_object,
+            ]
+            removed = utils.delete_s3_objects_matching_metadata(
+                "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(removed, [])
+
+        with patch("masu.util.aws.common.get_s3_objects_matching_metadata") as mock_get_objects, patch(
+            "masu.util.aws.common.get_s3_resource"
+        ) as mock_s3:
             mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
+            mock_get_objects.return_value = [expected_key]
             removed = utils.delete_s3_objects_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )

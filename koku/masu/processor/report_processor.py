@@ -107,14 +107,15 @@ class ReportProcessor:
             (List) List of filenames downloaded.
 
         """
-        msg = f"Report processing started for {self.report_path}"
-        LOG.info(log_json(self.tracing_id, msg=msg))
+        msg = f"report processing started for {self.report_path}"
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         try:
             parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
             return daily_data_frames != []
         except ReportsAlreadyProcessed:
+            LOG.info(log_json(msg="report already processed", context=self.context))
             return True
         except (InterfaceError, DjangoInterfaceError) as err:
             raise ReportProcessorDBError(f"Interface error: {err}") from err
