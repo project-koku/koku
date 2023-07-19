@@ -5,7 +5,6 @@
 """Test the OCPCloudParquetReportSummaryUpdaterTest."""
 import datetime
 import decimal
-from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -159,14 +158,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_cluster_info,
     ):
         """Test that summary tables are properly run for an OCP provider."""
-        fake_bills = MagicMock()
-        fake_bills.__iter__.return_value = [Mock(), Mock()]
-        first = Mock()
-        bill_id = 1
-        first.return_value.id = bill_id
+        fake_bills = [Mock(id=1), Mock(id=2)]
         # this is basically a yes or no check so true is fine
         mock_cluster_info.return_value = True
-        fake_bills.first = first
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
         end_date = start_date + datetime.timedelta(days=1)
@@ -188,7 +182,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.ocpazure_provider_uuid,
             self.azure_test_provider_uuid,
             current_ocp_report_period_id,
-            bill_id,
+            1,
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
@@ -231,14 +225,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_cluster_info,
     ):
         """Test that summary tables are properly run for an OCP provider."""
-        fake_bills = MagicMock()
-        fake_bills.__iter__.return_value = [Mock(), Mock()]
-        first = Mock()
-        bill_id = 1
-        first.return_value.id = bill_id
+        fake_bills = [Mock(id=1), Mock(id=2)]
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True
-        fake_bills.first = first
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
         end_date = start_date + datetime.timedelta(days=1)
@@ -260,7 +249,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.ocpazure_provider_uuid,
             self.azure_test_provider_uuid,
             current_ocp_report_period_id,
-            bill_id,
+            1,
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
@@ -305,12 +294,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocpallui,
     ):
         """Test that summary tables are properly run for a gcp provider."""
-        fake_bills = MagicMock()
-        fake_bills.__iter__.return_value = [Mock(), Mock()]
-        first = Mock()
-        bill_id = 1
-        first.return_value.id = bill_id
-        fake_bills.first = first
+        fake_bills = [Mock(id=1), Mock(id=2)]
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
         end_date = start_date + datetime.timedelta(days=1)
@@ -332,14 +316,14 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
-            bill_id,
+            1,
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
         mock_ui_summary.assert_called_with(
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
         )
-        mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
+        mock_tag_summary.assert_called_with([1, 2], start_date, end_date)
 
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_nodes_for_cluster"  # noqa: E501
@@ -392,12 +376,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run for a gcp provider."""
         node_name = "node1"
         mock_nodes.return_value = [[node_name]]
-        fake_bills = MagicMock()
-        fake_bills.__iter__.return_value = [Mock(), Mock()]
-        first = Mock()
-        bill_id = 1
-        first.return_value.id = bill_id
-        fake_bills.first = first
+        fake_bills = [Mock(id=1), Mock(id=2)]
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
         end_date = start_date + datetime.timedelta(days=1)
@@ -419,7 +398,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
-            bill_id,
+            1,
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
             node_name,
@@ -428,7 +407,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ui_summary.assert_called_with(
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
         )
-        mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
+        mock_tag_summary.assert_called_with([1, 2], start_date, end_date)
 
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
@@ -470,12 +449,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocpallui,
     ):
         """Test that summary tables are properly run for a gcp provider."""
-        fake_bills = MagicMock()
-        fake_bills.__iter__.return_value = [Mock(), Mock()]
-        first = Mock()
-        bill_id = 1
-        first.return_value.id = bill_id
-        fake_bills.first = first
+        fake_bills = [Mock(id=1), Mock(id=2)]
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
         end_date = start_date + datetime.timedelta(days=1)
@@ -499,7 +473,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
-            bill_id,
+            1,
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
@@ -507,7 +481,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
         )
 
-        mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
+        mock_tag_summary.assert_called_with([1, 2], start_date, end_date)
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch(
