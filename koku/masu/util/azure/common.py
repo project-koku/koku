@@ -103,7 +103,8 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
                 bills = bills.filter(billing_period_start__lte=end_date)
-            bills = bills.all()
+
+            bills = list(bills.all())
 
     return bills
 
