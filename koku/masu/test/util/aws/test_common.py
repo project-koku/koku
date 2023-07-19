@@ -8,6 +8,7 @@ from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 import boto3
 import pandas as pd
@@ -351,6 +352,38 @@ class TestAWSUtils(MasuTestCase):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
+
+    def test_filter_s3_objects_less_than(self):
+        """Test filter_s3_objects_less_than."""
+        metadata_key = "number-of-hours-in-report"
+        metadata_value = "24"
+
+        metadata = PropertyMock(
+            side_effect=[
+                {metadata_key: "18", "extra": "this will NOT be filtered"},
+                {metadata_key: "25", "extra": "this WILL be filtered"},
+            ]
+        )
+
+        keys = [18, 25]
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            filtered = utils.filter_s3_objects_less_than(
+                "request_id", keys, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(filtered, [18])
+
+        metadata = PropertyMock(
+            side_effect=[{metadata_key: "18", "extra": "this will NOT be filtered"}, ClientError({}, "test")]
+        )
+
+        keys = [18, 25]
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            type(mock_s3.return_value.Object.return_value).metadata = metadata
+            filtered = utils.filter_s3_objects_less_than(
+                "request_id", keys, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertListEqual(filtered, [])
 
     def test_remove_s3_objects_not_matching_metadata(self):
         """Test remove_s3_objects_not_matching_metadata."""
