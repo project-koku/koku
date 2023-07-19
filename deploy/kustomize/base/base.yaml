@@ -39,6 +39,7 @@ objects:
     objectStore:
     - ${S3_BUCKET_NAME}
     - ${S3_ROS_BUCKET_NAME}
+    - ${S3_SUBS_BUCKET_NAME}
 
     dependencies:
     - ingress
@@ -230,6 +231,8 @@ parameters:
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
+- name: S3_SUBS_BUCKET_NAME
+  value: subs-eph-s3
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"

@@ -4035,6 +4035,7 @@ objects:
     objectStore:
     - ${S3_BUCKET_NAME}
     - ${S3_ROS_BUCKET_NAME}
+    - ${S3_SUBS_BUCKET_NAME}
     optionalDependencies: []
     testing:
       iqePlugin: cost-management
@@ -4165,6 +4166,8 @@ parameters:
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
+- name: S3_SUBS_BUCKET_NAME
+  value: subs-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
