@@ -21,7 +21,11 @@ class SettingsTagSerializer(serializers.Serializer):
         model = EnabledTagKeys
 
 
+class ListUUIDSerializer(serializers.ListField):
+    child = serializers.UUIDField(error_messages={"invalid": "invalid uuid supplied."})
+
+
 class SettingsTagIDSerializer(serializers.Serializer):
     """Serializer for id list for enabling/disabling tags"""
 
-    id_list = serializers.ListField(child=serializers.UUIDField(error_messages={"invalid": "invalid uuid supplied."}))
+    id_list = ListUUIDSerializer(allow_empty=False, min_length=1)
