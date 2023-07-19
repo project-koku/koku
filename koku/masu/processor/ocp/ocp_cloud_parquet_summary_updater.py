@@ -224,6 +224,20 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
+        if not aws_bills:
+            # Without bill data, we cannot populate the summary table
+            LOG.info(
+                log_json(
+                    msg="no AWS bill data found - skipping AWS summary table update",
+                    schema_name=self._schema,
+                    start_date=start_date,
+                    end_date=end_date,
+                    source_uuid=aws_provider_uuid,
+                    cluster_id=cluster_id,
+                )
+            )
+            return
+
         with schema_context(self._schema):
             self._handle_partitions(
                 self._schema,
@@ -247,8 +261,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 end_date,
             )
 
-            aws_bill_ids = [str(bill.id) for bill in aws_bills]
-            current_aws_bill_id = aws_bills.first().id if aws_bills else None
+            aws_bill_ids = [bill.id for bill in aws_bills]
+            current_aws_bill_id = aws_bill_ids[0]
             current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
@@ -339,6 +353,19 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
+        if not azure_bills:
+            # Without bill data, we cannot populate the summary table
+            LOG.info(
+                log_json(
+                    msg="no Azure bill data found - skipping Azure summary table update",
+                    schema_name=self._schema,
+                    start_date=start_date,
+                    end_date=end_date,
+                    source_uuid=azure_provider_uuid,
+                    cluster_id=cluster_id,
+                )
+            )
+            return
         with schema_context(self._schema):
             self._handle_partitions(
                 self._schema,
@@ -362,8 +389,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 end_date,
             )
 
-            azure_bill_ids = [str(bill.id) for bill in azure_bills]
-            current_azure_bill_id = azure_bills.first().id if azure_bills else None
+            azure_bill_ids = [bill.id for bill in azure_bills]
+            current_azure_bill_id = azure_bill_ids[0]
             current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
@@ -459,6 +486,19 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 node_count = len(nodes)
 
         gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
+        if not gcp_bills:
+            # Without bill data, we cannot populate the summary table
+            LOG.info(
+                log_json(
+                    msg="no GCP bill data found - skipping GCP summary table update",
+                    schema_name=self._schema,
+                    start_date=start_date,
+                    end_date=end_date,
+                    source_uuid=gcp_provider_uuid,
+                    cluster_id=cluster_id,
+                )
+            )
+            return
         with schema_context(self._schema):
             self._handle_partitions(
                 self._schema,
@@ -477,8 +517,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 end_date,
             )
 
-            gcp_bill_ids = [str(bill.id) for bill in gcp_bills]
-            current_gcp_bill_id = gcp_bills.first().id if gcp_bills else None
+            gcp_bill_ids = [bill.id for bill in gcp_bills]
+            current_gcp_bill_id = gcp_bill_ids[0]
             current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, gcp_provider_uuid) as cost_model_accessor:
