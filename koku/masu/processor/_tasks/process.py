@@ -31,7 +31,6 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         None
 
     """
-    start_date = report_dict.get("start_date")
     report_path = report_dict.get("file")
     compression = report_dict.get("compression")
     manifest_id = report_dict.get("manifest_id")
@@ -41,7 +40,8 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         "schema": schema_name,
         "provider_type": provider,
         "provider_uuid": provider_uuid,
-        "start_date": start_date,
+        "metadata_start_date": report_dict.get("metadata_start_date"),
+        "metadata_end_date": report_dict.get("metadata_end_date"),
         "compression": compression,
         "file": report_path,
     }
