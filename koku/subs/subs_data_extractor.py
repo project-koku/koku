@@ -67,7 +67,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
     def determine_latest_processed_time_for_provider(self, year, month):
         """Determine the latest processed timestamp for a provider for a given month and year."""
         sql = (
-            f"SELECT last_processed_time FROM {SUBS_TRINO_TABLE_NAME}"
+            f"SELECT last_processed_time FROM {self.schema}.{SUBS_TRINO_TABLE_NAME}"
             f" WHERE source='{self.provider_uuid}' AND year='{year}' AND month='{month}'"
         )
         last_processed_time = self._execute_trino_raw_sql_query(sql, log_ref="determine_last_subs_processed_time")
@@ -78,7 +78,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_line_item_count(self, where_clause):
         """Determine the number of records in the table that have not been processed and match the criteria"""
-        table_count_sql = f"SELECT count(*) FROM {self.table} {where_clause}"
+        table_count_sql = f"SELECT count(*) FROM {self.schema}.{self.table} {where_clause}"
         count = self._execute_trino_raw_sql_query(table_count_sql, log_ref="determine_subs_processing_count")
         return count[0][0]
 
