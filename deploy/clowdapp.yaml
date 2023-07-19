@@ -4032,6 +4032,7 @@ objects:
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
+    - topicName: platform.rhsm-subscriptions.service-instance-ingress
     objectStore:
     - ${S3_BUCKET_NAME}
     - ${S3_ROS_BUCKET_NAME}
