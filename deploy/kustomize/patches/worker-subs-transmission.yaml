@@ -99,6 +99,8 @@
           value: ${QE_SCHEMA}
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
       livenessProbe:
         httpGet:
           path: /livez
@@ -188,9 +190,3 @@
     name: WORKER_SUBS_TRANSMISSION_WORKER_QUEUE
     required: true
     value: "subs_transmission"
-- op: add
-  path: /parameters/-
-  value:
-    displayName: SUBS Transmission debug
-    name: ENABLE_SUBS_DEBUG
-    value: "False"

@@ -518,3 +518,7 @@ parameters:
 - name: CACHE_TIMEOUT
   displayName: Middleware Timeout
   value: "3600"
+- description: Enabale Subscription Watch Debug
+  displayName: Enable SUBS Debug
+  name: ENABLE_SUBS_DEBUG
+  value: "False"

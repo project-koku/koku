@@ -3792,6 +3792,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -3935,6 +3937,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -4439,6 +4443,10 @@ parameters:
 - displayName: Middleware Timeout
   name: CACHE_TIMEOUT
   value: "3600"
+- description: Enabale Subscription Watch Debug
+  displayName: Enable SUBS Debug
+  name: ENABLE_SUBS_DEBUG
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_REPLICAS
   required: true
@@ -4976,9 +4984,6 @@ parameters:
   name: WORKER_SUBS_EXTRACTION_WORKER_QUEUE
   required: true
   value: subs_extraction
-- displayName: SUBS Extraction debug
-  name: ENABLE_SUBS_DEBUG
-  value: "False"
 - displayName: Minimum replicas
   name: WORKER_SUBS_TRANSMISSION_REPLICAS
   required: true
@@ -5003,6 +5008,3 @@ parameters:
   name: WORKER_SUBS_TRANSMISSION_WORKER_QUEUE
   required: true
   value: subs_transmission
-- displayName: SUBS Transmission debug
-  name: ENABLE_SUBS_DEBUG
-  value: "False"
