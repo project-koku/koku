@@ -74,16 +74,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "instance_id": lineitem_resourceid,
             "timestamp": lineitem_usagestartdate,
             "expiration": lineitem_usageenddate,
-            "display_name": "system name",
-            "inventory_id": "string",  # likely wont have
-            "insights_id": "string",  # likely wont have
-            "subscription_manager_id": "string",  # likely wont have
-            "correlation_ids": ["id"],
             "measurements": [{"value": product_vcpu, "uom": "Cores"}],
             "cloud_provider": "AWS",
             "hardware_type": "Cloud",
-            "hypervisor_uuid": "string",  # wont have
-            "product_ids": ["69"],
             "role": rol,
             "sla": sla,
             "usage": usage,

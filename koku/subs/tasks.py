@@ -38,19 +38,29 @@ SUBS_ACCEPTED_PROVIDERS = (
 
 def check_subs_source_gate(schema_name: str) -> bool:
     """Checks if the specific source is selected for RHEL Metered processing."""
+    # TODO: COST-4033 implement sources gate
     return False
 
 
-def enable_subs_processing(schema_name: str) -> bool:
-    """Helper to determine if source is enabled for SUBS processing."""
-
+def enable_subs_extraction(schema_name: str) -> bool:
+    """Helper to determine if source is enabled for SUBS extraction."""
     schema_name = convert_account(schema_name)
     context = {"schema_name": schema_name}
-    LOG.info(log_json(msg="enable_subs_processing context", context=context))
+    LOG.info(log_json(msg="enable_subs_extraction context", context=context))
     return bool(
-        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-processing", context, fallback_development_true)
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-extraction", context, fallback_development_true)
         or settings.ENABLE_SUBS_DEBUG
         or check_subs_source_gate(schema_name)
+    )
+
+
+def enable_subs_messaging(schema_name: str) -> bool:
+    """Helper to determine if source is enabled for SUBS messaging."""
+    schema_name = convert_account(schema_name)
+    context = {"schema_name": schema_name}
+    LOG.info(log_json(msg="enable_subs_messaging context", context=context))
+    return bool(
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-messaging", context) or settings.ENABLE_SUBS_DEBUG
     )
 
 
@@ -68,7 +78,7 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
         if provider_type not in SUBS_ACCEPTED_PROVIDERS:
             LOG.info(log_json(tracing_id, msg="provider type not valid for subs processing", context=context))
             continue
-        if not enable_subs_processing(schema_name):
+        if not enable_subs_extraction(schema_name):
             LOG.info(log_json(tracing_id, msg="subs processing not enabled for provider", context=context))
             continue
         if report.get("start") and report.get("end"):
@@ -96,7 +106,7 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
         LOG.info(log_json(tracing_id, msg="collecting subs report data", context=context))
         extractor = SUBSDataExtractor(schema_name, provider_type, provider_uuid, tracing_id, context=context)
         upload_keys = extractor.extract_data_to_s3(start_date, end_date)
-        if upload_keys:
+        if upload_keys and enable_subs_messaging(schema_name):
             process_upload_keys_to_subs_message.delay(context, schema_name, tracing_id, upload_keys)
 
 

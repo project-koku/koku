@@ -94,16 +94,9 @@ class SUBSDataMessenger:
             "instance_id": instance_id,
             "timestamp": tstamp,
             "expiration": expiration,
-            "display_name": "system name",
-            "inventory_id": "string",  # likely wont have
-            "insights_id": "string",  # likely wont have
-            "subscription_manager_id": "string",  # likely wont have
-            "correlation_ids": ["id"],
             "measurements": [{"value": cpu_count, "uom": "Cores"}],
             "cloud_provider": "AWS",
             "hardware_type": "Cloud",
-            "hypervisor_uuid": "string",  # wont have
-            "product_ids": ["69"],
             "role": role,
             "sla": sla,
             "usage": usage,
