@@ -36,6 +36,7 @@ from masu.util.common import month_date_range
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
+DATE_FORMAT = "%Y-%m-%d"
 
 
 class AzureReportDownloaderError(Exception):
@@ -60,14 +61,14 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
-    time_interval = "UsageDateTime"
-    format = "%Y-%m-%d"
-    use_cols = INGRESS_REQUIRED_COLUMNS
     try:
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
+        time_interval = "UsageDateTime"
+        date_format = DATE_FORMAT
+        use_cols = INGRESS_REQUIRED_COLUMNS
     except ValueError:
         time_interval = "Date"
-        format = "%m/%d/%Y"
+        date_format = "%m/%d/%Y"
         use_cols = INGRESS_ALT_COLUMNS
     try:
         data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("tags"))
@@ -93,7 +94,7 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
         else:
             start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
         start_delta = start_delta.replace(tzinfo=None)
-    return data_frame, time_interval, start_delta, format
+    return data_frame, time_interval, start_delta, date_format
 
 
 def create_daily_archives(
@@ -120,22 +121,21 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     days = []
-    data_frame, time_interval, start_delta, format = get_initial_dataframe_with_delta(
+    data_frame, time_interval, start_delta, date_format = get_initial_dataframe_with_delta(
         local_file, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, format) >= start_delta:
-            if interval not in days:
-                days.append(interval)
+        if datetime.datetime.strptime(interval, date_format) >= start_delta and interval not in days:
+            days.append(interval)
     if days:
         manifest = get_manifest(manifest_id)
         directory = os.path.dirname(local_file)
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
         if time_interval == "Date":
             date_range = {
-                "start": datetime.datetime.strptime(min(days), format).strftime("%Y-%m-%d"),
-                "end": datetime.datetime.strptime(min(days), format).strftime("%Y-%m-%d"),
+                "start": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
+                "end": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
                 "invoice_month": None,
             }
         for day in days:
