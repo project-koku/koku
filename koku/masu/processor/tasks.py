@@ -243,6 +243,8 @@ def get_report_files(  # noqa: C901
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
             "invoice_month": report_dict.get("invoice_month"),
+            "metadata_start_date": report_dict.get("metadata_start_date"),
+            "metadata_end_date": report_dict.get("metadata_end_date"),
         }
 
         try:

@@ -8,6 +8,7 @@ from unittest.mock import patch
 from api.models import Provider
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
 from masu.processor.report_processor import ReportProcessor
 from masu.test import MasuTestCase
 
@@ -85,3 +86,22 @@ class ReportProcessorTest(MasuTestCase):
             context={"start_date": self.start_date, "request_id": 1, "tracing_id": 3},
         )
         self.assertIsNone(processor.ocp_on_cloud_processor)
+
+    @patch(
+        "masu.processor.report_processor.ParquetReportProcessor.process",
+        side_effect=ReportsAlreadyProcessed("test error"),
+    )
+    def test_ocp_process(self, mock_parquet_process):
+        """Test to process for AWS."""
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path="/my/report/file",
+            compression="GZIP",
+            provider=Provider.PROVIDER_OCP,
+            provider_uuid=self.ocp_provider_uuid,
+            manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
+        )
+        result = processor.process()
+        mock_parquet_process.assert_called()
+        self.assertTrue(result)
