@@ -26,7 +26,10 @@ from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import copy_data_to_s3_bucket
-from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.aws.common import delete_s3_objects
+from masu.util.aws.common import filter_s3_objects_less_than
+from masu.util.aws.common import get_s3_objects_matching_metadata
+from masu.util.aws.common import get_s3_objects_not_matching_metadata
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -44,6 +47,10 @@ PARQUET_EXT = ".parquet"
 
 DAILY_FILE_TYPE = "daily"
 OPENSHIFT_REPORT_TYPE = "openshift"
+
+
+class ReportsAlreadyProcessed(Exception):
+    pass
 
 
 class ParquetReportProcessorError(Exception):
@@ -84,6 +91,9 @@ class ParquetReportProcessor:
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
 
+        self.metadata_start_date: str = self._context.get("metadata_start_date")
+        self.metadata_end_date: str = self._context.get("metadata_end_date")
+
     @property
     def schema_name(self):
         """The tenant schema."""
@@ -123,7 +133,7 @@ class ParquetReportProcessor:
     @property
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
-        return self._context.get("split_files") if self._context.get("split_files") else [self._report_file]
+        return self._context.get("split_files") or [self._report_file]
 
     @property
     def error_context(self):
@@ -144,7 +154,6 @@ class ParquetReportProcessor:
         """The start date for processing.
         Used to determine the year/month partitions.
         """
-        # TODO something around here is messing up my start dates
         return self._start_date
 
     @start_date.setter
@@ -250,6 +259,14 @@ class ParquetReportProcessor:
         Path(local_path).mkdir(parents=True, exist_ok=True)
         return local_path
 
+    @property
+    def parquet_file_getter(self):
+        return (
+            get_s3_objects_matching_metadata
+            if self.provider_type == Provider.PROVIDER_OCP
+            else get_s3_objects_not_matching_metadata
+        )
+
     def _set_post_processor(self):
         """Post processor based on provider type."""
         post_processor = None
@@ -297,6 +314,72 @@ class ParquetReportProcessor:
 
         return processor
 
+    def prepare_parquet_s3(self):
+
+        manifest_accessor = ReportManifestDBAccessor()
+        manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+
+        # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+        # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
+        if (
+            not manifest_accessor.should_s3_parquet_be_cleared(manifest)
+            or manifest_accessor.get_s3_parquet_cleared(manifest, self.report_type)
+            or self.provider_type
+            in (
+                Provider.PROVIDER_GCP,
+                Provider.PROVIDER_GCP_LOCAL,
+                Provider.PROVIDER_OCI,
+                Provider.PROVIDER_OCI_LOCAL,
+            )
+        ):
+            return
+
+        metadata_key, metadata_value = self.get_metadata_kv()
+
+        to_delete = self.parquet_file_getter(
+            self.tracing_id,
+            self.parquet_path_s3,
+            metadata_key=metadata_key,
+            metadata_value_check=metadata_value,
+            context=self.error_context,
+        )
+        to_delete.extend(
+            self.parquet_file_getter(
+                self.tracing_id,
+                self.parquet_daily_path_s3,
+                metadata_key=metadata_key,
+                metadata_value_check=metadata_value,
+                context=self.error_context,
+            )
+        )
+        to_delete.extend(
+            self.parquet_file_getter(
+                self.tracing_id,
+                self.parquet_ocp_on_cloud_path_s3,
+                metadata_key=metadata_key,
+                metadata_value_check=metadata_value,
+                context=self.error_context,
+            )
+        )
+
+        if self.provider_type == Provider.PROVIDER_OCP and to_delete:
+            # filter the report
+            LOG.warning(log_json(msg="files to delete pre filter", to_delete=to_delete))
+            to_delete = filter_s3_objects_less_than(
+                self.tracing_id,
+                to_delete,
+                metadata_key="reportnumhours",
+                metadata_value_check=self.metadata_end_date[11:13],
+                context=self.error_context,
+            )
+            LOG.warning(log_json(msg="files to delete post filter", to_delete=to_delete))
+            if not to_delete:
+                raise ReportsAlreadyProcessed
+
+        delete_s3_objects(self.tracing_id, to_delete, self.error_context)
+        manifest_accessor.mark_s3_parquet_cleared(manifest, self.report_type)
+        LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
+
     def convert_to_parquet(self):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
@@ -322,27 +405,6 @@ class ParquetReportProcessor:
                 )
             )
             return "", pd.DataFrame()
-
-        # This is ONLY for AZURE and AWS to clean all files before processing final reports.
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-        if not manifest_accessor.get_s3_parquet_cleared(manifest) and self.provider_type in (
-            Provider.PROVIDER_AWS,
-            Provider.PROVIDER_AWS_LOCAL,
-            Provider.PROVIDER_AZURE,
-            Provider.PROVIDER_AZURE_LOCAL,
-        ):
-            remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
-            )
-            remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_daily_path_s3, self.manifest_id, self.error_context
-            )
-            remove_files_not_in_set_from_s3_bucket(
-                self.tracing_id, self.parquet_ocp_on_cloud_path_s3, self.manifest_id, self.error_context
-            )
-            manifest_accessor.mark_s3_parquet_cleared(manifest)
-            LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
 
         failed_conversion = []
         daily_data_frames = []
@@ -417,7 +479,7 @@ class ParquetReportProcessor:
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
-            kwargs = {"compression": "gzip"}
+            kwargs["compression"] = "gzip"
 
         LOG.info(
             log_json(self.tracing_id, msg="converting csv to parquet", context=self._context, file_name=csv_filename)
@@ -489,10 +551,8 @@ class ParquetReportProcessor:
     def _determin_s3_path(self, file_type):
         """Determine the s3 path to use to write a parquet file to."""
         if file_type == DAILY_FILE_TYPE:
-            s3_path = self.parquet_daily_path_s3
-        else:
-            s3_path = self.parquet_path_s3
-        return s3_path
+            return self.parquet_daily_path_s3
+        return self.parquet_path_s3
 
     def _determin_s3_path_for_gcp(self, file_type, gcp_file_name):
         """Determine the s3 path based off of the invoice month."""
@@ -524,6 +584,18 @@ class ParquetReportProcessor:
 
         return get_path_prefix(**kwargs)
 
+    def get_metadata(self) -> dict:
+        metadata = {"ManifestId": str(self.manifest_id)}
+        if self._provider_type == Provider.PROVIDER_OCP:
+            metadata["ReportDateStart"] = self.metadata_start_date
+            metadata["ReportNumHours"] = self.metadata_end_date[11:13]
+        return metadata
+
+    def get_metadata_kv(self) -> tuple[str, str]:
+        if self._provider_type == Provider.PROVIDER_OCP:
+            return ("reportdatestart", self.metadata_start_date)
+        return ("manifestid", str(self.manifest_id))
+
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
@@ -533,10 +605,11 @@ class ParquetReportProcessor:
         else:
             s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
+        metadata = self.get_metadata()
         try:
             with open(file_path, "rb") as fin:
                 copy_data_to_s3_bucket(
-                    self.tracing_id, s3_path, file_name, fin, manifest_id=self.manifest_id, context=self.error_context
+                    self.tracing_id, s3_path, file_name, fin, metadata=metadata, context=self.error_context
                 )
                 LOG.info(
                     log_json(self.tracing_id, msg="file sent to s3", context=self.error_context, file_name=file_path)
@@ -561,10 +634,7 @@ class ParquetReportProcessor:
 
     def process(self):
         """Convert to parquet."""
-        msg = (
-            f"Converting CSV files to Parquet.\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
-        )
-        LOG.info(msg)
+        LOG.info(log_json(msg="converting csv files to parquet", context=self._context))
         parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
