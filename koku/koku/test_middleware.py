@@ -4,6 +4,7 @@
 #
 """Test the project middleware."""
 import base64
+import dataclasses
 import json
 import logging
 import time
@@ -31,7 +32,7 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from api.user_access.view import UserAccessView
+from api.user_access.view import ACCESS_KEY_MAPPING
 from koku import middleware as MD
 from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
@@ -619,4 +620,4 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         client = APIClient()
         url = reverse("user-access")
         result = client.get(url, **request_context["request"].META)
-        self.assertEqual(len(result.json().get("data")), len(UserAccessView._source_types))
+        self.assertEqual(len(result.json().get("data")), len(list(dataclasses.asdict(ACCESS_KEY_MAPPING))))

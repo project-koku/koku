@@ -12,6 +12,43 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 
 
+def build_rbac_permissions(rbac_dict):
+    """Builds a dictionary for rbac permissions"""
+    rbac_defaults = {
+        "aws.account": {"read": []},
+        "aws.organizational_unit": {"read": []},
+        "gcp.account": {"read": []},
+        "gcp.project": {"read": []},
+        "ibm.account": {"read": []},
+        "azure.subscription_guid": {"read": []},
+        "oci.payer_tenant_id": {"read": []},
+        "openshift.cluster": {"read": []},
+        "openshift.node": {"read": []},
+        "openshift.project": {"read": []},
+        "cost_model": {"read": [], "write": []},
+        "settings": {"read": [], "write": []},
+    }
+    return rbac_defaults | rbac_dict
+
+
+def build_expected_ouput(testing_dict=None, default_access=False, default_write=False):
+    """Helper function to allow you to build expected outputs bases on permissions."""
+    if testing_dict is None:
+        testing_dict = {}
+
+    expected_output = []
+    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "oci", "ibm", "azure", "cost_model", "settings"]
+    for key in matrix_keys:
+        test_info = testing_dict.get(key, {})
+        expected_format = {
+            "type": key,
+            "access": test_info.get("access", default_access),
+            "write": test_info.get("write", default_write),
+        }
+        expected_output.append(expected_format)
+    return expected_output
+
+
 class UserAccessViewTest(IamTestCase):
     """Tests the resource types views."""
 
@@ -22,607 +59,255 @@ class UserAccessViewTest(IamTestCase):
         super().setUp()
         self.client = APIClient()
 
-    @RbacPermissions(
-        {
-            "aws.account": {"read": ["*"]},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"aws.account": {"read": ["*"]}}))
     def test_aws_view_read(self):
         """Test user-access view with aws read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "aws": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": ["123"]},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"aws.account": {"read": ["123"]}}))
     def test_aws_view_read_specific_account(self):
         """Test user-access view with aws read specific account permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        testing_matrix = {"any": {"access": True}, "aws": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @RbacPermissions(
-        {
-            "aws.account": {"read": ["*"]},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
-    def test_aws_view_wildcard(self):
-        """Test user-access view with aws wildcard permission."""
-        url = reverse("user-access")
-        response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["*"]},
-            "openshift.node": {"read": ["mynode"]},
-            "openshift.project": {"read": ["myproject"]},
-            "cost_model": {"read": [], "write": []},
-        }
+        build_rbac_permissions(
+            {
+                "openshift.cluster": {"read": ["*"]},
+                "openshift.node": {"read": ["mynode"]},
+                "openshift.project": {"read": ["myproject"]},
+            }
+        )
     )
     def test_ocp_view_cluster(self):
         """Test user-access view with openshift cluster read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["mycluster"]},
-            "openshift.node": {"read": ["mynode"]},
-            "openshift.project": {"read": ["*"]},
-            "cost_model": {"read": [], "write": []},
-        }
+        build_rbac_permissions(
+            {
+                "openshift.cluster": {"read": ["mycluster"]},
+                "openshift.node": {"read": ["mynode"]},
+                "openshift.project": {"read": ["*"]},
+            }
+        )
     )
     def test_ocp_view_project(self):
         """Test user-access view with openshift project read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["mycluster"]},
-            "openshift.node": {"read": ["*"]},
-            "openshift.project": {"read": ["myproject"]},
-            "cost_model": {"read": [], "write": []},
-        }
+        build_rbac_permissions(
+            {
+                "openshift.cluster": {"read": ["mycluster"]},
+                "openshift.node": {"read": ["*"]},
+                "openshift.project": {"read": ["myproject"]},
+            }
+        )
     )
     def test_ocp_view_node(self):
         """Test user-access view with openshift node read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["*"]},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"openshift.cluster": {"read": ["*"]}}))
     def test_ocp_view_cluster_wildcard(self):
         """Test user-access view with openshift cluster wildcard permission."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": [""]},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": ["*"]},
-            "cost_model": {"read": [], "write": []},
-        }
+        build_rbac_permissions({"openshift.cluster": {"read": [""]}, "openshift.project": {"read": ["*"]}})
     )
     def test_ocp_view_project_wildcard(self):
         """Test user-access view with openshift project wildcard permission."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": ["*"]},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"openshift.node": {"read": ["*"]}}))
     def test_ocp_view_node_wildcard(self):
         """Test user-access view with openshift node wildcard permission."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "ocp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": ["*"]},
-            "gcp.project": {"read": ["myproject"]},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"gcp.account": {"read": ["*"]}, "gcp.project": {"read": ["myproject"]}}))
     def test_gcp_view_account(self):
         """Test user-access view with gcp account read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": ["myaccount"]},
-            "gcp.project": {"read": ["*"]},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"gcp.account": {"read": ["myaccount"]}, "gcp.project": {"read": ["*"]}}))
     def test_gcp_view_project(self):
         """Test user-access view with gcp project read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": ["*"]},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"gcp.account": {"read": ["*"]}}))
     def test_gcp_view_account_wildcard(self):
         """Test user-access view with gcp account wildcard permission."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": ["*"]},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"gcp.account": {"read": ["*"]}}))
     def test_gcp_view_project_wildcard(self):
         """Test user-access view with gcp project wildcard permission."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "gcp": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": ["*"]},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"ibm.account": {"read": ["*"]}}))
     @override_settings(ENABLE_PRERELEASE_FEATURES=True)
     def test_ibm_view_account_wildcard_with_pre_release_features(self):
         """Test user-access view with ibm account read wildcard permission and pre_release env=true."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"ibm": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": ["*"]},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"ibm.account": {"read": ["*"]}}))
     @override_settings(ENABLE_PRERELEASE_FEATURES=False)
     def test_ibm_view_account_wildcard_with_pre_release_features_false(self):
         """Test user-access view with ibm account read wildcard permission and pre_release env=false."""
         url = reverse("user-access")
-
         response = self.client.get(url, **self.headers)
+        expected_output = build_expected_ouput()
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": ["*"]},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"azure.subscription_guid": {"read": ["*"]}}))
     def test_azure_view_read(self):
         """Test user-access view with azure subscription read wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "azure": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": ["*"]},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"azure.subscription_guid": {"read": ["*"]}}))
     def test_azure_view_wildcard(self):
         """Test user-access view with azure subscription wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
+        testing_matrix = {"any": {"access": True}, "azure": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
-
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": ["*"]},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"oci.payer_tenant_id": {"read": ["*"]}}))
     def test_oci_view_wildcard(self):
         """Test user-access view with oci tenant wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        testing_matrix = {"any": {"access": True}, "oci": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @RbacPermissions({})
     def test_view_no_access(self):
         """Test user-access view as an org admin."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+        expected_output = build_expected_ouput()
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @override_settings(ENABLE_PRERELEASE_FEATURES=False)
     def test_view_as_org_admin_prerelease_features_off(self):
         """Test user-access view as an org admin."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
-
-        # IBM is a pre-release feature
-        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
-
-        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
+        # ibm is a prerelease feature
+        expected_output = build_expected_ouput(
+            {"ibm": {"access": False, "write": False}}, default_access=True, default_write=True
+        )
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     @override_settings(ENABLE_PRERELEASE_FEATURES=True)
     def test_view_as_org_admin_prerelease_features_on(self):
         """Test user-access view as an org admin."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-
-        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
-        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "oci", "access": True} in response.data.get("data"))
-
-        # IBM is a pre-release feature
-        self.assertTrue({"type": "ibm", "access": True} in response.data.get("data"))
-
-        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
-        self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
+        # ibm is a prerelease feature
+        expected_output = build_expected_ouput(default_access=True, default_write=True)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
 
     def test_aws_view_query_read_org_admin(self):
         """Test user-access view query as an org admin."""
@@ -632,21 +317,7 @@ class UserAccessViewTest(IamTestCase):
 
         self.assertTrue(response.data.get("data"))
 
-    @RbacPermissions(
-        {
-            "aws.account": {"read": ["*"]},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"aws.account": {"read": ["*"]}}))
     def test_aws_view_query_read(self):
         """Test user-access view query for aws."""
         url = reverse("user-access")
@@ -655,21 +326,7 @@ class UserAccessViewTest(IamTestCase):
 
         self.assertTrue(response.data.get("data"))
 
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["*"]},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"openshift.cluster": {"read": ["*"]}}))
     def test_openshift_view_query_read_for_aws(self):
         """Test user-access view query for aws with openshift permissions."""
         url = reverse("user-access")
@@ -678,21 +335,7 @@ class UserAccessViewTest(IamTestCase):
 
         self.assertFalse(response.data.get("data"))
 
-    @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["*"]},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": ["*"], "write": []},
-        }
-    )
+    @RbacPermissions(build_rbac_permissions({"cost_model": {"read": ["*"], "write": []}}))
     def test_cost_model_view_query_read_for_aws(self):
         """Test user-access view query for cost_model."""
         url = reverse("user-access")
@@ -702,19 +345,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue(response.data.get("data"))
 
     @RbacPermissions(
-        {
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "ibm.account": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-            "openshift.cluster": {"read": ["*"]},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "cost_model": {"read": [], "write": ["*"]},
-        }
+        build_rbac_permissions({"openshift.cluster": {"read": ["*"]}, "cost_model": {"read": [], "write": ["*"]}})
     )
     def test_cost_model_view_query_write_for_aws(self):
         """Test user-access view query for cost_model with write access."""
@@ -815,3 +446,25 @@ class UserAccessViewTest(IamTestCase):
                 query_url = f"{url}?type=aws&beta={flag}"
                 response = self.client.get(query_url, **self.headers)
                 self.assertEqual(response.data.get("data"), expected)
+
+    @RbacPermissions(build_rbac_permissions({"settings": {"read": ["*"]}}))
+    def test_settings_view_read(self):
+        """Test user-access view with azure subscription read wildcard permission."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+        testing_matrix = {"settings": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
+
+    @RbacPermissions(build_rbac_permissions({"settings": {"read": ["*"], "write": ["*"]}}))
+    def test_settings_view_write(self):
+        """Test user-access view with azure subscription read wildcard permission."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+        testing_matrix = {"settings": {"access": True, "write": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
