@@ -128,7 +128,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                     with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                         with patch(
                             "masu.external.downloader.aws_local.aws_local_report_downloader.create_daily_archives",
-                            return_value=[split_files, {"start": "", "end": ""}, True],
+                            return_value=[split_files, {"start": "", "end": ""}],
                         ):
                             result = self.aws_local_report_downloader.download_file(
                                 self.fake.file_path(), manifest_id=1
@@ -178,7 +178,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                 with patch(
                     "masu.external.downloader.aws_local.aws_local_report_downloader.create_daily_archives",
-                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}, False],
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
                 ):
                     report_downloader = ReportDownloader(
                         self.fake_customer_name,

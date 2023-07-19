@@ -326,7 +326,12 @@ class ParquetReportProcessor:
         # This is ONLY for AZURE and AWS to clean all files before processing final reports.
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-        if not manifest_accessor.get_s3_parquet_cleared(manifest):
+        if not manifest_accessor.get_s3_parquet_cleared(manifest) and self.provider_type in (
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+        ):
             remove_files_not_in_set_from_s3_bucket(
                 self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
             )
