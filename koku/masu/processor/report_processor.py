@@ -95,7 +95,7 @@ class ReportProcessor:
             ingress_reports_uuid=self.ingress_reports_uuid,
         )
 
-    def process(self, clear_parquet=False):
+    def process(self):
         """
         Process the current cost usage report.
 
@@ -109,7 +109,7 @@ class ReportProcessor:
         msg = f"Report processing started for {self.report_path}"
         LOG.info(log_json(self.tracing_id, msg=msg))
         try:
-            parquet_base_filename, daily_data_frames = self._processor.process(clear_parquet=clear_parquet)
+            parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
             if daily_data_frames != []:

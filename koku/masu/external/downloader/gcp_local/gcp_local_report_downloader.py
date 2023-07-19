@@ -30,7 +30,7 @@ class GCPReportDownloaderError(Exception):
     pass
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -250,7 +250,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, etag, dh.today, file_names, date_range, False
+        return full_local_path, etag, dh.today, file_names, date_range
 
     def _get_local_file_path(self, key, etag):
         """

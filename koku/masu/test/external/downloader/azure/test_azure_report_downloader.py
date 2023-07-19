@@ -299,9 +299,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.azure.azure_report_downloader.open"):
             with patch(
                 "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_file_path, etag, _, __, ___, ____ = self.downloader.download_file(self.mock_data.export_key)
+                full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
                 self.assertEqual(full_file_path, expected_full_path)
                 self.assertEqual(etag, self.mock_data.export_etag)
 
@@ -320,9 +320,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.azure.azure_report_downloader.open"):
             with patch(
                 "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_file_path, etag, _, __, ___, ____ = self.ingress_downloader.download_file(self.ingress_reports[0])
+                full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
                 self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
@@ -393,7 +393,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.azure.azure_report_downloader.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first(),
         ):
-            daily_file_names, date_range, clear_parquet = create_daily_archives(
+            daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.azure_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2020-09-01", "end": "2020-09-01", "invoice_month": None}
@@ -420,7 +420,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.azure.azure_report_downloader.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first(),
         ):
-            daily_file_names, date_range, clear_parquet = create_daily_archives(
+            daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.azure_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}

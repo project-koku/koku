@@ -297,7 +297,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def convert_to_parquet(self, clear_parquet=False):  # noqa: C901
+    def convert_to_parquet(self):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -324,9 +324,9 @@ class ParquetReportProcessor:
             return "", pd.DataFrame()
 
         # This is ONLY for AZURE and AWS to clean all files before processing final reports.
-        if clear_parquet:
-            manifest_accessor = ReportManifestDBAccessor()
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+        manifest_accessor = ReportManifestDBAccessor()
+        manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+        if not manifest_accessor.get_s3_parquet_cleared(manifest):
             remove_files_not_in_set_from_s3_bucket(
                 self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
             )
@@ -554,13 +554,13 @@ class ParquetReportProcessor:
 
         return True
 
-    def process(self, clear_parquet=False):
+    def process(self):
         """Convert to parquet."""
         msg = (
             f"Converting CSV files to Parquet.\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
         )
         LOG.info(msg)
-        parquet_base_filename, daily_data_frames = self.convert_to_parquet(clear_parquet=clear_parquet)
+        parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
         for f in self.file_list:

@@ -118,7 +118,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
                 return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_path, _, date, __, ___, ____ = downloader.download_file(key)
+                full_path, _, date, __, ___ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(date, self.today)
                 self.assertEqual(full_path, key)
@@ -137,7 +137,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
                 return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_path, _, date, __, ___, ____ = downloader.download_file(key)
+                full_path, _, date, __, ___ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(date, self.today)
                 self.assertEqual(full_path, key)
@@ -404,7 +404,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
             return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
         ):
-            full_path, _, date, __, ___, ____ = self.gcp_ingress_report_downloader.download_file(key)
+            full_path, _, date, __, ___ = self.gcp_ingress_report_downloader.download_file(key)
             mock_makedirs.assert_called()
             self.assertEqual(date, self.today)
             self.assertEqual(full_path, key)

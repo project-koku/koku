@@ -102,7 +102,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             (String): The path and file name of the saved file
 
         """
-        clear_parquet = False
         file_names = []
         date_range = {}
         local_filename = utils.get_local_file_name(key)
@@ -119,7 +118,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             shutil.copy2(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names, date_range, clear_parquet = create_daily_archives(
+        file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -132,4 +131,4 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
-        return full_file_path, stored_etag, file_creation_date, file_names, date_range, clear_parquet
+        return full_file_path, stored_etag, file_creation_date, file_names, date_range

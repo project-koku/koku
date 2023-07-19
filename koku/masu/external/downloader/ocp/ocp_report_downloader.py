@@ -329,7 +329,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_file_path, ocp_etag, file_creation_date, file_names, {}, False
+        return full_file_path, ocp_etag, file_creation_date, file_names, {}
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

@@ -239,6 +239,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.s3_parquet_cleared = True
             manifest.save()
 
+    def mark_s3_parquet_to_be_cleared(self, manifest_id):
+        """Mark manifest to clear parquet files."""
+        manifest = self.get_manifest_by_id(manifest_id)
+        if manifest:
+            manifest.s3_parquet_cleared = False
+            manifest.save()
+
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""
         manifests = (

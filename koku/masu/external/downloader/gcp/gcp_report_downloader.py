@@ -65,7 +65,7 @@ def create_daily_archives(
     local_file_paths,
     manifest_id,
     start_date,
-    context={},
+    context,
     ingress_reports=None,
 ):
     """
@@ -536,7 +536,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.ingress_reports,
         )
 
-        return key, None, DateHelper().today, file_names, date_range, False
+        return key, None, DateHelper().today, file_names, date_range
 
     def _get_local_directory_path(self):
         """

@@ -101,7 +101,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             with patch("masu.external.downloader.azure.azure_report_downloader.open"):
                 with patch(
                     "masu.external.downloader.azure_local.azure_local_report_downloader.create_daily_archives",
-                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
                 ):
                     self.report_downloader.download_report(report_context)
                     expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")

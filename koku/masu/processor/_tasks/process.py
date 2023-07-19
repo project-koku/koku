@@ -36,7 +36,6 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     compression = report_dict.get("compression")
     manifest_id = report_dict.get("manifest_id")
     provider_uuid = report_dict.get("provider_uuid")
-    clear_parquet = report_dict.get("clear_parquet")
     tracing_id = report_dict.get("tracing_id")
     context = {
         "schema": schema_name,
@@ -68,7 +67,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
             ingress_reports_uuid=ingress_reports_uuid,
         )
 
-        result = processor.process(clear_parquet=clear_parquet)
+        result = processor.process()
     except (ReportProcessorError, ReportProcessorDBError) as processing_error:
         with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
             stats_recorder.clear_last_started_datetime()

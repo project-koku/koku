@@ -16,6 +16,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
@@ -45,12 +46,13 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, context, tracing_id):
+def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, start_date, context, tracing_id):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
 
     Args:
         local_file (str): The full path name of the file
+        manifest_id (str): The manifest ID
         provider_uuid (str): The uuid of a provider
         filepath (str): The full path name of the file
         start_date (Datetime): The start datetime of incoming report
@@ -61,7 +63,6 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
     time_interval = "UsageDateTime"
     format = "%Y-%m-%d"
     use_cols = INGRESS_REQUIRED_COLUMNS
-    clear_parquet_files = False
     try:
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
     except ValueError:
@@ -80,7 +81,7 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not check_setup_complete(provider_uuid):
         start_delta = start_date
-        clear_parquet_files = True
+        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
         if start_date.year == dh.today.year and start_date.month == dh.today.month:
             last_update_day = get_provider_updated_timestamp(provider_uuid)
@@ -92,7 +93,7 @@ def get_initial_dataframe_with_delta(local_file, provider_uuid, start_date, cont
         else:
             start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
         start_delta = start_delta.replace(tzinfo=None)
-    return data_frame, time_interval, start_delta, format, clear_parquet_files
+    return data_frame, time_interval, start_delta, format
 
 
 def create_daily_archives(
@@ -102,7 +103,7 @@ def create_daily_archives(
     local_file,
     manifest_id,
     start_date,
-    context={},
+    context,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -119,11 +120,8 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     days = []
-    clear_parquet = False
-    manifest = get_manifest(manifest_id)
-    directory = os.path.dirname(local_file)
-    data_frame, time_interval, start_delta, format, clear_parquet = get_initial_dataframe_with_delta(
-        local_file, provider_uuid, start_date, context, tracing_id
+    data_frame, time_interval, start_delta, format = get_initial_dataframe_with_delta(
+        local_file, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
@@ -131,6 +129,8 @@ def create_daily_archives(
             if interval not in days:
                 days.append(interval)
     if days:
+        manifest = get_manifest(manifest_id)
+        directory = os.path.dirname(local_file)
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
         if time_interval == "Date":
             date_range = {
@@ -158,7 +158,7 @@ def create_daily_archives(
                 tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
             )
             daily_file_names.append(day_filepath)
-    return daily_file_names, date_range, clear_parquet
+    return daily_file_names, date_range
 
 
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -433,7 +433,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_names = []
         date_range = {}
         file_creation_date = None
-        clear_parquet = False
         etag = None
         if not self.ingress_reports:
             try:
@@ -453,7 +452,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
         )
 
-        file_names, date_range, clear_parquet = create_daily_archives(
+        file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -465,4 +464,4 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        return full_file_path, etag, file_creation_date, file_names, date_range, clear_parquet
+        return full_file_path, etag, file_creation_date, file_names, date_range

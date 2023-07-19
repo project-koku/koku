@@ -236,9 +236,9 @@ class AWSReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.aws.aws_report_downloader.open"):
             with patch(
                 "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}, True],
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_file_path, etag, _, __, ___, ____ = downloader.download_file(self.ingress_reports[0])
+                full_file_path, etag, _, __, ___ = downloader.download_file(self.ingress_reports[0])
                 self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.report_downloader.ReportStatsDBAccessor")
@@ -652,7 +652,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.aws.aws_report_downloader.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first(),
         ):
-            daily_file_names, date_range, clear_parquet = create_daily_archives(
+            daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2023-06-01", "end": "2023-06-01", "invoice_month": None}
@@ -681,7 +681,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.aws.aws_report_downloader.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first(),
         ):
-            daily_file_names, date_range, clear_parquet = create_daily_archives(
+            daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, None, start_date, None
             )
             expected_date_range = {"start": "2022-07-01", "end": "2022-07-01", "invoice_month": None}
