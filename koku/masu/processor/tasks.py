@@ -243,6 +243,8 @@ def get_report_files(  # noqa: C901
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
             "invoice_month": report_dict.get("invoice_month"),
+            "metadata_start_date": report_dict.get("metadata_start_date"),
+            "metadata_end_date": report_dict.get("metadata_end_date"),
         }
 
         try:
@@ -639,7 +641,7 @@ def delete_openshift_on_cloud_data(
     max_retries=settings.MAX_UPDATE_RETRIES,
     queue=UPDATE_SUMMARY_TABLES_QUEUE,
 )
-def update_openshift_on_cloud(
+def update_openshift_on_cloud(  # noqa: C901
     self,
     schema_name,
     openshift_provider_uuid,
@@ -668,9 +670,10 @@ def update_openshift_on_cloud(
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-        if is_customer_large(schema_name):
+        if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if is_customer_large(schema_name):
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."

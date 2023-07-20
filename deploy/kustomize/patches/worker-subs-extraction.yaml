@@ -1,25 +1,19 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: clowder-worker-hcs
-    metadata:
-      annotations:
-        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
-    replicas: ${{WORKER_HCS_REPLICAS}}
+    name: clowder-worker-subs-extraction
+    replicas: ${{WORKER_SUBS_EXTRACTION_REPLICAS}}
     webServices:
       public:
         enabled: false
       private:
         enabled: false
     podSpec:
-      metadata:
-        annotations:
-          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
         - -c
-        - > # ${APP_HOME} is `/opt/koku/koku` which is defined in the Dockerfile
+        - > # ${APP_HOME} is `/opt/koku/koku` and is defined in the Dockerfile
           PYTHONPATH=${APP_HOME}
           celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
@@ -45,8 +39,8 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: ENABLE_HCS_DEBUG
-          value: ${ENABLE_HCS_DEBUG}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -57,6 +51,8 @@
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_SUBS_BUCKET
+          value: ${S3_SUBS_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -76,7 +72,7 @@
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${WORKER_HCS_WORKER_QUEUE}
+          value: ${WORKER_SUBS_EXTRACTION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: DATE_OVERRIDE
@@ -87,18 +83,10 @@
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
-        - name: POLLING_TIMER
-          value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
-        - name: AUTO_DATA_INGEST
-          value: ${AUTO_DATA_INGEST}
-        - name: REPORT_PROCESSING_BATCH_SIZE
-          value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: SOURCES_API_PREFIX
@@ -109,27 +97,10 @@
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: 'true'
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
       livenessProbe:
         httpGet:
           path: /livez
@@ -152,85 +123,70 @@
         timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${WORKER_HCS_CPU_LIMIT}
-          memory: ${WORKER_HCS_MEMORY_LIMIT}
+          cpu: ${WORKER_SUBS_EXTRACTION_CPU_LIMIT}
+          memory: ${WORKER_SUBS_EXTRACTION_MEMORY_LIMIT}
         requests:
-          cpu: ${WORKER_HCS_CPU_REQUEST}
-          memory: ${WORKER_HCS_MEMORY_REQUEST}
+          cpu: ${WORKER_SUBS_EXTRACTION_CPU_REQUEST}
+          memory: ${WORKER_SUBS_EXTRACTION_MEMORY_REQUEST}
       volumeMounts:
-      - mountPath: /var/tmp/masu/
-        name: koku-worker-data
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: oci-credentials
-        mountPath: /etc/oci
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: koku-worker-data
-        emptyDir: {}
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
-      - name: oci-credentials
-        secret:
-          secretName: koku-oci
-          items:
-            - key: oci-credentials
-              path: oci-credentials.pem
+        - name: tmp-data
+          emptyDir: {}
+        - name: koku-worker-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_HCS_REPLICAS
+    name: WORKER_SUBS_EXTRACTION_REPLICAS
     required: true
-    value: '1'
+    value: "0"
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: WORKER_HCS_MEMORY_REQUEST
+    name: WORKER_SUBS_EXTRACTION_MEMORY_REQUEST
     required: true
     value: 300Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: WORKER_HCS_MEMORY_LIMIT
+    name: WORKER_SUBS_EXTRACTION_MEMORY_LIMIT
     required: true
     value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: WORKER_HCS_CPU_REQUEST
+    name: WORKER_SUBS_EXTRACTION_CPU_REQUEST
     required: true
     value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: WORKER_HCS_CPU_LIMIT
+    name: WORKER_SUBS_EXTRACTION_CPU_LIMIT
     required: true
     value: 200m
 - op: add
   path: /parameters/-
   value:
     displayName: Worker Queue
-    name: WORKER_HCS_WORKER_QUEUE
+    name: WORKER_SUBS_EXTRACTION_WORKER_QUEUE
     required: true
-    value: 'hcs'
-- op: add
-  path: /parameters/-
-  value:
-    displayName: HCS debug
-    name: ENABLE_HCS_DEBUG
-    value: "False"
+    value: "subs_extraction"

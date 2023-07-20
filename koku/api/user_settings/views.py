@@ -18,7 +18,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
-from api.common.permissions.settings_access import DeprecatedSettingsAccessPermission
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Provider
 from api.settings.utils import set_cost_type
@@ -84,12 +83,7 @@ class SettingParamsHandler:
 class AccountSettings(APIView):
     """Settings views for all user settings."""
 
-    def get_permissions(self):
-        if self.request.method.lower() == "get":
-            permission_classes = [DeprecatedSettingsAccessPermission]
-        else:
-            permission_classes = [SettingsAccessPermission]
-        return [permission() for permission in permission_classes]
+    permission_classes = [SettingsAccessPermission]
 
     def get(self, request, *args, **kwargs):
         """Gets a list of users current settings."""
