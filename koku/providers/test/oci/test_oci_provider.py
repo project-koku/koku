@@ -8,6 +8,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
+from oci._vendor.urllib3.exceptions import LocationParseError
 from oci.exceptions import ClientError
 from oci.exceptions import RequestException
 from oci.exceptions import ServiceError
@@ -43,6 +44,14 @@ class mock_OCI_exception_client:
 
     def list_objects(self, namespace=None, bucket=None, prefix=None):
         raise ClientError
+
+
+class mock_OCI_Parse_client:
+    def __init__(self, **kwargs):
+        pass
+
+    def list_objects(self, namespace=None, bucket=None, prefix=None):
+        raise LocationParseError(prefix)
 
 
 class OCIProviderTestCase(TestCase):
@@ -94,6 +103,19 @@ class OCIProviderTestCase(TestCase):
         mock_storage_client.return_value = mock_OCI_exception_client
         provider_interface = OCIProvider()
         data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
+
+    @patch("providers.oci.provider.storage_client.ObjectStorageClient")
+    def test_check_cost_report_access_parse_error(self, mock_storage_client):
+        """Test_check_cost_report_access error."""
+        mock_storage_client.return_value = mock_OCI_Parse_client
+        provider_interface = OCIProvider()
+        data_source = {
+            "bucket": "bucket stupid",
+            "bucket_namespace": "namespace stupid",
+            "bucket_region": "region stupid",
+        }
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
 
