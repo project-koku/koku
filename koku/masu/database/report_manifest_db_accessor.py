@@ -37,8 +37,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
-        query = self._get_db_obj_query()
-        return query.filter(provider_id=provider_uuid).filter(assembly_id=assembly_id).first()
+        return self._get_db_obj_query().filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
@@ -85,7 +84,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.num_total_files = set_num_of_files
             manifest.save()
 
-    def add(self, **kwargs):
+    def add(self, **kwargs) -> CostUsageReportManifest:
         """
         Add a new row to the CUR stats database.
 
@@ -113,6 +112,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Determine if the manifest is ready to summarize."""
         return not self.is_last_completed_datetime_null(manifest_id)
 
+    def number_of_files(self, manifest_id):
+        """Return the number of files in a manifest."""
+        return CostUsageReportStatus.objects.filter(manifest_id=manifest_id).count()
+
     def number_of_files_processed(self, manifest_id):
         """Return the number of files processed in a manifest."""
         return CostUsageReportStatus.objects.filter(
@@ -127,8 +130,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         Return False otherwise.
 
         """
-        record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
-        if record:
+        if record := CostUsageReportStatus.objects.filter(manifest_id=manifest_id):
             return record.filter(last_completed_datetime__isnull=True).exists()
         return True
 
@@ -139,16 +141,14 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_last_manifest_upload_datetime(self, provider_uuid=None):
         """Return all ocp manifests with lastest upload datetime."""
+        filters = {}
         if provider_uuid:
-            return (
-                CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
-                .values("provider_id")
-                .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
-            )
-        else:
-            return CostUsageReportManifest.objects.values("provider_id").annotate(
-                most_recent_manifest=Max("manifest_creation_datetime")
-            )
+            filters["provider_id"] = provider_uuid
+        return (
+            CostUsageReportManifest.objects.filter(**filters)
+            .values("provider_id")
+            .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
+        )
 
     def get_last_seen_manifest_ids(self, bill_date):
         """Return a tuple containing the assembly_id of the last seen manifest and a boolean
@@ -213,31 +213,55 @@ class ReportManifestDBAccessor(KokuDBAccess):
             expired_date,
         )
 
-    def get_s3_csv_cleared(self, manifest):
+    def get_s3_csv_cleared(self, manifest: CostUsageReportManifest) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
-        s3_csv_cleared = False
-        if manifest:
-            s3_csv_cleared = manifest.s3_csv_cleared
-        return s3_csv_cleared
+        return manifest.s3_csv_cleared if manifest else False
 
-    def mark_s3_csv_cleared(self, manifest):
+    def mark_s3_csv_cleared(self, manifest: CostUsageReportManifest) -> None:
         """Mark CSV files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_csv_cleared = True
             manifest.save()
 
-    def get_s3_parquet_cleared(self, manifest):
-        """Return whether we have cleared CSV files from S3 for this manifest."""
-        s3_parquet_cleared = False
-        if manifest:
-            s3_parquet_cleared = manifest.s3_parquet_cleared
-        return s3_parquet_cleared
+    def should_s3_parquet_be_cleared(self, manifest: CostUsageReportManifest) -> bool:
+        """
+        Determine if the s3 parquet files should be removed.
 
-    def mark_s3_parquet_cleared(self, manifest):
+        This is only used for OCP manifests which we can track via the cluster-id.
+        If there is a cluster-id, we check if this manifest is for daily files. If so,
+        we should clear the parquet files, otherwise we dont.
+        """
+        if not manifest:
+            return False
+        if not manifest.cluster_id:
+            return True
+        result = manifest.operator_daily_reports
+        LOG.info(
+            log_json(
+                msg=f"s3 bucket should be cleared: {result}",
+                manifest_uuid=manifest.assembly_id,
+                schema=self.schema,
+            )
+        )
+        return result
+
+    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type: str = None) -> bool:
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        if not manifest:
+            return False
+        if manifest.cluster_id and report_type:
+            return manifest.s3_parquet_cleared_tracker.get(report_type)
+        return manifest.s3_parquet_cleared
+
+    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type: str = None) -> None:
         """Mark Parquet files have been cleared from S3 for this manifest."""
-        if manifest:
+        if not manifest:
+            return
+        if manifest.cluster_id and report_type:
+            manifest.s3_parquet_cleared_tracker[report_type] = True
+        else:
             manifest.s3_parquet_cleared = True
-            manifest.save()
+        manifest.save()
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""

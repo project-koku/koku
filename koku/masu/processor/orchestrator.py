@@ -275,6 +275,11 @@ class Orchestrator:
                 if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                     if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
+                elif provider_type == Provider.PROVIDER_OCP:
+                    # The report month is used in the metadata of OCP files in s3.
+                    # Setting the report_month to the start date allows us to
+                    # delete the correct data for daily operator files
+                    report_month = manifest.get("start")
                 # add the tracing id to the report context
                 # This defaults to the celery queue
                 LOG.info(log_json(tracing_id, msg="queueing download", schema=schema_name))
@@ -318,8 +323,7 @@ class Orchestrator:
         """
         for account in self._polling_accounts:
             provider_uuid = account.get("provider_uuid")
-            with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                provider_type = provider_accessor.get_type()
+            provider_type = account.get("provider_type")
 
             if provider_type in [
                 Provider.PROVIDER_OCI,

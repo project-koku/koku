@@ -36,6 +36,7 @@ generators:
       family: General Purpose
       inst_type: m5.large
       memory: 8 GiB
+      physical_cores: 1
       rate: 0.5
       storage: EBS Only
       vcpu: 2
