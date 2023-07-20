@@ -20,8 +20,8 @@ from sources.sources_error_message import SourcesErrorMessage
 LOG = logging.getLogger(__name__)
 APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_OCP: [],
-    Provider.PROVIDER_AWS: ["bucket"],
-    Provider.PROVIDER_AWS_LOCAL: ["bucket"],
+    Provider.PROVIDER_AWS: ["bucket", "external_id"],
+    Provider.PROVIDER_AWS_LOCAL: ["bucket", "external_id"],
     Provider.PROVIDER_AZURE: ["resource_group", "storage_account"],
     Provider.PROVIDER_AZURE_LOCAL: ["resource_group", "storage_account"],
     Provider.PROVIDER_GCP: [],
