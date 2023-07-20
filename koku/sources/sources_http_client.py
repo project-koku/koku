@@ -20,8 +20,8 @@ from sources.sources_error_message import SourcesErrorMessage
 LOG = logging.getLogger(__name__)
 APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_OCP: [],
-    Provider.PROVIDER_AWS: ["bucket", "external_id"],
-    Provider.PROVIDER_AWS_LOCAL: ["bucket", "external_id"],
+    Provider.PROVIDER_AWS: ["bucket"],
+    Provider.PROVIDER_AWS_LOCAL: ["bucket"],
     Provider.PROVIDER_AZURE: ["resource_group", "storage_account"],
     Provider.PROVIDER_AZURE_LOCAL: ["resource_group", "storage_account"],
     Provider.PROVIDER_GCP: [],
@@ -43,8 +43,8 @@ ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
 APP_OPT_EXTRA_FEILD_MAP = {
     Provider.PROVIDER_OCP: [],
-    Provider.PROVIDER_AWS: ["storage_only", "bucket_region"],
-    Provider.PROVIDER_AWS_LOCAL: ["storage_only", "bucket_region"],
+    Provider.PROVIDER_AWS: ["storage_only", "bucket_region", "external_id"],
+    Provider.PROVIDER_AWS_LOCAL: ["storage_only", "bucket_region", "external_id"],
     Provider.PROVIDER_AZURE: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_GCP: ["dataset", "bucket", "storage_only"],
