@@ -17,7 +17,6 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -30,7 +29,7 @@ from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import check_setup_complete
 from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
-from masu.util.common import get_provider_updated_timestamp
+from masu.util.common import get_start_delta
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -57,7 +56,6 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
         context (Dict): Logging context dictionary
         tracing_id (str): The tracing id
     """
-    dh = DateHelper()
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
     use_cols = INGRESS_REQUIRED_COLUMNS
@@ -81,16 +79,7 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
         start_delta = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
-        if start_date.year == dh.today.year and start_date.month == dh.today.month:
-            last_update_day = get_provider_updated_timestamp(provider_uuid)
-            start_delta = (
-                last_update_day - datetime.timedelta(days=3)
-                if last_update_day.day > 3
-                else last_update_day.replace(day=1)
-            )
-        else:
-            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
-        start_delta = start_delta.replace(tzinfo=None)
+        start_delta = get_start_delta(start_date, provider_uuid)
     return data_frame, time_interval, start_delta
 
 

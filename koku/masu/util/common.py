@@ -472,3 +472,16 @@ def check_setup_complete(provider_uuid):
 def get_provider_updated_timestamp(provider_uuid):
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         return provider_accessor.get_data_updated_timestamp()
+
+
+def get_start_delta(start_date, provider_uuid):
+    dh = DateHelper()
+    if start_date.year == dh.today.year and start_date.month == dh.today.month:
+        last_update_day = get_provider_updated_timestamp(provider_uuid)
+        start_delta = (
+            last_update_day - datetime.timedelta(days=3) if last_update_day.day > 3 else last_update_day.replace(day=1)
+        )
+    else:
+        start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
+    start_delta = start_delta.replace(tzinfo=None)
+    return start_delta

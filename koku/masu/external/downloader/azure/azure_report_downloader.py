@@ -31,7 +31,7 @@ from masu.util.common import check_setup_complete
 from masu.util.common import extract_uuids_from_string
 from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
-from masu.util.common import get_provider_updated_timestamp
+from masu.util.common import get_start_delta
 from masu.util.common import month_date_range
 
 DATA_DIR = Config.TMP_DIR
@@ -84,16 +84,7 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
         start_delta = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
-        if start_date.year == dh.today.year and start_date.month == dh.today.month:
-            last_update_day = get_provider_updated_timestamp(provider_uuid)
-            start_delta = (
-                last_update_day - datetime.timedelta(days=3)
-                if last_update_day.day > 3
-                else last_update_day.replace(day=1)
-            )
-        else:
-            start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
-        start_delta = start_delta.replace(tzinfo=None)
+        start_delta = get_start_delta(start_date, provider_uuid)
     return data_frame, time_interval, start_delta, date_format
 
 
