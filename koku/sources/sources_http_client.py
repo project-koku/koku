@@ -43,8 +43,8 @@ ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
 APP_OPT_EXTRA_FEILD_MAP = {
     Provider.PROVIDER_OCP: [],
-    Provider.PROVIDER_AWS: ["storage_only", "bucket_region", "external_id"],
-    Provider.PROVIDER_AWS_LOCAL: ["storage_only", "bucket_region", "external_id"],
+    Provider.PROVIDER_AWS: ["storage_only", "bucket_region"],
+    Provider.PROVIDER_AWS_LOCAL: ["storage_only", "bucket_region"],
     Provider.PROVIDER_AZURE: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_GCP: ["dataset", "bucket", "storage_only"],
@@ -191,10 +191,7 @@ class SourcesHTTPClient:
                 f"expected: {required_extras}, got: {list(app_settings.keys())}"
             )
         optional_extras = APP_OPT_EXTRA_FEILD_MAP[source_type]
-        opt_include = []
-        for opt in optional_extras:
-            if opt in app_settings:
-                opt_include.append(opt)
+        opt_include = [opt for opt in optional_extras if opt in app_settings]
         return {k: app_settings.get(k) for k in required_extras + opt_include}
 
     def get_credentials(self, source_type, app_type_id):
@@ -221,22 +218,7 @@ class SourcesHTTPClient:
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
-        # Platform sources is moving the ARN from the password to the username field.
-        # We are supporting both until the this change has made it to all environments.
-        username = auth_data.get("username")
-        if username:
-            return {"role_arn": username}
-
-        auth_id = auth_data.get("id")
-        auth_internal_url = (
-            f"{self._internal_url}/{ENDPOINT_AUTHENTICATIONS}/{auth_id}?expose_encrypted_attribute[]=password"
-        )
-        auth_internal_response = self._get_network_response(auth_internal_url, "Unable to get AWS RoleARN")
-        password = auth_internal_response.get("password")
-        if password:
-            return {"role_arn": password}
-
-        raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
+        return {"role_arn": auth_data.get("username"), "external_id": auth_data.get("external_id")}
 
     def _get_gcp_credentials(self, _):
         """Get the GCP credentials from Sources Authentication service."""
