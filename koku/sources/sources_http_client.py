@@ -218,7 +218,11 @@ class SourcesHTTPClient:
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
-        return {"role_arn": auth_data.get("username"), "external_id": auth_data.get("external_id")}
+        username = auth_data.get("username")
+        if username:
+            return {"role_arn": username, "external_id": auth_data.get("external_id")}
+
+        raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
     def _get_gcp_credentials(self, _):
         """Get the GCP credentials from Sources Authentication service."""
