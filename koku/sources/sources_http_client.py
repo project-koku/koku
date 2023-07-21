@@ -218,8 +218,7 @@ class SourcesHTTPClient:
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
-        username = auth_data.get("username")
-        if username:
+        if username := auth_data.get("username"):
             return {"role_arn": username, "external_id": auth_data.get("extra", {}).get("external_id")}
 
         raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
@@ -232,8 +231,7 @@ class SourcesHTTPClient:
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
-        project_id = auth_data.get("username")
-        if project_id:
+        if project_id := auth_data.get("username"):
             return {"project_id": project_id}
 
         raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
