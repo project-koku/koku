@@ -219,6 +219,9 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
         result = {"external_id": auth_data.get("extra", {}).get("external_id")}
+
+        # Platform sources is moving the ARN from the password to the username field.
+        # We are supporting both until the this change has made it to all environments.
         if username := auth_data.get("username"):
             result["role_arn"] = username
             return result
