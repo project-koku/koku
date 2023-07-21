@@ -375,12 +375,18 @@ class SourcesHTTPClientTest(TestCase):
                 f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={
-                    "data": [{"id": resource_id, "username": self.authentication, "external_id": expected_external_id}]
+                    "data": [
+                        {
+                            "id": resource_id,
+                            "username": self.authentication,
+                            "extra": {"external_id": expected_external_id},
+                        }
+                    ]
                 },
             )
             creds = client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("role_arn"), self.authentication)
-            self.assertEqual(creds.get("external_id", expected_external_id))
+            self.assertEqual(creds.get("external_id"), expected_external_id)
 
     def test_get_aws_credentials_errors(self):
         """Test to get AWS Role ARN exceptions."""

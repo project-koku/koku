@@ -220,7 +220,7 @@ class SourcesHTTPClient:
 
         username = auth_data.get("username")
         if username:
-            return {"role_arn": username, "external_id": auth_data.get("external_id")}
+            return {"role_arn": username, "external_id": auth_data.get("extra", {}).get("external_id")}
 
         raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
