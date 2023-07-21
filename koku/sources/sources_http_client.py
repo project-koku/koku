@@ -218,8 +218,19 @@ class SourcesHTTPClient:
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
+        result = {"external_id": auth_data.get("extra", {}).get("external_id")}
         if username := auth_data.get("username"):
-            return {"role_arn": username, "external_id": auth_data.get("extra", {}).get("external_id")}
+            result["role_arn"] = username
+            return result
+
+        auth_id = auth_data.get("id")
+        auth_internal_url = (
+            f"{self._internal_url}/{ENDPOINT_AUTHENTICATIONS}/{auth_id}?expose_encrypted_attribute[]=password"
+        )
+        auth_internal_response = self._get_network_response(auth_internal_url, "Unable to get AWS RoleARN")
+        if password := auth_internal_response.get("password"):
+            result["role_arn"] = password
+            return result
 
         raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
