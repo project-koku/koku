@@ -231,7 +231,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             {
                                 "id": self.source_ids.get(Provider.PROVIDER_AWS),
                                 "username": FAKE_AWS_ARN,
-                                "external_id": FAKE_EXTERNAL_ID,
+                                "extra": {"external_id": FAKE_EXTERNAL_ID},
                             }
                         ]
                     },
@@ -294,7 +294,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             {
                                 "id": self.source_ids.get(Provider.PROVIDER_AWS),
                                 "username": FAKE_AWS_ARN2,
-                                "external_id": FAKE_EXTERNAL_ID,
+                                "extra": {"external_id": FAKE_EXTERNAL_ID},
                             }
                         ]
                     },
