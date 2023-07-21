@@ -1,13 +1,14 @@
 import logging
 
+import django_filters
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from querystring_parser import parser
 from rest_framework import generics
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
@@ -21,41 +22,40 @@ from reporting.provider.all.models import EnabledTagKeys
 LOG = logging.getLogger(__name__)
 
 
+class SettingsTagFilter(django_filters.rest_framework.FilterSet):
+    key = django_filters.CharFilter(lookup_expr="icontains")
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ("uuid", "enabled")
+
+    def filter_queryset(self, queryset: QuerySet) -> QuerySet:
+        if self.request:
+            query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
+            filter = query_params.get("filter", {})
+            order_by = query_params.get("order_by", "provider_type")
+            # Use the filter parameters from the request for filtering
+            self.form.cleaned_data.update(filter)
+
+        # FIXME: Need to account for order_by when there is no request
+        return super().filter_queryset(queryset).order_by(order_by)
+
+
 class SettingsTagView(generics.GenericAPIView):
     queryset = EnabledTagKeys.objects.all()
     permission_classes = [SettingsAccessPermission]
-    default_order = {"key": "asc"}
-    order_map = {"asc": "", "desc": "-"}
+    filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
+    filterset_class = SettingsTagFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
-        qset = self.get_queryset()
-        query_filter = parser.parse(request.GET.urlencode(safe=URL_ENCODED_SAFE))
-        filtered_qset = self.filter_queryset(qset, query_filter)
-        ordered_qset = self.order_queryset(filtered_qset, query_filter)
-        serializer = SettingsTagSerializer(ordered_qset, many=True)
+        filtered_qset = self.filter_queryset(self.get_queryset())
+        serializer = SettingsTagSerializer(filtered_qset, many=True)
+
         paginator = ListPaginator(serializer.data, request)
         paginated_data = paginator.paginate_queryset(serializer.data, request)
+
         return paginator.get_paginated_response(paginated_data)
-
-    def filter_queryset(self, queryset: QuerySet, q_params: dict[str, str]) -> QuerySet:
-        filters_dict = q_params.get("filter", {})
-        for key, value in filters_dict.items():
-            key += "__icontains"
-            queryset = queryset.filter(**{key: value})
-
-        return queryset
-
-    def order_queryset(self, queryset: QuerySet, q_params: dict[str, str]) -> QuerySet:
-        order_dict = q_params.get("order_by", {})
-        if "key" not in order_dict:
-            order_dict["key"] = "asc"
-        order_keys = []
-        for key, direction in order_dict.items():
-            order_key = f"{self.order_map[direction]}{key}"
-            order_keys.append(order_key)
-
-        return queryset.order_by(*order_keys)
 
 
 class SettingsTagUpdateView(APIView):
@@ -69,7 +69,7 @@ class SettingsTagUpdateView(APIView):
                 return Response(
                     f"Maximum number of enabled tags exceeded. There are {self.enabled_tags_count} "
                     f"tags enabled and the limit is {Config.ENABLED_TAG_LIMIT}.",
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             data = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
