@@ -55,14 +55,14 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
     """
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
-    optional_cols = ["resourcetags", "costcategories"]
+    optional_cols = ["resourcetags", "costcategory"]
     base_cols = INGRESS_REQUIRED_COLUMNS
     try:
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill])
     except ValueError:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
-        optional_cols = ["resource_tags", "cost_categories"]
+        optional_cols = ["resource_tags", "cost_category"]
         base_cols = INGRESS_ALT_COLUMNS
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     data_frame = pd.read_csv(local_file, usecols=use_cols)
