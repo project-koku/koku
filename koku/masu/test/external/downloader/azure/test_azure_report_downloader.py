@@ -390,7 +390,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start.replace(year=2020, month=9, tzinfo=None)
         with patch(
-            "masu.external.downloader.azure.azure_report_downloader.get_manifest",
+            "masu.util.common.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first(),
         ):
             daily_file_names, date_range = create_daily_archives(
@@ -417,7 +417,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_daily_files = [f"{temp_dir}/2019-07-28_0.csv", f"{temp_dir}/2019-07-29_0.csv"]
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, tzinfo=None)
         with patch(
-            "masu.external.downloader.azure.azure_report_downloader.get_manifest",
+            "masu.util.common.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first(),
         ):
             daily_file_names, date_range = create_daily_archives(

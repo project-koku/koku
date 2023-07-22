@@ -649,7 +649,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
         with patch(
-            "masu.external.downloader.aws.aws_report_downloader.get_manifest",
+            "masu.util.common.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first(),
         ):
             daily_file_names, date_range = create_daily_archives(
@@ -678,7 +678,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start.replace(year=2022, month=7, tzinfo=None)
         with patch(
-            "masu.external.downloader.aws.aws_report_downloader.get_manifest",
+            "masu.util.common.get_manifest",
             return_value=CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first(),
         ):
             daily_file_names, date_range = create_daily_archives(
