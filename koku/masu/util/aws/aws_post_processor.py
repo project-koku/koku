@@ -1,4 +1,5 @@
 import json
+import logging
 
 import ciso8601
 import pandas as pd
@@ -12,6 +13,8 @@ from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
+
+LOG = logging.getLogger(__name__)
 
 
 def scrub_resource_col_name(res_col_name, column_prefix):

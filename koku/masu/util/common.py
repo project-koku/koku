@@ -16,6 +16,7 @@ from tempfile import gettempdir
 from threading import RLock
 from uuid import uuid4
 
+import pandas as pd
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
@@ -475,9 +476,12 @@ def get_provider_updated_timestamp(provider_uuid):
 
 
 def get_start_delta(start_date, provider_uuid):
+    """Get initial start date for download file processing"""
     dh = DateHelper()
     if start_date.year == dh.today.year and start_date.month == dh.today.month:
         last_update_day = get_provider_updated_timestamp(provider_uuid)
+        if not last_update_day:
+            last_update_day = dh.today
         start_delta = (
             last_update_day - datetime.timedelta(days=3) if last_update_day.day > 3 else last_update_day.replace(day=1)
         )
@@ -485,3 +489,17 @@ def get_start_delta(start_date, provider_uuid):
         start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
     start_delta = start_delta.replace(tzinfo=None)
     return start_delta
+
+
+def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context):
+    """Add optional columns to columns list if they exists in files"""
+    for fetch_column in fetch_columns:
+        try:
+            data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith(fetch_column))
+            data_frame = data_frame.dropna(axis=1, how="all")
+            fetch_cols = data_frame.columns
+            for col in fetch_cols:
+                current_columns.add(col)
+        except ValueError:
+            LOG.info(log_json(tracing_id, msg=f"customer has no {fetch_column} data to parse", context=context))
+    return current_columns

@@ -23,13 +23,10 @@ from masu.exceptions import MasuProviderError
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util import common as com_utils
 from masu.util.aws import common as utils
 from masu.util.aws.common import INGRESS_ALT_COLUMNS
 from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
-from masu.util.common import check_setup_complete
-from masu.util.common import get_manifest
-from masu.util.common import get_path_prefix
-from masu.util.common import get_start_delta
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -58,28 +55,22 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
     """
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
-    use_cols = INGRESS_REQUIRED_COLUMNS
+    optional_cols = ["resourcetags", "costcategories"]
+    base_cols = INGRESS_REQUIRED_COLUMNS
     try:
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill])
     except ValueError:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
-        use_cols = INGRESS_ALT_COLUMNS
-    try:
-        data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("resourcetags"))
-        data_frame = data_frame.dropna(axis=1, how="all")
-        tag_cols = data_frame.columns
-        for col in tag_cols:
-            use_cols.add(col)
-    except ValueError:
-        LOG.info(log_json(tracing_id, msg="customer has no tag data to parse", context=context))
+        optional_cols = ["resource_tags", "cost_categories"]
+        base_cols = INGRESS_ALT_COLUMNS
+    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     data_frame = pd.read_csv(local_file, usecols=use_cols)
-
-    if data_frame[invoice_bill].any() or not check_setup_complete(provider_uuid):
+    if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
         start_delta = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
-        start_delta = get_start_delta(start_date, provider_uuid)
+        start_delta = com_utils.get_start_delta(start_date, provider_uuid)
     return data_frame, time_interval, start_delta
 
 
@@ -116,13 +107,13 @@ def create_daily_archives(
             if interval.split("T")[0] not in days:
                 days.append(interval.split("T")[0])
     if days:
-        manifest = get_manifest(manifest_id)
+        manifest = com_utils.get_manifest(manifest_id)
         directory = os.path.dirname(local_file)
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
         data_frame = data_frame[data_frame[time_interval].str.contains("|".join(days))]
         for day in days:
             daily_data = data_frame[data_frame[time_interval].str.match(day)]
-            s3_csv_path = get_path_prefix(
+            s3_csv_path = com_utils.get_path_prefix(
                 account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             if not manifest.report_tracker.get(day):

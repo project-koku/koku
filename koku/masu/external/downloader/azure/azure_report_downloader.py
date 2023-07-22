@@ -22,17 +22,9 @@ from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.azure import common as utils
-from masu.util.azure.common import AzureBlobExtension
-from masu.util.azure.common import INGRESS_ALT_COLUMNS
-from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
-from masu.util.common import check_setup_complete
-from masu.util.common import extract_uuids_from_string
-from masu.util.common import get_manifest
-from masu.util.common import get_path_prefix
-from masu.util.common import get_start_delta
-from masu.util.common import month_date_range
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -65,26 +57,19 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
         time_interval = "UsageDateTime"
         date_format = DATE_FORMAT
-        use_cols = INGRESS_REQUIRED_COLUMNS
+        base_cols = utils.INGRESS_REQUIRED_COLUMNS
     except ValueError:
         time_interval = "Date"
         date_format = "%m/%d/%Y"
-        use_cols = INGRESS_ALT_COLUMNS
-    try:
-        data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("tags"))
-        data_frame = data_frame.dropna(axis=1, how="all")
-        tag_cols = data_frame.columns
-        for col in tag_cols:
-            use_cols.add(col)
-    except ValueError:
-        LOG.info(log_json(tracing_id, msg="customer has no tag data to parse", context=context))
+        base_cols = utils.INGRESS_ALT_COLUMNS
+    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, ["tags"], tracing_id, context)
     data_frame = pd.read_csv(local_file, usecols=use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
-    if start_date.month < dh.today.month and dh.today.day > 1 or not check_setup_complete(provider_uuid):
+    if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
         start_delta = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
-        start_delta = get_start_delta(start_date, provider_uuid)
+        start_delta = com_utils.get_start_delta(start_date, provider_uuid)
     return data_frame, time_interval, start_delta, date_format
 
 
@@ -120,7 +105,7 @@ def create_daily_archives(
         if datetime.datetime.strptime(interval, date_format) >= start_delta and interval not in days:
             days.append(interval)
     if days:
-        manifest = get_manifest(manifest_id)
+        manifest = com_utils.get_manifest(manifest_id)
         directory = os.path.dirname(local_file)
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
         if time_interval == "Date":
@@ -132,7 +117,7 @@ def create_daily_archives(
         for day in days:
             day_path = day
             daily_data = data_frame[data_frame[time_interval].str.match(day)]
-            s3_csv_path = get_path_prefix(
+            s3_csv_path = com_utils.get_path_prefix(
                 account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             if time_interval == "Date":
@@ -246,7 +231,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     example: "/cost/costreport/20190801-20190831"
 
         """
-        report_date_range = month_date_range(date_time)
+        report_date_range = com_utils.month_date_range(date_time)
         return f"{self.directory}/{self.export_name}/{report_date_range}"
 
     def _get_manifest(self, date_time):  # noqa: C901
@@ -299,7 +284,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # Download the manifest and extract the list of files.
                 try:
                     manifest_tmp = self._azure_client.download_file(
-                        report_name, self.container_name, suffix=AzureBlobExtension.json.value
+                        report_name, self.container_name, suffix=utils.AzureBlobExtension.json.value
                     )
                 except AzureReportDownloaderError as err:
                     msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
@@ -328,7 +313,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest["reportKeys"] = [report_name]
 
             try:
-                manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
+                manifest["assemblyId"] = com_utils.extract_uuids_from_string(report_name).pop()
             except IndexError:
                 message = f"Unable to extract assemblyID from {report_name}"
                 raise AzureReportDownloaderError(message)
