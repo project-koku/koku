@@ -57,7 +57,7 @@ class CURAccountsDB(CURAccountsInterface):
                         msg="checking provider polling time",
                         provider_type=provider.type,
                         provider_uuid=provider.uuid,
-                        schema=provider.customer_id,
+                        schema=provider.customer.schema_name,
                         timestamp_now=dh.now_utc,
                         provider_timestamp=poll_timestamp,
                         provider_time_seconds=total_provider_seconds,
@@ -118,7 +118,7 @@ class CURAccountsDB(CURAccountsInterface):
                                 msg="adding provider to polling batch",
                                 provider_type=provider.type,
                                 provider_uuid=provider.uuid,
-                                schema=provider.customer_id,
+                                schema=provider.customer.schema_name,
                                 polling_count=len(accounts),
                                 polling_batch_count=batch_size,
                             )
