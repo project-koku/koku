@@ -197,7 +197,7 @@ def collect_hcs_report_data(
         "start_date": start_date,
         "end_date": end_date,
     }
-    if provider_type in HCS_ACCEPTED_PROVIDERS:
+    if enable_hcs_processing(schema_name) and provider_type in HCS_ACCEPTED_PROVIDERS:
         LOG.info(log_json(tracing_id, msg="collecting hcs report data", context=ctx))
         reporter = ReportHCS(schema_name, provider_type, provider_uuid, tracing_id)
         reporter.generate_report(start_date, end_date, finalize)
