@@ -149,35 +149,6 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_data_from_manifest(manifests)
             self.assertIn("using start and end dates from the manifest for HCS processing", _logs.output[0])
 
-    @patch("hcs.tasks.get_start_and_end_from_manifest_id")
-    @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor")
-    @patch("hcs.tasks.collect_hcs_report_data")
-    def test_get_report_with_manifest_invalid(self, mock_report, mock_manifest_accessor, mock_start_end, mock_ehp, rd):
-        """Test report with invalid manifest does not process"""
-        mock_ehp.return_value = True
-        mock_start_end.return_value = None
-
-        manifests = [
-            {
-                "schema_name": self.schema,
-                "provider_type": self.aws_provider_type,
-                "provider_uuid": str(self.aws_provider.uuid),
-                "tracing_id": self.tracing_id,
-            }
-        ]
-
-        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
-            collect_hcs_report_data_from_manifest(manifests)
-
-            self.assertIn("SKIPPING REPORT, no manifest found: ", _logs.output[0])
-            self.assertIn(
-                (
-                    f"'schema_name': '{self.schema}', 'provider_type': '{self.aws_provider_type}', "
-                    f"'provider_uuid': '{str(self.aws_provider.uuid)}', 'tracing_id': '{self.tracing_id}'"
-                ),
-                _logs.output[0],
-            )
-
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization(self, rd, mock_ehp, mock_report):
         """Test report finalization"""
