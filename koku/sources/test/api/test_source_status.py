@@ -145,11 +145,12 @@ class SourcesStatusTest(IamTestCase):
 
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 with patch.object(SourceStatus, "update_source_name", returns=True):
-                    status_obj = SourceStatus(test_source_id)
-                    status_obj.push_status()
-                    mock_set_source_status.assert_called()
-                    mock_create_account.assert_called()
-                    mock_update_account.assert_not_called()
+                    with patch.object(SourceStatus, "_set_provider_active_status", returns=True):
+                        status_obj = SourceStatus(test_source_id)
+                        status_obj.push_status()
+                        mock_set_source_status.assert_called()
+                        mock_create_account.assert_called()
+                        mock_update_account.assert_not_called()
 
     @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
     @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
@@ -175,11 +176,12 @@ class SourcesStatusTest(IamTestCase):
 
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 with patch.object(SourceStatus, "update_source_name", returns=True):
-                    status_obj = SourceStatus(test_source_id)
-                    status_obj.push_status()
-                    mock_set_source_status.assert_called()
-                    mock_create_account.assert_not_called()
-                    mock_update_account.assert_called()
+                    with patch.object(SourceStatus, "_set_provider_active_status", returns=True):
+                        status_obj = SourceStatus(test_source_id)
+                        status_obj.push_status()
+                        mock_set_source_status.assert_called()
+                        mock_create_account.assert_not_called()
+                        mock_update_account.assert_called()
 
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
     def test_push_status_second_gcp_table_discovery(self, mock_set_source_status):

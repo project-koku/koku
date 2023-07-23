@@ -3702,6 +3702,296 @@ objects:
           enabled: false
         public:
           enabled: false
+    - name: clowder-worker-subs-extraction
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_SUBS_BUCKET
+          value: ${S3_SUBS_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_SUBS_EXTRACTION_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_SUBS_EXTRACTION_CPU_LIMIT}
+            memory: ${WORKER_SUBS_EXTRACTION_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_SUBS_EXTRACTION_CPU_REQUEST}
+            memory: ${WORKER_SUBS_EXTRACTION_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+      replicas: ${{WORKER_SUBS_EXTRACTION_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - name: clowder-worker-subs-transmission
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_SUBS_BUCKET
+          value: ${S3_SUBS_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_SUBS_TRANSMISSION_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_SUBS_TRANSMISSION_CPU_LIMIT}
+            memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_SUBS_TRANSMISSION_CPU_REQUEST}
+            memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+      replicas: ${{WORKER_SUBS_TRANSMISSION_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
     envName: ${ENV_NAME}
     featureFlags: true
     inMemoryDb: true
@@ -3746,9 +4036,11 @@ objects:
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
+    - topicName: platform.rhsm-subscriptions.service-instance-ingress
     objectStore:
     - ${S3_BUCKET_NAME}
     - ${S3_ROS_BUCKET_NAME}
+    - ${S3_SUBS_BUCKET_NAME}
     optionalDependencies: []
     testing:
       iqePlugin: cost-management
@@ -3879,6 +4171,8 @@ parameters:
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
+- name: S3_SUBS_BUCKET_NAME
+  value: subs-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -4149,6 +4443,10 @@ parameters:
 - displayName: Middleware Timeout
   name: CACHE_TIMEOUT
   value: "3600"
+- description: Enabale Subscription Watch Debug
+  displayName: Enable SUBS Debug
+  name: ENABLE_SUBS_DEBUG
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_REPLICAS
   required: true
@@ -4164,11 +4462,11 @@ parameters:
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 300m
+  value: 250m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 600m
+  value: 500m
 - displayName: Log Level for koku-api
   name: KOKU_KOKU_LOG_LEVEL
   required: true
@@ -4180,19 +4478,19 @@ parameters:
 - displayName: Memory Request
   name: NGINX_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 100Mi
 - displayName: Memory Limit
   name: NGINX_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 200Mi
 - displayName: CPU Request
   name: NGINX_CPU_REQUEST
   required: true
-  value: 300m
+  value: 100m
 - displayName: CPU Limit
   name: NGINX_CPU_LIMIT
   required: true
-  value: 600m
+  value: 200m
 - displayName: ROS OCP API Name
   name: ROS_OCP_API
   required: true
@@ -4204,11 +4502,11 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 300Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 750Mi
+  value: 600Mi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
@@ -4228,7 +4526,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 350Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
@@ -4506,11 +4804,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 150m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 300m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
@@ -4642,11 +4940,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_HCS_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 300Mi
 - displayName: Memory Limit
   name: WORKER_HCS_MEMORY_LIMIT
   required: true
-  value: 700Mi
+  value: 500Mi
 - displayName: CPU Request
   name: WORKER_HCS_CPU_REQUEST
   required: true
@@ -4662,3 +4960,51 @@ parameters:
 - displayName: HCS debug
   name: ENABLE_HCS_DEBUG
   value: "False"
+- displayName: Minimum replicas
+  name: WORKER_SUBS_EXTRACTION_REPLICAS
+  required: true
+  value: "0"
+- displayName: Memory Request
+  name: WORKER_SUBS_EXTRACTION_MEMORY_REQUEST
+  required: true
+  value: 300Mi
+- displayName: Memory Limit
+  name: WORKER_SUBS_EXTRACTION_MEMORY_LIMIT
+  required: true
+  value: 500Mi
+- displayName: CPU Request
+  name: WORKER_SUBS_EXTRACTION_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_SUBS_EXTRACTION_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_SUBS_EXTRACTION_WORKER_QUEUE
+  required: true
+  value: subs_extraction
+- displayName: Minimum replicas
+  name: WORKER_SUBS_TRANSMISSION_REPLICAS
+  required: true
+  value: "0"
+- displayName: Memory Request
+  name: WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST
+  required: true
+  value: 300Mi
+- displayName: Memory Limit
+  name: WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT
+  required: true
+  value: 500Mi
+- displayName: CPU Request
+  name: WORKER_SUBS_TRANSMISSION_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_SUBS_TRANSMISSION_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_SUBS_TRANSMISSION_WORKER_QUEUE
+  required: true
+  value: subs_transmission
