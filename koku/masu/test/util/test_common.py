@@ -399,7 +399,8 @@ class CommonUtilTests(MasuTestCase):
         orig_enabled = {e.key for e in all_keys if e.enabled}
         enabled = orig_enabled.union({"ek_test1", "ek_test2"})
 
-        common_utils.create_enabled_keys(self.schema, EnabledTagKeys, enabled, "AWS")
+        common_utils.create_enabled_tags(self.schema, enabled, "AWS", True)
+
         with schema_context(self.schema):
             all_keys = list(EnabledTagKeys.objects.filter(provider_type="AWS"))
             EnabledTagKeys.objects.filter(provider_type="AWS").delete()
@@ -426,7 +427,7 @@ class CommonUtilTests(MasuTestCase):
         orig_enabled = {e.key for e in all_keys if e.enabled}
         enabled = orig_enabled.union({"ek_test1", "ek_test2"})
 
-        common_utils.create_enabled_keys(self.schema, EnabledTagKeys, enabled, "Azure")
+        common_utils.create_enabled_tags(self.schema, enabled, "Azure", True)
         with schema_context(self.schema):
             all_keys = list(EnabledTagKeys.objects.filter(provider_type="Azure"))
             EnabledTagKeys.objects.filter(provider_type="Azure").delete()
