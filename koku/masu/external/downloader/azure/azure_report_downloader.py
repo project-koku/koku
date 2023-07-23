@@ -111,7 +111,7 @@ def create_daily_archives(
         if time_interval == "Date":
             date_range = {
                 "start": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
-                "end": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
+                "end": datetime.datetime.strptime(max(days), date_format).strftime(DATE_FORMAT),
                 "invoice_month": None,
             }
         for day in days:
