@@ -3,7 +3,7 @@ WITH cte_enabled_tag_keys AS (
     FROM (
         SELECT key,
             count(provider_type) AS p_count
-        FROM reporting_enabledtagkeys
+        FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
         WHERE enabled=True
             AND provider_type IN ('AWS', 'OCP')
             GROUP BY  key
