@@ -6,10 +6,10 @@ import ciso8601
 import pandas as pd
 from dateutil.parser import ParserError
 
-from masu.util.common import create_enabled_keys
+from api.models import Provider
+from masu.util.common import create_enabled_tags
 from masu.util.common import safe_float
 from masu.util.ocp.common import OCP_REPORT_TYPES
-from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -35,6 +35,9 @@ def process_openshift_labels(label_string):
 
     Returns:
         (dict): The JSON dictionary made from the label string
+
+    Dev Note:
+        You can use 'kube_node_labels` in prometheus to see the values.
 
     """
     labels = label_string.split("|") if label_string else []
@@ -162,4 +165,4 @@ class OCPPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, EnabledTagKeys, self.enabled_tag_keys, "OCP")
+        create_enabled_tags(self.schema, self.enabled_tag_keys, Provider.PROVIDER_OCP, False)
