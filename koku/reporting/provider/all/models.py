@@ -19,6 +19,6 @@ class EnabledTagKeys(models.Model):
         unique_together = ("key", "provider_type")
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False, primary_key=True)
-    key = models.CharField(max_length=253)
+    key = models.CharField(max_length=512)
     enabled = models.BooleanField(default=True)
     provider_type = models.CharField(max_length=50, null=False, choices=Provider.PROVIDER_CHOICES)
