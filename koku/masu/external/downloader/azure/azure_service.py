@@ -212,6 +212,9 @@ class AzureService:
                 export_reports.append(report_def)
             except (AdalError, AzureException, ClientException) as exc:
                 raise AzureCostReportNotFound(exc)
+            except ResourceNotFoundError as exc:
+                LOG.warning(exc)
+                return []
 
             return export_reports
 
