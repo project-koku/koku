@@ -41,7 +41,7 @@ FROM
       AND year = {{ year }}
       AND month = {{ month }}
       AND lineitem_productcode = 'AmazonEC2'
-      AND lineitem_lineitemtype = 'Usage'
+      AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage')
       and product_vcpu IS NOT NULL
       AND lineitem_usagestartdate > {{ start_time }}
       AND lineitem_usagestartdate <= {{ end_time }}

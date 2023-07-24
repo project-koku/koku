@@ -85,7 +85,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         end_time = self.today + timedelta(days=2)
         expected = (
             f"WHERE source='{self.aws_provider.uuid}' AND year='{year}' AND month='{month}' AND"
-            " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype = 'Usage' AND"
+            " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
             " product_vcpu IS NOT NULL AND strpos(resourcetags, 'com_redhat_rhel') > 0 AND"
             f" lineitem_usagestartdate > TIMESTAMP '{latest_processed_time}' AND"
             f" lineitem_usagestartdate <= TIMESTAMP '{end_time}'"
