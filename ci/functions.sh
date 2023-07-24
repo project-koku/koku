@@ -7,7 +7,8 @@ EXIT_CODE=${EXIT_CODE:-0}
 SKIP_PR_CHECK="${SKIP_PR_CHECK:-}"
 SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
-export IQE_MARKER_EXPRESSION="cost_smoke"
+IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-}"
+IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
 
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
@@ -45,7 +46,7 @@ function set_label_flags() {
 function _set_IQE_filter_expressions_for_smoke_labels() {
 
     local SMOKE_LABELS="$1"
-
+    export IQE_MARKER_EXPRESSION="cost_smoke"
     if grep -E "aws-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
     elif grep -E "azure-smoke-tests" <<< "$SMOKE_LABELS"; then
