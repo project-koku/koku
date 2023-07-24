@@ -7,8 +7,8 @@ EXIT_CODE=${EXIT_CODE:-0}
 SKIP_PR_CHECK="${SKIP_PR_CHECK:-}"
 SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
-IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-}"
-IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
+IQE_MARKER_EXPRESSION=""
+IQE_MARKER_EXPRESSION="cost_smoke"
 
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
@@ -59,7 +59,7 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
     elif grep -E "hot-fix-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
-        export IQE_MARKER_EXPRESSION="outage"
+        export IQE_MARKER_EXPRESSION="cost_hotfix"
     elif grep -E "cost-model-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
