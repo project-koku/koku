@@ -7,8 +7,7 @@ EXIT_CODE=${EXIT_CODE:-0}
 SKIP_PR_CHECK="${SKIP_PR_CHECK:-}"
 SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
-IQE_FILTER_EXPRESSION=""
-IQE_MARKER_EXPRESSION="cost_smoke"
+export IQE_MARKER_EXPRESSION="cost_smoke"
 
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
