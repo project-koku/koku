@@ -7,6 +7,8 @@ COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for t
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 IQE_PLUGINS="cost_management"
+IQE_MARKER_EXPRESSION="cost_smoke"
+IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
 
 # Get bonfire helper scripts
