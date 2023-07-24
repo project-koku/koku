@@ -43,7 +43,8 @@ FROM
       AND lineitem_productcode = 'AmazonEC2'
       AND lineitem_lineitemtype = 'Usage'
       and product_vcpu IS NOT NULL
-      AND lineitem_usagestartdate > {{ time_filter }}
+      AND lineitem_usagestartdate > {{ start_time }}
+      AND lineitem_usagestartdate <= {{ end_time }}
       AND strpos(resourcetags, 'com_redhat_rhel') > 0
     OFFSET
       {{ offset }}

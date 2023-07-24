@@ -87,8 +87,8 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
                     tracing_id, msg="using start and end dates from the manifest for subs processing", context=context
                 )
             )
-            start_date = parser.parse(report.get("start")).date()
-            end_date = parser.parse(report.get("end")).date()
+            start_date = parser.parse(report.get("start"))
+            end_date = parser.parse(report.get("end"))
         else:
             # GCP and OCI set report start and report end, AWS/Azure do not
             date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
@@ -97,9 +97,9 @@ def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
                 continue
             start_date, end_date = date_tuple
         if start_date is None:
-            start_date = DateAccessor().today().date() - datetime.timedelta(days=2)
+            start_date = DateAccessor().today() - datetime.timedelta(days=2)
         if end_date is None:
-            end_date = DateAccessor().today().date()
+            end_date = DateAccessor().today()
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
             end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d")
