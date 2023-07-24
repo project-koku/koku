@@ -61,10 +61,7 @@ class SUBSDataMessenger:
                         row["subs_role"],
                         row["lineitem_usageaccountid"],
                     )
-                    if masu_config.DEBUG:
-                        LOG.debug(log_json(self.tracing_id, msg=msg))
-                    else:
-                        self.send_kafka_message(msg)
+                    self.send_kafka_message(msg)
                     msg_count += 1
             LOG.info(
                 log_json(
