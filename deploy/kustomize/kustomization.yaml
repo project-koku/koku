@@ -86,11 +86,3 @@ patches:
   target:
     version: v1
     kind: Template
-- path: patches/worker-subs-extraction.yaml
-  target:
-    version: v1
-    kind: Template
-- path: patches/worker-subs-transmission.yaml
-  target:
-    version: v1
-    kind: Template
