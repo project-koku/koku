@@ -108,12 +108,11 @@ def create_daily_archives(
         manifest = com_utils.get_manifest(manifest_id)
         directory = os.path.dirname(local_file)
         date_range = {"start": min(days), "end": max(days), "invoice_month": None}
-        if time_interval == "Date":
-            date_range = {
-                "start": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
-                "end": datetime.datetime.strptime(max(days), date_format).strftime(DATE_FORMAT),
-                "invoice_month": None,
-            }
+        date_range = {
+            "start": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
+            "end": datetime.datetime.strptime(max(days), date_format).strftime(DATE_FORMAT),
+            "invoice_month": None,
+        }
         for day in days:
             day_path = datetime.datetime.strptime(day, date_format).strftime(DATE_FORMAT)
             daily_data = data_frame[data_frame[time_interval].str.match(day)]
