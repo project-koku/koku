@@ -68,6 +68,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
     def test_determine_end_time(self, mock_trino):
+        self.extractor.determine_end_time("2023", "06")
         mock_trino.assert_called()
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
