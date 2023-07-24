@@ -79,7 +79,7 @@ class TestSUBSTasks(SUBSTestCase):
         mock_date.return_value = base_date
         tasks.collect_subs_report_data_from_manifest(reports)
         mock_extractor.return_value.extract_data_to_s3.assert_called_once_with(
-            base_date.date() - timedelta(days=2), base_date.date()
+            base_date - timedelta(days=2), base_date
         )
         mock_task.assert_called()
 

@@ -1,11 +1,15 @@
+import datetime
 import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from botocore.exceptions import EndpointConnectionError
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
+from reporting.models import SubsLastProcessed
+from reporting.models import TenantAPIProvider
 from subs.subs_data_extractor import SUBSDataExtractor
 from subs.test import SUBSTestCase
 
@@ -36,26 +40,35 @@ class TestSUBSDataExtractor(SUBSTestCase):
         actual = self.extractor.subs_s3_path
         self.assertEqual(expected, actual)
 
-    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
-    def test_create_subs_table(self, mock_trino):
-        """Test creating the subs table calls trino."""
-        self.extractor.create_subs_table()
-        mock_trino.assert_called_once()
-
-    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
-    def test_determine_latest_processed_time_for_provider_with_return_value(self, mock_trino):
+    def test_determine_latest_processed_time_for_provider_with_return_value(self):
         """Test determining the last processed time with a return value returns the expected value"""
-        expected = self.today
-        mock_trino.return_value = [[expected]]
-        actual = self.extractor.determine_latest_processed_time_for_provider("2023", "02")
-        self.assertEqual(expected, actual)
+        with schema_context(self.schema):
+            year = "2023"
+            month = "06"
+            expected = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+            SubsLastProcessed.objects.create(
+                source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid),
+                year=year,
+                month=month,
+                latest_processed_time=expected,
+            ).save()
+        actual = self.extractor.determine_latest_processed_time_for_provider(year, month)
+        self.assertEqual(actual, expected)
+
+    def test_determine_latest_processed_time_for_provider_without_return_value(self):
+        """Test determining the last processed time with no return gives back None"""
+        with schema_context(self.schema):
+            year = "2023"
+            month = "05"
+            SubsLastProcessed.objects.create(
+                source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid), year=year, month=month
+            ).save()
+        actual = self.extractor.determine_latest_processed_time_for_provider(year, month)
+        self.assertIsNone(actual)
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
-    def test_determine_latest_processed_time_for_provider_without_return_value(self, mock_trino):
-        """Test determining the last processed time with no return gives back None"""
-        mock_trino.return_value = []
-        actual = self.extractor.determine_latest_processed_time_for_provider("2023", "07")
-        self.assertIsNone(actual)
+    def test_determine_end_time(self, mock_trino):
+        mock_trino.assert_called()
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
     def test_determine_line_item_count(self, mock_trino):
@@ -68,21 +81,34 @@ class TestSUBSDataExtractor(SUBSTestCase):
         year = "2023"
         month = "07"
         latest_processed_time = self.today
+        end_time = self.today + timedelta(days=2)
         expected = (
             f"WHERE source='{self.aws_provider.uuid}' AND year='{year}' AND month='{month}' AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype = 'Usage' AND"
             " product_vcpu IS NOT NULL AND strpos(resourcetags, 'com_redhat_rhel') > 0 AND"
-            f" lineitem_usagestartdate > TIMESTAMP '{latest_processed_time}'"
+            f" lineitem_usagestartdate > TIMESTAMP '{latest_processed_time}' AND"
+            f" lineitem_usagestartdate <= TIMESTAMP '{end_time}'"
         )
-        actual = self.extractor.determine_where_clause(latest_processed_time, year, month)
+        actual = self.extractor.determine_where_clause(latest_processed_time, end_time, year, month)
         self.assertEqual(expected, actual)
 
-    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
-    def test_update_latest_processed_time(self, mock_trino):
+    def test_update_latest_processed_time(self):
         """Test updating the processed time calls trino"""
-        self.extractor.update_latest_processed_time("2023", "07")
-        mock_trino.assert_called()
+        year = "2023"
+        month = "04"
+        with schema_context(self.schema):
+            SubsLastProcessed.objects.create(
+                source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid), year=year, month=month
+            ).save()
+        expected = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+        self.extractor.update_latest_processed_time(year, month, expected)
+        with schema_context(self.schema):
+            subs_record = SubsLastProcessed.objects.get(
+                source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid), year=year, month=month
+            )
+            self.assertEqual(subs_record.latest_processed_time, expected)
 
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_end_time")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.update_latest_processed_time")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.copy_data_to_subs_s3_bucket")
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
@@ -90,7 +116,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_latest_processed_time_for_provider")
     def test_extract_data_to_s3(
-        self, mock_latest_time, mock_where_clause, mock_li_count, mock_trino, mock_copy, mock_update
+        self, mock_latest_time, mock_where_clause, mock_li_count, mock_trino, mock_copy, mock_update, mock_end_time
     ):
         """Test the flow of extracting data to S3 calls the right functions"""
         mock_li_count.return_value = 10
@@ -99,6 +125,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         mock_trino.return_value = (MagicMock(), MagicMock())
         upload_keys = self.extractor.extract_data_to_s3(self.yesterday, self.today)
         mock_latest_time.assert_called_once()
+        mock_end_time.assert_called_once()
         mock_where_clause.assert_called_once()
         mock_li_count.assert_called_once()
         mock_trino.assert_called_once()
