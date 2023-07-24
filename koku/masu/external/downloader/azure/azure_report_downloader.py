@@ -56,7 +56,7 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
     try:
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
         time_interval = "UsageDateTime"
-        date_format = DATE_FORMAT
+        date_format = "%Y-%m-%d %H:%M:%S"
         base_cols = utils.INGRESS_REQUIRED_COLUMNS
     except ValueError:
         time_interval = "Date"
@@ -115,13 +115,11 @@ def create_daily_archives(
                 "invoice_month": None,
             }
         for day in days:
-            day_path = day
+            day_path = datetime.datetime.strptime(day, date_format).strftime(DATE_FORMAT)
             daily_data = data_frame[data_frame[time_interval].str.match(day)]
             s3_csv_path = com_utils.get_path_prefix(
                 account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
-            if time_interval == "Date":
-                day_path = f"{day.split('/')[2]}-{day.split('/')[0]}-{day.split('/')[1]}"
             if not manifest.report_tracker.get(day):
                 manifest.report_tracker[day] = 0
             counter = manifest.report_tracker[day]
