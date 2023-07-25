@@ -25,7 +25,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         cls.tracing_id = str(uuid.uuid4())
         cls.today = cls.dh.today
         cls.yesterday = cls.today - timedelta(days=1)
-        with patch("subs.subs_data_extractor.get_subs_s3_client"):
+        with patch("subs.subs_data_extractor.get_s3_resource"):
             with patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query"):
                 cls.extractor = SUBSDataExtractor(
                     cls.schema, cls.aws_provider_type, cls.aws_provider.uuid, cls.tracing_id
@@ -124,7 +124,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         expected_key = "fake_key"
         mock_copy.return_value = expected_key
         mock_trino.return_value = (MagicMock(), MagicMock())
-        upload_keys = self.extractor.extract_data_to_s3(self.yesterday, self.today)
+        upload_keys = self.extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
         mock_latest_time.assert_called_once()
         mock_end_time.assert_called_once()
         mock_where_clause.assert_called_once()
@@ -141,6 +141,6 @@ class TestSUBSDataExtractor(SUBSTestCase):
 
     def test_copy_data_to_subs_s3_bucket_conn_error(self):
         """Test that an error copying data results in no upload_key being returned"""
-        self.extractor.s3_client.upload_fileobj.side_effect = EndpointConnectionError(endpoint_url="fakeurl")
+        self.extractor.s3_resource.Object.side_effect = EndpointConnectionError(endpoint_url="fakeurl")
         actual_key = self.extractor.copy_data_to_subs_s3_bucket(["data"], ["column"], "filename")
-        self.assertEqual(None, actual_key)
+        self.assertIsNone(actual_key)

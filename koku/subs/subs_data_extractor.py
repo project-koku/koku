@@ -5,7 +5,6 @@
 import logging
 import os
 import pkgutil
-from datetime import datetime
 from datetime import timedelta
 from functools import cached_property
 
@@ -88,14 +87,16 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             subs_obj.latest_processed_time = end_time
             subs_obj.save()
 
-    def extract_data_to_s3(self, start_date, end_date):
+    def extract_data_to_s3(self, month_start):
         """Process new subs related line items from reports to S3."""
         LOG.info(log_json(self.tracing_id, msg="beginning subs rhel extraction", context=self.context))
-        month = start_date.strftime("%m")
-        year = start_date.strftime("%Y")
-        # if there is no latest time for this month, we need to include the first hour of the month
+        month = month_start.strftime("%m")
+        year = month_start.strftime("%Y")
+        # if there is no latest time for this month, we need to gather all line items relevant to the current month
+        # so we go back one hour from the month start to last month to ensure the first hour
+        # of the current month is included
         latest_timestamp = self.determine_latest_processed_time_for_provider(year, month) or (
-            datetime(start_date.year, start_date.month, start_date.day) - timedelta(hours=1)
+            month_start - timedelta(hours=1)
         )
         end_time = self.determine_end_time(year, month)
         where_clause = self.determine_where_clause(latest_timestamp, end_time, year, month)

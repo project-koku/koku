@@ -20,7 +20,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         super().setUpClass()
         cls.context = {"some": "context"}
         cls.tracing_id = "trace_me"
-        with patch("subs.subs_data_messenger.get_subs_s3_client"):
+        with patch("subs.subs_data_messenger.get_s3_resource"):
             cls.messenger = SUBSDataMessenger(cls.context, cls.schema, cls.tracing_id)
 
     @patch("subs.subs_data_messenger.os.remove")
