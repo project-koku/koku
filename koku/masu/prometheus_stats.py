@@ -138,7 +138,7 @@ SUBS_EXTRACTION_BACKLOG = Gauge(
 )
 SUBS_TRANSMISSION_BACKLOG = Gauge(
     "subs_transmission_backlog",
-    "Number of celery tasks in the SUBS Data Tranmission queue",
+    "Number of celery tasks in the SUBS Data Transmission queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
