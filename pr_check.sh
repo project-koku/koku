@@ -20,7 +20,6 @@ SKIP_SMOKE_TESTS=''
 SKIP_IMAGE_BUILD=''
 
 export IQE_PLUGINS="cost_management"
-export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_CJI_TIMEOUT="120m"
 
 set -ex
