@@ -9,6 +9,7 @@ from unittest import TestCase
 from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 import boto3
 import pandas as pd
@@ -74,11 +75,24 @@ class TestAWSUtils(MasuTestCase):
         self.arn = fake_arn(account_id=self.account_id, region=REGION, service="iam")
         self.credentials = {"role_arn": self.arn}
         self.aws_arn = utils.AwsArn(self.credentials)
+        self.external_id = str(uuid4())
+        self.credentials_with_external = {"role_arn": self.arn, "external_id": self.external_id}
+        self.aws_arn_external_id = utils.AwsArn(self.credentials_with_external)
 
     @patch("masu.util.aws.common.boto3.client", return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):
         """Test get_assume_role_session is successful."""
         session = utils.get_assume_role_session(self.aws_arn)
+        MOCK_BOTO_CLIENT.assume_role.assert_called_with(RoleArn=str(self.aws_arn), RoleSessionName="MasuSession")
+        self.assertIsInstance(session, boto3.Session)
+
+    @patch("masu.util.aws.common.boto3.client", return_value=MOCK_BOTO_CLIENT)
+    def test_get_assume_role_session_with_external_id(self, mock_boto_client):
+        """Test get_assume_role_session is successful."""
+        session = utils.get_assume_role_session(self.aws_arn_external_id)
+        MOCK_BOTO_CLIENT.assume_role.assert_called_with(
+            RoleArn=str(self.aws_arn_external_id), RoleSessionName="MasuSession", ExternalId=self.external_id
+        )
         self.assertIsInstance(session, boto3.Session)
 
     def test_get_available_regions(self):

@@ -64,6 +64,7 @@ from sources.test.test_sources_http_client import MOCK_URL
 
 faker = Faker()
 FAKE_AWS_ARN = "arn:aws:iam::111111111111:role/CostManagement"
+FAKE_EXTERNAL_ID = str(uuid4())
 FAKE_AWS_ARN2 = "arn:aws:iam::22222222222:role/CostManagement"
 FAKE_CLUSTER_ID_1 = str(uuid4())
 FAKE_CLUSTER_ID_2 = str(uuid4())
@@ -161,7 +162,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "source_uuid": self.uuids.get(Provider.PROVIDER_AWS),
                 "name": "Provider AWS",
                 "source_type": "AWS",
-                "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN}},
+                "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN, "external_id": FAKE_EXTERNAL_ID}},
                 "billing_source": {"data_source": {"bucket": "test_bucket"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "10001",
@@ -186,7 +187,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "source_uuid": self.uuids.get(Provider.PROVIDER_AWS),
                 "name": "Provider AWS - PATCHED",
                 "source_type": "AWS",
-                "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN2}},
+                "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN2, "external_id": FAKE_EXTERNAL_ID}},
                 "billing_source": {"data_source": {"bucket": "test_bucket_2"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "10001",
@@ -225,7 +226,15 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 {
                     "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
-                    "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN}]},
+                    "json": {
+                        "data": [
+                            {
+                                "id": self.source_ids.get(Provider.PROVIDER_AWS),
+                                "username": FAKE_AWS_ARN,
+                                "extra": {"external_id": FAKE_EXTERNAL_ID},
+                            }
+                        ]
+                    },
                 },
                 {
                     "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
@@ -280,7 +289,15 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 {
                     "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
-                    "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN2}]},
+                    "json": {
+                        "data": [
+                            {
+                                "id": self.source_ids.get(Provider.PROVIDER_AWS),
+                                "username": FAKE_AWS_ARN2,
+                                "extra": {"external_id": FAKE_EXTERNAL_ID},
+                            }
+                        ]
+                    },
                 },
                 {
                     "url": f"{MOCK_URL}/{MOCK_PREFIX}/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
@@ -332,7 +349,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             ],
         }
 
-    def test_listen_for_messages_aws_create_update_pause_unpause_delete_AWS(self):
+    def test_listen_for_messages_create_update_pause_unpause_delete_AWS(self):
         """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
         # First, test the create pathway:
         msgs = [
@@ -452,7 +469,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
                 self.assertTrue(source.pending_delete, msg="failed delete")
 
-    def test_listen_for_messages_aws_create_update_pause_unpause_delete_OCP(self):
+    def test_listen_for_messages_create_update_pause_unpause_delete_OCP(self):
         """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
         # First, test the create pathway:
         msgs = [
