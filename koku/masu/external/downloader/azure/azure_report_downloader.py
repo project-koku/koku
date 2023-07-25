@@ -11,6 +11,7 @@ import uuid
 
 import pandas as pd
 from django.conf import settings
+from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -25,6 +26,7 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.azure import common as utils
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -96,35 +98,39 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
-    days = []
+    dates = set()
     data_frame, time_interval, start_delta, date_format = get_initial_dataframe_with_delta(
         local_file, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= start_delta and interval not in days:
-            days.append(interval)
-    if days:
-        manifest = com_utils.get_manifest(manifest_id)
+        if datetime.datetime.strptime(interval, date_format) >= start_delta:
+            dates.add(interval)
+    if dates:
         directory = os.path.dirname(local_file)
-        date_range = {"start": min(days), "end": max(days), "invoice_month": None}
+        date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
         date_range = {
-            "start": datetime.datetime.strptime(min(days), date_format).strftime(DATE_FORMAT),
-            "end": datetime.datetime.strptime(max(days), date_format).strftime(DATE_FORMAT),
+            "start": datetime.datetime.strptime(min(dates), date_format).strftime(DATE_FORMAT),
+            "end": datetime.datetime.strptime(max(dates), date_format).strftime(DATE_FORMAT),
             "invoice_month": None,
         }
-        for day in days:
-            day_path = datetime.datetime.strptime(day, date_format).strftime(DATE_FORMAT)
-            daily_data = data_frame[data_frame[time_interval].str.match(day)]
+        for date in dates:
+            day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
+            daily_data = data_frame[data_frame[time_interval].str.match(date)]
             s3_csv_path = com_utils.get_path_prefix(
                 account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
-            if not manifest.report_tracker.get(day):
-                manifest.report_tracker[day] = 0
-            counter = manifest.report_tracker[day]
-            day_file = f"{day_path}_{counter}.csv"
-            manifest.report_tracker[day] = counter + 1
-            manifest.save()
+            with transaction.atomic():
+                # With split payloads, we could have a race condition trying to update the `report_tracker`.
+                # using a transaction and `select_for_update` should minimize the risk of multiple
+                # workers trying to update this field at the same time by locking the manifest during update.
+                manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+                if not manifest.report_tracker.get(date):
+                    manifest.report_tracker[date] = 0
+                counter = manifest.report_tracker[date]
+                day_file = f"{day_path}_{counter}.csv"
+                manifest.report_tracker[date] = counter + 1
+                manifest.save(update_fields=["report_tracker"])
             day_filepath = f"{directory}/{day_file}"
             daily_data.to_csv(day_filepath, index=False, header=True)
             copy_local_report_file_to_s3_bucket(

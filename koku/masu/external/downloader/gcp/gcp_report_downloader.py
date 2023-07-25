@@ -14,6 +14,7 @@ from itertools import islice
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import transaction
 from django.db.utils import DataError
 from google.cloud import bigquery
 from google.cloud import storage
@@ -29,11 +30,11 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.common import get_manifest
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -105,13 +106,17 @@ def create_daily_archives(
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 if ingress_reports:
-                    manifest = get_manifest(manifest_id)
-                    if not manifest.report_tracker.get(partition_date):
-                        manifest.report_tracker[partition_date] = 0
-                    counter = manifest.report_tracker[partition_date]
-                    day_file = f"{invoice_month}_{partition_date}_{counter}.csv"
-                    manifest.report_tracker[partition_date] = counter + 1
-                    manifest.save()
+                    with transaction.atomic():
+                        # With split payloads, we could have a race condition trying to update the `report_tracker`.
+                        # using a transaction and `select_for_update` should minimize the risk of multiple
+                        # workers trying to update this field at the same time by locking the manifest during update.
+                        manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+                        if not manifest.report_tracker.get(partition_date):
+                            manifest.report_tracker[partition_date] = 0
+                        counter = manifest.report_tracker[partition_date]
+                        day_file = f"{invoice_month}_{partition_date}_{counter}.csv"
+                        manifest.report_tracker[partition_date] = counter + 1
+                        manifest.save(update_fields=["report_tracker"])
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(

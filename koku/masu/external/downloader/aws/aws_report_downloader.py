@@ -14,6 +14,7 @@ import uuid
 import pandas as pd
 from botocore.exceptions import ClientError
 from django.conf import settings
+from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -27,6 +28,7 @@ from masu.util import common as com_utils
 from masu.util.aws import common as utils
 from masu.util.aws.common import INGRESS_ALT_COLUMNS
 from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -97,31 +99,35 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
-    days = []
+    dates = set()
     data_frame, time_interval, start_delta = get_initial_dataframe_with_delta(
         local_file, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval.split("T")[0], "%Y-%m-%d") >= start_delta:
-            if interval.split("T")[0] not in days:
-                days.append(interval.split("T")[0])
-    if days:
-        manifest = com_utils.get_manifest(manifest_id)
+        date = interval.split("T")[0]
+        if datetime.datetime.strptime(date, "%Y-%m-%d") >= start_delta:
+            dates.add(date)
+    if dates:
         directory = os.path.dirname(local_file)
-        date_range = {"start": min(days), "end": max(days), "invoice_month": None}
-        data_frame = data_frame[data_frame[time_interval].str.contains("|".join(days))]
-        for day in days:
-            daily_data = data_frame[data_frame[time_interval].str.match(day)]
+        date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
+        data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
+        for date in dates:
+            daily_data = data_frame[data_frame[time_interval].str.match(date)]
             s3_csv_path = com_utils.get_path_prefix(
                 account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
-            if not manifest.report_tracker.get(day):
-                manifest.report_tracker[day] = 0
-            counter = manifest.report_tracker[day]
-            day_file = f"{day}_{counter}.csv"
-            manifest.report_tracker[day] = counter + 1
-            manifest.save()
+            with transaction.atomic():
+                # With split payloads, we could have a race condition trying to update the `report_tracker`.
+                # using a transaction and `select_for_update` should minimize the risk of multiple
+                # workers trying to update this field at the same time by locking the manifest during update.
+                manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+                if not manifest.report_tracker.get(date):
+                    manifest.report_tracker[date] = 0
+                counter = manifest.report_tracker[date]
+                day_file = f"{date}_{counter}.csv"
+                manifest.report_tracker[date] = counter + 1
+                manifest.save(update_fields=["report_tracker"])
             day_filepath = f"{directory}/{day_file}"
             daily_data.to_csv(day_filepath, index=False, header=True)
             utils.copy_local_report_file_to_s3_bucket(
