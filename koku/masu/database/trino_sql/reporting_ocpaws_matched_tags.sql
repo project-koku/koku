@@ -1,12 +1,12 @@
 WITH cte_enabled_tag_keys AS (
-    SELECT array_agg(key)
+    SELECT array_agg(key) as key_array
     FROM (
         SELECT key,
             count(provider_type) AS p_count
         FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-        WHERE enabled=True
+        WHERE enabled = true
             AND provider_type IN ('AWS', 'OCP')
-            GROUP BY  key
+            GROUP BY key
     ) c
     WHERE c.p_count > 1
 ),
