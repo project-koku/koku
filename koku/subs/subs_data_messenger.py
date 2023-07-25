@@ -17,7 +17,7 @@ from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config as masu_config
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
-from subs.subs_data_extractor import get_subs_s3_client
+from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
 
@@ -27,8 +27,10 @@ class SUBSDataMessenger:
         self.context = context
         self.tracing_id = tracing_id
         self.schema_name = schema_name
-        self.s3_client = get_subs_s3_client()
-        subs_cust = Customer.objects.filter(schema_name=schema_name).first()
+        self.s3_resource = get_s3_resource(
+            settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
+        )
+        subs_cust = Customer.objects.get(schema_name=schema_name)
         self.account_id = subs_cust.account_id
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
@@ -39,7 +41,7 @@ class SUBSDataMessenger:
         """
         for i, obj_key in enumerate(upload_keys):
             csv_path = f"{self.download_path}/subs_{self.tracing_id}_{i}.csv"
-            self.s3_client.download_file(settings.S3_SUBS_BUCKET_NAME, obj_key, csv_path)
+            self.s3_resource.Bucket(settings.S3_SUBS_BUCKET_NAME).download_file(obj_key, csv_path)
             with open(csv_path) as csv_file:
                 reader = csv.DictReader(csv_file)
                 LOG.info(

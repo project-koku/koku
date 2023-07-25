@@ -9,9 +9,7 @@ from datetime import datetime
 from datetime import timedelta
 from functools import cached_property
 
-import boto3
 import pandas as pd
-from botocore.config import Config
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from django.conf import settings
@@ -20,6 +18,7 @@ from django_tenants.utils import schema_context
 from api.common import log_json
 from api.provider.models import Provider
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.util.aws.common import get_s3_resource
 from reporting.models import SubsLastProcessed
 from reporting.models import TenantAPIProvider
 from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_TABLE
@@ -31,17 +30,6 @@ TABLE_MAP = {
 }
 
 
-def get_subs_s3_client():  # pragma: no cover
-    """Obtain the SUBS s3 session client"""
-    config = Config(connect_timeout=settings.S3_TIMEOUT)
-    s3_session = boto3.Session(
-        aws_access_key_id=settings.S3_SUBS_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SUBS_SECRET,
-        region_name=settings.S3_SUBS_REGION,
-    )
-    return s3_session.client("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
-
-
 class SUBSDataExtractor(ReportDBAccessorBase):
     def __init__(self, schema, provider_type, provider_uuid, tracing_id, context=None):
         super().__init__(schema)
@@ -49,7 +37,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         self.provider_uuid = provider_uuid
         self.tracing_id = tracing_id
         self.table = TABLE_MAP.get(self.provider_type)
-        self.s3_client = get_subs_s3_client()
+        self.s3_resource = get_s3_resource(
+            settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
+        )
         self.context = context
 
     @cached_property
@@ -92,9 +82,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
     def update_latest_processed_time(self, year, month, end_time):
         """Update the latest processing time for a provider"""
         with schema_context(self.schema):
-            subs_obj = SubsLastProcessed.objects.filter(
-                source_uuid=self.provider_uuid, year=year, month=month
-            ).first() or SubsLastProcessed.objects.create(
+            subs_obj, _ = SubsLastProcessed.objects.get_or_create(
                 source_uuid=TenantAPIProvider.objects.get(uuid=self.provider_uuid), year=year, month=month
             )
             subs_obj.latest_processed_time = end_time
@@ -161,7 +149,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         with open(filename, "rb") as fin:
             try:
                 upload_key = f"{self.subs_s3_path}/{filename}"
-                self.s3_client.upload_fileobj(fin, settings.S3_SUBS_BUCKET_NAME, upload_key)
+                s3_obj = {"bucket_name": settings.S3_SUBS_BUCKET_NAME, "key": upload_key}
+                upload = self.s3_resource.Object(**s3_obj)
+                upload.upload_fileobj(fin)
             except (EndpointConnectionError, ClientError) as err:
                 msg = f"unable to copy data to {upload_key}, bucket {settings.S3_SUBS_BUCKET_NAME}. Reason: {str(err)}"
                 LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))

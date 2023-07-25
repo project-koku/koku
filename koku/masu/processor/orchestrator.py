@@ -34,7 +34,7 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
-from subs.tasks import collect_subs_report_data_from_manifest
+from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
 LOG = logging.getLogger(__name__)
@@ -308,7 +308,7 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                subs_task = collect_subs_report_data_from_manifest.s().set(queue=SUBS_EXTRACTION_QUEUE)
+                subs_task = extract_subs_data_from_reports.s().set(queue=SUBS_EXTRACTION_QUEUE)
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
             else:
                 async_id = group(report_tasks)()

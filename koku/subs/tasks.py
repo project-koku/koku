@@ -64,10 +64,10 @@ def enable_subs_messaging(schema_name: str) -> bool:
     )
 
 
-@celery_app.task(name="subs.tasks.collect_subs_report_data_from_manifest", queue=SUBS_EXTRACTION_QUEUE)
-def collect_subs_report_data_from_manifest(reports_to_subs_summarize):
+@celery_app.task(name="subs.tasks.extract_subs_data_from_reports", queue=SUBS_EXTRACTION_QUEUE)
+def extract_subs_data_from_reports(reports_to_extract):
     """Implement the functionality of the new task"""
-    reports = [report for report in reports_to_subs_summarize if report]
+    reports = [report for report in reports_to_extract if report]
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
     for report in reports_deduplicated:
         schema_name = report.get("schema_name")

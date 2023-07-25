@@ -35,7 +35,7 @@ class TestSUBSTasks(SUBSTestCase):
     @patch("subs.tasks.enable_subs_extraction")
     @patch("subs.tasks.get_start_and_end_from_manifest_id")
     @patch("subs.tasks.SUBSDataExtractor")
-    def test_collect_subs_report_data_from_manifest(
+    def test_extract_subs_data_from_reports(
         self, mock_extractor, mock_start_end, mock_extract_enable, mock_message_enable, mock_task
     ):
         """Test that the extraction task is called when processing a manifest"""
@@ -50,7 +50,7 @@ class TestSUBSTasks(SUBSTestCase):
         mock_extract_enable.return_value = True
         mock_message_enable.return_value = True
         mock_start_end.return_value = (self.yesterday, self.today)
-        tasks.collect_subs_report_data_from_manifest(reports)
+        tasks.extract_subs_data_from_reports(reports)
         mock_extractor.return_value.extract_data_to_s3.assert_called_once_with(self.yesterday, self.today)
         mock_task.assert_called()
 
@@ -60,7 +60,7 @@ class TestSUBSTasks(SUBSTestCase):
     @patch("subs.tasks.enable_subs_extraction")
     @patch("subs.tasks.get_start_and_end_from_manifest_id")
     @patch("subs.tasks.SUBSDataExtractor")
-    def test_collect_subs_report_data_from_manifest_no_dates(
+    def test_extract_subs_data_from_reports_no_dates(
         self, mock_extractor, mock_start_end, mock_extract_enable, mock_message_enable, mock_date, mock_task
     ):
         """Test that the dates used for extraction are properly set if there aren't dates from a manifest"""
@@ -77,7 +77,7 @@ class TestSUBSTasks(SUBSTestCase):
         mock_start_end.return_value = (None, None)
         base_date = datetime.datetime.strptime("2023-07-05", "%Y-%m-%d")
         mock_date.return_value = base_date
-        tasks.collect_subs_report_data_from_manifest(reports)
+        tasks.extract_subs_data_from_reports(reports)
         mock_extractor.return_value.extract_data_to_s3.assert_called_once_with(
             base_date - timedelta(days=2), base_date
         )
@@ -88,7 +88,7 @@ class TestSUBSTasks(SUBSTestCase):
     @patch("subs.tasks.enable_subs_extraction")
     @patch("subs.tasks.get_start_and_end_from_manifest_id")
     @patch("subs.tasks.SUBSDataExtractor")
-    def test_collect_subs_report_data_from_manifest_unsupported_type(
+    def test_extract_subs_data_from_reports_unsupported_type(
         self, mock_extractor, mock_start_end, mock_extract_enable, mock_message_enable, mock_task
     ):
         """Test that processing does not continue if a provider type is unsupported"""
@@ -100,7 +100,7 @@ class TestSUBSTasks(SUBSTestCase):
                 "tracing_id": self.tracing_id,
             }
         ]
-        tasks.collect_subs_report_data_from_manifest(reports)
+        tasks.extract_subs_data_from_reports(reports)
         mock_extract_enable.assert_not_called()
         mock_message_enable.assert_not_called()
         mock_start_end.assert_not_called()
@@ -112,7 +112,7 @@ class TestSUBSTasks(SUBSTestCase):
     @patch("subs.tasks.enable_subs_extraction")
     @patch("subs.tasks.get_start_and_end_from_manifest_id")
     @patch("subs.tasks.SUBSDataExtractor")
-    def test_collect_subs_report_data_from_manifest_extract_gate_fail(
+    def test_extract_subs_data_from_reports_extract_gate_fail(
         self, mock_extractor, mock_start_end, mock_extract_enable, mock_message_enable, mock_task
     ):
         """Test that processing does not continue if the enable_subs_extraction gate fails"""
@@ -126,7 +126,7 @@ class TestSUBSTasks(SUBSTestCase):
         ]
         mock_extract_enable.return_value = False
         mock_message_enable.return_value = True
-        tasks.collect_subs_report_data_from_manifest(reports)
+        tasks.extract_subs_data_from_reports(reports)
         mock_extract_enable.assert_called_once_with(self.schema)
         mock_start_end.assert_not_called()
         mock_extractor.assert_not_called()
@@ -139,7 +139,7 @@ class TestSUBSTasks(SUBSTestCase):
     @patch("subs.tasks.enable_subs_extraction")
     @patch("subs.tasks.get_start_and_end_from_manifest_id")
     @patch("subs.tasks.SUBSDataExtractor")
-    def test_collect_subs_report_data_from_manifest_message_gate_fail(
+    def test_extract_subs_data_from_reports_message_gate_fail(
         self, mock_extractor, mock_start_end, mock_extract_enable, mock_message_enable, mock_date, mock_task
     ):
         """Test that extraction occurs but messaging does not if the enable_subs_messaging gate fails"""
@@ -156,7 +156,7 @@ class TestSUBSTasks(SUBSTestCase):
         mock_start_end.return_value = (None, None)
         base_date = datetime.datetime.strptime("2023-07-05", "%Y-%m-%d")
         mock_date.return_value = base_date
-        tasks.collect_subs_report_data_from_manifest(reports)
+        tasks.extract_subs_data_from_reports(reports)
         mock_extract_enable.assert_called_once_with(self.schema)
         mock_start_end.assert_called()
         mock_extractor.assert_called()
