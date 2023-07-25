@@ -353,14 +353,17 @@ def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
             return
 
         for batch_num, new_batch in enumerate(batch(new_tags, _slice=500)):
+            batch_size = len(new_batch)
             if enabled_value:
+                ctx["enabled_tag_limit"] = Config.ENABLED_TAG_LIMIT
+                if enabled_tag_count == 0:
+                    LOG.debug("querying for enabled tag count.")
+                    enabled_tag_count = EnabledTagKeys.objects.filter(enabled=True).count()
                 if Config.ENABLED_TAG_LIMIT <= 0:
                     # If the tag limit is zero or less, the limit is disabled.
                     LOG.info(log_json(msg="tag limit is disabled", context=ctx))
                 elif enabled_tag_count < Config.ENABLED_TAG_LIMIT:
-                    if enabled_tag_count == 0:
-                        enabled_tag_count = EnabledTagKeys.objects.filter(enabled=True).count()
-                    LOG.debug(log_json(msg="tag limit is enabled", context=ctx))
+                    LOG.info(log_json(msg="tag limit is enabled", context=ctx))
                 else:
                     LOG.info(log_json(msg="tag limit has been reached"), content=ctx)
                     enabled_value = False
