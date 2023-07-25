@@ -13,7 +13,12 @@ SELECT
     WHEN 'standard' THEN 'Standard'
     WHEN 'self-support' THEN 'Self-Support'
     ELSE 'Premium'
-  END as subs_sla
+  END as subs_sla,
+  CASE lower(json_extract_scalar(tags, '$.com_redhal_rhel'))
+    WHEN 'rhel 7 eus' THEN '69-70'
+    WHEN 'rehl 8 eus' THEN '479-70'
+    ELSE '479'
+  END as subs_product_ids
 FROM
   (
     SELECT *,
@@ -45,13 +50,9 @@ FROM
       and product_vcpu IS NOT NULL
       AND lineitem_usagestartdate > {{ start_time }}
       AND lineitem_usagestartdate <= {{ end_time }}
-      AND strpos(resourcetags, 'com_redhat_rhel') > 0
+      AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
     OFFSET
       {{ offset }}
     LIMIT
       {{ limit }}
   )
-WHERE
-  lower(
-    json_extract_scalar(tags, '$.com_redhat_rhel')
-  ) = 'true'

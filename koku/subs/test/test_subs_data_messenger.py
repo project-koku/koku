@@ -42,6 +42,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_usage": "Production",
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
+                "subs_product_ids": "479-70",
             }
         ]
         mock_op = mock_open(read_data="x,y,z")
@@ -62,7 +63,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         usage = "Production"
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
-
+        product_ids = ["479", "70"]
         static_uuid = uuid.uuid4()
         expected_subs_json = {
             "event_id": str(static_uuid),
@@ -77,6 +78,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "measurements": [{"value": product_vcpu, "uom": "vCPUs"}],
             "cloud_provider": "AWS",
             "hardware_type": "Cloud",
+            "product_ids": product_ids,
             "role": rol,
             "sla": sla,
             "usage": usage,
@@ -88,13 +90,14 @@ class TestSUBSDataMessenger(SUBSTestCase):
             mock_uuid.return_value = static_uuid
             actual = self.messenger.build_subs_msg(
                 lineitem_resourceid,
+                lineitem_usageaccountid,
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
                 sla,
                 usage,
                 rol,
-                lineitem_usageaccountid,
+                product_ids,
             )
         self.assertEqual(expected, actual)
 

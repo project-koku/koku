@@ -53,15 +53,17 @@ class SUBSDataMessenger:
                 )
                 msg_count = 0
                 for row in reader:
+                    # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
                     msg = self.build_subs_msg(
                         row["lineitem_resourceid"],
+                        row["lineitem_usageaccountid"],
                         row["lineitem_usagestartdate"],
                         row["lineitem_usageenddate"],
                         row["product_vcpu"],
                         row["subs_sla"],
                         row["subs_usage"],
                         row["subs_role"],
-                        row["lineitem_usageaccountid"],
+                        row["subs_product_ids"].split("-"),
                     )
                     self.send_kafka_message(msg)
                     msg_count += 1
@@ -81,7 +83,9 @@ class SUBSDataMessenger:
         producer.produce(masu_config.SUBS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
-    def build_subs_msg(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, billing_account_id):
+    def build_subs_msg(
+        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+    ):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         subs_json = {
             "event_id": str(uuid.uuid4()),
@@ -96,6 +100,7 @@ class SUBSDataMessenger:
             "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
             "cloud_provider": "AWS",
             "hardware_type": "Cloud",
+            "product_ids": product_ids,
             "role": role,
             "sla": sla,
             "usage": usage,
