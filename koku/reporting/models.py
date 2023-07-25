@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for cost entry tables."""
-# flake8: noqa
 from reporting.currency.models import CurrencySettings
 from reporting.ingress.models import IngressReports
 from reporting.partition.models import PartitionedTable
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.openshift.models import OCPAllComputeSummaryPT
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryP
