@@ -406,6 +406,8 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
+        self.prepare_parquet_s3()
+
         failed_conversion = []
         daily_data_frames = []
         for csv_filename in self.file_list:
