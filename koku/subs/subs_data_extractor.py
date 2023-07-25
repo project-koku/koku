@@ -19,7 +19,6 @@ from api.provider.models import Provider
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.aws.common import get_s3_resource
 from reporting.models import SubsLastProcessed
-from reporting.models import TenantAPIProvider
 from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_TABLE
 
 LOG = logging.getLogger(__name__)
@@ -82,7 +81,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         """Update the latest processing time for a provider"""
         with schema_context(self.schema):
             subs_obj, _ = SubsLastProcessed.objects.get_or_create(
-                source_uuid=TenantAPIProvider.objects.get(uuid=self.provider_uuid), year=year, month=month
+                source_uuid_id=self.provider_uuid, year=year, month=month
             )
             subs_obj.latest_processed_time = end_time
             subs_obj.save()
