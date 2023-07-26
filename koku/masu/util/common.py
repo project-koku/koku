@@ -362,7 +362,7 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
 
     ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
 
-    LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
+    LOG.info(log_json(msg="updating enabled keys records", context=ctx))
     changed = False
 
     enabled_keys_set = set(enabled_keys)

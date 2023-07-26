@@ -27,6 +27,7 @@ from api.settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.processor import is_aws_category_settings_enabled
+from masu.processor import is_ddf_tag_form_disabled
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import AWSEnabledTagKeys
@@ -124,6 +125,25 @@ class Settings:
     def _get_tag_management_prefix(self, providerName):
         return f"{SETTINGS_PREFIX}.tag-management.{providerName}"
 
+    def _build_disabled_tag_form(self, sub_form_fields):
+        title = "Enable tag keys and labels (DISABLED)"
+        key_text_name = f"{SETTINGS_PREFIX}.disabled_management.form-text"
+        enabled_key_title = create_plain_text(key_text_name, title, "h2")
+        key_text_content = "This feature is currently disabled for schedule maintaince."
+        key_text = create_plain_text(key_text_name, key_text_content, "p")
+        dual_list_options = {
+            "isTree": "true",
+            "options": [],
+            "leftTitle": "",
+            "rightTitle": "",
+            "initialValue": [],
+            "clearedValue": [],
+        }
+        dual_list_name = f"api.settings.disabled-management.enabled"
+        keys_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
+        sub_form_fields.extend([enabled_key_title, key_text, keys_and_labels])
+        return sub_form_fields
+
     def _obtain_enabled_keys(self, keys_class):
         """
         Collect the available tag keys for the customer.
@@ -202,7 +222,10 @@ class Settings:
         }
         currency = create_select(currency_select_name, **currency_options)
         sub_form_fields = [currency_title, currency_select_text, currency]
-        sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
+        if is_ddf_tag_form_disabled():
+            sub_form_fields = self._build_disabled_tag_form(sub_form_fields)
+        else:
+            sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
         has_aws_providers = customer_specific_providers.filter(type__icontains=Provider.PROVIDER_AWS).exists()
@@ -337,9 +360,9 @@ class Settings:
 
         cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
         results.append(self._cost_type_handler(cost_type_settings))
-
-        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
+        if not is_ddf_tag_form_disabled():
+            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+            results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
 
         category_settings = settings.get("api", {}).get("settings", {}).get("aws-category-management", {})
         results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))
