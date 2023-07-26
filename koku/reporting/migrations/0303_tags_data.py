@@ -16,11 +16,15 @@ def migrate_tags(apps, schema_editor, provider):
     EnabledTagKeys.objects.using(db_alias).bulk_create(new_records, ignore_conflicts=True)
 
 
-def unmigrate_tags(apps, schema_editor, provider):
+def unmigrate_tags(apps, schema_editor):
+    if getattr(unmigrate_tags, "_ran", None):
+        return
+
     EnabledTagKeys = apps.get_model("reporting", "EnabledTagKeys")
     db_alias = schema_editor.connection.alias
+    EnabledTagKeys.objects.using(db_alias).all().delete()
 
-    EnabledTagKeys.objects.using(db_alias).filter(provider_type__exact=provider).delete()
+    unmigrate_tags._ran = True
 
 
 migrate_tags_aws = functools.partial(migrate_tags, provider="AWS")
@@ -28,12 +32,6 @@ migrate_tags_azure = functools.partial(migrate_tags, provider="Azure")
 migrate_tags_gcp = functools.partial(migrate_tags, provider="GCP")
 migrate_tags_oci = functools.partial(migrate_tags, provider="OCI")
 migrate_tags_ocp = functools.partial(migrate_tags, provider="OCP")
-
-unmigrate_tags_aws = functools.partial(unmigrate_tags, provider="AWS")
-unmigrate_tags_azure = functools.partial(unmigrate_tags, provider="Azure")
-unmigrate_tags_gcp = functools.partial(unmigrate_tags, provider="GCP")
-unmigrate_tags_oci = functools.partial(unmigrate_tags, provider="OCI")
-unmigrate_tags_ocp = functools.partial(unmigrate_tags, provider="OCP")
 
 
 class Migration(migrations.Migration):
@@ -43,9 +41,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_tags_aws, unmigrate_tags_aws),
-        migrations.RunPython(migrate_tags_azure, unmigrate_tags_azure),
-        migrations.RunPython(migrate_tags_gcp, unmigrate_tags_gcp),
-        migrations.RunPython(migrate_tags_oci, unmigrate_tags_oci),
-        migrations.RunPython(migrate_tags_ocp, unmigrate_tags_ocp),
+        migrations.RunPython(migrate_tags_aws, unmigrate_tags),
+        migrations.RunPython(migrate_tags_azure, unmigrate_tags),
+        migrations.RunPython(migrate_tags_gcp, unmigrate_tags),
+        migrations.RunPython(migrate_tags_oci, unmigrate_tags),
+        migrations.RunPython(migrate_tags_ocp, unmigrate_tags),
     ]
