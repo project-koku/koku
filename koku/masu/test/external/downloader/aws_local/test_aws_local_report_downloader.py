@@ -131,7 +131,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                             return_value=[split_files, {"start": "", "end": ""}],
                         ):
                             result = self.aws_local_report_downloader.download_file(
-                                self.fake.file_path(), manifest_id=1
+                                self.fake.file_path(extension="csv"), manifest_id=1
                             )
                             self.assertIn(split_files, result)
 

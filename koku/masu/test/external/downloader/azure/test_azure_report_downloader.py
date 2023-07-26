@@ -171,6 +171,8 @@ class AzureReportDownloaderTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
             ingress_reports=None,
         )
+        self.azure_manifest = CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first()
+        self.azure_manifest_id = self.azure_manifest.id
 
     def tearDown(self):
         """Remove created test data."""
@@ -389,22 +391,18 @@ class AzureReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2020-09-22_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2020, month=9, tzinfo=None)
-        with patch(
-            "masu.util.common.get_manifest",
-            return_value=CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first(),
-        ):
-            daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.azure_provider_uuid, temp_path, None, start_date, None
-            )
-            expected_date_range = {"start": "2020-09-01", "end": "2020-09-22", "invoice_month": None}
-            mock_copy.assert_called()
-            self.assertEqual(date_range, expected_date_range)
-            self.assertIsInstance(daily_file_names, list)
-            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-            for daily_file in expected_daily_files:
-                self.assertTrue(os.path.exists(daily_file))
-                os.remove(daily_file)
-            os.remove(temp_path)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, self.azure_manifest_id, start_date, None
+        )
+        expected_date_range = {"start": "2020-09-01", "end": "2020-09-22", "invoice_month": None}
+        mock_copy.assert_called()
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+        os.remove(temp_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives(self, mock_copy):
@@ -416,19 +414,15 @@ class AzureReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [f"{temp_dir}/2019-07-28_0.csv", f"{temp_dir}/2019-07-29_0.csv"]
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, tzinfo=None)
-        with patch(
-            "masu.util.common.get_manifest",
-            return_value=CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first(),
-        ):
-            daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.azure_provider_uuid, temp_path, None, start_date, None
-            )
-            expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}
-            mock_copy.assert_called()
-            self.assertEqual(date_range, expected_date_range)
-            self.assertIsInstance(daily_file_names, list)
-            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-            for daily_file in expected_daily_files:
-                self.assertTrue(os.path.exists(daily_file))
-                os.remove(daily_file)
-            os.remove(temp_path)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, self.azure_manifest_id, start_date, None
+        )
+        expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}
+        mock_copy.assert_called()
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+        os.remove(temp_path)

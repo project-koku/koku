@@ -22,7 +22,6 @@ from masu.external.downloader.gcp.gcp_report_downloader import create_daily_arch
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
-from masu.external.downloader.gcp.gcp_report_downloader import get_manifest
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
@@ -72,17 +71,13 @@ class GCPReportDownloaderTest(MasuTestCase):
                     provider_uuid=self.gcp_provider_uuid,
                     credentials=self.credentials,
                 )
+        self.gcp_manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first()
+        self.gcp_manifest_id = self.gcp_manifest.id
 
     def tearDown(self):
         """Remove files and directories created during the test run."""
         super().tearDown()
         shutil.rmtree(DATA_DIR, ignore_errors=True)
-
-    def test_get_manifest(self):
-        """Test that given a manifest ID, this function returns a manifest"""
-        expected_manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first()
-        manifest = get_manifest(manifest_id=expected_manifest.id)
-        self.assertEqual(manifest, expected_manifest)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -430,19 +425,22 @@ class GCPReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/202208_{partition}_0.csv",
         ]
         start_date = DateHelper().this_month_start
-        with patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.get_manifest",
-            return_value=CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first(),
-        ):
-            daily_file_names, date_range = create_daily_archives(
-                "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None, "ingress_reports"
-            )
-            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
-            self.assertEqual(date_range, expected_date_range)
-            self.assertIsInstance(daily_file_names, list)
-            mock_s3.assert_called()
-            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-            for daily_file in expected_daily_files:
-                self.assertTrue(os.path.exists(daily_file))
-                os.remove(daily_file)
-            os.remove(temp_path)
+        daily_file_names, date_range = create_daily_archives(
+            "request_id",
+            "account",
+            self.gcp_provider_uuid,
+            [temp_path],
+            self.gcp_manifest_id,
+            start_date,
+            None,
+            "ingress_reports",
+        )
+        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        mock_s3.assert_called()
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+        os.remove(temp_path)
