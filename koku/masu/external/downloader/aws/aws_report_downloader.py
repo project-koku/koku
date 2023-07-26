@@ -60,7 +60,7 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
     optional_cols = ["resourcetags", "costcategory"]
     base_cols = INGRESS_REQUIRED_COLUMNS
     try:
-        data_frame = pd.read_csv(local_file, usecols=[invoice_bill])
+        data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     except ValueError:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
@@ -108,32 +108,33 @@ def create_daily_archives(
         date = interval.split("T")[0]
         if datetime.datetime.strptime(date, "%Y-%m-%d") >= start_delta:
             dates.add(date)
-    if dates:
-        directory = os.path.dirname(local_file)
-        date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
-        data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
-        for date in dates:
-            daily_data = data_frame[data_frame[time_interval].str.match(date)]
-            s3_csv_path = com_utils.get_path_prefix(
-                account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
-            )
-            with transaction.atomic():
-                # With split payloads, we could have a race condition trying to update the `report_tracker`.
-                # using a transaction and `select_for_update` should minimize the risk of multiple
-                # workers trying to update this field at the same time by locking the manifest during update.
-                manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
-                if not manifest.report_tracker.get(date):
-                    manifest.report_tracker[date] = 0
-                counter = manifest.report_tracker[date]
-                day_file = f"{date}_{counter}.csv"
-                manifest.report_tracker[date] = counter + 1
-                manifest.save(update_fields=["report_tracker"])
-            day_filepath = f"{directory}/{day_file}"
-            daily_data.to_csv(day_filepath, index=False, header=True)
-            utils.copy_local_report_file_to_s3_bucket(
-                tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
-            )
-            daily_file_names.append(day_filepath)
+    if not dates:
+        return [], {}
+    directory = os.path.dirname(local_file)
+    date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
+    data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
+    for date in dates:
+        daily_data = data_frame[data_frame[time_interval].str.match(date)]
+        s3_csv_path = com_utils.get_path_prefix(
+            account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
+        )
+        with transaction.atomic():
+            # With split payloads, we could have a race condition trying to update the `report_tracker`.
+            # using a transaction and `select_for_update` should minimize the risk of multiple
+            # workers trying to update this field at the same time by locking the manifest during update.
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if not manifest.report_tracker.get(date):
+                manifest.report_tracker[date] = 0
+            counter = manifest.report_tracker[date]
+            day_file = f"{date}_{counter}.csv"
+            manifest.report_tracker[date] = counter + 1
+            manifest.save(update_fields=["report_tracker"])
+        day_filepath = f"{directory}/{day_file}"
+        daily_data.to_csv(day_filepath, index=False, header=True)
+        utils.copy_local_report_file_to_s3_bucket(
+            tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+        )
+        daily_file_names.append(day_filepath)
     return daily_file_names, date_range
 
 
