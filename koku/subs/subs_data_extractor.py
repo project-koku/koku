@@ -109,8 +109,8 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         )
         upload_keys = []
         filename = f"subs_{self.tracing_id}_"
-        sql_file = f"trino_sql/{self.provider_type.lower()}_subs_summary.sql"
-        query_sql = pkgutil.get_data("subs", sql_file)
+        sql_file = f"{self.provider_type.lower()}_subs_summary.sql"
+        query_sql = pkgutil.get_data("subs.trino_sql", sql_file)
         query_sql = query_sql.decode("utf-8")
         for i, offset in enumerate(range(0, total_count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
             sql_params = {
@@ -124,7 +124,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 "limit": settings.PARQUET_PROCESSING_BATCH_SIZE,
             }
             results, description = self._execute_trino_raw_sql_query_with_description(
-                query_sql, sql_params=sql_params, log_ref=f"{self.provider_type.lower()}_subs_summary.sql"
+                query_sql, sql_params=sql_params, log_ref=sql_file
             )
 
             # The format for the description is:
