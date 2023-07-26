@@ -28,9 +28,11 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
             "db_column_period": "cost_entry_bill__billing_period",
             "annotations": {
                 "enabled": Exists(
-                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS)
-                    .filter(key=OuterRef("key"))
-                    .filter(enabled=True)
+                    EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_AWS,
+                        key=OuterRef("key"),
+                        enabled=True,
+                    )
                 )
             },
         },
@@ -39,7 +41,7 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
             "db_column_period": "cost_entry_bill__billing_period",
             "annotations": {
                 "enabled": Exists(
-                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key=OuterRef("key"))
+                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, key=OuterRef("key"))
                 )
             },
         },
