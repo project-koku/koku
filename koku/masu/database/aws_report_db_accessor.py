@@ -17,6 +17,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
+from api.provider.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -351,13 +352,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
-                    source_uuid=provider_uuid, source_type="AWS", **date_filters
+                    source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
                 ).update(project_markup_cost=(F("pod_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
-                    markup_model.objects.filter(source_uuid=provider_uuid, source_type="AWS", **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
+                    markup_model.objects.filter(
+                        source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
+                    ).update(markup_cost=(F("unblended_cost") * markup))
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.

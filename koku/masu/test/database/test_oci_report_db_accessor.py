@@ -13,6 +13,7 @@ from django.db.models import Min
 from django.db.models import Sum
 from django_tenants.utils import schema_context
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -141,11 +142,11 @@ class OCIReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
         with schema_context(self.schema):
             OCITagsSummary.objects.all().delete()
-            EnabledTagKeys.objects.filter(provider_type="OCI").delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).delete()
             bill_ids = [bill.id for bill in bills]
-            self.assertEqual(EnabledTagKeys.objects.filter(provider_type="OCI").count(), 0)
+            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).count(), 0)
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type="OCI").count(), 0)
+            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).count(), 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
@@ -156,9 +157,9 @@ class OCIReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
         with schema_context(self.schema):
             OCITagsSummary.objects.all().delete()
-            key_to_keep = EnabledTagKeys.objects.filter(provider_type="OCI").filter(key="app").first()
-            EnabledTagKeys.objects.filter(provider_type="OCI").update(enabled=False)
-            EnabledTagKeys.objects.filter(provider_type="OCI").filter(key="app").update(enabled=True)
+            key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).filter(key="app").first()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).update(enabled=False)
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (

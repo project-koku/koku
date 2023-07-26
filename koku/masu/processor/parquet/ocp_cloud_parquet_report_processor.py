@@ -114,7 +114,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def has_enabled_ocp_labels(self):
         """Return whether we have enabled OCP labels."""
         with schema_context(self.schema_name):
-            return EnabledTagKeys.objects.filter(provider_type="OCP").exists()
+            return EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists()
 
     def get_report_period_id(self, ocp_provider_uuid):
         """Return the OpenShift report period ID."""

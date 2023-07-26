@@ -16,6 +16,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
+from api.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -141,13 +142,13 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
-                    source_uuid=provider_uuid, source_type="Azure", **date_filters
+                    source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
                 ).update(project_markup_cost=(F("pod_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
-                    markup_model.objects.filter(source_uuid=provider_uuid, source_type="Azure", **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
+                    markup_model.objects.filter(
+                        source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
+                    ).update(markup_cost=(F("unblended_cost") * markup))
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""

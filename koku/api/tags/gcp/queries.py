@@ -20,7 +20,11 @@ class GCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for GCP."""
 
     provider = Provider.PROVIDER_GCP
-    enabled = EnabledTagKeys.objects.filter(provider_type="GCP").filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = (
+        EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP)
+        .filter(key=OuterRef("key"))
+        .filter(enabled=True)
+    )
     data_sources = [
         {
             "db_table": GCPTagsSummary,

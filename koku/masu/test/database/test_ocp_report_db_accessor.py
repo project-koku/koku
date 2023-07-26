@@ -22,6 +22,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakeTrinoConn
+from api.provider.models import Provider
 from api.utils import DateHelper
 from koku import trino_database as trino_db
 from masu.database import AWS_CUR_TABLE_MAP
@@ -520,9 +521,9 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
-            key_to_keep = EnabledTagKeys.objects.filter(provider_type="OCP").filter(key="app").first()
-            EnabledTagKeys.objects.filter(provider_type="OCP").update(enabled=False)
-            EnabledTagKeys.objects.filter(provider_type="OCP").filter(key="app").update(enabled=True)
+            key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").first()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).update(enabled=False)
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").update(enabled=True)
             report_period_ids = [report_period.id]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
             tags = (

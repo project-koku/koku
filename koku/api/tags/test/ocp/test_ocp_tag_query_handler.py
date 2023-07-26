@@ -8,6 +8,7 @@ from django_tenants.utils import tenant_context
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
+from api.provider.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -242,7 +243,9 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            enabled = list(EnabledTagKeys.objects.filter(provider_type="OCP").values_list("key", flat=True).all())
+            enabled = list(
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("key", flat=True).all()
+            )
             tag_keys = [tag for tag in storage_tag_keys if tag in enabled]
 
         result = handler.get_tag_keys()

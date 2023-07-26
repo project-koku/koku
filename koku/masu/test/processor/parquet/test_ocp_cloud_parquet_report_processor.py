@@ -139,7 +139,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_has_enabled_ocp_labels(self):
         """Test that we return whether there are enabled labels"""
         with schema_context(self.schema_name):
-            expected = EnabledTagKeys.objects.filter(provider_type="OCP").exists()
+            expected = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists()
 
         self.assertEqual(self.report_processor.has_enabled_ocp_labels, expected)
 
