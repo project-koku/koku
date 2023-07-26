@@ -364,7 +364,6 @@ class QueryParameters:
             # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
         with tenant_context(self.tenant):
-            # TODO: See if we can just use an in here instead of looping through provider types.
             for prov in self.tag_providers:
                 self.tag_keys.update(
                     EnabledTagKeys.objects.filter(provider_type=prov).values_list("key", flat=True).distinct()

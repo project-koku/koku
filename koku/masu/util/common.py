@@ -367,7 +367,7 @@ def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
                 else:
                     LOG.info(log_json(msg="tag limit has been reached"), content=ctx)
                     enabled_value = False
-            ctx["tags_enagled"] = enabled_value
+            ctx["tags_enabled"] = enabled_value
             batch_size = len(new_batch)
             LOG.info(
                 log_json(msg="create tag batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
