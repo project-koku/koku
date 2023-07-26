@@ -115,10 +115,10 @@ def get_assume_role_session(
 
     """
     client = boto3.client("sts", region_name=region_name)
+    assume_role_kwargs = {"RoleArn": str(arn), "RoleSessionName": session}
     if arn.external_id:
-        response = client.assume_role(RoleArn=str(arn), RoleSessionName=session, ExternalId=arn.external_id)
-    else:
-        response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
+        assume_role_kwargs["ExternalId"] = arn.external_id
+    response = client.assume_role(**assume_role_kwargs)
     return boto3.Session(
         aws_access_key_id=response["Credentials"]["AccessKeyId"],
         aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
