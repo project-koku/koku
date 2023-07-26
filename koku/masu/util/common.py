@@ -344,9 +344,8 @@ def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
         return
 
     with schema_context(schema):
-        new_tags = list(
-            set(enabled_tags)
-            - {k for k in EnabledTagKeys.objects.filter(provider_type=provider_type).values_list("key", flat=True)}
+        new_tags = set(enabled_tags).difference(
+            k for k in EnabledTagKeys.objects.filter(provider_type=provider_type).values_list("key", flat=True)
         )
         if not new_tags:
             LOG.info(log_json(msg="no new tags founds skipping tag enablement", context=ctx))
@@ -372,10 +371,11 @@ def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
             LOG.info(
                 log_json(msg="create tag batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
             )
-            for ix in range(batch_size):
-                new_batch[ix] = EnabledTagKeys(key=new_batch[ix], provider_type=provider_type, enabled=enabled_value)
+            new_records = (
+                EnabledTagKeys(key=key, provider_type=provider_type, enabled=enabled_value) for key in new_batch
+            )
             enabled_tag_count += batch_size
-            EnabledTagKeys.objects.bulk_create(new_batch, ignore_conflicts=True)
+            EnabledTagKeys.objects.bulk_create(new_records, ignore_conflicts=True)
 
 
 # TODO: Remove with settings deprecation COST-3797
