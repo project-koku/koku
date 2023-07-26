@@ -360,9 +360,9 @@ class Settings:
 
         cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
         results.append(self._cost_type_handler(cost_type_settings))
-
-        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
+        if not is_ddf_tag_form_disabled():
+            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+            results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
 
         category_settings = settings.get("api", {}).get("settings", {}).get("aws-category-management", {})
         results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))
