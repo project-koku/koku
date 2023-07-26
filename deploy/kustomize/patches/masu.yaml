@@ -210,7 +210,7 @@
     displayName: Memory Request
     name: MASU_MEMORY_REQUEST
     required: true
-    value: 350Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:

@@ -5,11 +5,7 @@ SELECT DISTINCT(key)
  WHERE lids.usage_start >= date({{start_date}})
    AND lids.usage_start <= date({{end_date}})
    {% if bill_ids %}
-   AND lids.cost_entry_bill_id IN (
-        {%- for bill_id in bill_ids -%}
-          {{bill_id}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
-       )
+      AND lids.cost_entry_bill_id IN {{ bill_ids | inclause }}
    {% endif %}
    AND NOT EXISTS (
         SELECT key

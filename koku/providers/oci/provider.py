@@ -6,6 +6,7 @@
 import logging
 
 from oci import object_storage as storage_client
+from oci._vendor.urllib3.exceptions import LocationParseError
 from oci.exceptions import ClientError
 from oci.exceptions import RequestException as OciRequestException
 from oci.exceptions import ServiceError
@@ -47,6 +48,10 @@ def _check_cost_report_access(bucket, namespace, region):
         raise serializers.ValidationError(error_obj(key, message))
     except (ClientError, ServiceError, OciConnectionError) as oci_error:
         LOG.warn(msg=message, exc_info=oci_error)
+        raise serializers.ValidationError(error_obj(key, message))
+    except LocationParseError:
+        key = ProviderErrors.OCI_INVALID_VALUES
+        message = "Invalid values for either bucket, bucket_namespace or bucket_region."
         raise serializers.ValidationError(error_obj(key, message))
 
     # return a auth friendly format

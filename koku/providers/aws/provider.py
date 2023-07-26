@@ -41,12 +41,10 @@ def _get_sts_access(credentials, region_name=None):
     try:
         # Call the assume_role method of the STSConnection object and pass the role
         # ARN and a role session name.
+        assume_role_kwargs = {"RoleArn": arn.arn, "RoleSessionName": "AccountCreationSession"}
         if arn.external_id:
-            assumed_role = sts_client.assume_role(
-                RoleArn=arn.arn, RoleSessionName="AccountCreationSession", ExternalId=arn.external_id
-            )
-        else:
-            assumed_role = sts_client.assume_role(RoleArn=arn.arn, RoleSessionName="AccountCreationSession")
+            assume_role_kwargs["ExternalId"] = arn.external_id
+        assumed_role = sts_client.assume_role(**assume_role_kwargs)
         aws_credentials = assumed_role.get("Credentials")
     except ParamValidationError as param_error:
         LOG.warn(msg=error_message)
