@@ -27,7 +27,7 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
             "db_table": OCPGCPTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
             "annotations": {
-                "enabled": Exists(EnabledTagKeys.objects.filter(provider_type="GCP").filter(key=OuterRef("key")))
+                "enabled": Exists(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).filter(key=OuterRef("key")))
             },
         },
         {

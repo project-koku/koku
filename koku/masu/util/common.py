@@ -378,7 +378,7 @@ def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
             EnabledTagKeys.objects.bulk_create(new_batch, ignore_conflicts=True)
 
 
-# TODO: Remove with settings deprecation
+# TODO: Remove with settings deprecation COST-3797
 def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
     ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
     LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))

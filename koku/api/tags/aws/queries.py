@@ -21,7 +21,7 @@ class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
     provider = Provider.PROVIDER_AWS
-    enabled = EnabledTagKeys.objects.filter(provider_type=provider).filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = EnabledTagKeys.objects.filter(provider_type=provider, key=OuterRef("key"), enabled=True)
     data_sources = [
         {
             "db_table": AWSTagsSummary,

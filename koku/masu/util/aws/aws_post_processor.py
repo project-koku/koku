@@ -46,18 +46,19 @@ def create_enabled_categories(schema, enabled_keys):
     with schema_context(schema):
         LOG.info(log_json(msg="searching for new category keys", context=ctx))
         new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
-        if new_keys:
-            LOG.info(log_json(msg="creating enabled key records", context=ctx))
-            for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
-                batch_size = len(new_batch)
-                LOG.info(
-                    log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
-                )
-                for ix in range(batch_size):
-                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
-                enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
-        else:
+        if not new_keys:
             LOG.info(log_json(msg="no enabled keys added", context=ctx))
+            return
+            
+        LOG.info(log_json(msg="creating enabled key records", context=ctx))
+        for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+            batch_size = len(new_batch)
+            LOG.info(
+                log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
+            )
+            for ix in range(batch_size):
+                new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+            enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
 
 
 class AWSPostProcessor:

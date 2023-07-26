@@ -37,7 +37,8 @@ def process_openshift_labels(label_string):
         (dict): The JSON dictionary made from the label string
 
     Dev Note:
-        You can use 'kube_node_labels` in prometheus to see the values.
+        You can reference the operator here to see what queries to run 
+        in prometheus to see the labels. 
 
     """
     labels = label_string.split("|") if label_string else []

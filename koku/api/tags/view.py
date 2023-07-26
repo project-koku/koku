@@ -81,6 +81,4 @@ class TagView(ReportView):
 
     def validate_key(self, key):
         """Validate that tag key exists."""
-        if EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers, key=key).exists():
-            return True
-        return False
+        return EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers, key=key).exists()
