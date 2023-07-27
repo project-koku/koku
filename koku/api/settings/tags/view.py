@@ -27,7 +27,7 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
 
     class Meta:
         model = EnabledTagKeys
-        fields = ("uuid", "enabled")
+        fields = ("uuid", "enabled", "provider_type")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         if self.request:
