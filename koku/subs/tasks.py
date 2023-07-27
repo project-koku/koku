@@ -13,7 +13,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from koku import celery_app
 from koku import settings
-from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util.common import convert_account
@@ -47,7 +46,7 @@ def enable_subs_extraction(schema_name: str) -> bool:
     context = {"schema_name": schema_name}
     LOG.info(log_json(msg="enable_subs_extraction context", context=context))
     return bool(
-        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-extraction", context, fallback_development_true)
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-extraction", context)
         or settings.ENABLE_SUBS_DEBUG
         or check_subs_source_gate(schema_name)
     )
