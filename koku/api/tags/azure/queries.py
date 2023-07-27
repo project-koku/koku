@@ -12,7 +12,7 @@ from api.models import Provider
 from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureTagsSummary
-from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.azure.models import AzureTagsValues
 
 
@@ -20,7 +20,7 @@ class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
     provider = Provider.PROVIDER_AZURE
-    enabled = AzureEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = EnabledTagKeys.objects.filter(provider_type=provider).filter(key=OuterRef("key")).filter(enabled=True)
     data_sources = [
         {
             "db_table": AzureTagsSummary,

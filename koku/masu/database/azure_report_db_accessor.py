@@ -16,6 +16,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
+from api.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -141,13 +142,13 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
-                    source_uuid=provider_uuid, source_type="Azure", **date_filters
+                    source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
                 ).update(project_markup_cost=(F("pod_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
-                    markup_model.objects.filter(source_uuid=provider_uuid, source_type="Azure", **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
+                    markup_model.objects.filter(
+                        source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
+                    ).update(markup_cost=(F("unblended_cost") * markup))
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
@@ -341,7 +342,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = self._table_map["enabled_tag_keys"]
+        table_name = "reporting_enabledtagkeys"
         sql = pkgutil.get_data("masu.database", "sql/reporting_azureenabledtagkeys.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -432,9 +433,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_azureenabledtagkeys as azure
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON azure.key = ocp.key
-                WHERE azure.enabled = true AND ocp.enabled = true;
+            SELECT COUNT(*) FROM (SELECT COUNT(provider_type) AS p_count FROM
+                {self.schema}.reporting_enabledtagkeys WHERE enabled=True AND provider_type IN ('Azure', 'OCP')
+                GROUP BY key) AS c WHERE c.p_count > 1;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)

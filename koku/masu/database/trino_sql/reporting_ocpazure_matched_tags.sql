@@ -40,9 +40,11 @@ FROM (
             lower(azure.key) = lower(ocp.volume_key)
                 AND lower(azure.value) = lower(ocp.volume_value)
         )
-    JOIN postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys AS atk
-        ON azure.key = atk.key
-       AND atk.enabled = true
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
+    JOIN postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
+        ON azure.key = etk.key
+       AND etk.enabled = true
+       AND etk.provider_type = 'Azure'
+    JOIN postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys AS otk
         ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
+        AND otk.provider_type = 'OCP'
 ) AS matches

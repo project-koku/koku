@@ -10,10 +10,11 @@ from django_tenants.utils import schema_context
 from numpy import isnan
 from pandas import DataFrame
 
+from api.models import Provider
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from masu.util.azure.azure_post_processor import AzurePostProcessor
-from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.azure.models import TRINO_COLUMNS
 
 
@@ -99,7 +100,9 @@ class TestAzurePostProcessor(MasuTestCase):
         self.post_processor.finalize_post_processing()
 
         with schema_context(self.schema):
-            tag_key_count = AzureEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            tag_key_count = EnabledTagKeys.objects.filter(
+                provider_type=Provider.PROVIDER_AZURE, key__in=expected_tag_keys
+            ).count()
             self.assertEqual(tag_key_count, len(expected_tag_keys))
 
     def test_ingress_required_columns(self):
