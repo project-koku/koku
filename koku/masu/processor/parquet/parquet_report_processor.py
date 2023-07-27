@@ -406,7 +406,7 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        self.prepare_parquet_s3()
+        # TODO this is not purging correctly for Aws/Azure self.prepare_parquet_s3()
 
         failed_conversion = []
         daily_data_frames = []
