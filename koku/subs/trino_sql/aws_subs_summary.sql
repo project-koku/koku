@@ -6,7 +6,7 @@ SELECT
   END as subs_role,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_usage'))
     WHEN 'development/test' THEN 'Development/Test'
-    WHEN 'disaster recover' THEN 'Disaster Recovery'
+    WHEN 'disaster recovery' THEN 'Disaster Recovery'
     ELSE 'Production'
   END as subs_usage,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_sla'))
@@ -14,9 +14,9 @@ SELECT
     WHEN 'self-support' THEN 'Self-Support'
     ELSE 'Premium'
   END as subs_sla,
-  CASE lower(json_extract_scalar(tags, '$.com_redhal_rhel'))
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel'))
     WHEN 'rhel 7 eus' THEN '69-70'
-    WHEN 'rehl 8 eus' THEN '479-70'
+    WHEN 'rhel 8 eus' THEN '479-70'
     ELSE '479'
   END as subs_product_ids
 FROM
@@ -56,3 +56,5 @@ FROM
     LIMIT
       {{ limit }}
   )
+-- this ensures the required `com_redhat_rhel` tag exists in the set of tags since the above match is not exact
+WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL

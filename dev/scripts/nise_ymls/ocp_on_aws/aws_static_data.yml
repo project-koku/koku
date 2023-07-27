@@ -32,7 +32,10 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:COM_redhat_rhel: true
+        resourceTags/user:com_REDHAT_rhel: RHEL 8 EUS
+        resourceTags/user:com_redhat_rhel_sla: self-support
+        resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
+        resourceTags/user:com_redhat_rhel_usage: disaster Recovery
       cost_category:
         costCategory/env: prod
       instance_type:
