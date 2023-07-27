@@ -71,7 +71,7 @@ class CURAccountsDBTest(MasuTestCase):
 
     def test_get_accounts_from_source_type(self):
         """Test to get specific source type accounts."""
-        accounts = CURAccountsDB().get_accounts_from_source(provider_type="AWS")
+        accounts = CURAccountsDB().get_accounts_from_source(provider_type=Provider.PROVIDER_AWS)
         expected_count = Provider.objects.filter(type=self.aws_provider.type).count()
         self.assertEqual(len(accounts), expected_count)
 

@@ -103,7 +103,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[fake_objects, fake_objects],
+            tag_providers=[],
         )
         self.assertIsInstance(QueryParameters(fake_request, fake_view), QueryParameters)
 
@@ -116,7 +116,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.FAKE.word()),
             report="tags",
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with self.assertRaises(ValidationError):
             QueryParameters(fake_request, fake_view)
@@ -138,7 +138,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.FAKE.word()),
             report=self.FAKE.word(),
             serializer=MockSerializer,
-            tag_handler=[],
+            tag_providers=[],
         )
         with self.assertRaises(ValidationError):
             QueryParameters(fake_request, fake_view)
@@ -158,7 +158,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.accept_type, expected)
@@ -176,7 +176,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.access, self.test_read_access)
@@ -196,7 +196,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.delta, expected)
@@ -216,7 +216,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.category, expected)
@@ -235,7 +235,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with patch("api.query_params.get_tenant", return_value=expected):
             params = QueryParameters(fake_request, fake_view)
@@ -258,7 +258,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.parameters, expected)
@@ -277,7 +277,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         params.parameters = expected
@@ -296,7 +296,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.url_data, self.fake_uri)
@@ -314,7 +314,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertIsInstance(params.tenant, Tenant)
@@ -332,7 +332,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertIsInstance(params.get("group_by"), dict)
@@ -350,7 +350,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         key = self.FAKE.word()
@@ -371,7 +371,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         key = self.FAKE.word()
@@ -392,7 +392,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_filter("time_scope_units"), "day")
@@ -413,7 +413,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertIsNone(params.get_filter("time_scope_units"))
@@ -434,7 +434,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_filter("time_scope_value"), "-1")
@@ -453,7 +453,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_filter("time_scope_units"), "month")
@@ -472,7 +472,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=self.provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_filter("resolution"), "monthly")
@@ -493,7 +493,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=provider),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_group_by("account"), "*")
@@ -514,7 +514,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_AWS),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_access("account"), ["account1", "account2"])
@@ -542,7 +542,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_AZURE),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with self.assertRaises(PermissionDenied):
             QueryParameters(fake_request, fake_view)
@@ -562,7 +562,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_OCP),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with self.assertRaises(PermissionDenied):
             QueryParameters(fake_request, fake_view)
@@ -582,7 +582,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_AWS),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_access("account"), ["account1", "account2"])
@@ -604,7 +604,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_AZURE),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_access("subscription_guid"), [guid1, guid2])
@@ -625,7 +625,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_OCI),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_access("payer_tenant_id"), [guid1, guid2])
@@ -645,7 +645,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_OCP),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with self.assertRaises(PermissionDenied):
             QueryParameters(fake_request, fake_view)
@@ -692,9 +692,11 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[fake_objects],
+            tag_providers=["fake"],
         )
-        params = QueryParameters(fake_request, fake_view)
+        with patch("reporting.provider.all.models.EnabledTagKeys.objects") as mock_object:
+            mock_object.filter.return_value.values_list.return_value.distinct.return_value = tag_keys
+            params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
 
     def test_process_exclude_query_params(self):
@@ -718,7 +720,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.parameters.get("exclude"), {"account": "prod"})
@@ -736,7 +738,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         for provider in PROVIDERS:
@@ -762,7 +764,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         with self.assertRaises(ValidationError):
@@ -782,7 +784,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.OCP_ALL),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects", return_value=[]):
             params = QueryParameters(fake_request, fake_view)
@@ -802,7 +804,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.OCP_ALL),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects", return_value=[]):
             params = QueryParameters(fake_request, fake_view)
@@ -827,7 +829,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.OCP_ALL),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects") as mock_object:
             mock_object.filter.return_value.values_list.return_value.distinct.return_value = ["999999999"]
@@ -854,7 +856,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.OCP_ALL),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         access_list = params._get_providers(Provider.OCP_ALL.lower())
@@ -875,7 +877,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.OCP_ALL),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects", return_value=[]):
             params = QueryParameters(fake_request, fake_view)
@@ -905,7 +907,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.OCP_ALL),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         access_list = params._get_providers(Provider.OCP_ALL.lower())
@@ -930,7 +932,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=Provider.PROVIDER_AWS),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[],
+            tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
         with patch.object(params, "_get_org_unit_account_hierarchy") as mock_method:

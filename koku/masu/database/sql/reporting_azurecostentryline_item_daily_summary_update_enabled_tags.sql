@@ -1,8 +1,9 @@
 -- update azure tags leaving only enabled keys
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
-      from {{schema | sqlsafe}}.reporting_azureenabledtagkeys
-     where enabled = false
+      from {{schema | sqlsafe}}.reporting_enabledtagkeys
+      where enabled = false
+      and provider_type = 'Azure'
 )
 update {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary as lids
    set tags = tags - ek.keys

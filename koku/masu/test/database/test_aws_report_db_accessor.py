@@ -27,6 +27,7 @@ from psycopg2.errors import DeadlockDetected
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
+from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import get_model
 from koku.database_exc import ExtendedDBException
@@ -39,8 +40,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting_common import REPORT_COLUMN_MAP
@@ -407,11 +408,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
         with schema_context(self.schema):
             AWSTagsSummary.objects.all().delete()
-            AWSEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
+
             bill_ids = [bill.id for bill in bills]
-            self.assertEqual(AWSEnabledTagKeys.objects.count(), 0)
+            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).count(), 0)
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(AWSEnabledTagKeys.objects.count(), 0)
+            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).count(), 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
@@ -422,9 +424,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
         with schema_context(self.schema):
             AWSTagsSummary.objects.all().delete()
-            key_to_keep = AWSEnabledTagKeys.objects.filter(key="app").first()
-            AWSEnabledTagKeys.objects.all().update(enabled=False)
-            AWSEnabledTagKeys.objects.filter(key="app").update(enabled=True)
+            key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).filter(key="app").first()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).update(enabled=False)
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (
@@ -573,7 +575,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
-            AWSEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
