@@ -10,10 +10,11 @@ from unittest.mock import patch
 from django_tenants.utils import schema_context
 from pandas import DataFrame
 
+from api.provider.models import Provider
 from masu.test import MasuTestCase
 from masu.util.aws.aws_post_processor import AWSPostProcessor
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
 
 
@@ -240,5 +241,9 @@ class TestAWSPostProcessor(MasuTestCase):
         with schema_context(self.schema):
             cat_key_count = AWSEnabledCategoryKeys.objects.filter(key__in=expected_cat_keys).count()
             self.assertEqual(cat_key_count, len(expected_cat_keys))
-            tag_key_count = AWSEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            tag_key_count = (
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS)
+                .filter(key__in=expected_tag_keys)
+                .count()
+            )
             self.assertEqual(tag_key_count, len(expected_tag_keys))

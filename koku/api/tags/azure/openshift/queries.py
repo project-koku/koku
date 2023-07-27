@@ -14,9 +14,8 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPAzureTagsSummary
-from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.azure.openshift.models import OCPAzureTagsValues
-from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
@@ -28,13 +27,21 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
             "db_table": OCPAzureTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
             "annotations": {
-                "enabled": Exists(AzureEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True))
+                "enabled": Exists(
+                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE)
+                    .filter(key=OuterRef("key"))
+                    .filter(enabled=True)
+                )
             },
         },
         {
             "db_table": OCPAzureTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"enabled": Exists(OCPEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+            "annotations": {
+                "enabled": Exists(
+                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key=OuterRef("key"))
+                )
+            },
         },
     ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPAzureTagsValues, "fields": ["key"]}]

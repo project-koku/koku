@@ -38,8 +38,12 @@ FROM (
             lower(gcp.key) = lower(ocp.volume_key)
                 AND lower(gcp.value) = lower(ocp.volume_value)
         )
-    JOIN postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys AS gtk
-        ON gcp.key = gtk.key
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
+    JOIN postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
+        ON gcp.key = etk.key
+        AND etk.enabled = true
+        AND etk.provider_type = 'GCP'
+    JOIN postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys AS otk
         ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
+        AND otk.provider_type = 'OCP'
+
 ) AS matches

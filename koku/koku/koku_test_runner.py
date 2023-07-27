@@ -20,7 +20,6 @@ from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
 from koku.env import ENVIRONMENT
-from reporting.models import OCPEnabledTagKeys
 
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
