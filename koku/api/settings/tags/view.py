@@ -23,18 +23,19 @@ LOG = logging.getLogger(__name__)
 
 
 class SettingsTagFilter(django_filters.rest_framework.FilterSet):
-    key = django_filters.CharFilter(lookup_expr="icontains")
+    key = django_filters.MultipleChoiceFilter(lookup_expr="icontains")
+    provider_type = django_filters.ModelMultipleChoiceFilter(queryset=EnabledTagKeys.objects.all())
 
     class Meta:
         model = EnabledTagKeys
-        fields = ("enabled", "provider_type", "uuid")
+        fields = ("enabled", "uuid")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         order_by = ["provider_type", "-enabled"]
 
         if self.request:
             query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
-            filter = query_params.get("filter", {})
+            filter_params = query_params.get("filter", {})
 
             order_by = query_params.get("order_by", order_by)
             if isinstance(order_by, str):
@@ -45,13 +46,14 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
             # The default behavior is to use the URL params directly for filtering.
             # Since our APIs expect filters to be in the filter dict, extract those
             # values and merge them with cleaned_data which is used for filtering.
-            self.form.cleaned_data.update(filter)
+            self.form.cleaned_data.update(filter_params)
 
         return super().filter_queryset(queryset).order_by(*order_by)
 
 
 class SettingsTagView(generics.GenericAPIView):
     queryset = EnabledTagKeys.objects.all()
+    serializer_class = SettingsTagSerializer
     permission_classes = [SettingsAccessPermission]
     filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
     filterset_class = SettingsTagFilter
@@ -59,7 +61,7 @@ class SettingsTagView(generics.GenericAPIView):
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
         filtered_qset = self.filter_queryset(self.get_queryset())
-        serializer = SettingsTagSerializer(filtered_qset, many=True)
+        serializer = self.serializer_class(filtered_qset, many=True)
 
         paginator = ListPaginator(serializer.data, request)
         paginated_data = paginator.paginate_queryset(serializer.data, request)
