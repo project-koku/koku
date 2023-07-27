@@ -102,8 +102,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             (String): The path and file name of the saved file
 
         """
-        file_names = []
-        date_range = {}
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
 

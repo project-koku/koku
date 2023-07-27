@@ -7,10 +7,10 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.models import Provider
-from masu.util.common import batch
 from masu.util.aws.common import INGRESS_ALT_COLUMNS
 from masu.util.aws.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.aws.common import SUBS_COLUMNS
+from masu.util.common import batch
 from masu.util.common import create_enabled_tags
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name

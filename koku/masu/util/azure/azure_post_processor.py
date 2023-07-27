@@ -3,7 +3,6 @@ import json
 import ciso8601
 from numpy import nan
 
-from masu.util.common import create_enabled_keys
 from api.models import Provider
 from masu.util.azure.common import INGRESS_ALT_COLUMNS
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
