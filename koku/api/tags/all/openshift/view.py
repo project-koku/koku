@@ -4,13 +4,10 @@
 #
 """View for OCP-on-All tags."""
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
+from api.provider.models import Provider
 from api.tags.all.openshift.queries import OCPAllTagQueryHandler
 from api.tags.all.openshift.serializers import OCPAllTagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.models import OCPEnabledTagKeys
-from reporting.provider.aws.models import AWSEnabledTagKeys
-from reporting.provider.azure.models import AzureEnabledTagKeys
-from reporting.provider.gcp.models import GCPEnabledTagKeys
 
 
 class OCPAllTagView(TagView):
@@ -19,5 +16,5 @@ class OCPAllTagView(TagView):
     provider = "ocp_all"
     serializer = OCPAllTagsQueryParamSerializer
     query_handler = OCPAllTagQueryHandler
-    tag_handler = [AWSEnabledTagKeys, AzureEnabledTagKeys, GCPEnabledTagKeys, OCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP, Provider.PROVIDER_OCP]
     permission_classes = [OpenshiftAllAccessPermission]
