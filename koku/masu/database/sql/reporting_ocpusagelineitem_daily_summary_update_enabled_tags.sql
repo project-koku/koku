@@ -1,8 +1,9 @@
 -- update ocp tags leaving only enabled keys
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
-      from {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
+      from {{schema | sqlsafe}}.reporting_enabledtagkeys
       where enabled = false
+      and provider_type = 'OCP'
 )
 update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     set pod_labels = case

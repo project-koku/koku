@@ -85,15 +85,20 @@ class ModelBakeryDataLoader(DataLoader):
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
 
-        for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys", "AzureEnabledTagKeys"):
+        for provider_type in (
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_OCI,
+            Provider.PROVIDER_AZURE,
+        ):
             for dikt in self.tags:
                 for key in dikt.keys():
                     with schema_context(self.schema):
-                        baker.make(table_name, key=key, enabled=True)
+                        baker.make("EnabledTagKeys", key=key, enabled=True, provider_type=provider_type)
         with schema_context(self.schema):
             for key in self.ocp_tag_keys:
-                baker.make("OCPEnabledTagKeys", key=key, enabled=True)
-            baker.make("OCPEnabledTagKeys", key="disabled", enabled=False)
+                baker.make("EnabledTagKeys", key=key, enabled=True, provider_type=Provider.PROVIDER_OCP)
+            baker.make("EnabledTagKeys", key="disabled", enabled=False, provider_type=Provider.PROVIDER_OCP)
 
     def _populate_enabled_aws_category_key_table(self):
         """Insert records for aws category keys."""

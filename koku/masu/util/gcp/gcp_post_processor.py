@@ -5,10 +5,10 @@ from json.decoder import JSONDecodeError
 import ciso8601
 import pandas as pd
 
-from masu.util.common import create_enabled_keys
+from api.models import Provider
+from masu.util.common import create_enabled_tags
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from reporting.provider.gcp.models import GCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -191,4 +191,4 @@ class GCPPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, GCPEnabledTagKeys, self.enabled_tag_keys)
+        create_enabled_tags(self.schema, self.enabled_tag_keys, Provider.PROVIDER_GCP, False)

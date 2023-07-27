@@ -27,8 +27,8 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
-from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting_common.models import CostUsageReportStatus
@@ -208,11 +208,11 @@ class GCPReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.gcp_provider_uuid, start_date)
         with schema_context(self.schema):
             GCPTagsSummary.objects.all().delete()
-            GCPEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).delete()
             bill_ids = [bill.id for bill in bills]
-            self.assertEqual(GCPEnabledTagKeys.objects.count(), 0)
+            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).count(), 0)
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(GCPEnabledTagKeys.objects.count(), 0)
+            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).count(), 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
@@ -223,9 +223,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.bills_for_provider_uuid(self.gcp_provider_uuid, start_date)
         with schema_context(self.schema):
             GCPTagsSummary.objects.all().delete()
-            key_to_keep = GCPEnabledTagKeys.objects.filter(key="app").first()
-            GCPEnabledTagKeys.objects.all().update(enabled=False)
-            GCPEnabledTagKeys.objects.filter(key="app").update(enabled=True)
+            key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).filter(key="app").first()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).update(enabled=False)
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).filter(key="app").update(enabled=True)
             bill_ids = [bill.id for bill in bills]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             tags = (
@@ -429,7 +429,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
-            GCPEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).delete()
         value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
