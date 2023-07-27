@@ -121,10 +121,9 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
     for report in reports_deduplicated:
         start_date = None
         end_date = None
-        if report.get("start") and report.get("end"):
-            LOG.info("using start and end dates from the manifest for HCS processing")
-            start_date = parser.parse(report.get("start")).date()
-            end_date = parser.parse(report.get("end")).date()
+        LOG.info("using start and end dates from the manifest for HCS processing")
+        start_date = parser.parse(report.get("start")).date()
+        end_date = parser.parse(report.get("end")).date()
         schema_name = report.get("schema_name")
         provider_type = report.get("provider_type")
         provider_uuid = report.get("provider_uuid")
