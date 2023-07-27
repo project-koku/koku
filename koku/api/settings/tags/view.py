@@ -27,18 +27,27 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
 
     class Meta:
         model = EnabledTagKeys
-        fields = ("uuid", "enabled", "provider_type")
+        fields = ("enabled", "provider_type", "uuid")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
+        order_by = ["provider_type", "-enabled"]
+
         if self.request:
             query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
             filter = query_params.get("filter", {})
-            order_by = query_params.get("order_by", "provider_type")
-            # Use the filter parameters from the request for filtering
+
+            order_by = query_params.get("order_by", order_by)
+            if isinstance(order_by, str):
+                order_by = [order_by]
+
+            # Use the filter parameters from the request for filtering.
+            #
+            # The default behavior is to use the URL params directly for filtering.
+            # Since our APIs expect filters to be in the filter dict, extract those
+            # values and merge them with cleaned_data which is used for filtering.
             self.form.cleaned_data.update(filter)
 
-        # FIXME: Need to account for order_by when there is no request
-        return super().filter_queryset(queryset).order_by(order_by)
+        return super().filter_queryset(queryset).order_by(*order_by)
 
 
 class SettingsTagView(generics.GenericAPIView):
