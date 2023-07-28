@@ -71,9 +71,7 @@ def get_month_start_from_report(report):
         # GCP and OCI set report start and report end, AWS/Azure do not
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(report.get("manifest_id"))
-            if not manifest:
-                return
-            return manifest.billing_period_start_datetime
+            return manifest.billing_period_start_datetime if manifest else None
 
 
 @celery_app.task(name="subs.tasks.extract_subs_data_from_reports", queue=SUBS_EXTRACTION_QUEUE)
