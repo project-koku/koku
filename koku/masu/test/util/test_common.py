@@ -388,6 +388,29 @@ class CommonUtilTests(MasuTestCase):
         with self.assertRaises(ValueError):
             _ = list(common_utils.batch(vals, start="eek"))
 
+    def test_tag_enabled_population_no_new_keys(self):
+
+        with schema_context(self.schema):
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
+            for key in ("masu", "database", "processor", "common"):
+                EnabledTagKeys.objects.create(key=key, enabled=(key != "masu"), provider_type=Provider.PROVIDER_AWS)
+            all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        common_utils.populate_enabled_tag_rows_with_limit(self.schema, set(), Provider.PROVIDER_AWS)
+        common_utils.populate_enabled_tag_rows_with_false(self.schema, set(), Provider.PROVIDER_AWS)
+        common_utils.populate_enabled_tag_rows_with_limit(self.schema, orig_enabled, Provider.PROVIDER_AWS)
+        common_utils.populate_enabled_tag_rows_with_false(self.schema, orig_disabled, Provider.PROVIDER_AWS)
+
+        with schema_context(self.schema):
+            all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertEqual(orig_enabled, check_enabled)
+        self.assertEqual(orig_disabled, check_disabled)
+
     @patch("masu.config.Config", return_value=MockConfig)
     def populate_enabled_tag_rows_with_limit_aws(self, mock_config):
         with schema_context(self.schema):
