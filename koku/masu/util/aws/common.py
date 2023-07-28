@@ -596,18 +596,18 @@ def get_s3_csv_lastest_daily_date(s3_path, start_date, context, request_id):
             else:
                 if date > s3_date:
                     s3_date = date
-        processing_date = s3_date
-    except (EndpointConnectionError, ClientError) as err:
+        processing_date = s3_date.replace(tzinfo=None)
+    except (EndpointConnectionError, ClientError, AttributeError) as err:
         LOG.warning(
             log_json(
                 request_id,
-                msg="unable to get matching data in bucket",
+                msg="unable to fetch date from objects, failing back to full month processing",
                 context=context,
                 bucket=settings.S3_BUCKET_NAME,
             ),
             exc_info=err,
         )
-    return processing_date.replace(tzinfo=None)
+    return processing_date
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):

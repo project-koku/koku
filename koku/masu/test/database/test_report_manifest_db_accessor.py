@@ -204,8 +204,9 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertTrue(status)
 
         self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
+        fetch_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
 
-        status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+        status = self.manifest_accessor.get_s3_parquet_cleared(fetch_manifest)
         self.assertFalse(status)
 
     def test_get_s3_parquet_cleared_ocp_no_report_type(self):
@@ -215,12 +216,13 @@ class ReportManifestDBAccessorTest(IamTestCase):
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
         self.assertTrue(status)
 
-        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest)
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
+        fetch_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
 
-        self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {})
-        self.assertFalse(manifest.s3_parquet_cleared)
+        self.assertDictEqual(fetch_manifest.s3_parquet_cleared_tracker, {})
+        self.assertFalse(fetch_manifest.s3_parquet_cleared)
 
-        status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+        status = self.manifest_accessor.get_s3_parquet_cleared(fetch_manifest)
         self.assertFalse(status)
 
     def test_get_s3_parquet_cleared_ocp_with_report_type(self):
@@ -229,7 +231,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.manifest_dict["cluster_id"] = "cluster_id"
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, report_type)
-        self.assertTrue(status)
+        self.assertFalse(status)
 
         self.manifest_accessor.mark_s3_parquet_cleared(manifest, report_type)
 
