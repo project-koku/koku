@@ -251,7 +251,7 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertEqual(file_name, "")
             self.assertTrue(data_frame.empty)
 
-        expected = "failed to convert files to parquet"
+        expected = "no split files to convert to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
             ParquetReportProcessor,
             "convert_csv_to_parquet",

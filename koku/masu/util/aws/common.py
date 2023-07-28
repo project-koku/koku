@@ -584,6 +584,32 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
+def get_s3_csv_lastest_daily_date(s3_path, start_date, context, request_id):
+    processing_date = start_date
+    try:
+        s3_date = None
+        for obj_summary in _get_s3_objects(s3_path):
+            existing_object = obj_summary.Object()
+            date = datetime.datetime.strptime(existing_object.key.split(f"{s3_path}/")[1].split("_")[0], "%Y-%m-%d")
+            if not s3_date:
+                s3_date = date
+            else:
+                if date > s3_date:
+                    s3_date = date
+        processing_date = s3_date
+    except (EndpointConnectionError, ClientError) as err:
+        LOG.warning(
+            log_json(
+                request_id,
+                msg="unable to get matching data in bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+            ),
+            exc_info=err,
+        )
+    return processing_date.replace(tzinfo=None)
+
+
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
     if context is None:
         context = {}

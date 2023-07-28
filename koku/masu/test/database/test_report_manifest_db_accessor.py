@@ -201,27 +201,27 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Test that s3 CSV clear status is reported."""
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-        self.assertFalse(status)
+        self.assertTrue(status)
 
-        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
 
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-        self.assertTrue(status)
+        self.assertFalse(status)
 
     def test_get_s3_parquet_cleared_ocp_no_report_type(self):
         """Test that s3 CSV clear status is reported."""
         self.manifest_dict["cluster_id"] = "cluster_id"
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-        self.assertFalse(status)
+        self.assertTrue(status)
 
-        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest)
 
         self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {})
-        self.assertTrue(manifest.s3_parquet_cleared)
+        self.assertFalse(manifest.s3_parquet_cleared)
 
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-        self.assertTrue(status)
+        self.assertFalse(status)
 
     def test_get_s3_parquet_cleared_ocp_with_report_type(self):
         """Test that s3 CSV clear status is reported."""
@@ -229,12 +229,12 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.manifest_dict["cluster_id"] = "cluster_id"
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, report_type)
-        self.assertFalse(status)
+        self.assertTrue(status)
 
         self.manifest_accessor.mark_s3_parquet_cleared(manifest, report_type)
 
         self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {report_type: True})
-        self.assertFalse(manifest.s3_parquet_cleared)
+        self.assertTrue(manifest.s3_parquet_cleared)
 
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, report_type)
         self.assertTrue(status)

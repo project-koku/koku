@@ -502,22 +502,6 @@ def get_provider_updated_timestamp(provider_uuid):
         return provider_accessor.get_data_updated_timestamp()
 
 
-def get_start_delta(start_date, provider_uuid):
-    """Get initial start date for download file processing"""
-    dh = DateHelper()
-    if start_date.year == dh.today.year and start_date.month == dh.today.month:
-        last_update_day = get_provider_updated_timestamp(provider_uuid)
-        if not last_update_day:
-            last_update_day = dh.today
-        start_delta = (
-            last_update_day - datetime.timedelta(days=3) if last_update_day.day > 3 else last_update_day.replace(day=1)
-        )
-    else:
-        start_delta = dh.month_end(start_date) - datetime.timedelta(days=3)
-    start_delta = start_delta.replace(tzinfo=None)
-    return start_delta
-
-
 def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context):
     """Add optional columns to columns list if they exists in files"""
     for fetch_column in fetch_columns:

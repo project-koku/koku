@@ -25,6 +25,7 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.aws.common import get_s3_csv_lastest_daily_date
 from masu.util.azure import common as utils
 from reporting_common.models import CostUsageReportManifest
 
@@ -41,12 +42,15 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, start_date, context, tracing_id):
+def get_initial_dataframe_with_date(
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
 
     Args:
         local_file (str): The full path name of the file
+        s3_csv_path (str): The path prefix for csvs
         manifest_id (str): The manifest ID
         provider_uuid (str): The uuid of a provider
         filepath (str): The full path name of the file
@@ -68,11 +72,12 @@ def get_initial_dataframe_with_delta(local_file, manifest_id, provider_uuid, sta
     data_frame = pd.read_csv(local_file, usecols=use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
-        start_delta = start_date
+        process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
-        start_delta = com_utils.get_start_delta(start_date, provider_uuid)
-    return data_frame, time_interval, start_delta, date_format
+        csv_date = get_s3_csv_lastest_daily_date(s3_csv_path, start_date, context, tracing_id)
+        process_date = csv_date - datetime.timedelta(days=3)
+    return data_frame, time_interval, process_date, date_format
 
 
 def create_daily_archives(
@@ -99,17 +104,19 @@ def create_daily_archives(
     daily_file_names = []
     date_range = {}
     dates = set()
-    data_frame, time_interval, start_delta, date_format = get_initial_dataframe_with_delta(
-        local_file, manifest_id, provider_uuid, start_date, context, tracing_id
+    s3_csv_path = com_utils.get_path_prefix(
+        account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
+    )
+    data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= start_delta:
+        if datetime.datetime.strptime(interval, date_format) >= process_date:
             dates.add(interval)
     if not dates:
         return [], {}
     directory = os.path.dirname(local_file)
-    date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
     date_range = {
         "start": datetime.datetime.strptime(min(dates), date_format).strftime(DATE_FORMAT),
         "end": datetime.datetime.strptime(max(dates), date_format).strftime(DATE_FORMAT),
@@ -118,9 +125,6 @@ def create_daily_archives(
     for date in dates:
         day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
         daily_data = data_frame[data_frame[time_interval].str.match(date)]
-        s3_csv_path = com_utils.get_path_prefix(
-            account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
-        )
         with transaction.atomic():
             # With split payloads, we could have a race condition trying to update the `report_tracker`.
             # using a transaction and `select_for_update` should minimize the risk of multiple

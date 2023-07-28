@@ -25,7 +25,7 @@ class CostUsageReportManifest(models.Model):
     billing_period_start_datetime = models.DateTimeField()
     num_total_files = models.IntegerField()
     s3_csv_cleared = models.BooleanField(default=False, null=True)
-    s3_parquet_cleared = models.BooleanField(default=False, null=True)
+    s3_parquet_cleared = models.BooleanField(default=True, null=True)
     operator_version = models.TextField(null=True)
     cluster_channel = models.TextField(null=True)
     operator_certified = models.BooleanField(null=True)

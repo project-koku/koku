@@ -136,6 +136,11 @@ class ParquetReportProcessor:
         return self._context.get("split_files") or [self._report_file]
 
     @property
+    def split_file_list(self):
+        """Always return split files."""
+        return self._context.get("split_files")
+
+    @property
     def error_context(self):
         """Context information for logging errors."""
         return {"account": self.account, "provider_uuid": self.provider_uuid, "provider_type": self.provider_type}
@@ -406,31 +411,51 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        # TODO this is not purging correctly for Aws/Azure self.prepare_parquet_s3()
+        self.prepare_parquet_s3()
 
         failed_conversion = []
         daily_data_frames = []
-        for csv_filename in self.file_list:
-            if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
-                LOG.warn(
-                    log_json(
-                        self.tracing_id,
-                        msg="could not establish report type",
-                        context=self.error_context,
-                        filename=csv_filename,
+        # Azure and AWS should now always have split daily files
+        if self.provider_type in [
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+        ]:
+            file_list = self.split_file_list
+        else:
+            file_list = self.file_list
+
+        if file_list:
+            for csv_filename in file_list:
+                if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
+                    LOG.warn(
+                        log_json(
+                            self.tracing_id,
+                            msg="could not establish report type",
+                            context=self.error_context,
+                            filename=csv_filename,
+                        )
                     )
+                    failed_conversion.append(csv_filename)
+                    continue
+                if self.provider_type == Provider.PROVIDER_OCI:
+                    file_specific_start_date = csv_filename.split(".")[1]
+                    self.start_date = file_specific_start_date
+                parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
+                daily_data_frames.extend(daily_frame)
+                if self.provider_type not in (Provider.PROVIDER_AZURE):
+                    self.create_daily_parquet(parquet_base_filename, daily_frame)
+                if not success:
+                    failed_conversion.append(csv_filename)
+        else:
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="no split files to convert to parquet",
+                    context=self.error_context,
                 )
-                failed_conversion.append(csv_filename)
-                continue
-            if self.provider_type == Provider.PROVIDER_OCI:
-                file_specific_start_date = csv_filename.split(".")[1]
-                self.start_date = file_specific_start_date
-            parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
-            daily_data_frames.extend(daily_frame)
-            if self.provider_type not in (Provider.PROVIDER_AZURE):
-                self.create_daily_parquet(parquet_base_filename, daily_frame)
-            if not success:
-                failed_conversion.append(csv_filename)
+            )
 
         if failed_conversion:
             LOG.warn(
