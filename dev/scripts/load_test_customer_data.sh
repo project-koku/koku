@@ -190,20 +190,21 @@ cleanup_rendered_files(){
 }
 
 enable_ocp_tags() {
-  log-info "Enabling OCP tags..."
-  RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
-  --request POST \
-  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application", "instance-type"], "provider_type": "ocp"}' \
-  ${MASU_URL_PREFIX}/v1/enabled_tags/)
-  STATUS_CODE=${RESPONSE: -3}
-  DATA=${RESPONSE:: -3}
+  # log-info "Enabling OCP tags..."
+  # RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
+  # --request POST \
+  # --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application", "instance-type"], "provider_type": "ocp"}' \
+  # ${MASU_URL_PREFIX}/v1/enabled_tags/)
+  # STATUS_CODE=${RESPONSE: -3}
+  # DATA=${RESPONSE:: -3}
 
-  log-debug "status: $STATUS_CODE"
-  log-debug "body: $DATA"
+  # log-debug "status: $STATUS_CODE"
+  # log-debug "body: $DATA"
 
-  if [[ $STATUS_CODE != 200 ]];then
-    log-err $DATA
-  fi
+  # if [[ $STATUS_CODE != 200 ]];then
+  #   log-err $DATA
+  # fi
+  echo "cool"
 }
 
 nise_report(){

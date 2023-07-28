@@ -6,7 +6,7 @@ import ciso8601
 import pandas as pd
 
 from api.models import Provider
-from masu.util.common import create_enabled_tags
+from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 
@@ -191,4 +191,4 @@ class GCPPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_tags(self.schema, self.enabled_tag_keys, Provider.PROVIDER_GCP, False)
+        populate_enabled_tag_rows_with_false(self.schema, self.enabled_tag_keys, Provider.PROVIDER_GCP)
