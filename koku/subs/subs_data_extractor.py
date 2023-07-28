@@ -29,10 +29,10 @@ TABLE_MAP = {
 
 
 class SUBSDataExtractor(ReportDBAccessorBase):
-    def __init__(self, schema, provider_type, provider_uuid, tracing_id, context=None):
-        super().__init__(schema)
-        self.provider_type = provider_type.removesuffix("-local")
-        self.provider_uuid = provider_uuid
+    def __init__(self, tracing_id, context):
+        super().__init__(context["schema"])
+        self.provider_type = context["provider_type"].removesuffix("-local")
+        self.provider_uuid = context["provider_uuid"]
         self.tracing_id = tracing_id
         self.table = TABLE_MAP.get(self.provider_type)
         self.s3_resource = get_s3_resource(

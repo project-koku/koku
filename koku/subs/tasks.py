@@ -96,7 +96,7 @@ def extract_subs_data_from_reports(reports_to_extract):
             LOG.info(log_json(tracing_id, msg="skipping report, no manifest found.", context=context))
             continue
         LOG.info(log_json(tracing_id, msg="collecting subs report data", context=context))
-        extractor = SUBSDataExtractor(schema_name, provider_type, provider_uuid, tracing_id, context=context)
+        extractor = SUBSDataExtractor(tracing_id, context=context)
         upload_keys = extractor.extract_data_to_s3(month_start)
         if upload_keys and enable_subs_messaging(schema_name):
             process_upload_keys_to_subs_message.delay(context, schema_name, tracing_id, upload_keys)

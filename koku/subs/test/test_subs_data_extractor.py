@@ -25,11 +25,14 @@ class TestSUBSDataExtractor(SUBSTestCase):
         cls.tracing_id = str(uuid.uuid4())
         cls.today = cls.dh.today
         cls.yesterday = cls.today - timedelta(days=1)
+        context = {
+            "schema": cls.schema,
+            "provider_type": cls.aws_provider_type,
+            "provider_uuid": cls.aws_provider.uuid,
+        }
         with patch("subs.subs_data_extractor.get_s3_resource"):
             with patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query"):
-                cls.extractor = SUBSDataExtractor(
-                    cls.schema, cls.aws_provider_type, cls.aws_provider.uuid, cls.tracing_id
-                )
+                cls.extractor = SUBSDataExtractor(cls.tracing_id, context)
 
     def test_subs_s3_path(self):
         """Test that the generated s3 path is expected"""
