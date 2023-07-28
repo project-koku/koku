@@ -56,6 +56,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ingress_reports  (List) List of reports from ingress post endpoint (optional)
         """
         super().__init__(**kwargs)
+        self.dh = DateHelper()
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
 
@@ -154,10 +155,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
             year = date_time.strftime("%Y")
             month = date_time.strftime("%m")
-            dh = DateHelper()
             billing_period = {
                 "start": f"{year}{month}01",
-                "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
+                "end": f"{year}{month}{self.dh.days_in_month(date_time, int(year), int(month))}",
             }
             try:
                 blob = self._azure_client.get_file_for_key(report, self.container_name)
@@ -346,4 +346,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        return full_file_path, etag, file_creation_date, [], {}
+        date_range = {
+            "start": start_date.strftime("%Y-%m-%d"),
+            "end": self.dh.month_end(start_date).strftime("%Y-%m-%d"),
+        }
+        return full_file_path, etag, file_creation_date, [], date_range
