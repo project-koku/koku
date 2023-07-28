@@ -14,7 +14,6 @@ import uuid
 import pandas as pd
 from botocore.exceptions import ClientError
 from django.conf import settings
-from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -26,7 +25,6 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util import common as com_utils
 from masu.util.aws import common as utils
-from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -73,8 +71,13 @@ def get_initial_dataframe_with_date(
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
-        csv_date = utils.get_s3_csv_lastest_daily_date(s3_csv_path, start_date, context, tracing_id)
-        process_date = csv_date - datetime.timedelta(days=3)
+        # We do this if we have multiple workers running different files for a single manifest.
+        process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+        if not process_date:
+            process_date = utils.get_or_clear_s3_daily_csv_by_date(
+                s3_csv_path, start_date, manifest_id, context, tracing_id
+            )
+            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
     return data_frame, time_interval, process_date
 
 
@@ -120,17 +123,7 @@ def create_daily_archives(
     data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
     for date in dates:
         daily_data = data_frame[data_frame[time_interval].str.match(date)]
-        with transaction.atomic():
-            # With split payloads, we could have a race condition trying to update the `report_tracker`.
-            # using a transaction and `select_for_update` should minimize the risk of multiple
-            # workers trying to update this field at the same time by locking the manifest during update.
-            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
-            if not manifest.report_tracker.get(date):
-                manifest.report_tracker[date] = 0
-            counter = manifest.report_tracker[date]
-            day_file = f"{date}_{counter}.csv"
-            manifest.report_tracker[date] = counter + 1
-            manifest.save(update_fields=["report_tracker"])
+        day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id)
         day_filepath = f"{directory}/{day_file}"
         daily_data.to_csv(day_filepath, index=False, header=True)
         utils.copy_local_report_file_to_s3_bucket(

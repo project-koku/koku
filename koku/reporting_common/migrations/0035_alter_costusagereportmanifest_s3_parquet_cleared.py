@@ -3,12 +3,6 @@ from django.db import migrations
 from django.db import models
 
 
-def update_s3_to_be_cleared(apps, schema_editor):
-    ManifestTable = apps.get_model("reporting_common", "costusagereportmanifest")
-
-    ManifestTable.objects.update(s3_parquet_cleared=False)
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -21,5 +15,9 @@ class Migration(migrations.Migration):
             name="s3_parquet_cleared",
             field=models.BooleanField(default=True, null=True),
         ),
-        migrations.RunPython(update_s3_to_be_cleared),
+        migrations.AddField(
+            model_name="costusagereportmanifest",
+            name="daily_archive_start_date",
+            field=models.DateTimeField(null=True),
+        ),
     ]

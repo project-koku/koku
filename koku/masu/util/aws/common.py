@@ -24,6 +24,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -584,7 +585,10 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_s3_csv_lastest_daily_date(s3_path, start_date, context, request_id):
+def get_or_clear_s3_daily_csv_by_date(s3_path, start_date, manifest_id, context, request_id):
+    """
+    Fetches latest processed date based on daily csv files or clears all csv's to process full month
+    """
     processing_date = start_date
     try:
         s3_date = None
@@ -596,18 +600,28 @@ def get_s3_csv_lastest_daily_date(s3_path, start_date, context, request_id):
             else:
                 if date > s3_date:
                     s3_date = date
-        processing_date = s3_date.replace(tzinfo=None)
-    except (EndpointConnectionError, ClientError, AttributeError) as err:
+        processing_date = s3_date - datetime.timedelta(days=3) if s3_date.day > 3 else s3_date.replace(day=1)
+    except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         LOG.warning(
             log_json(
                 request_id,
-                msg="unable to fetch date from objects, failing back to full month processing",
+                msg="unable to fetch date from objects, removing csv files and failing back to full month processing",
                 context=context,
                 bucket=settings.S3_BUCKET_NAME,
             ),
-            exc_info=err,
         )
-    return processing_date
+        to_delete = get_s3_objects_not_matching_metadata(
+            request_id,
+            s3_path,
+            metadata_key="manifestid",
+            metadata_value_check=manifest_id,
+            context=context,
+        )
+        delete_s3_objects(request_id, to_delete, context)
+        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
+        LOG.info(log_json(msg="removed s3 files and marked manifest s3_csv_cleared", context=context))
+    return processing_date.replace(tzinfo=None)
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
