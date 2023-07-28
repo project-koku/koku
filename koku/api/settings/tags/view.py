@@ -37,9 +37,19 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
             query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
             filter_params = query_params.get("filter", {})
 
+            # FIXME: This field manipulation seems like it should be done an the form
+            #
+            # If only one order_by parameter was given, it is a string. Ensure it
+            # is a list of values.
             order_by = query_params.get("order_by", order_by)
             if isinstance(order_by, str):
                 order_by = [order_by]
+
+            # Multiple choice filter fields need to be a list. If only one filter
+            # is provided, it will be a string.
+            for field in ("key", "provider_type"):
+                if isinstance(filter_params.get(field), str):
+                    filter_params[field] = [filter_params[field]]
 
             # Use the filter parameters from the request for filtering.
             #
