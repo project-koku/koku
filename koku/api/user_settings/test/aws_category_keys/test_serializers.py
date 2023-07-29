@@ -5,9 +5,9 @@
 """Test AWS Category Serializer."""
 from rest_framework.serializers import ValidationError
 
-from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer
-from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeySerializer
-from api.settings.test.aws_category_keys.utils import TestAwsCategoryClass
+from api.user_settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer
+from api.user_settings.aws_category_keys.serializers import SettingsAWSCategoryKeySerializer
+from api.user_settings.test.aws_category_keys.utils import TestAwsCategoryClass
 
 
 class SettingsAWSCategoryKeySerializerTest(TestAwsCategoryClass):

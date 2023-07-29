@@ -70,10 +70,6 @@ from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
 from api.resource_types.view import ResourceTypeView
-from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView
-from api.settings.aws_category_keys.view import SettingsDisableAWSCategoryKeyView
-from api.settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
-from api.settings.view import SettingsView
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView
 from api.tags.aws.openshift.view import OCPAWSTagView
@@ -85,5 +81,8 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.oci.view import OCITagView
 from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
+from api.user_settings.aws_category_keys.view import SettingsAWSCategoryKeyView
+from api.user_settings.aws_category_keys.view import SettingsDisableAWSCategoryKeyView
+from api.user_settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
 from api.user_settings.views import AccountSettings
 from api.user_settings.views import UserCostTypeSettings

@@ -26,6 +26,7 @@ from reporting.user_settings.models import UserSettings
 LOG = logging.getLogger(__name__)
 
 
+# used other places
 def get_cost_type(request):
     """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
 
@@ -38,6 +39,7 @@ def get_cost_type(request):
     return cost_type
 
 
+# used other places
 def get_currency(request):
     """get currency from the DB user settings table or sets currency to default if table is empty."""
     currency = KOKU_DEFAULT_CURRENCY

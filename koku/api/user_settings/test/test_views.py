@@ -10,10 +10,10 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from api.settings.utils import set_cost_type
-from api.settings.utils import set_currency
 from api.user_settings.settings import COST_TYPES
 from api.user_settings.settings import USER_SETTINGS
+from api.user_settings.utils import set_cost_type
+from api.user_settings.utils import set_currency
 
 
 class AccountSettingsViewTest(IamTestCase):
