@@ -234,20 +234,6 @@ class OCPStorageVolumeLabelSummary(models.Model):
     node = models.TextField(null=True)
 
 
-class OCPEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for OCPEnabledTagKeys."""
-
-        db_table = "reporting_ocpenabledtagkeys"
-        indexes = [models.Index(name="ocp_enabled_covering_ix", fields=["key", "enabled"])]
-
-    id = models.BigAutoField(primary_key=True)
-    key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=False)
-
-
 class OCPCluster(models.Model):
     """All clusters for a tenant."""
 
