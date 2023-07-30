@@ -141,6 +141,8 @@ SUBS_COLUMNS = {
     "product/physicalCores",
 }
 
+DATE_FMT = "%Y-%m-%d"
+
 # pylint: disable=too-few-public-methods
 
 
@@ -466,10 +468,10 @@ def get_bills_from_provider(
     """
     if isinstance(start_date, (datetime.datetime, datetime.date)):
         start_date = start_date.replace(day=1)
-        start_date = start_date.strftime("%Y-%m-%d")
+        start_date = start_date.strftime(DATE_FMT)
 
     if isinstance(end_date, (datetime.datetime, datetime.date)):
-        end_date = end_date.strftime("%Y-%m-%d")
+        end_date = end_date.strftime(DATE_FMT)
 
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()
@@ -594,7 +596,7 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, req
         s3_date = None
         for obj_summary in _get_s3_objects(s3_path):
             existing_object = obj_summary.Object()
-            date = datetime.datetime.strptime(existing_object.key.split(f"{s3_path}/")[1].split("_")[0], "%Y-%m-%d")
+            date = datetime.datetime.strptime(existing_object.key.split(f"{s3_path}/")[1].split("_")[0], DATE_FMT)
             if not s3_date:
                 s3_date = date
             else:

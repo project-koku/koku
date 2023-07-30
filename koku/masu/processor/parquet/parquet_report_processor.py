@@ -415,6 +415,8 @@ class ParquetReportProcessor:
 
         failed_conversion = []
         daily_data_frames = []
+        file_list = self.file_list
+
         # Azure and AWS should now always have split daily files
         if self.provider_type in [
             Provider.PROVIDER_AWS,
@@ -423,8 +425,6 @@ class ParquetReportProcessor:
             Provider.PROVIDER_AZURE_LOCAL,
         ]:
             file_list = self.split_file_list
-        else:
-            file_list = self.file_list
 
         if not file_list:
             LOG.warn(
