@@ -585,7 +585,7 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_s3_daily_csv_by_date(s3_path, start_date, manifest_id, context, request_id):
+def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, request_id):
     """
     Fetches latest processed date based on daily csv files or clears all csv's to process full month
     """
@@ -602,10 +602,14 @@ def get_or_clear_s3_daily_csv_by_date(s3_path, start_date, manifest_id, context,
                     s3_date = date
         processing_date = s3_date - datetime.timedelta(days=3) if s3_date.day > 3 else s3_date.replace(day=1)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
+        msg = (
+            "unable to fetch date from objects, "
+            "attempting to remove csv files and mark manifest to clear parquet files for full month processing"
+        )
         LOG.warning(
             log_json(
                 request_id,
-                msg="unable to fetch date from objects, removing csv files and failing back to full month processing",
+                msg=msg,
                 context=context,
                 bucket=settings.S3_BUCKET_NAME,
             ),
@@ -620,7 +624,10 @@ def get_or_clear_s3_daily_csv_by_date(s3_path, start_date, manifest_id, context,
         delete_s3_objects(request_id, to_delete, context)
         manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
         ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
-        LOG.info(log_json(msg="removed s3 files and marked manifest s3_csv_cleared", context=context))
+        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+        LOG.info(
+            log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
+        )
     return processing_date.replace(tzinfo=None)
 
 

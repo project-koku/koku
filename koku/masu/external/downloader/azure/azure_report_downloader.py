@@ -24,7 +24,7 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import get_or_clear_s3_daily_csv_by_date
+from masu.util.aws.common import get_or_clear_daily_s3_by_date
 from masu.util.azure import common as utils
 
 DATA_DIR = Config.TMP_DIR
@@ -76,7 +76,7 @@ def get_initial_dataframe_with_date(
         # We do this if we have multiple workers running different files for a single manifest.
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
         if not process_date:
-            process_date = get_or_clear_s3_daily_csv_by_date(s3_csv_path, start_date, manifest_id, context, tracing_id)
+            process_date = get_or_clear_daily_s3_by_date(s3_csv_path, start_date, manifest_id, context, tracing_id)
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
     return data_frame, time_interval, process_date, date_format
 

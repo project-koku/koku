@@ -426,29 +426,7 @@ class ParquetReportProcessor:
         else:
             file_list = self.file_list
 
-        if file_list:
-            for csv_filename in file_list:
-                if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
-                    LOG.warn(
-                        log_json(
-                            self.tracing_id,
-                            msg="could not establish report type",
-                            context=self.error_context,
-                            filename=csv_filename,
-                        )
-                    )
-                    failed_conversion.append(csv_filename)
-                    continue
-                if self.provider_type == Provider.PROVIDER_OCI:
-                    file_specific_start_date = csv_filename.split(".")[1]
-                    self.start_date = file_specific_start_date
-                parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
-                daily_data_frames.extend(daily_frame)
-                if self.provider_type not in (Provider.PROVIDER_AZURE):
-                    self.create_daily_parquet(parquet_base_filename, daily_frame)
-                if not success:
-                    failed_conversion.append(csv_filename)
-        else:
+        if not file_list:
             LOG.warn(
                 log_json(
                     self.tracing_id,
@@ -456,6 +434,29 @@ class ParquetReportProcessor:
                     context=self.error_context,
                 )
             )
+            return parquet_base_filename, daily_data_frames
+
+        for csv_filename in file_list:
+            if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
+                LOG.warn(
+                    log_json(
+                        self.tracing_id,
+                        msg="could not establish report type",
+                        context=self.error_context,
+                        filename=csv_filename,
+                    )
+                )
+                failed_conversion.append(csv_filename)
+                continue
+            if self.provider_type == Provider.PROVIDER_OCI:
+                file_specific_start_date = csv_filename.split(".")[1]
+                self.start_date = file_specific_start_date
+            parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
+            daily_data_frames.extend(daily_frame)
+            if self.provider_type not in (Provider.PROVIDER_AZURE):
+                self.create_daily_parquet(parquet_base_filename, daily_frame)
+            if not success:
+                failed_conversion.append(csv_filename)
 
         if failed_conversion:
             LOG.warn(

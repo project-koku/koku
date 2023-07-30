@@ -10,6 +10,7 @@ from faker import Faker
 from model_bakery import baker
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test.database.helpers import ManifestCreationHelper
@@ -244,6 +245,14 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def test_mark_s3_parquet_cleared_no_manifest(self):
         """Test mark_s3_parquet_cleared without manifest does not error."""
         self.assertIsNone(self.manifest_accessor.mark_s3_parquet_cleared(None))
+
+    def test_set_and_get_manifest_daily_archive_start_date(self):
+        """Test marking manifest daily archive start date."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7)
+        self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
+        manifest_start = self.manifest_accessor.get_manifest_daily_start_date(manifest.id)
+        self.assertEqual(manifest_start, start_date)
 
     def test_should_s3_parquet_be_cleared_no_manifest(self):
         """Test that is parquet s3 should be cleared for non-ocp manifest."""
