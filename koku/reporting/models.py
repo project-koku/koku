@@ -95,6 +95,7 @@ from reporting.provider.gcp.openshift.models import OCPGCPDatabaseSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPNetworkSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPStorageSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPTagsSummary
+from reporting.provider.models import SubsLastProcessed
 from reporting.provider.models import TenantAPIProvider
 from reporting.provider.oci.models import OCIComputeSummaryByAccountP
 from reporting.provider.oci.models import OCIComputeSummaryP
