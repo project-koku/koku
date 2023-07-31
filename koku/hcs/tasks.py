@@ -119,6 +119,8 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
 
     for report in reports_deduplicated:
+        if report.get("provider_type") == Provider.PROVIDER_OCP:
+            return
         start_date = None
         end_date = None
         LOG.info("using start and end dates from the manifest for HCS processing")
