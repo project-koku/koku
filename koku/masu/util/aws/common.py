@@ -385,15 +385,15 @@ def get_bills_from_provider(
     return bills
 
 
-def get_s3_resource():  # pragma: no cover
+def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
     """
     Obtain the s3 session client
     """
     config = Config(connect_timeout=settings.S3_TIMEOUT)
     aws_session = boto3.Session(
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET,
-        region_name=settings.S3_REGION,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region,
     )
     return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
 
@@ -408,7 +408,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     extra_args = {}
     if metadata:
         extra_args["Metadata"] = metadata
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
     upload = s3_resource.Object(**s3_obj)
     try:
@@ -446,7 +446,7 @@ def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False,
     extra_args = {"Metadata": {"finalized": str(finalize)}}
 
     try:
-        s3_resource = get_s3_resource()
+        s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
         upload = s3_resource.Object(**s3_obj)
         upload.upload_fileobj(data, ExtraArgs=extra_args)
@@ -469,14 +469,14 @@ def copy_local_hcs_report_file_to_s3_bucket(
 
 
 def _get_s3_objects(s3_path):
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
     if context is None:
         context = {}
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     try:
         filtered = []
         for key in keys:
@@ -581,7 +581,7 @@ def delete_s3_objects_not_matching_metadata(
 
 
 def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     try:
         removed = []
         for key in keys_to_delete:
