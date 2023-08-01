@@ -128,6 +128,8 @@ help:
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
+	@echo "  docker-up-min-with-subs             run database, koku/masu servers, worker and subs worker"
+	@echo "  docker-up-min-with-subs-no-build        run database, koku/masu servers, worker and subs worker without building koku base"
 	@echo "  docker-trino-down-all               Tear down Trino and Koku containers"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
@@ -350,6 +352,13 @@ docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
+
+# basic dev environment targets
+docker-up-min-with-subs: docker-up-min
+	$(DOCKER_COMPOSE) up -d --scale subs-worker=$(scale) subs-worker
+
+docker-up-min-no-build-with-subs: docker-up-min-no-build
+	$(DOCKER_COMPOSE) up -d --scale subs-worker=$(scale) subs-worker
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
 docker-up-min-with-listener: docker-up-min
