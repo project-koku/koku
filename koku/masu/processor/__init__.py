@@ -6,6 +6,8 @@
 import logging
 from uuid import UUID
 
+from django.conf import settings
+
 from api.common import log_json
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
@@ -121,6 +123,11 @@ def is_aws_category_settings_enabled(account):  # pragma: no cover
     )
 
 
+def is_ddf_tag_form_disabled():  # pragma: no cover
+    """Disable ingress rate limiting"""
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ddf-tag-form")
+
+
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing
@@ -143,3 +150,14 @@ def is_ingress_rate_limiting_disabled():  # pragma: no cover
     if res:
         LOG.info(log_json(msg="ingress rate limiting disabled"))
     return res
+
+
+def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
+    """Get the group_by limit for an account."""
+    limit = 2
+    account = convert_account(account)
+    context = {"schema": account}
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.override_customer_group_by_limit", context):
+        limit = settings.MAX_GROUP_BY
+
+    return limit

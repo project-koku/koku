@@ -29,6 +29,7 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
+from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -325,43 +326,61 @@ def batch(iterable, start=0, stop=None, _slice=1):
         yield res
 
 
-def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
+def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
     """
-    Creates enabled key records.
+    Creates enabled tags.
+
+    Args:
+      schema (str)
+      enabled_tags (set)
+      provider_type (str)
+      enabled_value (boolean)
     """
-
-    ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
-
-    if not enabled_keys:
-        LOG.info(log_json(msg="no enabled keys found", context=ctx))
+    enabled_tag_count = 0
+    ctx = {"schema": schema, "enabled_tags": enabled_tags}
+    LOG.info(log_json(msg="checking tags should be enabled", context=ctx))
+    if not enabled_tags:
+        LOG.info(log_json(msg="skipping tag enablement no tags found", context=ctx))
         return
 
-    LOG.info(log_json(msg="creating enabled key records", context=ctx))
-    changed = False
-
     with schema_context(schema):
-        new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
-        if new_keys:
-            changed = True
-            # Processing in batches for increased efficiency
-            for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
-                batch_size = len(new_batch)
-                LOG.info(
-                    log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
-                )
-                for ix in range(batch_size):
-                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
-                enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
-    if not changed:
-        LOG.info(log_json(msg="no enabled keys added", context=ctx))
+        new_tags = set(enabled_tags).difference(
+            k for k in EnabledTagKeys.objects.filter(provider_type=provider_type).values_list("key", flat=True)
+        )
+        if not new_tags:
+            LOG.info(log_json(msg="no new tags founds skipping tag enablement", context=ctx))
+            return
 
-    return changed
+        for batch_num, new_batch in enumerate(batch(new_tags, _slice=500)):
+            batch_size = len(new_batch)
+            if enabled_value:
+                ctx["enabled_tag_limit"] = Config.ENABLED_TAG_LIMIT
+                if enabled_tag_count == 0:
+                    LOG.debug("querying for enabled tag count.")
+                    enabled_tag_count = EnabledTagKeys.objects.filter(enabled=True).count()
+                if Config.ENABLED_TAG_LIMIT <= 0:
+                    # If the tag limit is zero or less, the limit is disabled.
+                    LOG.info(log_json(msg="tag limit is disabled", context=ctx))
+                elif enabled_tag_count < Config.ENABLED_TAG_LIMIT:
+                    LOG.info(log_json(msg="tag limit is enabled", context=ctx))
+                else:
+                    LOG.info(log_json(msg="tag limit has been reached"), content=ctx)
+                    enabled_value = False
+            ctx["tags_enabled"] = enabled_value
+            batch_size = len(new_batch)
+            LOG.info(
+                log_json(msg="create tag batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
+            )
+            new_records = (
+                EnabledTagKeys(key=key, provider_type=provider_type, enabled=enabled_value) for key in new_batch
+            )
+            enabled_tag_count += batch_size
+            EnabledTagKeys.objects.bulk_create(new_records, ignore_conflicts=True)
 
 
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
-
+# TODO: Remove with settings deprecation COST-3797
+def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
     ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
-
     LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
     changed = False
 
@@ -370,7 +389,11 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
     update_keys_disabled = []
 
     with schema_context(schema):
-        for key in enabled_keys_model.objects.all():
+        if provider_type:
+            key_objects = enabled_keys_model.objects.filter(provider_type=provider_type)
+        else:
+            key_objects = enabled_keys_model.objects.all()
+        for key in key_objects:
             if key.key in enabled_keys_set:
                 if not key.enabled:
                     update_keys_enabled.append(key.key)
@@ -384,13 +407,23 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
                 LOG.info(
                     log_json(msg="updating keys to ENABLED", keys_to_update=len(update_keys_enabled), context=ctx)
                 )
-                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+                if provider_type:
+                    enabled_keys_model.objects.filter(key__in=update_keys_enabled, provider_type=provider_type).update(
+                        enabled=True
+                    )
+                else:
+                    enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
 
             if update_keys_disabled:
                 LOG.info(
                     log_json(msg="updating keys to DISABLED", keys_to_update=len(update_keys_disabled), context=ctx)
                 )
-                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+                if provider_type:
+                    enabled_keys_model.objects.filter(
+                        key__in=update_keys_disabled, provider_type=provider_type
+                    ).update(enabled=False)
+                else:
+                    enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
 
     if not changed:
         LOG.info(log_json(msg="no enabled keys updated", context=ctx))

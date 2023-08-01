@@ -1,14 +1,20 @@
 import json
+import logging
 
 import ciso8601
 import pandas as pd
+from django_tenants.utils import schema_context
 
-from masu.util.common import create_enabled_keys
+from api.common import log_json
+from api.models import Provider
+from masu.util.common import batch
+from masu.util.common import create_enabled_tags
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
+
+LOG = logging.getLogger(__name__)
 
 
 def scrub_resource_col_name(res_col_name, column_prefix):
@@ -29,6 +35,28 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
     column_dict.where(column_dict.notna(), lambda _: [{}], inplace=True)
 
     return column_dict.apply(json.dumps), unique_keys
+
+
+def create_enabled_categories(schema, enabled_keys):
+    enabled_keys_model = AWSEnabledCategoryKeys
+    ctx = {"schema": schema, "enabled_categories": enabled_keys}
+    if not enabled_keys:
+        LOG.info(log_json(msg="no categories found, skipping category enablement", context=ctx))
+        return
+    with schema_context(schema):
+        LOG.info(log_json(msg="searching for new category keys", context=ctx))
+        new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
+        if not new_keys:
+            LOG.info(log_json(msg="no enabled keys added", context=ctx))
+            return
+
+        LOG.info(log_json(msg="creating enabled key records", context=ctx))
+        for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+            batch_size = len(new_batch)
+            LOG.info(log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx))
+            for ix in range(batch_size):
+                new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+            enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
 
 
 class AWSPostProcessor:
@@ -348,5 +376,5 @@ class AWSPostProcessor:
         """
         Uses information gather in the
         """
-        create_enabled_keys(self.schema, AWSEnabledTagKeys, self.enabled_tag_keys)
-        create_enabled_keys(self.schema, AWSEnabledCategoryKeys, self.enabled_categories)
+        create_enabled_tags(self.schema, self.enabled_tag_keys, Provider.PROVIDER_AWS, True)
+        create_enabled_categories(self.schema, self.enabled_categories)

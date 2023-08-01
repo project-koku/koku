@@ -36,8 +36,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
 )
 with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
      where enabled = true
+     and provider_type = 'AWS'
 )
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,

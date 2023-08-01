@@ -1115,7 +1115,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         tested = False
         yesterday = self.dh.yesterday.date()
-        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()

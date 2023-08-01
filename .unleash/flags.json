@@ -2,6 +2,22 @@
     "version": 1,
     "features": [
         {
+            "name": "cost-management.backend.disable-ddf-tag-form",
+            "description": "Toggle to disabled tag data driven form for settings.",
+            "type": "killswitch",
+            "project": "default",
+            "enabled": false,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-07-25T11:50:00.756Z"
+        },
+        {
             "name": "cost-management.backend.disable-source",
             "description": "Toggle to disable processing for a source",
             "type": "permission",
