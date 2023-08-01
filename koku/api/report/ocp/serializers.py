@@ -18,15 +18,31 @@ from api.report.serializers import StringOrListField
 
 DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 
+PVC_INTERNAL = {"pvc": "persistentvolumeclaim"}
+
+
+def update_internal_param(data, params=PVC_INTERNAL):
+    if isinstance(data, Mapping):
+        for serializer_key, internal_key in params.items():
+            if serializer_key in data:
+                data[internal_key] = data.pop(serializer_key)
+
+    return data
+
 
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("project", "cluster", "node")
+    _opfields = ("project", "cluster", "node", "pvc")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
+    persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        return super().to_internal_value(update_internal_param(data))
 
 
 class OCPOrderBySerializer(OrderSerializer):
@@ -42,12 +58,7 @@ class OCPOrderBySerializer(OrderSerializer):
 
     def to_internal_value(self, data):
         """Send to internal value."""
-        if isinstance(data, Mapping):
-            for serializer_key, internal_key in DISTRIBUTED_COST_INTERNAL.items():
-                if serializer_key in data.keys():
-                    data[internal_key] = data.pop(serializer_key)
-
-        return super().to_internal_value(data)
+        return super().to_internal_value(update_internal_param(data))
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
@@ -65,13 +76,14 @@ class OCPFilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "pvc")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
+    persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -91,6 +103,10 @@ class OCPFilterSerializer(BaseFilterSerializer):
             data["infrastructures"] = [Provider.PROVIDER_CASE_MAPPING.get(infra_value.lower())]
 
         return data
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        return super().to_internal_value(update_internal_param(data))
 
 
 class OCPExcludeSerializer(BaseExcludeSerializer):
@@ -98,13 +114,14 @@ class OCPExcludeSerializer(BaseExcludeSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "pvc")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
+    persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -124,6 +141,10 @@ class OCPExcludeSerializer(BaseExcludeSerializer):
             data["infrastructures"] = [Provider.PROVIDER_CASE_MAPPING.get(infra_value.lower())]
 
         return data
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        return super().to_internal_value(update_internal_param(data))
 
 
 class OCPQueryParamSerializer(ReportQueryParamSerializer):

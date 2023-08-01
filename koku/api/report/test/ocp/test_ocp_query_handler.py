@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+import calendar
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
@@ -52,6 +53,19 @@ def _calculate_subtotals(data, cost, infra, sup):
                     else:
                         cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
             return (cost, infra, sup)
+
+
+def ocp_volume_calc(unit, hours, month=None):
+    """Function used in raw calc tests for calculating volume cost data."""
+    current_time = datetime.datetime.now(datetime.timezone.utc)
+    month = month if month else current_time.month
+    byte_seconds = 3600 * unit * (1024 * 1024 * 1024)
+    byte_seconds_daily = byte_seconds * hours
+    seconds_in_day = 60 * 60 * 24
+    days_in_month = calendar.monthrange(current_time.year, month)[1]
+    gig_per_byte = 1 / (1024 * 1024 * 1024)
+    value = (byte_seconds_daily / seconds_in_day) / days_in_month * gig_per_byte
+    return value
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -1185,11 +1199,53 @@ class OCPReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
+    def test_exclude_pvc(self):
+        """Test that the exclude pvc works for volume endpoints."""
+        url = "?group_by[pvc]=*"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        overall_output = handler.execute_query()
+        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        opt_value = None
+        for date_dict in overall_output.get("data", [{}]):
+            for element in date_dict.get("pvcs"):
+                if "No-pvc" != element.get("pvc"):
+                    opt_value = element.get("pvc")
+                    break
+            if opt_value:
+                break
+        # Grab filtered value
+        filtered_url = f"?group_by[pvc]=*&filter[pvc]={opt_value}"
+        query_params = self.mocked_query_params(filtered_url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        handler.execute_query()
+        filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        expected_total = overall_total - filtered_total
+        # Test exclude
+        exclude_url = f"?group_by[pvc]=*&exclude[pvc]={opt_value}"
+        query_params = self.mocked_query_params(exclude_url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        self.assertIsNotNone(handler.query_exclusions)
+        excluded_output = handler.execute_query()
+        excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        excluded_data = excluded_output.get("data")
+        # Check to make sure the value is not in the return
+        for date_dict in excluded_data:
+            grouping_list = date_dict.get("pvcs", [])
+            self.assertIsNotNone(grouping_list)
+            for group_dict in grouping_list:
+                if "No-pvc" != opt_value:
+                    self.assertNotEqual(opt_value, group_dict.get("pvc"))
+        self.assertAlmostEqual(expected_total, excluded_total, 6)
+        self.assertNotEqual(overall_total, excluded_total)
+
     def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(OCPExcludeSerializer._opfields)
-        exclude_opts.remove("infrastructures")  # Tested separately
-        exclude_opts.remove("category")
+        # This is a base test, if functionality is tested separately
+        # or does not apply to all ocp endpoints, then it can be added
+        # here:
+        remove_from_test = set("infrastructures", "category", "pvc")
+        exclude_opts = set(OCPExcludeSerializer._opfields).difference(set(remove_from_test))
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
                 with self.subTest(exclude_opt):

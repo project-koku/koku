@@ -636,6 +636,7 @@ class ReportQueryHandler(QueryHandler):
             if not group_data:
                 group_data = self.parameters.get_group_by("or:" + item)
             if group_data:
+                group_pos = None
                 try:
                     group_pos = self.parameters.url_data.index(item)
                 except ValueError:
