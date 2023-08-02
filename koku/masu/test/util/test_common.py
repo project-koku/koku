@@ -30,6 +30,10 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSCostEntryBill
 
 
+class MockConfig:
+    ENABLED_TAG_LIMIT = 2
+
+
 class CommonUtilTests(MasuTestCase):
     """Test Common Masu functions."""
 
@@ -384,10 +388,34 @@ class CommonUtilTests(MasuTestCase):
         with self.assertRaises(ValueError):
             _ = list(common_utils.batch(vals, start="eek"))
 
-    def test_create_enabled_keys_aws(self):
+    def test_tag_enabled_population_no_new_keys(self):
+
+        with schema_context(self.schema):
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
+            for key in ("masu", "database", "processor", "common"):
+                EnabledTagKeys.objects.create(key=key, enabled=(key != "masu"), provider_type=Provider.PROVIDER_AWS)
+            all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        common_utils.populate_enabled_tag_rows_with_limit(self.schema, set(), Provider.PROVIDER_AWS)
+        common_utils.populate_enabled_tag_rows_with_false(self.schema, set(), Provider.PROVIDER_AWS)
+        common_utils.populate_enabled_tag_rows_with_limit(self.schema, orig_enabled, Provider.PROVIDER_AWS)
+        common_utils.populate_enabled_tag_rows_with_false(self.schema, orig_disabled, Provider.PROVIDER_AWS)
+
+        with schema_context(self.schema):
+            all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertEqual(orig_enabled, check_enabled)
+        self.assertEqual(orig_disabled, check_disabled)
+
+    @patch("masu.config.Config", return_value=MockConfig)
+    def populate_enabled_tag_rows_with_limit_aws(self, mock_config):
         with schema_context(self.schema):
             orig_keys = [
-                {"key": e.key, "enabled": e.enabled, "provider_type": "AWS"}
+                {"key": e.key, "enabled": e.enabled, "provider_type": Provider.PROVIDER_AWS}
                 for e in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS)
             ]
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
@@ -399,7 +427,7 @@ class CommonUtilTests(MasuTestCase):
         orig_enabled = {e.key for e in all_keys if e.enabled}
         enabled = orig_enabled.union({"ek_test1", "ek_test2"})
 
-        common_utils.create_enabled_tags(self.schema, enabled, "AWS", True)
+        common_utils.populate_enabled_tag_rows_with_limit(self.schema, enabled, Provider.PROVIDER_AWS)
 
         with schema_context(self.schema):
             all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
@@ -412,10 +440,38 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual(enabled, check_enabled)
         self.assertEqual(orig_disabled, check_disabled)
 
-    def test_create_enabled_keys_azure(self):
+    def populate_enabled_tag_rows_with_false_ocp(self):
         with schema_context(self.schema):
             orig_keys = [
-                {"key": e.key, "enabled": e.enabled, "provider_type": "Azure"}
+                {"key": e.key, "enabled": e.enabled, "provider_type": Provider.PROVIDER_OCP}
+                for e in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP)
+            ]
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
+            for key in ("masu", "database", "processor", "common"):
+                EnabledTagKeys.objects.create(key=key, enabled=(key != "masu"), provider_type=Provider.PROVIDER_AWS)
+            all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        enabled = orig_enabled.union({"ek_test1", "ek_test2"})
+
+        common_utils.populate_enabled_tag_rows_with_false(self.schema, enabled, Provider.PROVIDER_AWS)
+
+        with schema_context(self.schema):
+            all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS))
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
+            EnabledTagKeys.objects.bulk_create([EnabledTagKeys(**rec) for rec in orig_keys])
+
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertEqual(enabled, check_enabled)
+        self.assertEqual(orig_disabled, check_disabled)
+
+    def populate_enabled_tag_rows_with_limit_azure(self):
+        with schema_context(self.schema):
+            orig_keys = [
+                {"key": e.key, "enabled": e.enabled, "provider_type": Provider.PROVIDER_AZURE}
                 for e in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE)
             ]
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).delete()
@@ -427,7 +483,7 @@ class CommonUtilTests(MasuTestCase):
         orig_enabled = {e.key for e in all_keys if e.enabled}
         enabled = orig_enabled.union({"ek_test1", "ek_test2"})
 
-        common_utils.create_enabled_tags(self.schema, enabled, "Azure", True)
+        common_utils.populate_enabled_tag_rows_with_limit(self.schema, enabled, Provider.PROVIDER_AZURE)
         with schema_context(self.schema):
             all_keys = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE))
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).delete()
@@ -442,7 +498,7 @@ class CommonUtilTests(MasuTestCase):
     def test_update_enabled_keys_aws(self):
         with schema_context(self.schema):
             orig_keys = [
-                {"key": e.key, "enabled": e.enabled, "provider_type": "AWS"}
+                {"key": e.key, "enabled": e.enabled, "provider_type": Provider.PROVIDER_AWS}
                 for e in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS)
             ]
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
@@ -483,7 +539,7 @@ class CommonUtilTests(MasuTestCase):
     def test_update_enabled_keys_azure(self):
         with schema_context(self.schema):
             orig_keys = [
-                {"key": e.key, "enabled": e.enabled, "provider_type": "Azure"}
+                {"key": e.key, "enabled": e.enabled, "provider_type": Provider.PROVIDER_AZURE}
                 for e in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE)
             ]
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).delete()
