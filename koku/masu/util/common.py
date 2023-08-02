@@ -326,55 +326,83 @@ def batch(iterable, start=0, stop=None, _slice=1):
         yield res
 
 
-def create_enabled_tags(schema, enabled_tags, provider_type, enabled_value):
+def populate_enabled_tag_rows_with_false(schema: str, tags: set[str, ...], provider_type: str) -> None:
     """
-    Creates enabled tags.
-
-    Args:
-      schema (str)
-      enabled_tags (set)
-      provider_type (str)
-      enabled_value (boolean)
+    Creates enabled tag records always as false.
     """
-    enabled_tag_count = 0
-    ctx = {"schema": schema, "enabled_tags": enabled_tags}
-    LOG.info(log_json(msg="checking tags should be enabled", context=ctx))
-    if not enabled_tags:
+    ctx = {"schema": schema, "tags": tags, "provider_type": provider_type}
+    LOG.info(log_json(msg="checking tag enabled population with false", context=ctx))
+    if not tags:
         LOG.info(log_json(msg="skipping tag enablement no tags found", context=ctx))
         return
 
     with schema_context(schema):
-        new_tags = set(enabled_tags).difference(
+        new_tags = tags.difference(
             k for k in EnabledTagKeys.objects.filter(provider_type=provider_type).values_list("key", flat=True)
         )
         if not new_tags:
-            LOG.info(log_json(msg="no new tags founds skipping tag enablement", context=ctx))
+            LOG.info(log_json(msg="skipping tag enablement no new tags found", context=ctx))
             return
+        for batch_num, new_batch in enumerate(batch(new_tags, _slice=500)):
+            batch_size = len(new_batch)
+            LOG.info(
+                log_json(
+                    msg="create tag batch with false", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx
+                )
+            )
+            new_records = [EnabledTagKeys(key=key, provider_type=provider_type, enabled=False) for key in new_batch]
+            EnabledTagKeys.objects.bulk_create(new_records, ignore_conflicts=True)
+
+
+def populate_enabled_tag_rows_with_limit(schema: str, tags: set[str, ...], provider_type: str) -> None:
+    """
+    Creates enabled tag records checking limit.
+    """
+    ctx = {"schema": schema, "tags": tags, "provider_type": provider_type}
+    LOG.info(log_json(msg="checking tag enabled population with limit", context=ctx))
+    if not tags:
+        LOG.info(log_json(msg="skipping tag enablement no tags found", context=ctx))
+        return
+
+    with schema_context(schema):
+        new_tags = tags.difference(
+            k for k in EnabledTagKeys.objects.filter(provider_type=provider_type).values_list("key", flat=True)
+        )
+        if not new_tags:
+            LOG.info(log_json(msg="skipping tag enablement no new tags found", context=ctx))
+            return
+
+        if Config.ENABLED_TAG_LIMIT > 0:
+            # Early check if limit is enabled to grab enabled tag count once and only once
+            enabled_tag_count = EnabledTagKeys.objects.filter(enabled=True).count()
+            delta_to_limit = max((Config.ENABLED_TAG_LIMIT - enabled_tag_count), 0)
+            ctx["enabled_tag_limit"] = Config.ENABLED_TAG_LIMIT
+            ctx["delta_to_limit"] = delta_to_limit
 
         for batch_num, new_batch in enumerate(batch(new_tags, _slice=500)):
             batch_size = len(new_batch)
-            if enabled_value:
-                ctx["enabled_tag_limit"] = Config.ENABLED_TAG_LIMIT
-                if enabled_tag_count == 0:
-                    LOG.debug("querying for enabled tag count.")
-                    enabled_tag_count = EnabledTagKeys.objects.filter(enabled=True).count()
-                if Config.ENABLED_TAG_LIMIT <= 0:
-                    # If the tag limit is zero or less, the limit is disabled.
-                    LOG.info(log_json(msg="tag limit is disabled", context=ctx))
-                elif enabled_tag_count < Config.ENABLED_TAG_LIMIT:
-                    LOG.info(log_json(msg="tag limit is enabled", context=ctx))
-                else:
-                    LOG.info(log_json(msg="tag limit has been reached"), content=ctx)
-                    enabled_value = False
-            ctx["tags_enabled"] = enabled_value
-            batch_size = len(new_batch)
             LOG.info(
-                log_json(msg="create tag batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx)
+                log_json(
+                    msg="create tag batch with limit", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx
+                )
             )
-            new_records = (
-                EnabledTagKeys(key=key, provider_type=provider_type, enabled=enabled_value) for key in new_batch
-            )
-            enabled_tag_count += batch_size
+            if Config.ENABLED_TAG_LIMIT > 0:
+                new_records = [
+                    EnabledTagKeys(key=key, provider_type=provider_type, enabled=True)
+                    for key in new_batch[:delta_to_limit]
+                ]
+                enabled_records_count = len(new_records)
+                # disable records past our limit
+                new_records.extend(
+                    EnabledTagKeys(key=key, provider_type=provider_type, enabled=False)
+                    for key in new_batch[delta_to_limit:]
+                )
+                # update delta for next batch
+                delta_to_limit -= enabled_records_count
+                ctx["delta_to_limit"] = delta_to_limit
+            else:
+                # tag limit is disabled or default is False
+                new_records = (EnabledTagKeys(key=key, provider_type=provider_type, enabled=True) for key in new_batch)
             EnabledTagKeys.objects.bulk_create(new_records, ignore_conflicts=True)
 
 
