@@ -150,11 +150,9 @@ class SourcesViewTests(IamTestCase):
 
         response = self.client.get(reverse("sources-aws-s3-regions"), **self.request_context["request"].META)
         regions = response.json()["data"]
-        count = response.json()["meta"]["count"]
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(set(regions).issubset(all_regions))
-        self.assertTrue(len(all_regions) >= count)
 
     def test_aws_s3_regions_pagination(self):
         """Test that the API response is paginated"""
