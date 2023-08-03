@@ -139,6 +139,7 @@ class Provider(models.Model):
     setup_complete = models.BooleanField(default=False)
 
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    polling_timestamp = models.DateTimeField(blank=True, null=True, default=None)
 
     # We update the record on the provider when we update data.
     # This helps capture events like the updates following a cost model
@@ -322,6 +323,7 @@ select ftn.nspname as "table_schema",
          ft.relname ~ %(rpt_common_fregex)s or
          ft.relname ~ %(rpt_ingress_fregex)s or
          ft.relname ~ %(rpt_provider_fregex)s or
+         ft.relname ~ %(rpt_subs_fregex)s or
          ft.relname ~ %(api_fregex)s
        )
  order
@@ -346,6 +348,7 @@ select ftn.nspname as "table_schema",
                 "rpt_common_fregex": "^reporting_common_",
                 "rpt_ingress_fregex": "^reporting_ingressreports",
                 "rpt_provider_fregex": "^reporting_tenant_api_provider",
+                "rpt_subs_fregex": "^reporting_subs",
                 "api_fregex": "^api_",
                 "tenant_provider_sregex": "^reporting_tenant_api_provider",
                 "tenant_provider_sval": 1,

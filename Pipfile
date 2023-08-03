@@ -38,6 +38,7 @@ ibm-cloud-sdk-core = ">=3.5.2"
 ibm-platform-services = ">=0.17.8"
 jinjasql = ">=0.1"
 kafka-python = ">=2.0.1"
+kombu = "<5.3"  # https://issues.redhat.com/browse/COST-3997
 msrestazure = "*"
 numpy = {version = "*", markers = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'"}
 oci = "*"

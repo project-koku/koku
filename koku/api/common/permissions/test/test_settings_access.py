@@ -24,15 +24,15 @@ class SettingsAccessPermissionTest(TestCase):
 
     def test_has_perm_with_access_on_get(self):
         """Test that a user read."""
-        user = Mock(spec=User, admin=False)
+        user = Mock(spec=User, admin=False, access={})
         req = Mock(user=user, method="GET")
         accessPerm = SettingsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
-        self.assertTrue(result)
+        self.assertFalse(result)
 
     def test_has_perm_with_no_access_on_post(self):
         """Test that a user cannot execute POST."""
-        user = Mock(spec=User, admin=False)
+        user = Mock(spec=User, admin=False, access={})
         req = Mock(user=user, method="POST", META={"PATH_INFO": "http://localhost/api/v1/settings/"})
         accessPerm = SettingsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)

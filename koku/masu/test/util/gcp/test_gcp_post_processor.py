@@ -10,9 +10,10 @@ from unittest.mock import patch
 from django_tenants.utils import schema_context
 from pandas import DataFrame
 
+from api.models import Provider
 from masu.test import MasuTestCase
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
-from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 
 class TestGCPPostProcessor(MasuTestCase):
@@ -362,5 +363,9 @@ class TestGCPPostProcessor(MasuTestCase):
         self.post_processor.finalize_post_processing()
 
         with schema_context(self.schema):
-            tag_key_count = GCPEnabledTagKeys.objects.filter(key__in=expected_tag_keys).count()
+            tag_key_count = (
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP)
+                .filter(key__in=expected_tag_keys)
+                .count()
+            )
             self.assertEqual(tag_key_count, len(expected_tag_keys))

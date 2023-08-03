@@ -72,28 +72,28 @@
     displayName: Memory Request
     name: NGINX_MEMORY_REQUEST
     required: true
-    value: 512Mi
+    value: 100Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: NGINX_MEMORY_LIMIT
     required: true
-    value: 1Gi
+    value: 200Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
     name: NGINX_CPU_REQUEST
     required: true
-    value: 300m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: NGINX_CPU_LIMIT
     required: true
-    value: 600m
+    value: 200m
 - op: add
   path: /parameters/-
   value:

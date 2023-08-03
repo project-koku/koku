@@ -984,9 +984,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_node_table(self, cluster, nodes):
         """Get or create an entry in the OCP node table."""
-        LOG.info(
-            log_json(msg="populating reporting_ocp_nodes table", schema=self.schema, cluster=cluster, nodes=nodes)
-        )
+        LOG.info(log_json(msg="populating reporting_ocp_nodes table", schema=self.schema, cluster=cluster))
         with schema_context(self.schema):
             for node in nodes:
                 tmp_node = OCPNode.objects.filter(
@@ -1007,18 +1005,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info(log_json(msg="populating reporting_ocp_pvcs table", schema=self.schema, cluster=cluster, pvcs=pvcs))
+        LOG.info(log_json(msg="populating reporting_ocp_pvcs table", schema=self.schema, cluster=cluster))
         with schema_context(self.schema):
             for pvc in pvcs:
                 OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info(
-            log_json(
-                msg="populating reporting_ocp_projects table", schema=self.schema, cluster=cluster, projects=projects
-            )
-        )
+        LOG.info(log_json(msg="populating reporting_ocp_projects table", schema=self.schema, cluster=cluster))
         with schema_context(self.schema):
             for project in projects:
                 OCPProject.objects.get_or_create(project=project, cluster=cluster)
