@@ -148,7 +148,7 @@ class EnabledTagsTest(MasuTestCase):
         with schema_context(self.schema):
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).delete()
 
-        post_data = {"action": "create", "tag_keys": ["tag1", "tag2"], "provider_type": "aws"}
+        post_data = {"action": "create", "tag_keys": ["tag1", "tag2"], "provider_type": Provider.PROVIDER_AWS}
         response = self.client.post(reverse("enabled_tags"), post_data)
         self.assertEqual(response.status_code, 400)
 
@@ -158,7 +158,7 @@ class EnabledTagsTest(MasuTestCase):
         with schema_context(self.schema):
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).delete()
 
-        post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "provider_type": "aws"}
+        post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "provider_type": Provider.PROVIDER_AWS}
         response = self.client.post(reverse("enabled_tags"), post_data)
         self.assertEqual(response.status_code, 400)
 

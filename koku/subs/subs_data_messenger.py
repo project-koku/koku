@@ -57,8 +57,8 @@ class SUBSDataMessenger:
                     msg = self.build_subs_msg(
                         row["lineitem_resourceid"],
                         row["lineitem_usageaccountid"],
-                        row["lineitem_usagestartdate"],
-                        row["lineitem_usageenddate"],
+                        row["subs_start_time"],
+                        row["subs_end_time"],
                         row["product_vcpu"],
                         row["subs_sla"],
                         row["subs_usage"],
