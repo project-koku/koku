@@ -68,7 +68,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         expected_subs_json = {
             "event_id": str(static_uuid),
             "event_source": "cost-management",
-            "event_type": "Snapshot",
+            "event_type": "snapshot",
             "account_number": self.acct,
             "org_id": self.org_id,
             "service_type": "RHEL System",

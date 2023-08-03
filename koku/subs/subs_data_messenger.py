@@ -90,7 +90,7 @@ class SUBSDataMessenger:
         subs_json = {
             "event_id": str(uuid.uuid4()),
             "event_source": "cost-management",
-            "event_type": "Snapshot",
+            "event_type": "snapshot",
             "account_number": self.account_id,
             "org_id": self.org_id,
             "service_type": "RHEL System",
