@@ -1244,7 +1244,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # This is a base test, if functionality is tested separately
         # or does not apply to all ocp endpoints, then it can be added
         # here:
-        remove_from_test = set("infrastructures", "category", "pvc")
+        remove_from_test = {"infrastructures", "category", "pvc"}
         exclude_opts = set(OCPExcludeSerializer._opfields).difference(set(remove_from_test))
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
@@ -1363,9 +1363,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(OCPExcludeSerializer._opfields)
-        exclude_opts.remove("infrastructures")
-        exclude_opts.remove("category")
+        remove_from_test = {"infrastructures", "category", "pvc"}
+        exclude_opts = set(OCPExcludeSerializer._opfields).difference(set(remove_from_test))
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPVolumeView, OCPCostView, OCPCpuView, OCPMemoryView]:

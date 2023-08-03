@@ -159,6 +159,9 @@ class OCPProviderMap(ProviderMap):
                     },
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
+                # clean_group_lable converts the db field to a preferred label for the api return
+                # see function _clean_grouping_lables
+                "clean_group_label": {"persistentvolumeclaim": "pvc", "persistentvolumeclaims": "pvcs"},
                 "tag_column": "pod_labels",
                 "report_type": {
                     "costs": {
@@ -467,6 +470,8 @@ class OCPProviderMap(ProviderMap):
                         "usage_units_key": "GB-Hours",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
+                    # TODO: need a conditional for when it defaults back to the usage daily summary to do a
+                    # persistentvolumeclaim is not null
                     "volume": {
                         "tag_column": "volume_labels",
                         "aggregates": {
