@@ -63,13 +63,6 @@ class Orchestrator:
         queue_name=None,
         **kwargs,
     ):
-        """
-        Orchestrator for processing.
-
-        Args:
-            billing_source (String): Individual account to retrieve.
-
-        """
         self.worker_cache = WorkerCache()
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
@@ -92,22 +85,7 @@ class Orchestrator:
 
     @staticmethod
     def get_polling_accounts(provider_uuid=None, provider_type=None, scheduled=False):
-        """
-        Prepare a list of accounts for the orchestrator to get CUR from.
-
-        If billing_source is not provided all accounts will be returned, otherwise
-        only the account for the provided billing_source will be returned.
-
-        Still a work in progress, but works for now.
-
-        Args:
-            provider_uuid  (String): Individual provider UUID.
-            provider_type  (String): Specific provider type.
-
-        Returns:
-            [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
-
-        """
+        """Prepare a list of accounts for the orchestrator to get CUR from."""
         accounts = []
         polling_accounts = []
         try:
