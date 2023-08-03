@@ -209,17 +209,16 @@ def check_resource_level(gcp_provider_uuid):
     if is_gcp_resource_matching_disabled(account.get("schema_name")):
         LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
         return False
-    with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
-        if source := provider_accessor.get_data_source():
-            if not source.get("storage_only"):
-                if "resource" in source.get("table_id"):
-                    LOG.info("OCP GCP matching set to resource level")
-                    return True
-            else:
-                LOG.info("Storage only source defaults to resource level only")
-                return True
-        LOG.info("Defaulting to GCP tag matching")
-        return False
+    if source := account.get("data_source"):
+        if source.get("storage_only"):
+            LOG.info("Storage only source defaults to resource level only")
+            return True
+        if "resource" in source.get("table_id"):
+            LOG.info("OCP GCP matching set to resource level")
+            return True
+
+    LOG.info("Defaulting to GCP tag matching")
+    return False
 
 
 def add_label_columns(data_frame):
