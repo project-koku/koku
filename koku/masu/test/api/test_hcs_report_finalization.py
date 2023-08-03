@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.models import Provider
 from api.utils import DateHelper
 
 
@@ -89,7 +90,7 @@ class HCSFinalizationTests(TestCase):
         """Test the GET hcs_report_finalization endpoint for
         'provider_type' and 'provider_uuid' are not supported in the same request"""
         params = {
-            "provider_type": "AWS",
+            "provider_type": Provider.PROVIDER_AWS,
             "provider_uuid": 11111111 - 0000 - 1111 - 0000 - 111111111111,
         }
         expected_errmsg = "'provider_type' and 'provider_uuid' are not supported in the same request"

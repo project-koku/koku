@@ -7,6 +7,7 @@ from api.models import Provider
 from masu.util.azure.common import INGRESS_ALT_COLUMNS
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import create_enabled_tags
+from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.azure.models import TRINO_COLUMNS
@@ -116,4 +117,4 @@ class AzurePostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_tags(self.schema, self.enabled_tag_keys, Provider.PROVIDER_AZURE, True)
+        populate_enabled_tag_rows_with_limit(self.schema, self.enabled_tag_keys, Provider.PROVIDER_AZURE)
