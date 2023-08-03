@@ -43,6 +43,7 @@ services:
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
+      - MAX_GROUP_BY_OVERRIDE=${MAX_GROUP_BY_OVERRIDE-3}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - DEMO_ACCOUNTS
       - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
@@ -149,7 +150,7 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -171,6 +172,7 @@ services:
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
       - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
       - ENABLE_HCS_DEBUG=${ENABLE_HCS_DEBUG-False}
+      - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
       - S3_ENDPOINT
@@ -278,6 +280,59 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 7001-7020:9000
+    volumes:
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
+    depends_on:
+      - koku-base
+
+  subs-worker:
+    container_name: subs_worker
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'subs_extraction,subs_transmission']
+    environment:
+      - DJANGO_READ_DOT_ENV_FILE=True
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
+      - KOKU_API_PORT=${KOKU_API_PORT-8000}
+      - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+      - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
+      - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - RUN_GUNICORN=${RUN_GUNICORN-}
+      - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS-3}
+      - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
+    ports:
+      - 7021:9000
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'

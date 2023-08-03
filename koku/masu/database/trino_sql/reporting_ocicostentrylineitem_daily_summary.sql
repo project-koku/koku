@@ -19,8 +19,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
 )
 with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_ocienabledtagkeys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
      where enabled = true
+    AND provider_type = 'OCI'
 )
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,

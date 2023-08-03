@@ -211,14 +211,14 @@
     displayName: CPU Request
     name: WORKER_PRIORITY_CPU_REQUEST
     required: true
-    value: 150m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_PRIORITY_CPU_LIMIT
     required: true
-    value: 300m
+    value: 200m
 - op: add
   path: /parameters/-
   value:

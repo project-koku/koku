@@ -37,6 +37,8 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
+from subs.tasks import extract_subs_data_from_reports
+from subs.tasks import SUBS_EXTRACTION_QUEUE
 
 LOG = logging.getLogger(__name__)
 DH = DateHelper()
@@ -305,6 +307,11 @@ class Orchestrator:
                 if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                     if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
+                elif provider_type == Provider.PROVIDER_OCP:
+                    # The report month is used in the metadata of OCP files in s3.
+                    # Setting the report_month to the start date allows us to
+                    # delete the correct data for daily operator files
+                    report_month = manifest.get("start")
                 # add the tracing id to the report context
                 # This defaults to the celery queue
                 LOG.info(log_json(tracing_id, msg="queueing download", schema=schema_name))
@@ -333,7 +340,8 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                async_id = chord(report_tasks, group(summary_task, hcs_task))()
+                subs_task = extract_subs_data_from_reports.s().set(queue=SUBS_EXTRACTION_QUEUE)
+                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))
@@ -347,8 +355,7 @@ class Orchestrator:
         """
         for account in self.get_polling_batch():
             provider_uuid = account.get("provider_uuid")
-            with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                provider_type = provider_accessor.get_type()
+            provider_type = account.get("provider_type")
 
             if provider_type in [
                 Provider.PROVIDER_OCI,

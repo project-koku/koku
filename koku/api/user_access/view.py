@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for UserAccess."""
+import dataclasses
 import logging
 
 from django.conf import settings
@@ -18,6 +19,51 @@ from api.common.pagination import ListPaginator
 
 LOG = logging.getLogger(__name__)
 
+# Backwards Compatability Statement:
+# This endpoint currently supports a type param to show permissions
+# for a single access key. Currently this param has a different
+# return structure than a get on `/user_access/`. However, the
+# type param is used by console dot to show nav links here:
+# https://console.redhat.com/settings/applications/cost-management
+
+# Therefore, we may be able to remove the type param after the transition
+# or atleast modify its return to be the same as when we use `/user_access/`
+# I have marked areas where we are special casing to return the structure
+# console dot expects for now.
+
+
+@dataclasses.dataclass
+class AccessMapping:
+    aws: tuple[str, str] = ("aws.account", "aws.organizational_unit")
+    azure: tuple[str] = ("azure.subscription_guid",)
+    gcp: tuple[str, str] = ("gcp.account", "gcp.project")
+    ibm: tuple[str] = ("ibm.account",)
+    oci: tuple[str] = ("oci.payer_tenant_id",)
+    ocp: tuple[str, str, str] = ("openshift.cluster", "openshift.node", "openshift.project")
+    cost_model: tuple[str] = ("cost_model",)
+    settings: tuple[str] = ("settings",)
+    any: tuple[str, ...] = None
+
+    def __post_init__(self):
+        result = []
+        for field in dataclasses.fields(self):
+            if field.name in ["any", "cost_model", "settings", "ibm"]:
+                continue
+
+            result.extend(getattr(self, field.name))
+
+        # any is any cloud provider.
+        self.any = tuple(result)
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def get(self, item, default=None):
+        return getattr(self, item, default)
+
+
+ACCESS_KEY_MAPPING = AccessMapping()
+
 
 class UIFeatureAccess:
     """Class for determining a user's access to a UI feature.
@@ -28,120 +74,72 @@ class UIFeatureAccess:
         1. to keep UI and API in sync about RBAC permissions
         2. to provide the UI (both our UI and the platform's chroming) with a simple boolean response regarding whether
             a user has access to specific features of the UI.
-
-    Class attributes:
-
-        access_keys (list) - a list of access keys to check. must be implemented by sub-classes.
-                             multiple keys will be ORed; i.e. if a user has access to anything in the list,
-                             this API returns True
     """
 
-    def __init__(self, access):
+    PRERELEASE = ["ibm"]
+
+    def __init__(self, access, admin_user):
         """Class Constructor.
 
         Args:
             access (dict) - an RBAC dict; see: koku.koku.middleware.IdentityHeaderMiddleware
+            admin_user (boolean) - Indicates if the user is an admin
 
         """
+        self.access_key_list = list(dataclasses.asdict(ACCESS_KEY_MAPPING))
         self.access_dict = access if access else {}
+        self.admin_user = admin_user
+
+    def check_if_valid_param(self, query_param):
+        if query_param := ACCESS_KEY_MAPPING.get(query_param):
+            return True
+        return False
+
+    def set_access_key_to_query_param(self, query_param):
+        """Sets the access key list to what is passed."""
+        self.access_key_list = [query_param]
 
     def _get_access_value(self, key1, key2, default=None):
         """Return the access value from the inner dict."""
         return self.access_dict.get(key1, {}).get(key2, default)
 
-    def access(self, admin_user, pre_release_feature):
+    def _check_access(self, pre_release_feature, access_key):
         """Access property returns whether the user has the requested access.
 
         Return:
-            (bool)
+            (access, write)
+            acesss = bool
+            write = bool
         """
+
         if pre_release_feature and not settings.ENABLE_PRERELEASE_FEATURES:
-            return False
+            return False, False
+        if self.admin_user:
+            return True, True
+        for rbac_setting in ACCESS_KEY_MAPPING[access_key]:
+            if self._get_access_value(rbac_setting, "write"):
+                return True, True
+            elif self._get_access_value(rbac_setting, "read"):
+                return True, False
+        return False, False
 
-        if admin_user:
-            return True
+    def generate_data(self):
+        data = []
+        for access_key in self.access_key_list:
+            pre_release_feature = access_key in self.PRERELEASE
+            access, write = self._check_access(pre_release_feature, access_key)
+            data.append({"type": access_key, "access": access, "write": write})
 
-        for key in self.access_keys:
-            if self._get_access_value(key, "read") or self._get_access_value(key, "write"):
-                return True
-        return False
-
-
-class AWSUserAccess(UIFeatureAccess):
-    """Access to AWS UI Features."""
-
-    access_keys = ["aws.account", "aws.organizational_unit"]
-
-
-class OCPUserAccess(UIFeatureAccess):
-    """Access to OCP UI Features."""
-
-    access_keys = ["openshift.cluster", "openshift.node", "openshift.project"]
-
-
-class AzureUserAccess(UIFeatureAccess):
-    """Access to Azure UI Features."""
-
-    access_keys = ["azure.subscription_guid"]
-
-
-class GCPUserAccess(UIFeatureAccess):
-    """Access to GCP UI Features."""
-
-    access_keys = ["gcp.account", "gcp.project"]
-
-
-class OCIUserAccess(UIFeatureAccess):
-    """Access to OCI UI Features."""
-
-    access_keys = ["oci.payer_tenant_id"]
-
-
-class IBMUserAccess(UIFeatureAccess):
-    """Access to IBM UI Features."""
-
-    access_keys = ["ibm.account"]
-
-
-class CostModelUserAccess(UIFeatureAccess):
-    """Access to Cost Model UI Features."""
-
-    access_keys = ["cost_model"]
-
-
-class SettingsUserAccess(UIFeatureAccess):
-
-    access_keys = ["settings"]
-
-
-class AnyUserAccess(UIFeatureAccess):
-    """Check for if the user has access to any features."""
-
-    access_keys = (
-        AWSUserAccess.access_keys
-        + AzureUserAccess.access_keys
-        + GCPUserAccess.access_keys
-        + OCIUserAccess.access_keys
-        + OCPUserAccess.access_keys
-    )
+        if len(self.access_key_list) == 1:
+            # For backwards compatability.
+            data = {"data": access, "access": access, "write": write}
+        return data
 
 
 class UserAccessView(APIView):
     """View class for handling requests to determine a user's access to a resource."""
 
     permission_classes = [AllowAny]
-
-    _source_types = [
-        {"type": "any", "access_class": AnyUserAccess},
-        {"type": "aws", "access_class": AWSUserAccess},
-        {"type": "azure", "access_class": AzureUserAccess},
-        {"type": "cost_model", "access_class": CostModelUserAccess},
-        {"type": "gcp", "access_class": GCPUserAccess},
-        {"type": "oci", "access_class": OCIUserAccess},
-        {"type": "ibm", "access_class": IBMUserAccess, "pre_release_feature": True},
-        {"type": "ocp", "access_class": OCPUserAccess},
-        {"type": "settings", "access_class": SettingsUserAccess},
-    ]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
@@ -164,26 +162,18 @@ class UserAccessView(APIView):
         if flag.lower() == "true" and not beta:
             return Response({"data": False})
 
-        source_type = query_params.get("type")
-        if source_type:
-            source_accessor = next(
-                (item for item in self._source_types if item.get("type") == source_type.lower()), False
-            )
-            if source_accessor:
-                access_class = source_accessor.get("access_class")
-                pre_release_feature = source_accessor.get("pre_release_feature")
-                access_granted = access_class(user_access).access(admin_user, pre_release_feature)
-                return Response({"data": access_granted})
-            else:
-                return Response({f"Unknown source type: {source_type}"}, status=status.HTTP_400_BAD_REQUEST)
+        ui_feature_access = UIFeatureAccess(user_access, admin_user)
+        if access_type := query_params.get("type"):
+            if not ui_feature_access.check_if_valid_param(access_type):
+                return Response(
+                    {f"Unknown source type: {query_params.get('type')}"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            ui_feature_access.set_access_key_to_query_param(access_type)
 
-        data = []
-        for source_type in self._source_types:
-            access_granted = False
-            access_granted = source_type.get("access_class")(user_access).access(
-                admin_user, source_type.get("pre_release_feature")
-            )
-            data.append({"type": source_type.get("type"), "access": access_granted})
+        data = ui_feature_access.generate_data()
+        if isinstance(data, dict):
+            # backwards compatability
+            return Response(data)
 
         paginator = ListPaginator(data, request)
 

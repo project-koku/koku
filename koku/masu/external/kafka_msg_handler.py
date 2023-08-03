@@ -53,6 +53,7 @@ from masu.util.ocp import common as utils
 LOG = logging.getLogger(__name__)
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
+MANIFEST_ACCESSOR = ReportManifestDBAccessor()
 
 
 class KafkaMsgHandlerError(Exception):
@@ -499,61 +500,65 @@ def summarize_manifest(report_meta, manifest_uuid):
         Celery Async UUID.
 
     """
-    async_id = None
-    schema_name = report_meta.get("schema_name")
     manifest_id = report_meta.get("manifest_id")
-    provider_uuid = report_meta.get("provider_uuid")
-    provider_type = report_meta.get("provider_type")
+    schema = report_meta.get("schema_name")
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
-    context = {"account": schema_name, "provider_uuid": str(provider_uuid), "schema": schema_name}
+    context = {
+        "provider_uuid": report_meta.get("provider_uuid"),
+        "schema": schema,
+        "cluster_id": report_meta.get("cluster_id"),
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+
     ocp_processing_queue = OCP_QUEUE
-    if is_customer_large(schema_name):
+    if is_customer_large(schema):
         ocp_processing_queue = OCP_QUEUE_XL
 
-    with ReportManifestDBAccessor() as manifest_accesor:
-        if manifest_accesor.manifest_ready_for_summary(manifest_id):
-            new_report_meta = {
-                "schema": schema_name,
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": manifest_id,
-            }
-            if start_date and end_date:
-                if "0001-01-01 00:00:00+00:00" in [str(start_date), str(end_date)]:
-                    cr_status = report_meta.get("cr_status", {})
-                    context["cluster_id"] = cr_status.get("clusterID", "no-cluster-id")
-                    data_collection_message = cr_status.get("reports", {}).get("data_collection_message", "")
-                    if data_collection_message:
-                        # remove potentially sensitive info from the error message
-                        msg = (
-                            f'data collection error [operator]: {re.sub("{[^}]+}", "{***}", data_collection_message)}'
-                        )
-                        cr_status["reports"]["data_collection_message"] = msg
-                        # The full CR status is logged below, but we should limit our alert to just the query.
-                        # We can check the full manifest to get the full error.
-                        LOG.error(msg)
-                        LOG.info(log_json(manifest_uuid, msg=msg, context=context))
-                    LOG.info(
-                        log_json(
-                            manifest_uuid,
-                            msg=f"CR Status for invalid manifest: {json.dumps(cr_status)}",
-                            context=context,
-                        )
-                    )
-                    return  # an invalid payload will fail to summarize, so return before we try
-                context["start_date"] = start_date
-                context["end_date"] = end_date
-                LOG.info(log_json(manifest_uuid, msg="summarizing ocp reports", context=context))
-                new_report_meta["start"] = start_date
-                new_report_meta["end"] = end_date
-                new_report_meta["manifest_uuid"] = manifest_uuid
-            async_id = summarize_reports.s([new_report_meta], ocp_processing_queue).apply_async(
-                queue=ocp_processing_queue
-            )
-    return async_id
+    if not MANIFEST_ACCESSOR.manifest_ready_for_summary(manifest_id):
+        return
+
+    new_report_meta = {
+        "schema": schema,
+        "schema_name": schema,
+        "provider_type": report_meta.get("provider_type"),
+        "provider_uuid": report_meta.get("provider_uuid"),
+        "manifest_id": manifest_id,
+        "manifest_uuid": manifest_uuid,
+        "start": start_date,
+        "end": end_date,
+    }
+    if not (start_date or end_date):
+        # we cannot process without start and end dates
+        LOG.info(
+            log_json(manifest_uuid, msg="missing start or end dates - cannot summarize ocp reports", context=context)
+        )
+        return
+
+    if "0001-01-01 00:00:00+00:00" not in [str(start_date), str(end_date)]:
+        # we have valid dates, so we can summarize the payload
+        LOG.info(log_json(manifest_uuid, msg="summarizing ocp reports", context=context))
+        return summarize_reports.s([new_report_meta], ocp_processing_queue).apply_async(queue=ocp_processing_queue)
+
+    cr_status = report_meta.get("cr_status", {})
+    if data_collection_message := cr_status.get("reports", {}).get("data_collection_message", ""):
+        # remove potentially sensitive info from the error message
+        msg = f'data collection error [operator]: {re.sub("{[^}]+}", "{***}", data_collection_message)}'
+        cr_status["reports"]["data_collection_message"] = msg
+        # The full CR status is logged below, but we should limit our alert to just the query.
+        # We can check the full manifest to get the full error.
+        LOG.error(msg)
+        LOG.info(log_json(manifest_uuid, msg=msg, context=context))
+    LOG.info(
+        log_json(
+            manifest_uuid,
+            msg="cr status for invalid manifest",
+            context=context,
+            **cr_status,
+        )
+    )
 
 
 def process_report(request_id, report):
@@ -601,6 +606,8 @@ def process_report(request_id, report):
         "tracing_id": report.get("tracing_id"),
         "provider_type": "OCP",
         "start_date": date,
+        "metadata_start_date": report.get("start").isoformat(),
+        "metadata_end_date": report.get("end").isoformat(),
         "create_table": True,
     }
     try:
@@ -626,14 +633,7 @@ def report_metas_complete(report_metas):
         True if all report files for the payload have completed line item processing.
 
     """
-    process_complete = False
-    for report_meta in report_metas:
-        if not report_meta.get("process_complete"):
-            process_complete = False
-            break
-        else:
-            process_complete = True
-    return process_complete
+    return all(report_meta.get("process_complete") for report_meta in report_metas)
 
 
 def process_messages(msg):
@@ -662,6 +662,11 @@ def process_messages(msg):
     tracing_id = manifest_uuid or request_id
     if report_metas:
         for report_meta in report_metas:
+            if report_meta.get("daily_reports") and len(report_meta.get("files")) != MANIFEST_ACCESSOR.number_of_files(
+                report_meta.get("manifest_id")
+            ):
+                # we have not received all of the daily files yet, so don't process them
+                break
             report_meta["process_complete"] = process_report(request_id, report_meta)
             LOG.info(log_json(tracing_id, msg=f"Processing: {report_meta.get('current_file')} complete."))
         process_complete = report_metas_complete(report_metas)
