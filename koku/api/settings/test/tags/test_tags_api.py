@@ -18,7 +18,7 @@ from reporting.provider.all.models import EnabledTagKeys
 class TagsSettings(IamTestCase):
     def setUp(self):
         # Populate the reporting_enabledtagkeys table with data
-        self.keys = ("Project", "Name", "Business Unit", "app", "environment", "spend")
+        self.keys = ("Project", "Name", "Business Unit", "app", "Environment", "spend", "env")
         self.providers = (
             Provider.PROVIDER_AWS,
             Provider.PROVIDER_AZURE,
@@ -26,7 +26,7 @@ class TagsSettings(IamTestCase):
             Provider.PROVIDER_OCI,
         )
         combo = tuple(itertools.product(self.providers, self.keys))
-        self.expected_length = len(combo)
+        self.total_record_length = len(combo)
         self.expected_records = [
             {"key": key, "provider_type": provider_type, "enable": True} for key, provider_type in combo
         ]
@@ -61,9 +61,51 @@ class TagsSettings(IamTestCase):
         data = response.data["data"]
         returned_keys = {item["key"] for item in data}
 
-        self.assertEqual(self.expected_length, meta["count"])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.total_record_length, meta["count"])
         self.assertTrue(len(data) > 0)
         self.assertTrue(returned_keys == set(self.keys))
+
+    def test_get_tags_filtering(self):
+        test_matrix = (
+            {"filter": {"filter[provider_type]": "AWS"}, "key": "provider_type", "expected": {"AWS"}},
+            {"filter": {"filter[provider_type]": ["AWS", "GCP"]}, "key": "provider_type", "expected": {"AWS", "GCP"}},
+            {"filter": {"filter[key]": "env"}, "key": "key", "expected": {"env", "Environment"}},
+        )
+        tags_url = reverse("settings-tags")
+
+        for test_case in test_matrix:
+            with self.subTest():
+                with schema_context(self.schema_name):
+                    client = rest_framework.test.APIClient()
+                    response = client.get(tags_url, test_case["filter"] | {"limit": 100}, **self.headers)
+
+                data = response.data["data"]
+                providers = {item[test_case["key"]] for item in data}
+                count = response.data["meta"]["count"]
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertEqual(providers, test_case["expected"])
+                self.assertLessEqual(count, self.total_record_length)
+
+    def test_tags_order_by(self):
+        tags_url = reverse("settings-tags")
+        test_matrix = (
+            {"order": "enabled", "key": "enabled", "expected": False},
+            {"order": "-enabled", "key": "enabled", "expected": True},
+            {"order": ["-provider_type", "key"], "key": "provider_type", "expected": "OCI"},
+        )
+
+        for test_case in test_matrix:
+            with self.subTest():
+                with schema_context(self.schema_name):
+                    client = rest_framework.test.APIClient()
+                    response = client.get(tags_url, {"order_by": test_case["order"], "limit": 100}, **self.headers)
+
+            data = response.data["data"]
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(data[0].get(test_case["key"]), test_case["expected"])
 
     def test_enable_tags(self):
         """PUT a list of UUIDs and ensure they are enabled"""
@@ -159,4 +201,4 @@ class TagsSettings(IamTestCase):
             get_response = client.get(tags_url, {"filter[enabled]": True, "limit": 100}, **self.headers)
 
         self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT, enable_response.data)
-        self.assertEqual(get_response.data["meta"]["count"], self.expected_length)
+        self.assertEqual(get_response.data["meta"]["count"], self.total_record_length)
