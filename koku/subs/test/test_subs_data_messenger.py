@@ -32,8 +32,8 @@ class TestSUBSDataMessenger(SUBSTestCase):
         upload_keys = ["fake_key"]
         mock_reader.return_value = [
             {
-                "lineitem_usagestartdate": "2023-07-01T01:00:00Z",
-                "lineitem_usageenddate": "2023-07-01T02:00:00Z",
+                "subs_start_time": "2023-07-01T01:00:00Z",
+                "subs_end_time": "2023-07-01T02:00:00Z",
                 "lineitem_resourceid": "i-55555556",
                 "lineitem_usageaccountid": "9999999999999",
                 "physical_cores": "1",
@@ -68,7 +68,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         expected_subs_json = {
             "event_id": str(static_uuid),
             "event_source": "cost-management",
-            "event_type": "Snapshot",
+            "event_type": "snapshot",
             "account_number": self.acct,
             "org_id": self.org_id,
             "service_type": "RHEL System",

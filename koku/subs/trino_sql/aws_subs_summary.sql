@@ -1,5 +1,7 @@
 SELECT
   *,
+  time_split[1] as subs_start_time,
+  time_split[2] as subs_end_time,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
     ELSE 'Red Hat Enterprise Linux Server'
@@ -22,6 +24,7 @@ SELECT
 FROM
   (
     SELECT *,
+      split(identity_timeinterval, '/') as time_split,
       cast(
         transform_keys(
           map_filter(
