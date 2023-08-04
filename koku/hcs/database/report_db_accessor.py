@@ -69,7 +69,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
 
             sql_params = {
                 "provider_uuid": provider_uuid,
-                "year": date.year,
+                "year": date.strftime("%Y"),
                 "month": date.strftime("%m"),
                 "date": date,
                 "schema": self.schema,
