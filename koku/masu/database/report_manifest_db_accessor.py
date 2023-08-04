@@ -5,6 +5,7 @@
 """Report manifest database accessor for cost usage reports."""
 import logging
 
+from django.db import transaction
 from django.db.models import DateField
 from django.db.models import DateTimeField
 from django.db.models import F
@@ -262,6 +263,48 @@ class ReportManifestDBAccessor(KokuDBAccess):
         else:
             manifest.s3_parquet_cleared = True
         manifest.save()
+
+    def mark_s3_parquet_to_be_cleared(self, manifest_id):
+        """Mark manifest to clear parquet files."""
+        manifest = self.get_manifest_by_id(manifest_id)
+        if manifest:
+            # Set this to false to reprocesses a full month of files for AWS/Azure
+            manifest.s3_parquet_cleared = False
+            manifest.save()
+
+    def set_manifest_daily_start_date(self, manifest_id, date):
+        """
+        Mark manifest processing daily archive start date.
+        Used to prevent grabbing different starts from partial processed data
+        """
+        with transaction.atomic():
+            # Be race condition aware
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if manifest:
+                manifest.daily_archive_start_date = date
+                manifest.save()
+
+    def get_manifest_daily_start_date(self, manifest_id):
+        """
+        Get manifest processing daily archive start date.
+        Used to prevent grabbing different starts from partial processed data
+        """
+        manifest = self.get_manifest_by_id(manifest_id)
+        if manifest:
+            return manifest.daily_archive_start_date
+
+    def update_and_get_day_file(self, day, manifest_id):
+        with transaction.atomic():
+            # With split payloads, we could have a race condition trying to update the `report_tracker`.
+            # using a transaction and `select_for_update` should minimize the risk of multiple
+            # workers trying to update this field at the same time by locking the manifest during update.
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if not manifest.report_tracker.get(day):
+                manifest.report_tracker[day] = 0
+            counter = manifest.report_tracker[day]
+            manifest.report_tracker[day] = counter + 1
+            manifest.save(update_fields=["report_tracker"])
+            return f"{day}_{counter}.csv"
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""
