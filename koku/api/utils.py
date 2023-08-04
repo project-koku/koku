@@ -453,6 +453,7 @@ def get_months_in_date_range(
 ) -> list[tuple[str, str]]:
     """returns the month periods in a given date range from report"""
 
+    LOG.info(f"\n\n REPORT DATES?? {start, end, report} \n\n")
     dh = DateHelper()
     date_format = "%Y-%m-%d"
     invoice_date_format = "%Y%m"
