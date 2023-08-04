@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import itertools
+from unittest.mock import patch
 
 import rest_framework.test
 from django.urls import reverse
@@ -14,7 +15,7 @@ from api.provider.models import Provider
 from reporting.provider.all.models import EnabledTagKeys
 
 
-class TagsTests(IamTestCase):
+class TagsSettings(IamTestCase):
     def setUp(self):
         # Populate the reporting_enabledtagkeys table with data
         self.keys = ("Project", "Name", "Business Unit", "app", "environment", "spend")
@@ -65,6 +66,8 @@ class TagsTests(IamTestCase):
         self.assertTrue(returned_keys == set(self.keys))
 
     def test_enable_tags(self):
+        """PUT a list of UUIDs and ensure they are enabled"""
+
         tags_url = reverse("settings-tags")
         tags_enable_url = reverse("tags-enable")
         slice_size = 5
@@ -73,10 +76,87 @@ class TagsTests(IamTestCase):
             client = rest_framework.test.APIClient()
             ids_to_enable = [str(obj.uuid) for obj in self.disabled_objs[:slice_size]]
             enable_response = client.put(tags_enable_url, {"ids": ids_to_enable}, format="json", **self.headers)
-            get_response = client.get(tags_url, {"filter[enabled]": True}, **self.headers)
+            get_response = client.get(tags_url, {"filter[enabled]": True, "limit": 100}, **self.headers)
 
         enabled_uuids = {item["uuid"] for item in get_response.data["data"]}
-
         self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT, enable_response.data)
         self.assertEqual(get_response.data["meta"]["count"], len(self.enabled_objs) + slice_size)
         self.assertTrue(set(ids_to_enable).issubset(enabled_uuids))
+
+    def test_disable_tags(self):
+        """PUT a list of UUIDs and ensure they are disabled"""
+        tags_url = reverse("settings-tags")
+        tags_disable_url = reverse("tags-disable")
+        slice_size = 5
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            ids_to_disable = [str(obj.uuid) for obj in self.enabled_objs[:slice_size]]
+            disable_response = client.put(tags_disable_url, {"ids": ids_to_disable}, format="json", **self.headers)
+            get_response = client.get(tags_url, {"filter[enabled]": False, "limit": 100}, **self.headers)
+
+        disabled_uuids = {item["uuid"] for item in get_response.data["data"]}
+        self.assertEqual(disable_response.status_code, status.HTTP_204_NO_CONTENT, disable_response.data)
+        self.assertEqual(get_response.data["meta"]["count"], len(self.enabled_objs) + slice_size)
+        self.assertTrue(set(ids_to_disable).issubset(disabled_uuids))
+
+    def test_enable_tags_empty_id_list(self):
+        """Given an empty list of UUIDs, ensure a 400 is returned"""
+
+        tags_enable_url = reverse("tags-enable")
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            enable_response = client.put(tags_enable_url, {"ids": []}, format="json", **self.headers)
+
+        error_details = enable_response.data.get("errors", [{}])[0].get("detail", "").lower()
+
+        self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
+        self.assertIn("this list may not be empty", error_details)
+
+    def test_enable_tags_bad_uuid(self):
+        """Given an invalid UUID, ensure a 400 is returned"""
+
+        tags_enable_url = reverse("tags-enable")
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            enable_response = client.put(tags_enable_url, {"ids": ["bad-uuid"]}, format="json", **self.headers)
+
+        error_details = enable_response.data.get("errors", [{}])[0].get("detail", "").lower()
+
+        self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
+        self.assertIn("invalid uuid supplied", error_details)
+
+    @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
+    def test_enable_tags_over_limit(self, mock_enabled_limit):
+        """Given more tags enabled than are allowed by the limit,
+        ensure no more tags are enabled and an error is returned.
+        """
+
+        tags_enable_url = reverse("tags-enable")
+        uuids = [obj.uuid for obj in self.disabled_objs[:4]]
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
+
+        error = enable_response.data.get("error", "").lower()
+        self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("maximum number of enabled tags exceeded", error)
+
+    @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
+    def test_enable_tags_limit_disabled(self, mock_enabled_limit):
+        """Test that enabling tags is not limited if the limit is disabled."""
+
+        tags_enable_url = reverse("tags-enable")
+        tags_url = reverse("settings-tags")
+        uuids = [obj.uuid for obj in self.disabled_objs]
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
+            get_response = client.get(tags_url, {"filter[enabled]": True, "limit": 100}, **self.headers)
+
+        self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT, enable_response.data)
+        self.assertEqual(get_response.data["meta"]["count"], self.expected_length)

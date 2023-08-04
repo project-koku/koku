@@ -37,8 +37,6 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
             query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
             filter_params = query_params.get("filter", {})
 
-            # FIXME: This field manipulation seems like it should be done an the form
-            #
             # If only one order_by parameter was given, it is a string. Ensure it
             # is a list of values.
             order_by = query_params.get("order_by", order_by)
@@ -86,12 +84,17 @@ class SettingsTagUpdateView(APIView):
         uuid_list = request.data.get("ids", [])
         serializer = SettingsTagIDSerializer(data={"id_list": uuid_list})
         if serializer.is_valid(raise_exception=True):
-            if self.enabled_tags_count > Config.ENABLED_TAG_LIMIT:
-                return Response(
-                    f"Maximum number of enabled tags exceeded. There are {self.enabled_tags_count} "
-                    f"tags enabled and the limit is {Config.ENABLED_TAG_LIMIT}.",
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            if Config.ENABLED_TAG_LIMIT > 0:
+                if self.enabled_tags_count >= Config.ENABLED_TAG_LIMIT:
+                    return Response(
+                        {
+                            "error": (
+                                f"Maximum number of enabled tags exceeded. There are {self.enabled_tags_count} "
+                                f"tags enabled and the limit is {Config.ENABLED_TAG_LIMIT}."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             data = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
             data.update(enabled=self.enabled)
