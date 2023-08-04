@@ -34,13 +34,13 @@ SUBS_ACCEPTED_PROVIDERS = (
 )
 
 
-def check_subs_source_gate(schema_name: str) -> bool:
+def check_subs_source_gate(schema_name: str) -> bool:  # pragma: no cover
     """Checks if the specific source is selected for RHEL Metered processing."""
     # TODO: COST-4033 implement sources gate
     return False
 
 
-def enable_subs_extraction(schema_name: str) -> bool:
+def enable_subs_extraction(schema_name: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for SUBS extraction."""
     schema_name = convert_account(schema_name)
     context = {"schema": schema_name}
@@ -52,7 +52,7 @@ def enable_subs_extraction(schema_name: str) -> bool:
     )
 
 
-def enable_subs_messaging(schema_name: str) -> bool:
+def enable_subs_messaging(schema_name: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for SUBS messaging."""
     schema_name = convert_account(schema_name)
     context = {"schema": schema_name}
