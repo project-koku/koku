@@ -519,17 +519,6 @@ class TestAWSUtils(MasuTestCase):
             upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
             self.assertIsNone(upload)
 
-    def test_copy_hcs_data_to_s3_bucket(self):
-        """Test copy_hcs_data_to_s3_bucket."""
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNotNone(upload)
-
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNone(upload)
-
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
         cluster_topology = [

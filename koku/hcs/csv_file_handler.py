@@ -2,6 +2,7 @@ import logging
 import os
 
 import pandas as pd
+from dateutil import relativedelta
 
 from api.common import log_json
 from masu.util.aws.common import copy_local_hcs_report_file_to_s3_bucket
@@ -33,11 +34,23 @@ class CSVFileHandler:
         filename = f"hcs_{date}.csv"
         month = date.strftime("%m")
         year = date.strftime("%Y")
+        context = {
+            "provider_uuid": self._provider_uuid,
+            "provider_type": self._provider,
+            "schema": self._schema_name,
+            "date": date,
+        }
+        finalize_date = None
+        if finalize:
+            # reports are finalized on the 15th of the month following the report date
+            finalize_date = (date.replace(day=15) + relativedelta.relativedelta(months=1)).strftime("%Y-%m-%d")
         s3_csv_path = (
             f"hcs/csv/{self._schema_name}/{self._provider}/source={self._provider_uuid}/year={year}/month={month}"
         )
 
         LOG.info(log_json(tracing_id, msg="preparing to write file to object storage"))
         my_df.to_csv(filename, header=cols, index=False)
-        copy_local_hcs_report_file_to_s3_bucket(tracing_id, s3_csv_path, filename, filename, finalize, date)
+        copy_local_hcs_report_file_to_s3_bucket(
+            tracing_id, s3_csv_path, filename, filename, finalize, finalize_date, context
+        )
         os.remove(filename)
