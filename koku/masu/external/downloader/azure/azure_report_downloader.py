@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Report Downloader."""
+import copy
 import datetime
 import json
 import logging
@@ -61,12 +62,14 @@ def get_initial_dataframe_with_date(
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
         time_interval = "UsageDateTime"
         date_format = "%Y-%m-%d %H:%M:%S"
-        base_cols = utils.INGRESS_REQUIRED_COLUMNS
+        optional_cols = ["Tags", "MeterSubCategory", "InstanceId", "SubscriptionGuid", "OfferId"]
+        base_cols = copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)
     except ValueError:
         time_interval = "Date"
         date_format = "%m/%d/%Y"
-        base_cols = utils.INGRESS_ALT_COLUMNS
-    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, ["tags"], tracing_id, context)
+        optional_cols = ["Tags", "MeterSubCategory", "ResourceId", "ResourceName", "SubscriptionId", "OfferId"]
+        base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
+    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     data_frame = pd.read_csv(local_file, usecols=use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
