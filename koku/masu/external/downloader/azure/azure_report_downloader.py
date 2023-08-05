@@ -113,7 +113,7 @@ def create_daily_archives(
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= process_date:
+        if datetime.datetime.strptime(interval, date_format).replace(tzinfo=None) >= process_date.replace(tzinfo=None):
             dates.add(interval)
     if not dates:
         return [], {}

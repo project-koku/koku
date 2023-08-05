@@ -56,14 +56,14 @@ def get_initial_dataframe_with_date(
     """
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
-    optional_cols = ["resourcetags", "costcategory"]
+    optional_cols = ["resourcetags", "costcategory", "product/instanceType", "product/memory", "product/vcpu"]
     base_cols = utils.INGRESS_REQUIRED_COLUMNS
     try:
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     except ValueError:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
-        optional_cols = ["resource_tags", "cost_category"]
+        optional_cols = ["resource_tags", "cost_category", "product_instance_type", "product_memory", "product_vcpu"]
         base_cols = utils.INGRESS_ALT_COLUMNS
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     data_frame = pd.read_csv(local_file, usecols=use_cols)
@@ -114,7 +114,7 @@ def create_daily_archives(
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
         date = interval.split("T")[0]
-        if datetime.datetime.strptime(date, "%Y-%m-%d") >= process_date:
+        if datetime.datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=None) >= process_date.replace(tzinfo=None):
             dates.add(date)
     if not dates:
         return [], {}
