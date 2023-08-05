@@ -62,13 +62,20 @@ def get_initial_dataframe_with_date(
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
         time_interval = "UsageDateTime"
         date_format = "%Y-%m-%d %H:%M:%S"
-        optional_cols = ["Tags", "MeterSubCategory", "InstanceId", "SubscriptionGuid", "OfferId"]
+        optional_cols = ["Tags", "InstanceId", "OfferId"]
         base_cols = copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)
     except ValueError:
-        time_interval = "Date"
-        date_format = "%m/%d/%Y"
-        optional_cols = ["Tags", "MeterSubCategory", "ResourceId", "ResourceName", "SubscriptionId", "OfferId"]
-        base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
+        try:
+            data_frame = pd.read_csv(local_file, usecols=["Date"])
+            time_interval = "Date"
+            date_format = "%Y-%m-%d"
+            optional_cols = ["Tags", "ResourceId", "ResourceName", "OfferId"]
+            base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
+        except ValueError:
+            time_interval = "date"
+            date_format = "%m/%d/%Y"
+            optional_cols = ["tags", "resourceId", "resourceName", "offerId"]
+            base_cols = copy.deepcopy(utils.INGRESS_CAMEL_COLUMNS)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     data_frame = pd.read_csv(local_file, usecols=use_cols)
     # Azure does not have an invoice column so we have to do some guessing here

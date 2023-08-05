@@ -21,9 +21,11 @@ from masu.util.ocp.common import match_openshift_labels
 LOG = logging.getLogger(__name__)
 
 INGRESS_REQUIRED_COLUMNS = {
+    "SubscriptionGuid",
     "ResourceGroup",
     "ResourceLocation",
     "UsageDateTime",
+    "MeterSubCategory",
     "MeterCategory",
     "MeterId",
     "MeterName",
@@ -43,6 +45,7 @@ INGRESS_REQUIRED_COLUMNS = {
 }
 
 INGRESS_ALT_COLUMNS = {
+    "SubscriptionGuid",
     "ResourceGroup",
     "ResourceLocation",
     "Date",
@@ -70,6 +73,38 @@ INGRESS_ALT_COLUMNS = {
     "BillingPeriodStartDate",
     "BillingPeriodEndDate",
     "ServiceFamily",
+}
+
+INGRESS_CAMEL_COLUMNS = {
+    "subscriptionId",
+    "resourceGroup",
+    "resourceLocation",
+    "date",
+    "meterSubCategory",
+    "meterCategory",
+    "meterId",
+    "meterName",
+    "meterRegion",
+    "unitOfMeasure",
+    "quantity",
+    "effectivePrice",
+    "costInBillingCurrency",
+    "consumedService",
+    "additionalInfo",
+    "serviceInfo1",
+    "serviceInfo2",
+    "reservationId",
+    "reservationName",
+    "unitPrice",
+    "publisherType",
+    "publisherName",
+    "chargeType",
+    "billingAccountId",
+    "billingAccountName",
+    "billingCurrencyCode",
+    "billingPeriodStartDate",
+    "billingPeriodEndDate",
+    "serviceFamily",
 }
 
 
