@@ -78,7 +78,7 @@ INGRESS_ALT_COLUMNS = {
 
 INGRESS_CAMEL_COLUMNS = {
     "subscriptionId",
-    "resourceGroup",
+    "resourceGroupName",
     "resourceLocation",
     "date",
     "meterSubCategory",
@@ -102,7 +102,7 @@ INGRESS_CAMEL_COLUMNS = {
     "chargeType",
     "billingAccountId",
     "billingAccountName",
-    "billingCurrencyCode",
+    "billingCurrency",
     "billingPeriodStartDate",
     "billingPeriodEndDate",
     "serviceFamily",
