@@ -83,7 +83,7 @@ class SettingsTagUpdateView(APIView):
     def put(self, request: Request, **kwargs) -> Response:
         uuid_list = request.data.get("ids", [])
         serializer = SettingsTagIDSerializer(data={"id_list": uuid_list})
-        if serializer.is_valid(raise_exception=True):
+        if serializer.is_valid():
             if Config.ENABLED_TAG_LIMIT > 0:
                 if self.enabled_tags_count >= Config.ENABLED_TAG_LIMIT:
                     return Response(
