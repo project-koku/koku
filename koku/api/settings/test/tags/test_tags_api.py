@@ -32,6 +32,9 @@ class TagsSettings(IamTestCase):
         ]
 
         with schema_context(self.schema_name):
+            # Delete any existing records to start a with clean test environment
+            EnabledTagKeys.objects.all().delete()
+
             split = len(combo) // 2
 
             # Create some enabled records
@@ -45,9 +48,6 @@ class TagsSettings(IamTestCase):
                 EnabledTagKeys(key=key, provider_type=provider, enabled=False) for provider, key in combo[split:]
             )
             self.disabled_objs = EnabledTagKeys.objects.bulk_create(disabled_records)
-
-    def tearDown(self):
-        print("nuke all the tags")
 
     def test_get_tags(self):
         """Test basic GET of tags"""
