@@ -140,7 +140,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     # Volume specific fields
-    persistentvolumeclaim = models.CharField(max_length=253, null=True)  # persistentvolumeclaim
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
     persistentvolume = models.CharField(max_length=253, null=True)
     storageclass = models.CharField(max_length=253, null=True)
     volume_labels = JSONField(null=True)
@@ -673,7 +673,7 @@ class OCPVolumeSummaryP(models.Model):
     supplementary_usage_cost = JSONField(null=True)
     supplementary_monthly_cost_json = JSONField(null=True)
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    persistentvolumeclaim = models.CharField(max_length=253, null=True)  # persistentvolumeclaim
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
     storageclass = models.CharField(max_length=253, null=True)
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -735,7 +735,7 @@ class OCPVolumeSummaryByProjectP(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    persistentvolumeclaim = models.CharField(max_length=253, null=True)  # persistentvolumeclaim
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
     storageclass = models.CharField(max_length=253, null=True)
 
     # Simplified Cost Model Cost terms

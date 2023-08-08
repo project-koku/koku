@@ -57,6 +57,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_p (
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Storage'
-        AND persistentvolumeclaim IS NOT NULL
+        AND persistentvolumeclaim IS NOT NULL -- coming from platform distributed
     GROUP BY usage_start, cluster_id, cluster_alias, cost_model_rate_type, persistentvolumeclaim, storageclass
 ;
