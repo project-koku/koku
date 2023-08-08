@@ -75,7 +75,7 @@ def get_initial_dataframe_with_date(
             time_interval = "date"
             date_format = "%m/%d/%Y"
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
-    # We use .lower() because Azure has reports with differing cased columns 
+    # We use .lower() because Azure has reports with differing cased columns
     data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower() in use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
