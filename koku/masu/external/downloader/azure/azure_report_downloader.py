@@ -62,22 +62,22 @@ def get_initial_dataframe_with_date(
         time_interval = "UsageDateTime"
         data_frame = pd.read_csv(local_file, usecols=[time_interval], nrows=1)
         date_format = "%Y-%m-%d %H:%M:%S"
-        optional_cols = ["tags", "instanceid", "offerid"]
-        base_cols = set(map(lambda x: x.lower(), copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)))
+        optional_cols = ["Tags", "InstanceId", "OfferId"]
+        base_cols = copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)
     except ValueError:
-        optional_cols = ["tags", "resourceid", "resourcename", "offerid"]
+        optional_cols = ["Tags", "ResourceId", "ResourceName", "OfferId"]
+        base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
         try:
-            base_cols = set(map(lambda x: x.lower(), copy.deepcopy(utils.INGRESS_ALT_COLUMNS)))
             time_interval = "Date"
             date_format = "%Y-%m-%d"
             data_frame = pd.read_csv(local_file, usecols=[time_interval], nrows=1)
         except ValueError:
-            base_cols = set(map(lambda x: x.lower(), copy.deepcopy(utils.INGRESS_CAMEL_COLUMNS)))
             time_interval = "date"
             date_format = "%m/%d/%Y"
+            optional_cols = ["tags", "resourceId", "resourceName", "offerId"]
+        base_cols = copy.deepcopy(utils.INGRESS_CAMEL_COLUMNS)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
-    # We use .lower() because Azure has reports with differing cased columns
-    data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower() in use_cols)
+    data_frame = pd.read_csv(local_file, usecols=use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date
