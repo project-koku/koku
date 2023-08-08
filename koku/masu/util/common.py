@@ -532,10 +532,16 @@ def get_provider_updated_timestamp(provider_uuid):
 
 def list_null_optional_columns(local_file, fetch_columns, tracing_id, context):
     """Make a list of optional columns with only Null values"""
+    drop_cols = []
     for fetch_column in fetch_columns:
         try:
             data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith(fetch_column))
-            drop_cols = data_frame.columns[data_frame.isna().all()].tolist()
+            drop_cols += data_frame.columns[data_frame.isna().all()].tolist()
         except ValueError:
             LOG.info(log_json(tracing_id, msg=f"customer has no {fetch_column} data to parse", context=context))
+    LOG.info(
+        log_json(
+            tracing_id, msg="customer has null values in some fetched columns", drop_cols=drop_cols, context=context
+        )
+    )
     return drop_cols
