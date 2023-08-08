@@ -77,6 +77,39 @@ INGRESS_ALT_COLUMNS = {
 }
 
 
+INGRESS_CAMEL_COLUMNS = {
+    "subscriptionId",
+    "resourceGroupName",
+    "resourceLocation",
+    "date",
+    "meterSubCategory",
+    "meterCategory",
+    "meterId",
+    "meterName",
+    "meterRegion",
+    "unitOfMeasure",
+    "quantity",
+    "effectivePrice",
+    "costInBillingCurrency",
+    "consumedService",
+    "additionalInfo",
+    "serviceInfo1",
+    "serviceInfo2",
+    "reservationId",
+    "reservationName",
+    "unitPrice",
+    "publisherType",
+    "publisherName",
+    "chargeType",
+    "billingAccountId",
+    "billingAccountName",
+    "billingCurrency",
+    "billingPeriodStartDate",
+    "billingPeriodEndDate",
+    "serviceFamily",
+}
+
+
 class AzureBlobExtension(Enum):
     manifest = "_manifest.json"
     csv = ".csv"
