@@ -108,7 +108,7 @@ class AzurePostProcessor:
         data_frame = data_frame.reindex(columns=columns)
 
         unique_tags = set()
-        for tags_json in data_frame["tags"].values():
+        for tags_json in data_frame["tags"].values:
             if pandas.notnull(tags_json):
                 unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
