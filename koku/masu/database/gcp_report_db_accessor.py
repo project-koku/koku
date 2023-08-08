@@ -307,8 +307,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 service_description,
                 location_region
         """
-
-        return self._execute_trino_raw_sql_query(sql, log_ref="get_gcp_topology_trino")
+        sql_params = {
+            "schema": self.schema,
+            "start": start_date,
+            "end": end_date,
+            "provider_uuid": source_uuid,
+            "invoice_id": invoice_month_date,
+        }
+        return self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="get_gcp_topology_trino")
 
     def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
         """Overwrite the parent class to include invoice month for gcp.
