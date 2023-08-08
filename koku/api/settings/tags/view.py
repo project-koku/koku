@@ -1,4 +1,5 @@
 import logging
+import typing as t
 
 import django_filters
 from django.db.models import QuerySet
@@ -30,18 +31,38 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
         model = EnabledTagKeys
         fields = ("enabled", "uuid")
 
+    def _get_order_by(self, order_by_params: t.Union[str, dict[str, str], None] = None) -> list[str]:
+        # If only one order_by parameter was given, it is a string.
+        # Ensure it is a list of values.
+        if isinstance(order_by_params, str):
+            return [order_by_params]
+
+        # Support order_by[field]=desc
+        if isinstance(order_by_params, dict):
+            result = set()
+            for field, order in order_by_params.items():
+                try:
+                    # If a field is provided more than once, take the first sorting parameter
+                    order = order.pop(0)
+                except AttributeError:
+                    # Already a str
+                    pass
+
+                # Technically we accept "asc" and "desc". Only testing for "desc" to make
+                # the API more resilient.
+                prefix = "-" if order.lower().startswith("desc") else ""
+                result.add(f"{prefix}{field}")
+
+            return list(result)
+
+        return ["provider_type", "-enabled"]
+
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
-        order_by = ["provider_type", "-enabled"]
+        order_by = self._get_order_by()
 
         if self.request:
             query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
             filter_params = query_params.get("filter", {})
-
-            # If only one order_by parameter was given, it is a string. Ensure it
-            # is a list of values.
-            order_by = query_params.get("order_by", order_by)
-            if isinstance(order_by, str):
-                order_by = [order_by]
 
             # Multiple choice filter fields need to be a list. If only one filter
             # is provided, it will be a string.
@@ -55,6 +76,8 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
             # Since our APIs expect filters to be in the filter dict, extract those
             # values and merge them with cleaned_data which is used for filtering.
             self.form.cleaned_data.update(filter_params)
+
+            order_by = self._get_order_by(query_params.get("order_by"))
 
         return super().filter_queryset(queryset).order_by(*order_by)
 
