@@ -170,6 +170,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
             sql_params = {}
+        if context is None:
+            context = {}
         if conn_params is None:
             conn_params = {}
         ctx = (
