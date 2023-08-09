@@ -77,6 +77,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "org_id": self._org_id,
                 "table": table,
             }
+
             # trino-python-client 0.321.0 released a breaking change to map results to python types by default
             # This altered the timestamp values present in generated CSVs, impacting consumers of these files
             # legacy_primitive_types restores previous functionality of using primitive types

@@ -16,7 +16,6 @@ from tempfile import gettempdir
 from threading import RLock
 from uuid import uuid4
 
-import pandas as pd
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
@@ -28,7 +27,6 @@ from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from reporting.provider.all.models import EnabledTagKeys
@@ -518,27 +516,3 @@ class SingletonMeta(type):
                 instance = super().__call__(*args, **kwargs)
                 cls._instances[cls] = instance
         return cls._instances[cls]
-
-
-def check_setup_complete(provider_uuid):
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        return provider_accessor.get_setup_complete()
-
-
-def get_provider_updated_timestamp(provider_uuid):
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        return provider_accessor.get_data_updated_timestamp()
-
-
-def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context):
-    """Add optional columns to columns list if they exists in files"""
-    for fetch_column in fetch_columns:
-        try:
-            data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith(fetch_column))
-            data_frame = data_frame.dropna(axis=1, how="all")
-            fetch_cols = data_frame.columns
-            for col in fetch_cols:
-                current_columns.add(col)
-        except ValueError:
-            LOG.info(log_json(tracing_id, msg=f"customer has no {fetch_column} data to parse", context=context))
-    return current_columns
