@@ -18,7 +18,7 @@ from reporting.provider.all.models import EnabledTagKeys
 class TagsSettings(IamTestCase):
     def setUp(self):
         # Populate the reporting_enabledtagkeys table with data
-        self.keys = ("Project", "Name", "Business Unit", "app", "Environment", "spend", "env")
+        self.keys = ("Project", "Name", "Business Unit", "app", "Environment", "spend", "env", "zoo")
         self.providers = (
             Provider.PROVIDER_AWS,
             Provider.PROVIDER_AZURE,
@@ -89,23 +89,50 @@ class TagsSettings(IamTestCase):
                 self.assertLessEqual(count, self.total_record_length)
 
     def test_tags_order_by(self):
+        """Test one or more order_by patameres using two syntaxes
+
+        Standard Django ordering:
+            No prefix is ascending order. A '-' prefix is descending order.
+
+            /?order_by=field&order_by=-other_field
+
+
+        Cost Management style ordering:
+            'asc' and 'desc' indicate ascending or descending order.
+
+            /?order_by[field]=asc&order_by[other_field]=desc
+        """
+
         tags_url = reverse("settings-tags")
         test_matrix = (
-            {"order": "enabled", "key": "enabled", "expected": False},
-            {"order": "-enabled", "key": "enabled", "expected": True},
-            {"order": ["-provider_type", "key"], "key": "provider_type", "expected": "OCI"},
+            {"order": {"order_by": "enabled"}, "key": "enabled", "expected": False},
+            {"order": {"order_by": "-enabled"}, "key": "enabled", "expected": True},
+            {
+                "order": {"order_by": ["-provider_type", "-key"]},
+                "keys": ("provider_type", "key"),
+                "expected": ("OCI", "zoo"),
+            },
+            {"order": {"order_by[key]": "desc"}, "key": "key", "expected": "zoo"},
+            {
+                "order": {"order_by[provider_type]": "asc", "order_by[key]": "desc"},
+                "keys": ("provider_type", "key"),
+                "expected": ("AWS", "zoo"),
+            },
         )
 
         for test_case in test_matrix:
             with self.subTest():
                 with schema_context(self.schema_name):
                     client = rest_framework.test.APIClient()
-                    response = client.get(tags_url, {"order_by": test_case["order"], "limit": 100}, **self.headers)
+                    response = client.get(tags_url, test_case["order"] | {"limit": 100}, **self.headers)
 
             data = response.data["data"]
+            important_values = data[0].get(test_case.get("key"))
+            if test_case.get("keys"):
+                important_values = tuple(data[0].get(key) for key in test_case["keys"])
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(data[0].get(test_case["key"]), test_case["expected"])
+            self.assertEqual(important_values, test_case["expected"])
 
     def test_enable_tags(self):
         """PUT a list of UUIDs and ensure they are enabled"""

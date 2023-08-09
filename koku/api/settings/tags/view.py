@@ -2,12 +2,14 @@ import logging
 import typing as t
 
 import django_filters
+from django.core.exceptions import FieldError
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from querystring_parser import parser
 from rest_framework import generics
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,10 +33,19 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
         model = EnabledTagKeys
         fields = ("enabled", "uuid")
 
-    def _get_order_by(self, order_by_params: t.Union[str, dict[str, str], None] = None) -> list[str]:
-        # If only one order_by parameter was given, it is a string.
-        # Ensure it is a list of values.
+    def _get_order_by(
+        self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
+    ) -> list[str, ...]:
+        if order_by_params is None:
+            # Default ordering
+            return ["provider_type", "-enabled"]
+
+        if isinstance(order_by_params, list):
+            # Already a list, just return it.
+            return order_by_params
+
         if isinstance(order_by_params, str):
+            # If only one order_by parameter was given, it is a string.
             return [order_by_params]
 
         # Support order_by[field]=desc
@@ -55,7 +66,8 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
 
             return list(result)
 
-        return ["provider_type", "-enabled"]
+        # Got something unexpected
+        raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         order_by = self._get_order_by()
@@ -79,7 +91,10 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
 
             order_by = self._get_order_by(query_params.get("order_by"))
 
-        return super().filter_queryset(queryset).order_by(*order_by)
+        try:
+            return super().filter_queryset(queryset).order_by(*order_by)
+        except FieldError as fexc:
+            raise ValidationError(str(fexc))
 
 
 class SettingsTagView(generics.GenericAPIView):
