@@ -61,13 +61,10 @@ def get_initial_dataframe_with_date(
         data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
         time_interval = "UsageDateTime"
         date_format = "%Y-%m-%d %H:%M:%S"
-        base_cols = utils.INGRESS_REQUIRED_COLUMNS
     except ValueError:
         time_interval = "Date"
         date_format = "%m/%d/%Y"
-        base_cols = utils.INGRESS_ALT_COLUMNS
-    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, ["tags"], tracing_id, context)
-    data_frame = pd.read_csv(local_file, usecols=use_cols)
+    data_frame = pd.read_csv(local_file)
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date
