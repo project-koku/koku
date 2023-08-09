@@ -62,7 +62,7 @@ def get_initial_dataframe_with_date(
     data_frame = pd.read_csv(local_file)
     if "Date" in data_frame.columns:
         time_interval = "Date"
-        date_format = "%Y/%m/%d"
+        date_format = "%Y-%m-%d"
     elif "date" in data_frame.columns:
         time_interval = "date"
         date_format = "%m/%d/%Y"
