@@ -25,8 +25,8 @@ INGRESS_REQUIRED_COLUMNS = {
     "ResourceGroup",
     "ResourceLocation",
     "UsageDateTime",
-    "MeterSubcategory",
     "MeterCategory",
+    "MeterSubcategory",
     "MeterId",
     "MeterName",
     "MeterRegion",
@@ -47,11 +47,11 @@ INGRESS_REQUIRED_COLUMNS = {
 }
 
 INGRESS_ALT_COLUMNS = {
-    "subscriptionId",
+    "SubscriptionId",
     "ResourceGroup",
     "ResourceLocation",
     "Date",
-    "MeterSubcategory",
+    "MeterSubCategory",
     "MeterCategory",
     "MeterId",
     "MeterName",
