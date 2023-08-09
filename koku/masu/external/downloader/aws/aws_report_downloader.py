@@ -67,6 +67,7 @@ def get_initial_dataframe_with_date(
         optional_cols = ["resource_tags", "cost_category"]
         base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
+    LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
     data_frame = pd.read_csv(local_file, usecols=use_cols)
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date

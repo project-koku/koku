@@ -57,27 +57,35 @@ def get_initial_dataframe_with_date(
         context (Dict): Logging context dictionary
         tracing_id (str): The tracing id
     """
+    sub_guid = "subscriptionguid"
+    sub_id = "subscriptionid"
     dh = DateHelper()
     try:
-        time_interval = "UsageDateTime"
-        data_frame = pd.read_csv(local_file, usecols=[time_interval], nrows=1)
+        time_interval = "usagedatetime"
+        data_frame = pd.read_csv(local_file, usecols=[lambda col: col.lower() in [time_interval]], nrows=1)
         date_format = "%Y-%m-%d %H:%M:%S"
-        optional_cols = ["Tags", "InstanceId", "OfferId"]
-        base_cols = copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)
+        optional_cols = ["tags"]
+        base_cols = set(map(lambda x: x.lower(), copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)))
+        base_cols.remove(sub_guid)
     except ValueError:
+        optional_cols = ["tags"]
+        base_cols = set(map(lambda x: x.lower(), copy.deepcopy(utils.INGRESS_ALT_COLUMNS)))
+        base_cols.remove(sub_id)
         try:
             time_interval = "Date"
             date_format = "%Y-%m-%d"
             data_frame = pd.read_csv(local_file, usecols=[time_interval], nrows=1)
-            optional_cols = ["Tags", "ResourceId", "ResourceName", "OfferId"]
-            base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
         except ValueError:
             time_interval = "date"
             date_format = "%m/%d/%Y"
-            optional_cols = ["tags", "resourceId", "resourceName", "offerId"]
-            base_cols = copy.deepcopy(utils.INGRESS_CAMEL_COLUMNS)
-    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
-    data_frame = pd.read_csv(local_file, usecols=use_cols)
+    # Get column headers to distingiush between guid vs id subscription
+    data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith("subscription"), nrows=1)
+    sub_headers = [col.lower() for col in data_frame.columns]
+    base_cols.add(sub_guid) if sub_guid in sub_headers else base_cols.add(sub_id)
+    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context, lower=True)
+    # We use .lower() because Azure has reports with differing cased columns
+    LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
+    data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower() in use_cols)
     # Azure does not have an invoice column so we have to do some guessing here
     if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date

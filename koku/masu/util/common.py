@@ -530,7 +530,7 @@ def get_provider_updated_timestamp(provider_uuid):
         return provider_accessor.get_data_updated_timestamp()
 
 
-def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context):
+def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context, lower=False):
     """Add optional columns to columns list if they exists in files"""
     for fetch_column in fetch_columns:
         try:
@@ -538,7 +538,7 @@ def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_i
             data_frame = data_frame.dropna(axis=1, how="all")
             fetch_cols = data_frame.columns
             for col in fetch_cols:
-                current_columns.add(col)
+                current_columns.add(col.lower()) if lower else current_columns.add(col)
         except ValueError:
             LOG.info(log_json(tracing_id, msg=f"customer has no {fetch_column} data to parse", context=context))
     return current_columns
