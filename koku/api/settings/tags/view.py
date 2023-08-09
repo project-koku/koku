@@ -78,7 +78,12 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
 
             # Multiple choice filter fields need to be a list. If only one filter
             # is provided, it will be a string.
-            for field in ("key", "provider_type"):
+            multiple_choice_fields = [
+                field
+                for field, filter in self.base_filters.items()
+                if isinstance(filter, django_filters.filters.MultipleChoiceFilter)
+            ]
+            for field in multiple_choice_fields:
                 if isinstance(filter_params.get(field), str):
                     filter_params[field] = [filter_params[field]]
 
