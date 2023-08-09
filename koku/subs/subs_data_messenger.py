@@ -57,8 +57,8 @@ class SUBSDataMessenger:
                     msg = self.build_subs_msg(
                         row["lineitem_resourceid"],
                         row["lineitem_usageaccountid"],
-                        row["lineitem_usagestartdate"],
-                        row["lineitem_usageenddate"],
+                        row["subs_start_time"],
+                        row["subs_end_time"],
                         row["product_vcpu"],
                         row["subs_sla"],
                         row["subs_usage"],
@@ -90,7 +90,7 @@ class SUBSDataMessenger:
         subs_json = {
             "event_id": str(uuid.uuid4()),
             "event_source": "cost-management",
-            "event_type": "Snapshot",
+            "event_type": "snapshot",
             "account_number": self.account_id,
             "org_id": self.org_id,
             "service_type": "RHEL System",

@@ -634,29 +634,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         accessor.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_check_for_invoice_id_trino(self, mock_trino):
-        """Check that an invoice ID exists or not."""
-        mock_trino.return_value = [
-            ("1",),
-        ]
-        expected = ["1"]
-        check_date = DateHelper().today
-        invoice_ids = self.accessor.check_for_invoice_id_trino(str(self.aws_provider.uuid), check_date)
-
-        self.assertEqual(invoice_ids, expected)
-
-        mock_trino.reset_mock()
-
-        mock_trino.return_value = [
-            ("",),
-        ]
-        expected = []
-        check_date = DateHelper().today
-        invoice_ids = self.accessor.check_for_invoice_id_trino(str(self.aws_provider.uuid), check_date)
-
-        self.assertEqual(invoice_ids, expected)
-
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
     def test_truncate_partition(self, mock_query):
         """Test that the truncate partition method works."""

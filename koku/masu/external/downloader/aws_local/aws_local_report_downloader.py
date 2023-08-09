@@ -12,13 +12,11 @@ import re
 import shutil
 
 from api.common import log_json
-from api.provider.models import Provider
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.downloader.aws.aws_report_downloader import create_daily_archives
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
-from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -210,6 +208,8 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        file_names = []
+        date_range = {}
         local_s3_filename = utils.get_local_file_name(key)
 
         directory_path = f"{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}"
@@ -227,26 +227,26 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         file_creation_date = None
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            msg = f"Downloading {key} to {full_file_path}"
+            msg = f"Downloading key: {key} to file path: {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             shutil.copy2(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
-            # Push to S3
 
-            s3_csv_path = get_path_prefix(
-                self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
-            )
-            utils.copy_local_report_file_to_s3_bucket(
-                self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
-            )
+            if not key.endswith(".json"):
+                file_names, date_range = create_daily_archives(
+                    self.tracing_id,
+                    self.account,
+                    self._provider_uuid,
+                    full_file_path,
+                    manifest_id,
+                    start_date,
+                    self.context,
+                )
 
-            manifest_accessor = ReportManifestDBAccessor()
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        msg = f"Download complete for {key}"
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
-            if not manifest_accessor.get_s3_csv_cleared(manifest):
-                utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
-                manifest_accessor.mark_s3_csv_cleared(manifest)
-        return full_file_path, s3_etag, file_creation_date, [], {}
+        return full_file_path, s3_etag, file_creation_date, file_names, date_range
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

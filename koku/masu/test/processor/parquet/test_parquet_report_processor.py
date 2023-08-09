@@ -68,6 +68,14 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
+        self.report_processor_gcp = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+        )
         ingress_uuid = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.ingress_report_dict = {
             "uuid": ingress_uuid,
@@ -251,25 +259,7 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertEqual(file_name, "")
             self.assertTrue(data_frame.empty)
 
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
-            ParquetReportProcessor, "parquet_file_getter"
-        ) as mock_remove, patch.object(ParquetReportProcessor, "convert_csv_to_parquet") as mock_convert, patch(
-            "masu.processor.parquet.parquet_report_processor.delete_s3_objects", return_value=""
-        ), patch(
-            "masu.processor.parquet.parquet_report_processor.ReportManifestDBAccessor.get_s3_parquet_cleared",
-            return_value=False,
-        ) as mock_get_cleared, patch(
-            "masu.processor.parquet.parquet_report_processor.ReportManifestDBAccessor.mark_s3_parquet_cleared"
-        ) as mock_mark_cleared, patch.object(
-            ParquetReportProcessor, "create_daily_parquet"
-        ):
-            mock_convert.return_value = "", pd.DataFrame(), True
-            self.report_processor.convert_to_parquet()
-            mock_get_cleared.assert_called()
-            mock_remove.assert_called()
-            mock_mark_cleared.assert_called()
-
-        expected = "failed to convert files to parquet"
+        expected = "no split files to convert to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
             ParquetReportProcessor,
             "convert_csv_to_parquet",
@@ -300,7 +290,7 @@ class TestParquetReportProcessor(MasuTestCase):
             "convert_csv_to_parquet",
             return_value=("", pd.DataFrame([{"key": "value"}]), True),
         ), patch.object(ParquetReportProcessor, "create_daily_parquet") as mock_create_daily:
-            file_name, data_frame = self.report_processor.convert_to_parquet()
+            file_name, data_frame = self.report_processor_gcp.convert_to_parquet()
             call_args = mock_create_daily.call_args
             self.assertTrue(call_args.equals(data_frame[0]))
 
