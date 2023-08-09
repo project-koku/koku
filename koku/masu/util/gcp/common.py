@@ -85,10 +85,9 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         if resource_id_df.any():
             LOG.info("Matching OpenShift on GCP by resource ID.")
             matching_check = "|".join(matchable_resources)
-            if matching_check:
-                ocp_matched = resource_id_df.str.contains(matching_check)
-            else:
+            if not matching_check:
                 continue
+            ocp_matched = resource_id_df.str.contains(matching_check)
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
             cluster_strings = [
