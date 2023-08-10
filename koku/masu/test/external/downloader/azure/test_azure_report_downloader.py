@@ -441,19 +441,18 @@ class AzureReportDownloaderTest(MasuTestCase):
         end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
         with patch("masu.util.common.check_setup_complete", return_Value=True):
-            with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
-                with patch(
-                    "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
-                    return_value=expected_date,
-                ):
-                    data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-                        temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
-                    )
-                    self.assertIsNotNone(data_frame)
-                    self.assertEqual(time_interval, expected_interval)
-                    self.assertEqual(date_format, expected_date_fmt)
-                    self.assertEqual(process_date, expected_date)
-                    os.remove(temp_path)
+            with patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+                return_value=expected_date,
+            ):
+                data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
+                    temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
+                )
+                self.assertIsNotNone(data_frame)
+                self.assertEqual(time_interval, expected_interval)
+                self.assertEqual(date_format, expected_date_fmt)
+                self.assertEqual(process_date, expected_date)
+                os.remove(temp_path)
 
     def test_get_initial_dataframe_with_date_alt_columns(self):
         """Test getting dataframe with date for processing."""
