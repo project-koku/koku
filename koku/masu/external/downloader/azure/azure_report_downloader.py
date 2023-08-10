@@ -78,7 +78,6 @@ def get_initial_dataframe_with_date(
     else:
         # We do this if we have multiple workers running different files for a single manifest.
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
-        LOG.info(f"\n\n PROCSS DATA {process_date} \n\n")
         if not process_date:
             process_date = get_or_clear_daily_s3_by_date(
                 s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
