@@ -438,6 +438,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_interval = "UsageDateTime"
         expected_date_fmt = "%Y-%m-%d %H:%M:%S"
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
         with patch("masu.util.common.check_setup_complete", return_Value=True):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
@@ -446,7 +447,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-                        temp_path, None, 1, self.azure_provider_uuid, start_date, None, "tracing_id"
+                        temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
                     self.assertIsNotNone(data_frame)
                     self.assertEqual(time_interval, expected_interval)
@@ -464,6 +465,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_interval = "date"
         expected_date_fmt = "%m/%d/%Y"
         start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
+        end_date = DateHelper().this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
         with patch("masu.util.common.check_setup_complete", return_Value=True):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
@@ -472,7 +474,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-                        temp_path, None, 1, self.azure_provider_uuid, start_date, None, "tracing_id"
+                        temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
                     self.assertIsNotNone(data_frame)
                     self.assertEqual(time_interval, expected_interval)
