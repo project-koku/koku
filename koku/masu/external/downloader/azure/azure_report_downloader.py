@@ -100,6 +100,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     date_range = {}
     dates = set()
@@ -107,11 +108,13 @@ def create_daily_archives(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
     data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= process_date:
+        csv_date = datetime.datetime.strptime(interval, date_format)
+        # Adding end here so we dont bother to process future incomplete days (saving plan data)
+        if csv_date >= process_date and csv_date <= end_date:
             dates.add(interval)
     if not dates:
         return [], {}
