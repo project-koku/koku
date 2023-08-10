@@ -9,7 +9,7 @@ graph
     F --> G["report_months = O.get_reports\n(there is some masu API specific logic in\nhere. But also, this returns\nmonths to iterate over...)"]
     G --> H["for month in report_months\n(list of datetime.date)"]
     H --> I{months left?}
-    I -->|yes| J[" `account['report_month'] = month`\nself.start_manifest_processing\n(see 01-start-manifest-processing.md)"]
+    I -->|yes| J[" `account['report_month'] = month`\nself.start_manifest_processing\n(see 02-start-manifest-processing.md)"]
     J -->|Success| K[label accounts]
     K -->|Success/Exception| I
     J -->|Exception| I
