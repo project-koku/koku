@@ -29,13 +29,7 @@ from reporting.provider.aws.models import AWSEnabledCategoryKeys
 LOG = logging.getLogger(__name__)
 
 
-class SettingsAWSCategoryFilter(django_filters.rest_framework.FilterSet):
-    key = django_filters.MultipleChoiceFilter(lookup_expr="icontains")
-
-    class Meta:
-        model = AWSEnabledCategoryKeys
-        fields = ("enabled", "uuid")
-
+class SettingsFilter(django_filters.rest_framework.FilterSet):
     def _get_order_by(self, order_by_params: t.Union[str, dict[str, str], None] = None) -> list[str]:
         # If only one order_by parameter was given, it is a string.
         # Ensure it is a list of values.
@@ -92,6 +86,14 @@ class SettingsAWSCategoryFilter(django_filters.rest_framework.FilterSet):
             order_by = self._get_order_by(query_params.get("order_by"))
 
         return super().filter_queryset(queryset).order_by(*order_by)
+
+
+class SettingsAWSCategoryFilter(SettingsFilter):
+    key = django_filters.MultipleChoiceFilter(lookup_expr="icontains")
+
+    class Meta:
+        model = AWSEnabledCategoryKeys
+        fields = ("enabled", "uuid")
 
 
 class SettingsAWSCategoryKeyView(generics.GenericAPIView):
