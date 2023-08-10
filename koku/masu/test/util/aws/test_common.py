@@ -19,6 +19,7 @@ from django_tenants.utils import schema_context
 from faker import Faker
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -613,6 +614,13 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_get_or_clear_daily_s3_by_date(self, mock_resource):
+        """test getting daily archive start date"""
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
+        result = utils.get_or_clear_daily_s3_by_date("None", start_date, 1, {"context": "test"}, "request_id")
+        self.assertEqual(result, start_date)
 
 
 class AwsArnTest(TestCase):

@@ -1,8 +1,9 @@
 -- update oci tags leaving only enabled keys
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
-      from {{schema | sqlsafe}}.reporting_ocienabledtagkeys
+      from {{schema | sqlsafe}}.reporting_enabledtagkeys
       where enabled = false
+      and provider_type = 'OCI'
 )
 update {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary as lids
    set tags = tags - ek.keys

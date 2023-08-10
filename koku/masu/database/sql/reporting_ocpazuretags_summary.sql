@@ -10,7 +10,7 @@ WITH cte_tag_value AS (
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
-        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys WHERE enabled=true)
+        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_enabledtagkeys WHERE enabled=true AND provider_type='Azure')
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN {{ bill_ids | inclause }}
     {% endif %}
@@ -25,9 +25,10 @@ cte_values_agg AS (
         namespace,
         node
     FROM cte_tag_value AS tv
-    JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
+    JOIN {{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
         ON tv.key = etk.key
     WHERE etk.enabled = true
+        AND etk.provider_type = 'Azure'
     GROUP BY tv.key, cost_entry_bill_id, report_period_id, subscription_guid, namespace, node
 ),
 cte_distinct_values_agg AS (
@@ -89,8 +90,9 @@ ON CONFLICT (key, value) DO UPDATE SET subscription_guids=EXCLUDED.subscription_
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpazuretags_summary AS ts
 WHERE EXISTS (
     SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys AS etk
+    FROM {{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
     WHERE etk.enabled = false
+        AND etk.provider_type = 'Azure'
         AND ts.key = etk.key
 )
 ;

@@ -24,6 +24,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -31,7 +32,120 @@ from reporting.provider.aws.models import AWSCostEntryBill
 LOG = logging.getLogger(__name__)
 
 
+INGRESS_REQUIRED_COLUMNS = {
+    "bill/BillingEntity",
+    "bill/BillType",
+    "bill/PayerAccountId",
+    "bill/BillingPeriodStartDate",
+    "bill/BillingPeriodEndDate",
+    "bill/InvoiceId",
+    "identity/TimeInterval",
+    "lineItem/LineItemType",
+    "lineItem/LegalEntity",
+    "lineItem/LineItemDescription",
+    "lineItem/UsageAccountId",
+    "lineItem/UsageStartDate",
+    "lineItem/UsageEndDate",
+    "lineItem/ProductCode",
+    "lineItem/UsageType",
+    "lineItem/Operation",
+    "lineItem/AvailabilityZone",
+    "lineItem/ResourceId",
+    "lineItem/UsageAmount",
+    "lineItem/NormalizationFactor",
+    "lineItem/NormalizedUsageAmount",
+    "lineItem/CurrencyCode",
+    "lineItem/UnblendedRate",
+    "lineItem/UnblendedCost",
+    "lineItem/BlendedRate",
+    "lineItem/BlendedCost",
+    "savingsPlan/SavingsPlanEffectiveCost",
+    "lineItem/TaxType",
+    "pricing/publicOnDemandCost",
+    "pricing/publicOnDemandRate",
+    "reservation/AmortizedUpfrontFeeForBillingPeriod",
+    "reservation/AmortizedUpfrontCostForUsage",
+    "reservation/RecurringFeeForUsage",
+    "reservation/UnusedQuantity",
+    "reservation/UnusedRecurringFee",
+    "pricing/term",
+    "pricing/unit",
+    "product/sku",
+    "product/ProductName",
+    "product/productFamily",
+    "product/servicecode",
+    "product/region",
+    "product/instanceType",
+    "product/memory",
+    "product/vcpu",
+    "reservation/NumberOfReservations",
+    "reservation/UnitsPerReservation",
+    "reservation/StartTime",
+    "reservation/EndTime",
+}
+
+INGRESS_ALT_COLUMNS = {
+    "bill_billing_entity",
+    "bill_bill_type",
+    "bill_payer_account_id",
+    "bill_billing_period_start_date",
+    "bill_billing_period_end_date",
+    "bill_invoice_id",
+    "identity_time_interval",
+    "line_item_legal_entity",
+    "line_item_line_item_description",
+    "line_item_line_item_type",
+    "line_item_usage_account_id",
+    "line_item_usage_start_date",
+    "line_item_usage_end_date",
+    "line_item_product_code",
+    "line_item_usage_type",
+    "line_item_operation",
+    "line_item_availability_zone",
+    "line_item_resource_id",
+    "line_item_usage_amount",
+    "line_item_normalization_factor",
+    "line_item_normalized_usage_amount",
+    "line_item_currency_code",
+    "line_item_unblended_rate",
+    "line_item_unblended_cost",
+    "line_item_blended_rate",
+    "line_item_blended_cost",
+    "savings_plan_savings_plan_effective_cost",
+    "line_item_tax_type",
+    "pricing_public_on_demand_cost",
+    "pricing_public_on_demand_rate",
+    "reservation_amortized_upfront_fee_for_billing_period",
+    "reservation_amortized_upfront_cost_for_usage",
+    "reservation_recurring_fee_for_usage",
+    "reservation_unused_quantity",
+    "reservation_unused_recurring_fee",
+    "pricing_term",
+    "pricing_unit",
+    "product_sku",
+    "product_product_name",
+    "product_product_family",
+    "product_servicecode",
+    "product_region",
+    "product_instance_type",
+    "product_memory",
+    "product_vcpu",
+    "reservation_number_of_reservations",
+    "reservation_units_per_reservation",
+    "reservation_start_time",
+    "reservation_end_time",
+}
+
+SUBS_COLUMNS = {
+    "identity/TimeInterval",
+    "product/physicalCores",
+}
+
+DATE_FMT = "%Y-%m-%d"
+
 # pylint: disable=too-few-public-methods
+
+
 class AwsArn:
     """
     Object representing an AWS ARN.
@@ -354,10 +468,10 @@ def get_bills_from_provider(
     """
     if isinstance(start_date, (datetime.datetime, datetime.date)):
         start_date = start_date.replace(day=1)
-        start_date = start_date.strftime("%Y-%m-%d")
+        start_date = start_date.strftime(DATE_FMT)
 
     if isinstance(end_date, (datetime.datetime, datetime.date)):
-        end_date = end_date.strftime("%Y-%m-%d")
+        end_date = end_date.strftime(DATE_FMT)
 
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()
@@ -385,15 +499,15 @@ def get_bills_from_provider(
     return bills
 
 
-def get_s3_resource():  # pragma: no cover
+def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
     """
     Obtain the s3 session client
     """
     config = Config(connect_timeout=settings.S3_TIMEOUT)
     aws_session = boto3.Session(
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET,
-        region_name=settings.S3_REGION,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region,
     )
     return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
 
@@ -408,7 +522,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     extra_args = {}
     if metadata:
         extra_args["Metadata"] = metadata
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
     upload = s3_resource.Object(**s3_obj)
     try:
@@ -446,7 +560,7 @@ def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False,
     extra_args = {"Metadata": {"finalized": str(finalize)}}
 
     try:
-        s3_resource = get_s3_resource()
+        s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
         upload = s3_resource.Object(**s3_obj)
         upload.upload_fileobj(data, ExtraArgs=extra_args)
@@ -469,14 +583,60 @@ def copy_local_hcs_report_file_to_s3_bucket(
 
 
 def _get_s3_objects(s3_path):
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
+
+
+def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, request_id):
+    """
+    Fetches latest processed date based on daily csv files or clears all csv's to process full month
+    """
+    processing_date = start_date
+    try:
+        s3_date = None
+        for obj_summary in _get_s3_objects(s3_path):
+            existing_object = obj_summary.Object()
+            date = datetime.datetime.strptime(existing_object.key.split(f"{s3_path}/")[1].split("_")[0], DATE_FMT)
+            if not s3_date:
+                s3_date = date
+            else:
+                if date > s3_date:
+                    s3_date = date
+        processing_date = s3_date - datetime.timedelta(days=3) if s3_date.day > 3 else s3_date.replace(day=1)
+    except (EndpointConnectionError, ClientError, AttributeError, ValueError):
+        msg = (
+            "unable to fetch date from objects, "
+            "attempting to remove csv files and mark manifest to clear parquet files for full month processing"
+        )
+        LOG.warning(
+            log_json(
+                request_id,
+                msg=msg,
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+            ),
+        )
+        to_delete = get_s3_objects_not_matching_metadata(
+            request_id,
+            s3_path,
+            metadata_key="manifestid",
+            metadata_value_check=manifest_id,
+            context=context,
+        )
+        delete_s3_objects(request_id, to_delete, context)
+        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
+        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+        LOG.info(
+            log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
+        )
+    return processing_date.replace(tzinfo=None)
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
     if context is None:
         context = {}
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     try:
         filtered = []
         for key in keys:
@@ -581,7 +741,7 @@ def delete_s3_objects_not_matching_metadata(
 
 
 def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     try:
         removed = []
         for key in keys_to_delete:

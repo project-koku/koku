@@ -11,6 +11,7 @@ import shutil
 import struct
 import uuid
 
+import pandas as pd
 from botocore.exceptions import ClientError
 from django.conf import settings
 
@@ -22,8 +23,8 @@ from masu.exceptions import MasuProviderError
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util import common as com_utils
 from masu.util.aws import common as utils
-from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -35,6 +36,94 @@ class AWSReportDownloaderError(Exception):
 
 class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
+
+
+def get_initial_dataframe_with_date(
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+):
+    """
+    Fetch initial dataframe from CSV plus processing date and time_inteval.
+
+    Args:
+        local_file (str): The full path name of the file
+        s3_csv_path (str): The path prefix for csvs
+        manifest_id (str): The manifest ID
+        provider_uuid (str): The uuid of a provider
+        filepath (str): The full path name of the file
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+        tracing_id (str): The tracing id
+    """
+    invoice_bill = "bill/InvoiceId"
+    time_interval = "identity/TimeInterval"
+    data_frame = pd.read_csv(local_file)
+    if invoice_bill not in data_frame.columns:
+        invoice_bill = "bill_invoice_id"
+        time_interval = "identity_time_interval"
+    if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
+        process_date = start_date
+        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+    else:
+        # We do this if we have multiple workers running different files for a single manifest.
+        process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+        if not process_date:
+            process_date = utils.get_or_clear_daily_s3_by_date(
+                s3_csv_path, start_date, manifest_id, context, tracing_id
+            )
+            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
+    return data_frame, time_interval, process_date
+
+
+def create_daily_archives(
+    tracing_id,
+    account,
+    provider_uuid,
+    local_file,
+    manifest_id,
+    start_date,
+    context,
+):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        tracing_id (str): The tracing id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        local_file (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    daily_file_names = []
+    date_range = {}
+    dates = set()
+    s3_csv_path = com_utils.get_path_prefix(
+        account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
+    )
+    data_frame, time_interval, process_date = get_initial_dataframe_with_date(
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+    )
+    intervals = data_frame[time_interval].unique()
+    for interval in intervals:
+        date = interval.split("T")[0]
+        if datetime.datetime.strptime(date, "%Y-%m-%d") >= process_date:
+            dates.add(date)
+    if not dates:
+        return [], {}
+    directory = os.path.dirname(local_file)
+    date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
+    data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
+    for date in dates:
+        daily_data = data_frame[data_frame[time_interval].str.match(date)]
+        day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id)
+        day_filepath = f"{directory}/{day_file}"
+        daily_data.to_csv(day_filepath, index=False, header=True)
+        utils.copy_local_report_file_to_s3_bucket(
+            tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+        )
+        daily_file_names.append(day_filepath)
+    return daily_file_names, date_range
 
 
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -273,6 +362,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         os.makedirs(directory_path, exist_ok=True)
         s3_etag = None
         file_creation_date = None
+        file_names = []
+        date_range = {}
         try:
             s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
             s3_etag = s3_file.get("ETag")
@@ -299,23 +390,22 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"Downloading key: {key} to file path: {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             self.s3_client.download_file(self.bucket, key, full_file_path)
-            # Push to S3
-            s3_csv_path = get_path_prefix(
-                self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
-            )
-            utils.copy_local_report_file_to_s3_bucket(
-                self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
-            )
 
-            manifest_accessor = ReportManifestDBAccessor()
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            if not key.endswith(".json"):
+                file_names, date_range = create_daily_archives(
+                    self.tracing_id,
+                    self.account,
+                    self._provider_uuid,
+                    full_file_path,
+                    manifest_id,
+                    start_date,
+                    self.context,
+                )
 
-            if not manifest_accessor.get_s3_csv_cleared(manifest):
-                utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
-                manifest_accessor.mark_s3_csv_cleared(manifest)
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        return full_file_path, s3_etag, file_creation_date, [], {}
+
+        return full_file_path, s3_etag, file_creation_date, file_names, date_range
 
     def get_manifest_context_for_date(self, date):
         """
