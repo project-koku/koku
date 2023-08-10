@@ -71,6 +71,9 @@ class TagsSettings(IamTestCase):
             {"filter": {"filter[provider_type]": "AWS"}, "key": "provider_type", "expected": {"AWS"}},
             {"filter": {"filter[provider_type]": ["AWS", "GCP"]}, "key": "provider_type", "expected": {"AWS", "GCP"}},
             {"filter": {"filter[key]": "env"}, "key": "key", "expected": {"env", "Environment"}},
+            {"filter": {"filter[enabled]": True}, "key": "enabled", "expected": {True}},
+            {"filter": {"filter[enabled]": "true"}, "key": "enabled", "expected": {True}},
+            {"filter": {"filter[enabled]": "false"}, "key": "enabled", "expected": {False}},
         )
         tags_url = reverse("settings-tags")
 
