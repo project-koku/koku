@@ -157,22 +157,28 @@ class ReportDBAccessorBase(KokuDBAccess):
         running_time = time.time() - t1
         LOG.info(log_json(msg=f"finished {operation}", table=table, running_time=running_time))
 
-    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, log_ref=None, attempts_left=0):
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
-            sql, sql_params=sql_params, log_ref=log_ref, attempts_left=attempts_left
+            sql, sql_params=sql_params, context=context, log_ref=log_ref, attempts_left=attempts_left
         )
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, log_ref="Trino query", attempts_left=0, conn_params=None
+        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=0, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
             sql_params = {}
+        if context is None:
+            context = {}
         if conn_params is None:
             conn_params = {}
-        ctx = self.extract_context_from_sql_params(sql_params)
+        ctx = (
+            self.extract_context_from_sql_params(sql_params)
+            if sql_params
+            else self.extract_context_from_sql_params(context)
+        )
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
