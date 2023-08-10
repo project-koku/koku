@@ -22,6 +22,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -602,7 +603,12 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, req
             else:
                 if date > s3_date:
                     s3_date = date
-        processing_date = s3_date - datetime.timedelta(days=3) if s3_date.day > 3 else s3_date.replace(day=1)
+        # AWS bills savings plans ahead of time, make sure we dont only process future dates
+        now = DateHelper().now.replace(tzinfo=None)
+        process_date = s3_date if s3_date < now else now
+        processing_date = (
+            process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
+        )
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
