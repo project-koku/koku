@@ -67,12 +67,7 @@ def get_initial_dataframe_with_date(
         time_interval = "date"
         date_format = "%m/%d/%Y"
     # Azure does not have an invoice column so we have to do some guessing here
-    if (
-        start_date.year == dh.today.year
-        and start_date.month < dh.today.month
-        and dh.today.day > 1
-        or not com_utils.check_setup_complete(provider_uuid)
-    ):
+    if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
