@@ -67,12 +67,18 @@ def get_initial_dataframe_with_date(
         time_interval = "date"
         date_format = "%m/%d/%Y"
     # Azure does not have an invoice column so we have to do some guessing here
-    if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
+    if (
+        start_date.year == dh.today.year
+        and start_date.month < dh.today.month
+        and dh.today.day > 1
+        or not com_utils.check_setup_complete(provider_uuid)
+    ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
         # We do this if we have multiple workers running different files for a single manifest.
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+        LOG.info(f"\n\n PROCSS DATA {process_date} \n\n")
         if not process_date:
             process_date = get_or_clear_daily_s3_by_date(
                 s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
