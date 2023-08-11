@@ -626,7 +626,10 @@ class TestAWSUtils(MasuTestCase):
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
         """test getting daily archive start date"""
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
-        result = utils.get_or_clear_daily_s3_by_date("None", start_date, 1, {"context": "test"}, "request_id")
+        end_date = DateHelper().this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
+        result = utils.get_or_clear_daily_s3_by_date(
+            "None", start_date, end_date, 1, {"context": "test"}, "request_id"
+        )
         self.assertEqual(result, start_date)
 
 

@@ -41,7 +41,7 @@ class AzureReportDownloaderNoFileError(Exception):
 
 
 def get_initial_dataframe_with_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
 ):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
@@ -67,14 +67,22 @@ def get_initial_dataframe_with_date(
         time_interval = "date"
         date_format = "%m/%d/%Y"
     # Azure does not have an invoice column so we have to do some guessing here
-    if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
+    if (
+        start_date.year < dh.today.year
+        and dh.today.day > 1
+        or start_date.month < dh.today.month
+        and dh.today.day > 1
+        or not com_utils.check_setup_complete(provider_uuid)
+    ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
         # We do this if we have multiple workers running different files for a single manifest.
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
         if not process_date:
-            process_date = get_or_clear_daily_s3_by_date(s3_csv_path, start_date, manifest_id, context, tracing_id)
+            process_date = get_or_clear_daily_s3_by_date(
+                s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
+            )
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
     return data_frame, time_interval, process_date, date_format
 
@@ -100,6 +108,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     date_range = {}
     dates = set()
@@ -107,11 +116,13 @@ def create_daily_archives(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
     data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= process_date:
+        csv_date = datetime.datetime.strptime(interval, date_format)
+        # Adding end here so we dont bother to process future incomplete days (saving plan data)
+        if csv_date >= process_date and csv_date <= end_date:
             dates.add(interval)
     if not dates:
         return [], {}
