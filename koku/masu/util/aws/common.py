@@ -549,29 +549,8 @@ def copy_local_report_file_to_s3_bucket(
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
 
 
-def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False, context=None):
-    """
-    Copies HCS data to s3 bucket location
-    """
-    if context is None:
-        context = {}
-    upload = None
-    upload_key = f"{path}/{filename}"
-    extra_args = {"Metadata": {"finalized": str(finalize)}}
-
-    try:
-        s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
-        s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
-        upload = s3_resource.Object(**s3_obj)
-        upload.upload_fileobj(data, ExtraArgs=extra_args)
-    except (EndpointConnectionError, ClientError) as err:
-        msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-        LOG.info(log_json(request_id, msg=msg, context=context))
-    return upload
-
-
 def copy_local_hcs_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, finalize=False, context={}
+    request_id, s3_path, full_file_path, local_filename, finalize=False, finalize_date=None, context={}
 ):
     """
     Copies local report file to s3 bucket
@@ -579,7 +558,10 @@ def copy_local_hcs_report_file_to_s3_bucket(
     if s3_path and settings.ENABLE_S3_ARCHIVING:
         LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
-            copy_hcs_data_to_s3_bucket(request_id, s3_path, local_filename, fin, finalize, context)
+            metadata = {"finalized": str(finalize)}
+            if finalize and finalize_date:
+                metadata["finalized-date"] = finalize_date
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
 
 
 def _get_s3_objects(s3_path):
@@ -587,7 +569,7 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, request_id):
+def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, context, request_id):
     """
     Fetches latest processed date based on daily csv files or clears all csv's to process full month
     """
@@ -602,7 +584,12 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, req
             else:
                 if date > s3_date:
                     s3_date = date
-        processing_date = s3_date - datetime.timedelta(days=3) if s3_date.day > 3 else s3_date.replace(day=1)
+        # AWS bills savings plans ahead of time, make sure we dont only process future dates
+        if s3_date:
+            process_date = s3_date if s3_date < end_date else end_date
+            processing_date = (
+                process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
+            )
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "

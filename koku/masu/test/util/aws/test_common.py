@@ -7,6 +7,7 @@ import random
 from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
+from unittest.mock import mock_open
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
@@ -520,16 +521,22 @@ class TestAWSUtils(MasuTestCase):
             upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
             self.assertIsNone(upload)
 
-    def test_copy_hcs_data_to_s3_bucket(self):
-        """Test copy_hcs_data_to_s3_bucket."""
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNotNone(upload)
-
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNone(upload)
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
+    def test_copy_local_hcs_report_file_to_s3_bucket_with_finalize(self, mock_copy):
+        """Test that the proper metadata is used when a finalized date is passed in with the finalize option"""
+        fake_request_id = "fake_id"
+        fake_s3_path = "fake_path"
+        fake_filename = "fake_filename"
+        expected_metadata = {"finalized": "True", "finalized-date": "2023-08-15"}
+        expected_context = {}
+        mock_op = mock_open(read_data="x,y,z")
+        with patch("builtins.open", mock_op):
+            utils.copy_local_hcs_report_file_to_s3_bucket(
+                fake_request_id, fake_s3_path, fake_filename, fake_filename, True, "2023-08-15", expected_context
+            )
+        mock_copy.assert_called_once_with(
+            fake_request_id, fake_s3_path, fake_filename, mock_op(), expected_metadata, expected_context
+        )
 
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
@@ -619,7 +626,10 @@ class TestAWSUtils(MasuTestCase):
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
         """test getting daily archive start date"""
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
-        result = utils.get_or_clear_daily_s3_by_date("None", start_date, 1, {"context": "test"}, "request_id")
+        end_date = DateHelper().this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
+        result = utils.get_or_clear_daily_s3_by_date(
+            "None", start_date, end_date, 1, {"context": "test"}, "request_id"
+        )
         self.assertEqual(result, start_date)
 
 

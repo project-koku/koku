@@ -17,6 +17,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -39,7 +40,7 @@ class AWSReportDownloaderNoFileError(Exception):
 
 
 def get_initial_dataframe_with_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
 ):
     """
     Fetch initial dataframe from CSV plus processing date and time_inteval.
@@ -56,17 +57,10 @@ def get_initial_dataframe_with_date(
     """
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
-    optional_cols = ["resourcetags", "costcategory"]
-    base_cols = utils.INGRESS_REQUIRED_COLUMNS
-    try:
-        data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
-    except ValueError:
+    data_frame = pd.read_csv(local_file)
+    if invoice_bill not in data_frame.columns:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
-        optional_cols = ["resource_tags", "cost_category"]
-        base_cols = utils.INGRESS_ALT_COLUMNS
-    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
-    data_frame = pd.read_csv(local_file, usecols=use_cols)
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
@@ -75,7 +69,7 @@ def get_initial_dataframe_with_date(
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
         if not process_date:
             process_date = utils.get_or_clear_daily_s3_by_date(
-                s3_csv_path, start_date, manifest_id, context, tracing_id
+                s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
             )
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
     return data_frame, time_interval, process_date
@@ -102,6 +96,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     date_range = {}
     dates = set()
@@ -109,12 +104,14 @@ def create_daily_archives(
         account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
     data_frame, time_interval, process_date = get_initial_dataframe_with_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
         date = interval.split("T")[0]
-        if datetime.datetime.strptime(date, "%Y-%m-%d") >= process_date:
+        csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+        # Adding end here so we dont bother to process future incomplete days (saving plan data)
+        if csv_date >= process_date and csv_date <= end_date:
             dates.add(date)
     if not dates:
         return [], {}
