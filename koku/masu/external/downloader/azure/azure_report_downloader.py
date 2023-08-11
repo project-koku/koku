@@ -136,7 +136,7 @@ def create_daily_archives(
         day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
         daily_data = data_frame[data_frame[time_interval].str.match(date)]
         day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
-        day_filepath = f"{directory}/{day_file}"
+        day_filepath = f"{directory}/{day_file}.csv"
         daily_data.to_csv(day_filepath, index=False, header=True)
         copy_local_report_file_to_s3_bucket(
             tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
