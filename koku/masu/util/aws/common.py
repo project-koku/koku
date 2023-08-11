@@ -569,7 +569,7 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, request_id):
+def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, context, request_id):
     """
     Fetches latest processed date based on daily csv files or clears all csv's to process full month
     """
@@ -584,7 +584,12 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, manifest_id, context, req
             else:
                 if date > s3_date:
                     s3_date = date
-        processing_date = s3_date - datetime.timedelta(days=3) if s3_date.day > 3 else s3_date.replace(day=1)
+        # AWS bills savings plans ahead of time, make sure we dont only process future dates
+        if s3_date:
+            process_date = s3_date if s3_date < end_date else end_date
+            processing_date = (
+                process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
+            )
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
