@@ -2,10 +2,18 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import typing as t
+
+import django_filters
+from django.core.exceptions import FieldError
+from django.db.models import QuerySet
 from django_tenants.utils import schema_context
+from querystring_parser import parser
+from rest_framework.exceptions import ValidationError
 
 from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
+from api.report.constants import URL_ENCODED_SAFE
 from api.settings.default_settings import DEFAULT_USER_SETTINGS
 from api.user_settings.settings import COST_TYPES
 from koku.settings import KOKU_DEFAULT_COST_TYPE
@@ -16,6 +24,82 @@ from reporting.user_settings.models import UserSettings
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
+
+
+class SettingsFilter(django_filters.rest_framework.FilterSet):
+    def _get_order_by(
+        self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
+    ) -> list[str, ...]:
+        if order_by_params is None:
+            # Default ordering
+            return ["provider_type", "-enabled"]
+
+        if isinstance(order_by_params, list):
+            # Already a list, just return it.
+            return order_by_params
+
+        if isinstance(order_by_params, str):
+            # If only one order_by parameter was given, it is a string.
+            return [order_by_params]
+
+        # Support order_by[field]=desc
+        if isinstance(order_by_params, dict):
+            result = set()
+            for field, order in order_by_params.items():
+                try:
+                    # If a field is provided more than once, take the first sorting parameter
+                    order = order.pop(0)
+                except AttributeError:
+                    # Already a str
+                    pass
+
+                # Technically we accept "asc" and "desc". Only testing for "desc" to make
+                # the API more resilient.
+                prefix = "-" if order.lower().startswith("desc") else ""
+                result.add(f"{prefix}{field}")
+
+            return list(result)
+
+        # Got something unexpected
+        raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
+
+    def filter_queryset(self, queryset: QuerySet) -> QuerySet:
+        order_by = self._get_order_by()
+
+        if self.request:
+            query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
+            filter_params = query_params.get("filter", {})
+
+            # Multiple choice filter fields need to be a list. If only one filter
+            # is provided, it will be a string.
+            # Check valid keys
+            invalid_params = set(filter_params).difference(set(self.base_filters))
+            if invalid_params:
+                raise ValidationError({invalid_params.pop(): "Unsupported parameter or invalid value"})
+
+            multiple_choice_fields = [
+                field
+                for field, filter in self.base_filters.items()
+                if isinstance(filter, django_filters.filters.MultipleChoiceFilter)
+            ]
+            for field in multiple_choice_fields:
+                if isinstance(filter_params.get(field), str):
+                    filter_params[field] = [filter_params[field]]
+
+            # Use the filter parameters from the request for filtering.
+            #
+            # The default behavior is to use the URL params directly for filtering.
+            # Since our APIs expect filters to be in the filter dict, extract those
+            # values update the cleaned_data which is used for filtering.
+            for name, value in filter_params.items():
+                self.form.cleaned_data[name] = self.filters[name].field.clean(value)
+
+            order_by = self._get_order_by(query_params.get("order_by"))
+
+        try:
+            return super().filter_queryset(queryset).order_by(*order_by)
+        except FieldError as fexc:
+            raise ValidationError(str(fexc))
 
 
 def create_subform(name, title, fields):
