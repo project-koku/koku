@@ -86,7 +86,7 @@ class AwsCategoryKeysSettingsViewTest(TestAwsCategoryClass):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data.get("data")
         for return_value in data:
-            self.assertIn(return_value, self.keys)
+            self.assertIn(return_value.get("key"), self.keys)
 
 
 class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):

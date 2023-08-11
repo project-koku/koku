@@ -92,7 +92,10 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             # Since our APIs expect filters to be in the filter dict, extract those
             # values update the cleaned_data which is used for filtering.
             for name, value in filter_params.items():
-                self.form.cleaned_data[name] = self.filters[name].field.clean(value)
+                if name not in multiple_choice_fields:
+                    self.form.cleaned_data[name] = self.filters[name].field.clean(value)
+                else:
+                    self.form.cleaned_data[name] = value
 
             order_by = self._get_order_by(query_params.get("order_by"))
 
