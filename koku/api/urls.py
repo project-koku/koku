@@ -86,7 +86,10 @@ from api.views import openapi
 from api.views import ResourceTypeView
 from api.views import SettingsAWSCategoryKeyView
 from api.views import SettingsDisableAWSCategoryKeyView
+from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
+from api.views import SettingsEnableTagView
+from api.views import SettingsTagView
 from api.views import SettingsView
 from api.views import StatusView
 from api.views import UserAccessView
@@ -354,6 +357,9 @@ urlpatterns = [
         SettingsDisableAWSCategoryKeyView.as_view(),
         name="settings-aws-category-keys-disable",
     ),
+    path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
+    path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
+    path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
