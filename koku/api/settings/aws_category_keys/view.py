@@ -31,6 +31,7 @@ class SettingsAWSCategoryFilter(SettingsFilter):
     class Meta:
         model = AWSEnabledCategoryKeys
         fields = ("enabled", "uuid")
+        default_ordering = ["key", "-enabled"]
 
 
 class SettingsAWSCategoryKeyView(generics.GenericAPIView):

@@ -30,6 +30,7 @@ class SettingsTagFilter(SettingsFilter):
     class Meta:
         model = EnabledTagKeys
         fields = ("enabled", "uuid")
+        default_ordering = ["provider_type", "-enabled"]
 
 
 class SettingsTagView(generics.GenericAPIView):

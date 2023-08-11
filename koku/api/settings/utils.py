@@ -32,7 +32,7 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
     ) -> list[str, ...]:
         if order_by_params is None:
             # Default ordering
-            return ["provider_type", "-enabled"]
+            return self.Meta.default_ordering
 
         if isinstance(order_by_params, list):
             # Already a list, just return it.
