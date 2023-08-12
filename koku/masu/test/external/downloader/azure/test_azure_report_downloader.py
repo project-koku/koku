@@ -386,10 +386,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2020-09-01_0.csv",
-            f"{temp_dir}/2020-09-10_0.csv",
-            f"{temp_dir}/2020-09-11_0.csv",
-            f"{temp_dir}/2020-09-22_0.csv",
+            f"{temp_dir}/2020-09-01_0_0.csv",
+            f"{temp_dir}/2020-09-10_0_0.csv",
+            f"{temp_dir}/2020-09-11_0_0.csv",
+            f"{temp_dir}/2020-09-22_0_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2020, month=9, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
@@ -413,7 +413,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        expected_daily_files = [f"{temp_dir}/2019-07-28_0.csv", f"{temp_dir}/2019-07-29_0.csv"]
+        expected_daily_files = [f"{temp_dir}/2019-07-28_0_0.csv", f"{temp_dir}/2019-07-29_0_0.csv"]
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.azure_provider_uuid, temp_path, self.azure_manifest_id, start_date, None
@@ -448,11 +448,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_date = DateHelper().this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
         mock_daily_start.return_value = expected_date
         with patch("masu.util.common.check_setup_complete", return_Value=True):
-            data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
+            time_interval, process_date, date_format = get_initial_dataframe_with_date(
                 temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
             )
             mock_daily_start.assert_called()
-            self.assertIsNotNone(data_frame)
             self.assertEqual(time_interval, expected_interval)
             self.assertEqual(date_format, expected_date_fmt)
             self.assertEqual(process_date, expected_date)
@@ -476,10 +475,9 @@ class AzureReportDownloaderTest(MasuTestCase):
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
                     return_value=expected_date,
                 ):
-                    data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
+                    time_interval, process_date, date_format = get_initial_dataframe_with_date(
                         temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
-                    self.assertIsNotNone(data_frame)
                     self.assertEqual(time_interval, expected_interval)
                     self.assertEqual(date_format, expected_date_fmt)
                     self.assertEqual(process_date, expected_date)
