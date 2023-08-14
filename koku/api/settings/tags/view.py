@@ -1,7 +1,9 @@
 import logging
 import typing as t
 
+import django.core.exceptions
 import django_filters
+import rest_framework.exceptions
 from django.core.exceptions import FieldError
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
@@ -9,7 +11,6 @@ from django.views.decorators.cache import never_cache
 from querystring_parser import parser
 from rest_framework import generics
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -70,7 +71,7 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
             return list(result)
 
         # Got something unexpected
-        raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
+        raise rest_framework.exceptions.ValidationError(f"Invalid order_by parameter: {order_by_params}")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         order_by = self._get_order_by()
@@ -94,16 +95,19 @@ class SettingsTagFilter(django_filters.rest_framework.FilterSet):
             #
             # The default behavior is to use the URL params directly for filtering.
             # Since our APIs expect filters to be in the filter dict, extract those
-            # values update the cleaned_data which is used for filtering.
+            # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
-                self.form.cleaned_data[name] = self.filters[name].field.clean(value)
+                try:
+                    self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
+                except django.core.exceptions.ValidationError as vexc:
+                    raise rest_framework.exceptions.ValidationError(vexc.message % vexc.params)
 
             order_by = self._get_order_by(query_params.get("order_by"))
 
         try:
             return super().filter_queryset(queryset).order_by(*order_by)
         except FieldError as fexc:
-            raise ValidationError(str(fexc))
+            raise rest_framework.exceptions.ValidationError(str(fexc))
 
 
 class SettingsTagView(generics.GenericAPIView):
