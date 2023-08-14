@@ -1,10 +1,14 @@
 WITH cte_enabled_tag_keys AS (
-    SELECT array_agg(aws.key) as key_array
-    FROM postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys AS aws
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS ocp
-        ON lower(aws.key) = lower(ocp.key)
-    WHERE aws.enabled = true
-        AND ocp.enabled = true
+    SELECT array_agg(key) as key_array
+    FROM (
+        SELECT key,
+            count(provider_type) AS p_count
+        FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+        WHERE enabled = true
+            AND provider_type IN ('AWS', 'OCP')
+            GROUP BY key
+    ) c
+    WHERE c.p_count > 1
 ),
 cte_unnested_aws_tags AS (
     SELECT DISTINCT key,

@@ -265,8 +265,9 @@ WITH cte_enabled_tag_keys AS (
         THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
         ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
     END as enabled_keys
-    FROM postgres.{{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
     WHERE enabled = TRUE
+        AND provider_type = 'GCP'
 )
 SELECT cast(uuid() as varchar),
     gcp.usage_start_time as usage_start,

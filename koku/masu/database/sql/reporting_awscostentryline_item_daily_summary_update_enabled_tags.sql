@@ -1,8 +1,9 @@
 -- update aws tags leaving only enabled keys
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
-      from {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+      from {{schema | sqlsafe}}.reporting_enabledtagkeys
       where enabled = false
+      and provider_type = 'AWS'
 )
 update {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary as lids
    set tags = tags - ek.keys

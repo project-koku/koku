@@ -14,7 +14,6 @@ from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -34,6 +33,9 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
+from masu.util.common import check_setup_complete
+from subs.tasks import extract_subs_data_from_reports
+from subs.tasks import SUBS_EXTRACTION_QUEUE
 
 LOG = logging.getLogger(__name__)
 
@@ -145,16 +147,13 @@ class Orchestrator:
             (List) List of datetime objects.
 
         """
-        with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-            reports_processed = provider_accessor.get_setup_complete()
-
         if self.bill_date:
             if self.ingress_reports:
                 bill_date = f"{self.bill_date}01"
                 return [DateAccessor().get_billing_month_start(bill_date)]
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
-        if Config.INGEST_OVERRIDE or not reports_processed:
+        if Config.INGEST_OVERRIDE or not check_setup_complete(provider_uuid):
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
         else:
             number_of_months = 2
@@ -306,7 +305,8 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                async_id = chord(report_tasks, group(summary_task, hcs_task))()
+                subs_task = extract_subs_data_from_reports.s().set(queue=SUBS_EXTRACTION_QUEUE)
+                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))

@@ -214,7 +214,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = self._table_map["enabled_tag_keys"]
+        table_name = "reporting_enabledtagkeys"
         sql = pkgutil.get_data("masu.database", "sql/reporting_gcpenabledtagkeys.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -307,8 +307,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 service_description,
                 location_region
         """
-
-        return self._execute_trino_raw_sql_query(sql, log_ref="get_gcp_topology_trino")
+        context = {
+            "schema": self.schema,
+            "start": start_date,
+            "end": end_date,
+            "provider_uuid": source_uuid,
+            "invoice_id": invoice_month_date,
+        }
+        return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_gcp_topology_trino")
 
     def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
         """Overwrite the parent class to include invoice month for gcp.
@@ -654,9 +660,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key
-                WHERE gcp.enabled = true AND ocp.enabled = true;
+            SELECT COUNT(*) FROM (SELECT COUNT(provider_type) AS p_count FROM
+                {self.schema}.reporting_enabledtagkeys WHERE enabled=True AND provider_type IN ('GCP', 'OCP')
+                GROUP BY key) AS c WHERE c.p_count > 1;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)

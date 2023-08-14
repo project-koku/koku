@@ -29,6 +29,7 @@ from api.forecast.serializers import OCPAWSCostForecastParamSerializer
 from api.forecast.serializers import OCPAzureCostForecastParamSerializer
 from api.forecast.serializers import OCPCostForecastParamSerializer
 from api.forecast.serializers import OCPGCPCostForecastParamSerializer
+from api.provider.models import Provider
 from api.query_params import QueryParameters
 from forecast import AWSForecast
 from forecast import AzureForecast
@@ -39,11 +40,6 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast import OCPGCPForecast
-from reporting.models import AWSEnabledTagKeys
-from reporting.models import AzureEnabledTagKeys
-from reporting.models import GCPEnabledTagKeys
-from reporting.models import OCIEnabledTagKeys
-from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -82,7 +78,7 @@ class AWSCostForecastView(ForecastView):
     permission_classes = (AwsAccessPermission,)
     query_handler = AWSForecast
     serializer = AWSCostForecastParamSerializer
-    tag_handler = [AWSEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AWS]
 
 
 class AzureCostForecastView(ForecastView):
@@ -91,7 +87,7 @@ class AzureCostForecastView(ForecastView):
     permission_classes = (AzureAccessPermission,)
     query_handler = AzureForecast
     serializer = AzureCostForecastParamSerializer
-    tag_handler = [AzureEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AZURE]
 
 
 class OCPCostForecastView(ForecastView):
@@ -100,7 +96,7 @@ class OCPCostForecastView(ForecastView):
     permission_classes = (OpenShiftAccessPermission,)
     query_handler = OCPForecast
     serializer = OCPCostForecastParamSerializer
-    tag_handler = [OCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_OCP]
 
 
 class OCPAWSCostForecastView(ForecastView):
@@ -109,7 +105,7 @@ class OCPAWSCostForecastView(ForecastView):
     permission_classes = (AwsAccessPermission, OpenShiftAccessPermission)
     query_handler = OCPAWSForecast
     serializer = OCPAWSCostForecastParamSerializer
-    tag_handler = [AWSEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AWS]
 
 
 class OCPAzureCostForecastView(ForecastView):
@@ -118,7 +114,7 @@ class OCPAzureCostForecastView(ForecastView):
     permission_classes = (AzureAccessPermission, OpenShiftAccessPermission)
     query_handler = OCPAzureForecast
     serializer = OCPAzureCostForecastParamSerializer
-    tag_handler = [AzureEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AZURE]
 
 
 class OCPGCPCostForecastView(ForecastView):
@@ -127,7 +123,7 @@ class OCPGCPCostForecastView(ForecastView):
     permission_classes = (GcpAccessPermission, OpenShiftAccessPermission)
     query_handler = OCPGCPForecast
     serializer = OCPGCPCostForecastParamSerializer
-    tag_handler = [GCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_GCP]
 
 
 class OCPAllCostForecastView(ForecastView):
@@ -136,7 +132,7 @@ class OCPAllCostForecastView(ForecastView):
     permission_classes = (OpenshiftAllAccessPermission,)
     query_handler = OCPAllForecast
     serializer = OCPAllCostForecastParamSerializer
-    tag_handler = [AWSEnabledTagKeys, AzureEnabledTagKeys, GCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP]
 
 
 class GCPCostForecastView(ForecastView):
@@ -145,7 +141,7 @@ class GCPCostForecastView(ForecastView):
     permission_classes = (GcpAccessPermission,)
     query_handler = GCPForecast
     serializer = GCPCostForecastParamSerializer
-    tag_handler = [GCPEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_GCP]
 
 
 class OCICostForecastView(ForecastView):
@@ -154,4 +150,4 @@ class OCICostForecastView(ForecastView):
     permission_classes = (OCIAccessPermission,)
     query_handler = OCIForecast
     serializer = OCICostForecastParamSerializer
-    tag_handler = [OCIEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_OCI]

@@ -123,6 +123,11 @@ def is_aws_category_settings_enabled(account):  # pragma: no cover
     )
 
 
+def is_ddf_tag_form_disabled():  # pragma: no cover
+    """Disable ingress rate limiting"""
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ddf-tag-form")
+
+
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing
