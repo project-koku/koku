@@ -212,6 +212,18 @@ class TagsSettings(IamTestCase):
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("invalid uuid supplied", error_details)
 
+    def test_get_tags_bad_filter_value(self):
+        tags_url = reverse("settings-tags")
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            response = client.get(tags_url, {"filter[provider_type]": "aws"}, **self.headers)
+
+        error_detail = response.data.get("errors", [{}])[0].get("detail").lower()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("select a valid choice", error_detail)
+
     @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
     def test_enable_tags_over_limit(self, mock_enabled_limit):
         """Given more tags enabled than are allowed by the limit,
