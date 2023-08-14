@@ -21,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 
 class SettingsTagFilter(SettingsFilter):
-    key = django_filters.CharFilter(lookup_expr="icontains")
+    key = django_filters.MultipleChoiceFilter(lookup_expr="icontains")
     provider_type = django_filters.ModelMultipleChoiceFilter(
         to_field_name="provider_type",
         queryset=EnabledTagKeys.objects.all(),
