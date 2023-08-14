@@ -40,8 +40,8 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_initial_dataframe_with_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+def get_processing_date(
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
 ):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
@@ -57,28 +57,37 @@ def get_initial_dataframe_with_date(
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
+    date_format = "%Y-%m-%d %H:%M:%S"
+    time_interval = "UsageDateTime"
     try:
-        data_frame = pd.read_csv(local_file, usecols=["UsageDateTime"])
-        time_interval = "UsageDateTime"
-        date_format = "%Y-%m-%d %H:%M:%S"
-        base_cols = utils.INGRESS_REQUIRED_COLUMNS
+        pd.read_csv(local_file, usecols=[time_interval], nrows=1)
     except ValueError:
         time_interval = "Date"
-        date_format = "%m/%d/%Y"
-        base_cols = utils.INGRESS_ALT_COLUMNS
-    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, ["tags"], tracing_id, context)
-    data_frame = pd.read_csv(local_file, usecols=use_cols)
+        date_format = "%Y-%m-%d"
+        try:
+            pd.read_csv(local_file, usecols=[time_interval], nrows=1)
+        except ValueError:
+            time_interval = "date"
+            date_format = "%m/%d/%Y"
     # Azure does not have an invoice column so we have to do some guessing here
-    if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
+    if (
+        start_date.year < dh.today.year
+        and dh.today.day > 1
+        or start_date.month < dh.today.month
+        and dh.today.day > 1
+        or not com_utils.check_setup_complete(provider_uuid)
+    ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
     else:
         # We do this if we have multiple workers running different files for a single manifest.
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
         if not process_date:
-            process_date = get_or_clear_daily_s3_by_date(s3_csv_path, start_date, manifest_id, context, tracing_id)
+            process_date = get_or_clear_daily_s3_by_date(
+                s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
+            )
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
-    return data_frame, time_interval, process_date, date_format
+    return time_interval, process_date, date_format
 
 
 def create_daily_archives(
@@ -102,37 +111,44 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     date_range = {}
     dates = set()
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+    time_interval, process_date, date_format = get_processing_date(
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
-    intervals = data_frame[time_interval].unique()
-    for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= process_date:
-            dates.add(interval)
-    if not dates:
-        return [], {}
-    directory = os.path.dirname(local_file)
-    date_range = {
-        "start": datetime.datetime.strptime(min(dates), date_format).strftime(DATE_FORMAT),
-        "end": datetime.datetime.strptime(max(dates), date_format).strftime(DATE_FORMAT),
-        "invoice_month": None,
-    }
-    for date in dates:
-        day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
-        daily_data = data_frame[data_frame[time_interval].str.match(date)]
-        day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
-        day_filepath = f"{directory}/{day_file}"
-        daily_data.to_csv(day_filepath, index=False, header=True)
-        copy_local_report_file_to_s3_bucket(
-            tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
-        )
-        daily_file_names.append(day_filepath)
+    with pd.read_csv(local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE) as reader:
+        for i, data_frame in enumerate(reader):
+            if data_frame.empty:
+                continue
+            intervals = data_frame[time_interval].unique()
+            for interval in intervals:
+                csv_date = datetime.datetime.strptime(interval, date_format)
+                # Adding end here so we dont bother to process future incomplete days (saving plan data)
+                if csv_date >= process_date and csv_date <= end_date:
+                    dates.add(interval)
+            if not dates:
+                return [], {}
+            directory = os.path.dirname(local_file)
+            date_range = {
+                "start": datetime.datetime.strptime(min(dates), date_format).strftime(DATE_FORMAT),
+                "end": datetime.datetime.strptime(max(dates), date_format).strftime(DATE_FORMAT),
+                "invoice_month": None,
+            }
+            for date in dates:
+                day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
+                daily_data = data_frame[data_frame[time_interval].str.match(date)]
+                day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
+                day_filepath = f"{directory}/{day_file}_{i}.csv"
+                daily_data.to_csv(day_filepath, index=False, header=True)
+                copy_local_report_file_to_s3_bucket(
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                )
+                daily_file_names.append(day_filepath)
     return daily_file_names, date_range
 
 

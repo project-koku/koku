@@ -246,10 +246,16 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Test mark_s3_parquet_cleared without manifest does not error."""
         self.assertIsNone(self.manifest_accessor.mark_s3_parquet_cleared(None))
 
+    def test_mark_s3_parquet_cleared(self):
+        """Test mark_s3_parquet_cleared without manifest does not error."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+        self.assertTrue(self.manifest_accessor.get_s3_parquet_cleared(manifest))
+
     def test_set_and_get_manifest_daily_archive_start_date(self):
         """Test marking manifest daily archive start date."""
         manifest = self.manifest_accessor.add(**self.manifest_dict)
-        start_date = DateHelper().this_month_start.replace(year=2019, month=7)
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
         self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
         manifest_start = self.manifest_accessor.get_manifest_daily_start_date(manifest.id)
         self.assertEqual(manifest_start, start_date)
