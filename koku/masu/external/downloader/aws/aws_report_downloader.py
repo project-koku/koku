@@ -40,7 +40,7 @@ class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
 
 
-def get_initial_dataframe_with_date(
+def get_processing_date(
     local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
 ):
     """
@@ -111,7 +111,7 @@ def create_daily_archives(
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    use_cols, time_interval, process_date = get_initial_dataframe_with_date(
+    use_cols, time_interval, process_date = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
     LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))

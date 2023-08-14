@@ -40,7 +40,7 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_initial_dataframe_with_date(
+def get_processing_date(
     local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
 ):
     """
@@ -118,7 +118,7 @@ def create_daily_archives(
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    time_interval, process_date, date_format = get_initial_dataframe_with_date(
+    time_interval, process_date, date_format = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
     with pd.read_csv(local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE) as reader:
