@@ -4,12 +4,12 @@
 #
 import typing as t
 
+import django.core.exceptions
 import django_filters
-from django.core.exceptions import FieldError
+import rest_framework.exceptions
 from django.db.models import QuerySet
 from django_tenants.utils import schema_context
 from querystring_parser import parser
-from rest_framework.exceptions import ValidationError
 
 from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
@@ -61,7 +61,7 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             return list(result)
 
         # Got something unexpected
-        raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
+        raise rest_framework.exceptions.ValidationError(f"Invalid order_by parameter: {order_by_params}")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         order_by = self._get_order_by()
@@ -72,10 +72,6 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
 
             # Multiple choice filter fields need to be a list. If only one filter
             # is provided, it will be a string.
-            # Check valid keys
-            invalid_params = set(filter_params).difference(set(self.base_filters))
-            if invalid_params:
-                raise ValidationError({invalid_params.pop(): "Unsupported parameter or invalid value"})
 
             multiple_choice_fields = [
                 field
@@ -90,19 +86,19 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             #
             # The default behavior is to use the URL params directly for filtering.
             # Since our APIs expect filters to be in the filter dict, extract those
-            # values update the cleaned_data which is used for filtering.
+            # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
-                if name not in multiple_choice_fields:
-                    self.form.cleaned_data[name] = self.filters[name].field.clean(value)
-                else:
-                    self.form.cleaned_data[name] = value
+                try:
+                    self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
+                except django.core.exceptions.ValidationError as vexc:
+                    raise rest_framework.exceptions.ValidationError(vexc.message % vexc.params)
 
             order_by = self._get_order_by(query_params.get("order_by"))
 
         try:
             return super().filter_queryset(queryset).order_by(*order_by)
-        except FieldError as fexc:
-            raise ValidationError(str(fexc))
+        except django.core.exceptions.FieldError as fexc:
+            raise rest_framework.exceptions.ValidationError(str(fexc))
 
 
 def create_subform(name, title, fields):
