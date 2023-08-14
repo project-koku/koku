@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
-import calendar
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
@@ -53,19 +52,6 @@ def _calculate_subtotals(data, cost, infra, sup):
                     else:
                         cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
             return (cost, infra, sup)
-
-
-def ocp_volume_calc(unit, hours, month=None):
-    """Function used in raw calc tests for calculating volume cost data."""
-    current_time = datetime.datetime.now(datetime.timezone.utc)
-    month = month if month else current_time.month
-    byte_seconds = 3600 * unit * (1024 * 1024 * 1024)
-    byte_seconds_daily = byte_seconds * hours
-    seconds_in_day = 60 * 60 * 24
-    days_in_month = calendar.monthrange(current_time.year, month)[1]
-    gig_per_byte = 1 / (1024 * 1024 * 1024)
-    value = (byte_seconds_daily / seconds_in_day) / days_in_month * gig_per_byte
-    return value
 
 
 class OCPReportQueryHandlerTest(IamTestCase):

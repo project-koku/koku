@@ -470,8 +470,6 @@ class OCPProviderMap(ProviderMap):
                         "usage_units_key": "GB-Hours",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
-                    # TODO: need a conditional for when it defaults back to the usage daily summary to do a
-                    # persistentvolumeclaim is not null
                     "volume": {
                         "tag_column": "volume_labels",
                         "aggregates": {
@@ -548,6 +546,17 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_volume_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
+                        "conditionals": {
+                            OCPUsageLineItemDailySummary: {
+                                "filter": [
+                                    {
+                                        "field": "persistentvolumeclaim",
+                                        "operation": "isnull",
+                                        "parameter": False,
+                                    },
+                                ],
+                            },
+                        },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Mo",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],

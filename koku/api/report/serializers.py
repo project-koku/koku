@@ -165,7 +165,7 @@ class BaseSerializer(serializers.Serializer):
             for serializer_key, internal_key in self._op_mapping.items():
                 if serializer_key in data:
                     data[internal_key] = data.pop(serializer_key)
-            return data
+        return data
 
     def validate(self, data):
         """Validate incoming data.
