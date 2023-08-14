@@ -27,7 +27,7 @@ from masu.external.downloader.aws.aws_report_downloader import AWSReportDownload
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws.aws_report_downloader import create_daily_archives
-from masu.external.downloader.aws.aws_report_downloader import get_initial_dataframe_with_date
+from masu.external.downloader.aws.aws_report_downloader import get_processing_date
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
@@ -639,7 +639,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
 
-    def test_get_initial_dataframe_with_date(self):
+    def test_get_processing_date(self):
         """Test getting dataframe with date for processing."""
         file_name = "2023-06-01-not-final.csv"
         file_path = f"./koku/masu/test/data/aws/{file_name}"
@@ -656,7 +656,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
                     return_value=expected_date,
                 ):
-                    data_frame, time_interval, process_date = get_initial_dataframe_with_date(
+                    data_frame, time_interval, process_date = get_processing_date(
                         temp_path, None, 1, self.aws_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
                     self.assertIsNotNone(data_frame)
@@ -673,7 +673,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2023-06-01_0.csv",
+            f"{temp_dir}/2023-06-01_0_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
@@ -698,7 +698,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2022-07-01_0.csv",
+            f"{temp_dir}/2022-07-01_0_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2022, month=7, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
