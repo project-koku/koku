@@ -107,7 +107,7 @@ def create_daily_archives(
                     partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
                         partition_date, manifest_id
                     )
-                    day_file = f"{invoice_month}_{partition_filename}"
+                    day_file = f"{invoice_month}_{partition_filename}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
