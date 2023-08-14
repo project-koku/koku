@@ -10,6 +10,7 @@ from faker import Faker
 from model_bakery import baker
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test.database.helpers import ManifestCreationHelper
@@ -201,27 +202,29 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Test that s3 CSV clear status is reported."""
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-        self.assertFalse(status)
-
-        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
-
-        status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
         self.assertTrue(status)
+
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
+        fetch_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
+
+        status = self.manifest_accessor.get_s3_parquet_cleared(fetch_manifest)
+        self.assertFalse(status)
 
     def test_get_s3_parquet_cleared_ocp_no_report_type(self):
         """Test that s3 CSV clear status is reported."""
         self.manifest_dict["cluster_id"] = "cluster_id"
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-        self.assertFalse(status)
-
-        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
-
-        self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {})
-        self.assertTrue(manifest.s3_parquet_cleared)
-
-        status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
         self.assertTrue(status)
+
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
+        fetch_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
+
+        self.assertDictEqual(fetch_manifest.s3_parquet_cleared_tracker, {})
+        self.assertFalse(fetch_manifest.s3_parquet_cleared)
+
+        status = self.manifest_accessor.get_s3_parquet_cleared(fetch_manifest)
+        self.assertFalse(status)
 
     def test_get_s3_parquet_cleared_ocp_with_report_type(self):
         """Test that s3 CSV clear status is reported."""
@@ -234,7 +237,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.manifest_accessor.mark_s3_parquet_cleared(manifest, report_type)
 
         self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {report_type: True})
-        self.assertFalse(manifest.s3_parquet_cleared)
+        self.assertTrue(manifest.s3_parquet_cleared)
 
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, report_type)
         self.assertTrue(status)
@@ -242,6 +245,20 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def test_mark_s3_parquet_cleared_no_manifest(self):
         """Test mark_s3_parquet_cleared without manifest does not error."""
         self.assertIsNone(self.manifest_accessor.mark_s3_parquet_cleared(None))
+
+    def test_mark_s3_parquet_cleared(self):
+        """Test mark_s3_parquet_cleared without manifest does not error."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+        self.assertTrue(self.manifest_accessor.get_s3_parquet_cleared(manifest))
+
+    def test_set_and_get_manifest_daily_archive_start_date(self):
+        """Test marking manifest daily archive start date."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
+        self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
+        manifest_start = self.manifest_accessor.get_manifest_daily_start_date(manifest.id)
+        self.assertEqual(manifest_start, start_date)
 
     def test_should_s3_parquet_be_cleared_no_manifest(self):
         """Test that is parquet s3 should be cleared for non-ocp manifest."""

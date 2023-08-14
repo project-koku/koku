@@ -136,6 +136,11 @@ class ParquetReportProcessor:
         return self._context.get("split_files") or [self._report_file]
 
     @property
+    def split_file_list(self):
+        """Always return split files."""
+        return self._context.get("split_files")
+
+    @property
     def error_context(self):
         """Context information for logging errors."""
         return {"account": self.account, "provider_uuid": self.provider_uuid, "provider_type": self.provider_type}
@@ -319,7 +324,7 @@ class ParquetReportProcessor:
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
-        # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+        # AWS and Azure should remove files when running final bills
         # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
         if (
             not manifest_accessor.should_s3_parquet_be_cleared(manifest)
@@ -410,7 +415,28 @@ class ParquetReportProcessor:
 
         failed_conversion = []
         daily_data_frames = []
-        for csv_filename in self.file_list:
+        file_list = self.file_list
+
+        # Azure and AWS should now always have split daily files
+        if self.provider_type in [
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+        ]:
+            file_list = self.split_file_list
+
+        if not file_list:
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="no split files to convert to parquet",
+                    context=self.error_context,
+                )
+            )
+            return parquet_base_filename, daily_data_frames
+
+        for csv_filename in file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 LOG.warn(
                     log_json(
