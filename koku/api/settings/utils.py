@@ -70,6 +70,12 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
             filter_params = query_params.get("filter", {})
 
+            # Check valid keys
+            invalid_params = set(filter_params).difference(set(self.base_filters))
+            if invalid_params:
+                msg = "Unsupported parameter or invalid value"
+                raise rest_framework.exceptions.ValidationError({invalid_params.pop(): msg})
+
             # Multiple choice filter fields need to be a list. If only one filter
             # is provided, it will be a string.
 
