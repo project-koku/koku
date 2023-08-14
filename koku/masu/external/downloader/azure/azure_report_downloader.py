@@ -57,18 +57,12 @@ def get_processing_date(
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
-    date_format = "%Y-%m-%d %H:%M:%S"
-    time_interval = "UsageDateTime"
-    try:
-        pd.read_csv(local_file, usecols=[time_interval], nrows=1)
-    except ValueError:
-        time_interval = "Date"
-        date_format = "%Y-%m-%d"
-        try:
-            pd.read_csv(local_file, usecols=[time_interval], nrows=1)
-        except ValueError:
-            time_interval = "date"
-            date_format = "%m/%d/%Y"
+    time_interval = None
+    columns = pd.read_csv(local_file, nrows=0)
+    for interval in ["UsageDateTime", "Date", "date"]:
+        if interval in columns:
+            time_interval = interval
+            break
     # Azure does not have an invoice column so we have to do some guessing here
     if (
         start_date.year < dh.today.year
@@ -87,7 +81,7 @@ def get_processing_date(
                 s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
             )
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
-    return time_interval, process_date, date_format
+    return time_interval, process_date
 
 
 def create_daily_archives(
@@ -118,30 +112,34 @@ def create_daily_archives(
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    time_interval, process_date, date_format = get_processing_date(
+    time_interval, process_date = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
-    with pd.read_csv(local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE) as reader:
+    with pd.read_csv(
+        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval]
+    ) as reader:
         for i, data_frame in enumerate(reader):
             if data_frame.empty:
                 continue
-            intervals = data_frame[time_interval].unique()
-            for interval in intervals:
-                csv_date = datetime.datetime.strptime(interval, date_format)
-                # Adding end here so we dont bother to process future incomplete days (saving plan data)
-                if csv_date >= process_date and csv_date <= end_date:
-                    dates.add(interval)
-            if not dates:
+
+            # Adding end here so we dont bother to process future incomplete days (saving plan data)
+            result_df = data_frame.loc[
+                (data_frame[time_interval] >= process_date) & (data_frame[time_interval] <= end_date)
+            ]
+            if result_df.empty:
                 return [], {}
-            directory = os.path.dirname(local_file)
+
+            dates = result_df[time_interval].unique()
             date_range = {
-                "start": datetime.datetime.strptime(min(dates), date_format).strftime(DATE_FORMAT),
-                "end": datetime.datetime.strptime(max(dates), date_format).strftime(DATE_FORMAT),
+                "start": result_df.get(time_interval).min().strftime(DATE_FORMAT),
+                "end": result_df.get(time_interval).max().strftime(DATE_FORMAT),
                 "invoice_month": None,
             }
+
+            directory = os.path.dirname(local_file)
             for date in dates:
-                day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
-                daily_data = data_frame[data_frame[time_interval].str.match(date)]
+                daily_data = data_frame.loc[(result_df[time_interval] == date)]
+                day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
                 day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
                 day_filepath = f"{directory}/{day_file}_{i}.csv"
                 daily_data.to_csv(day_filepath, index=False, header=True)
