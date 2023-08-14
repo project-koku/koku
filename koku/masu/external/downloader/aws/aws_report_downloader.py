@@ -58,7 +58,7 @@ def get_processing_date(
     """
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
-    optional_cols = ["resourcetags", "costcategory", "productinstancetype", "productvcpu", "productmemory"]
+    optional_cols = ["resourcetags", "costcategory", "product/instancetype", "product/vcpu", "product/memory"]
     base_cols = copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)
     try:
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
