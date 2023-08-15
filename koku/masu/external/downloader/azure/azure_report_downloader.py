@@ -57,12 +57,7 @@ def get_processing_date(
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
-    time_interval = None
-    columns = pd.read_csv(local_file, nrows=0).columns
-    for interval in ["UsageDateTime", "Date", "date"]:
-        if interval in columns:
-            time_interval = interval
-            break
+    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection({"UsageDateTime", "Date", "date"})[0]
     # Azure does not have an invoice column so we have to do some guessing here
     if (
         start_date.year < dh.today.year
@@ -121,14 +116,14 @@ def create_daily_archives(
         for i, data_frame in enumerate(reader):
             if data_frame.empty:
                 continue
-            data_frame = data_frame.set_index(time_interval).sort_index()
+            data_frame = data_frame.set_index(time_interval, drop=False).sort_index()
 
             # Adding end here so we dont bother to process future incomplete days (saving plan data)
             data_frame = data_frame.loc[process_date:end_date]
-            if result_df.empty:
+            if data_frame.empty:
                 return [], {}
 
-            dates = result_df[time_interval].unique()
+            dates = data_frame[time_interval].unique()
             date_range = {
                 "start": data_frame.index[0].strftime(DATE_FORMAT),
                 "end": data_frame.index[-1].strftime(DATE_FORMAT),
