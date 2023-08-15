@@ -1,8 +1,10 @@
 import logging
 
-import django_filters
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django_filters import ModelMultipleChoiceFilter
+from django_filters import MultipleChoiceFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.request import Request
@@ -21,8 +23,8 @@ LOG = logging.getLogger(__name__)
 
 
 class SettingsTagFilter(SettingsFilter):
-    key = django_filters.MultipleChoiceFilter(lookup_expr="icontains")
-    provider_type = django_filters.ModelMultipleChoiceFilter(
+    key = MultipleChoiceFilter(lookup_expr="icontains")
+    provider_type = ModelMultipleChoiceFilter(
         to_field_name="provider_type",
         queryset=EnabledTagKeys.objects.all(),
     )
@@ -37,7 +39,7 @@ class SettingsTagView(generics.GenericAPIView):
     queryset = EnabledTagKeys.objects.all()
     serializer_class = SettingsTagSerializer
     permission_classes = [SettingsAccessPermission]
-    filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = SettingsTagFilter
 
     @method_decorator(never_cache)

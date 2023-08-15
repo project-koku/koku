@@ -4,9 +4,10 @@
 #
 import logging
 
-import django_filters
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django_filters import MultipleChoiceFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.request import Request
@@ -26,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class SettingsAWSCategoryFilter(SettingsFilter):
-    key = django_filters.MultipleChoiceFilter(lookup_expr="icontains")
+    key = MultipleChoiceFilter(lookup_expr="icontains")
 
     class Meta:
         model = AWSEnabledCategoryKeys
@@ -38,7 +39,7 @@ class SettingsAWSCategoryKeyView(generics.GenericAPIView):
     queryset = AWSEnabledCategoryKeys.objects.all()
     serializer_class = SettingsAWSCategoryKeySerializer
     permission_classes = [SettingsAccessPermission]
-    filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = SettingsAWSCategoryFilter
 
     @method_decorator(never_cache)

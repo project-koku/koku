@@ -4,10 +4,11 @@
 #
 import typing as t
 
-import django_filters
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
+from django_filters import MultipleChoiceFilter
+from django_filters.rest_framework import FilterSet
 from django_tenants.utils import schema_context
 from querystring_parser import parser
 from rest_framework.exceptions import ValidationError
@@ -27,7 +28,7 @@ OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
 
 
-class SettingsFilter(django_filters.rest_framework.FilterSet):
+class SettingsFilter(FilterSet):
     def _get_order_by(
         self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
     ) -> list[str, ...]:
@@ -81,9 +82,7 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             # is provided, it will be a string.
 
             multiple_choice_fields = [
-                field
-                for field, filter in self.base_filters.items()
-                if isinstance(filter, django_filters.filters.MultipleChoiceFilter)
+                field for field, filter in self.base_filters.items() if isinstance(filter, MultipleChoiceFilter)
             ]
             for field in multiple_choice_fields:
                 if isinstance(filter_params.get(field), str):
