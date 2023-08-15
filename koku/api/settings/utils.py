@@ -4,12 +4,13 @@
 #
 import typing as t
 
-import django.core.exceptions
 import django_filters
-import rest_framework.exceptions
+from django.core.exceptions import FieldError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from django_tenants.utils import schema_context
 from querystring_parser import parser
+from rest_framework.exceptions import ValidationError
 
 from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
@@ -61,7 +62,7 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             return list(result)
 
         # Got something unexpected
-        raise rest_framework.exceptions.ValidationError(f"Invalid order_by parameter: {order_by_params}")
+        raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         order_by = self._get_order_by()
@@ -74,7 +75,7 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             invalid_params = set(filter_params).difference(set(self.base_filters))
             if invalid_params:
                 msg = "Unsupported parameter or invalid value"
-                raise rest_framework.exceptions.ValidationError({invalid_params.pop(): msg})
+                raise ValidationError({invalid_params.pop(): msg})
 
             # Multiple choice filter fields need to be a list. If only one filter
             # is provided, it will be a string.
@@ -96,15 +97,15 @@ class SettingsFilter(django_filters.rest_framework.FilterSet):
             for name, value in filter_params.items():
                 try:
                     self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
-                except django.core.exceptions.ValidationError as vexc:
-                    raise rest_framework.exceptions.ValidationError(vexc.message % vexc.params)
+                except DjangoValidationError as vexc:
+                    raise ValidationError(vexc.message % vexc.params)
 
             order_by = self._get_order_by(query_params.get("order_by"))
 
         try:
             return super().filter_queryset(queryset).order_by(*order_by)
-        except django.core.exceptions.FieldError as fexc:
-            raise rest_framework.exceptions.ValidationError(str(fexc))
+        except FieldError as fexc:
+            raise ValidationError(str(fexc))
 
 
 def create_subform(name, title, fields):
