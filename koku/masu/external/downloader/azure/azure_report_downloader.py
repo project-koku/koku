@@ -58,7 +58,7 @@ def get_processing_date(
     """
     dh = DateHelper()
     time_interval = None
-    columns = pd.read_csv(local_file, nrows=0)
+    columns = pd.read_csv(local_file, nrows=0).columns
     for interval in ["UsageDateTime", "Date", "date"]:
         if interval in columns:
             time_interval = interval
@@ -121,24 +121,23 @@ def create_daily_archives(
         for i, data_frame in enumerate(reader):
             if data_frame.empty:
                 continue
+            data_frame = data_frame.set_index(time_interval).sort_index()
 
             # Adding end here so we dont bother to process future incomplete days (saving plan data)
-            result_df = data_frame.loc[
-                (data_frame[time_interval] >= process_date) & (data_frame[time_interval] <= end_date)
-            ]
+            data_frame = data_frame.loc[process_date:end_date]
             if result_df.empty:
                 return [], {}
 
             dates = result_df[time_interval].unique()
             date_range = {
-                "start": result_df.get(time_interval).min().strftime(DATE_FORMAT),
-                "end": result_df.get(time_interval).max().strftime(DATE_FORMAT),
+                "start": data_frame.index[0].strftime(DATE_FORMAT),
+                "end": data_frame.index[-1].strftime(DATE_FORMAT),
                 "invoice_month": None,
             }
 
             directory = os.path.dirname(local_file)
             for date in dates:
-                daily_data = data_frame.loc[(result_df[time_interval] == date)]
+                daily_data = data_frame.loc[date]
                 day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
                 day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
                 day_filepath = f"{directory}/{day_file}_{i}.csv"
