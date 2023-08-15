@@ -2,7 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import unittest
+from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
@@ -18,8 +18,8 @@ class TestSettingsTagFilter(TestCase):
             SettingsTagFilter()._get_order_by({1})
 
     def test_no_request(self):
-        with unittest.mock.patch(
-            "api.settings.tags.view.django_filters.rest_framework.FilterSet.filter_queryset",
+        with patch(
+            "api.settings.utils.FilterSet.filter_queryset",
             side_effect=AttributeError("Raised intentionally"),
         ):
             with self.assertRaisesRegex(AttributeError, "Raised intentionally"):
