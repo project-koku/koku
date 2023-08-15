@@ -57,7 +57,9 @@ def get_processing_date(
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
-    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection({"UsageDateTime", "Date", "date"})[0]
+    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
+        {"UsageDateTime", "Date", "date", "usagedatetime"}
+    )[0]
     # Azure does not have an invoice column so we have to do some guessing here
     if (
         start_date.year < dh.today.year
