@@ -296,7 +296,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             if manifest.daily_archive_start_date:
                 return manifest.daily_archive_start_date.replace(tzinfo=None)
 
-    def update_and_get_day_file(self, day, manifest_id):
+    def update_and_get_day_file(self, day, manifest_id, batch_num):
         with transaction.atomic():
             # With split payloads, we could have a race condition trying to update the `report_tracker`.
             # using a transaction and `select_for_update` should minimize the risk of multiple
@@ -307,7 +307,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             counter = manifest.report_tracker[day]
             manifest.report_tracker[day] = counter + 1
             manifest.save(update_fields=["report_tracker"])
-            return f"{day}_{counter}"
+            return f"{day}_{counter}_{batch_num}.csv"
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""
