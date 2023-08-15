@@ -534,7 +534,7 @@ def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_i
     """Add optional columns to columns list if they exists in files"""
     for fetch_column in fetch_columns:
         try:
-            data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith(fetch_column))
+            data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith(fetch_column.lower()))
             data_frame = data_frame.dropna(axis=1, how="all")
             fetch_cols = data_frame.columns
             for col in fetch_cols:

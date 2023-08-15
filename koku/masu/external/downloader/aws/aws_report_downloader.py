@@ -58,15 +58,15 @@ def get_processing_date(
     """
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
-    optional_cols = ["resourcetags", "costcategory"]
-    base_cols = copy.deepcopy(utils.INGRESS_REQUIRED_COLUMNS)
+    optional_cols = copy.deepcopy(utils.OPTIONAL_COLS)
+    base_cols = copy.deepcopy(utils.REQUIRED_COLUMNS)
     try:
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     except ValueError:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
-        optional_cols = ["resource_tags", "cost_category"]
-        base_cols = copy.deepcopy(utils.INGRESS_ALT_COLUMNS)
+        optional_cols = copy.deepcopy(utils.OPTIONAL_ALT_COLS)
+        base_cols = copy.deepcopy(utils.REQUIRED_ALT_COLUMNS)
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
@@ -133,8 +133,8 @@ def create_daily_archives(
             data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
-                day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id)
-                day_filepath = f"{directory}/{day_file}_{i}.csv"
+                day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id, i)
+                day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 utils.copy_local_report_file_to_s3_bucket(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
