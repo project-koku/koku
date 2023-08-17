@@ -20,6 +20,12 @@ class SettingsTagSerializer(serializers.Serializer):
     class Meta:
         model = EnabledTagKeys
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        add_source_type = {"source_type": instance.provider_type, **representation}
+        add_source_type.pop("provider_type")
+        return add_source_type
+
 
 class ListUUIDSerializer(serializers.ListField):
     child = serializers.UUIDField(error_messages={"invalid": "invalid uuid supplied."})
