@@ -29,6 +29,13 @@ OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-managemen
 
 
 class SettingsFilter(FilterSet):
+    def generate_cleaned_data(self, name, value):
+        """converts data to internal python value, and uses the correct field name"""
+        extra_info = self.base_filters.get(name).extra
+        if to_field_name := extra_info.get("to_field_name"):
+            self.filters[name].field_name = to_field_name
+        self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
+
     def _get_order_by(
         self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
     ) -> list[str, ...]:
@@ -48,6 +55,9 @@ class SettingsFilter(FilterSet):
         if isinstance(order_by_params, dict):
             result = set()
             for field, order in order_by_params.items():
+                extra_info = self.base_filters.get(field).extra
+                if to_field_name := extra_info.get("to_field_name"):
+                    field = to_field_name
                 try:
                     # If a field is provided more than once, take the first sorting parameter
                     order = order.pop(0)
@@ -95,7 +105,7 @@ class SettingsFilter(FilterSet):
             # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
                 try:
-                    self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
+                    self.generate_cleaned_data(name, value)
                 except DjangoValidationError as vexc:
                     raise ValidationError(vexc.message % vexc.params)
 
