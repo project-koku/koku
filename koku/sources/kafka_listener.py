@@ -202,7 +202,9 @@ def execute_koku_provider_op(msg):
             LOG.info(f"[provider_operation] updated provider {instance.uuid} for source_id: {provider.source_id}")
         elif operation == "destroy":
             LOG.info(f"[provider_operation] destroying Koku Provider for source_id: {provider.source_id}")
-            delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
+            delete_source.delay(
+                provider.source_id, provider.auth_header, provider.koku_uuid, provider.account_id, provider.org_id
+            )
             LOG.info(
                 f"[provider_operation] destroy provider task queued for provider {provider.koku_uuid}"
                 f" for source_id: {provider.source_id}"

@@ -32,6 +32,7 @@ class MockDetails:
         self.source_uuid = source_uuid
         self.source_type = source_type
         self.endpoint_id = endpoint_id
+        self.auth_header = Config.SOURCES_FAKE_HEADER
 
 
 class MockProvider:
