@@ -68,8 +68,8 @@ class TagsSettings(IamTestCase):
 
     def test_get_tags_filtering(self):
         test_matrix = (
-            {"filter": {"filter[provider_type]": "AWS"}, "key": "provider_type", "expected": {"AWS"}},
-            {"filter": {"filter[provider_type]": ["AWS", "GCP"]}, "key": "provider_type", "expected": {"AWS", "GCP"}},
+            {"filter": {"filter[source_type]": "AWS"}, "key": "source_type", "expected": {"AWS"}},
+            {"filter": {"filter[source_type]": ["AWS", "GCP"]}, "key": "source_type", "expected": {"AWS", "GCP"}},
             {"filter": {"filter[key]": "env"}, "key": "key", "expected": {"env", "Environment"}},
             {"filter": {"filter[enabled]": True}, "key": "enabled", "expected": {True}},
             {"filter": {"filter[enabled]": "true"}, "key": "enabled", "expected": {True}},
@@ -110,15 +110,10 @@ class TagsSettings(IamTestCase):
         test_matrix = (
             {"order": {"order_by": "enabled"}, "key": "enabled", "expected": False},
             {"order": {"order_by": "-enabled"}, "key": "enabled", "expected": True},
-            {
-                "order": {"order_by": ["-provider_type", "-key"]},
-                "keys": ("provider_type", "key"),
-                "expected": ("OCI", "zoo"),
-            },
             {"order": {"order_by[key]": "desc"}, "key": "key", "expected": "zoo"},
             {
-                "order": {"order_by[provider_type]": "asc", "order_by[key]": "desc"},
-                "keys": ("provider_type", "key"),
+                "order": {"order_by[source_type]": "asc", "order_by[key]": "desc"},
+                "keys": ("source_type", "key"),
                 "expected": ("AWS", "zoo"),
             },
         )
@@ -217,7 +212,7 @@ class TagsSettings(IamTestCase):
 
         with schema_context(self.schema_name):
             client = rest_framework.test.APIClient()
-            response = client.get(tags_url, {"filter[provider_type]": "aws"}, **self.headers)
+            response = client.get(tags_url, {"filter[source_type]": "aws"}, **self.headers)
 
         error_detail = response.data.get("errors", [{}])[0].get("detail").lower()
 

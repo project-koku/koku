@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 class SettingsTagFilter(SettingsFilter):
     key = MultipleChoiceFilter(lookup_expr="icontains")
-    provider_type = ModelMultipleChoiceFilter(
+    source_type = ModelMultipleChoiceFilter(
         to_field_name="provider_type",
         queryset=EnabledTagKeys.objects.all(),
     )
