@@ -29,8 +29,6 @@ from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
 
-# from koku.cache import get_cache_key_timeout
-
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"
 
