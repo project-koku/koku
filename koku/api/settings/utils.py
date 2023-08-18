@@ -2,10 +2,20 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import typing as t
+
+from django.core.exceptions import FieldError
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import QuerySet
+from django_filters import MultipleChoiceFilter
+from django_filters.rest_framework import FilterSet
 from django_tenants.utils import schema_context
+from querystring_parser import parser
+from rest_framework.exceptions import ValidationError
 
 from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
+from api.report.constants import URL_ENCODED_SAFE
 from api.settings.default_settings import DEFAULT_USER_SETTINGS
 from api.user_settings.settings import COST_TYPES
 from koku.settings import KOKU_DEFAULT_COST_TYPE
@@ -16,6 +26,95 @@ from reporting.user_settings.models import UserSettings
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
+
+
+class SettingsFilter(FilterSet):
+    def generate_cleaned_data(self, name, value):
+        """converts data to internal python value, and uses the correct field name"""
+        extra_info = self.base_filters.get(name).extra
+        if to_field_name := extra_info.get("to_field_name"):
+            self.filters[name].field_name = to_field_name
+        self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
+
+    def _get_order_by(
+        self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
+    ) -> list[str, ...]:
+        if order_by_params is None:
+            # Default ordering
+            return self.Meta.default_ordering
+
+        if isinstance(order_by_params, list):
+            # Already a list, just return it.
+            return order_by_params
+
+        if isinstance(order_by_params, str):
+            # If only one order_by parameter was given, it is a string.
+            return [order_by_params]
+
+        # Support order_by[field]=desc
+        if isinstance(order_by_params, dict):
+            result = set()
+            for field, order in order_by_params.items():
+                extra_info = self.base_filters.get(field).extra
+                if to_field_name := extra_info.get("to_field_name"):
+                    field = to_field_name
+                try:
+                    # If a field is provided more than once, take the first sorting parameter
+                    order = order.pop(0)
+                except AttributeError:
+                    # Already a str
+                    pass
+
+                # Technically we accept "asc" and "desc". Only testing for "desc" to make
+                # the API more resilient.
+                prefix = "-" if order.lower().startswith("desc") else ""
+                result.add(f"{prefix}{field}")
+
+            return list(result)
+
+        # Got something unexpected
+        raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
+
+    def filter_queryset(self, queryset: QuerySet) -> QuerySet:
+        order_by = self._get_order_by()
+
+        if self.request:
+            query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
+            filter_params = query_params.get("filter", {})
+
+            # Check valid keys
+            invalid_params = set(filter_params).difference(set(self.base_filters))
+            if invalid_params:
+                msg = "Unsupported parameter or invalid value"
+                raise ValidationError({invalid_params.pop(): msg})
+
+            # Multiple choice filter fields need to be a list. If only one filter
+            # is provided, it will be a string.
+
+            multiple_choice_fields = [
+                field for field, filter in self.base_filters.items() if isinstance(filter, MultipleChoiceFilter)
+            ]
+            for field in multiple_choice_fields:
+                if isinstance(filter_params.get(field), str):
+                    filter_params[field] = [filter_params[field]]
+
+            # Use the filter parameters from the request for filtering.
+            #
+            # The default behavior is to use the URL params directly for filtering.
+            # Since our APIs expect filters to be in the filter dict, extract those
+            # values and update the cleaned_data, which is used for filtering.
+            for name, value in filter_params.items():
+                try:
+                    self.generate_cleaned_data(name, value)
+                except DjangoValidationError as vexc:
+                    raise ValidationError(vexc.message % vexc.params)
+
+            order_by = self._get_order_by(query_params.get("order_by"))
+
+        try:
+            return super().filter_queryset(queryset).order_by(*order_by)
+        except FieldError as fexc:
+            raise ValidationError(str(fexc))
 
 
 def create_subform(name, title, fields):
