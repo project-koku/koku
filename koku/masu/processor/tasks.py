@@ -739,44 +739,40 @@ def update_openshift_on_cloud(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
-def update_all_summary_tables(start_date, end_date=None, provider_type=None):
-    """Populate all the summary tables for reporting.
+@celery_app.task(name="masu.processor.tasks.update_summary_tables_by_provider", queue=UPDATE_SUMMARY_TABLES_QUEUE)
+def update_summary_tables_by_provider(start_date, provider_type, end_date=None):
+    """Populate all the summary tables for a provider for reporting.
 
     Args:
-        start_date  (str) The date to start populating the table.
-        end_date    (str) The date to end on.
+        start_date    (str) The date to start populating the table.
+        provider_type (str) type of provider to summarize
+        end_date      (str) The date to end on.
 
     Returns
         None
 
     """
-    # Get all providers for all schemas
     all_accounts = []
     try:
-        if provider_type:
-            all_accounts = AccountsAccessor().get_accounts(provider_type=provider_type)
-        else:
-            all_accounts = AccountsAccessor().get_accounts()
+        all_accounts = AccountsAccessor().get_accounts(provider_type=provider_type)
         for account in all_accounts:
-            log_statement = (
-                f"Gathering data for for\n"
-                f' schema_name: {account.get("schema_name")}\n'
-                f' provider: {account.get("provider_type")}\n'
-                f' account (provider uuid): {account.get("provider_uuid")}'
-            )
-            LOG.info(log_statement)
+            msg = "Summarize by provider type."
+            cxt = {
+                "schema_name": account.get("schema_name"),
+                "provider_type": account.get("provider_type"),
+                "provider_uuid": account.get("provider_uuid"),
+            }
+            LOG.info(log_json("update_summary_tables_by_provider", msg=msg, context=cxt))
             schema_name = account.get("schema_name")
-            provider = account.get("provider_type")
             provider_uuid = account.get("provider_uuid")
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
             ocp_process_queue = OCP_QUEUE
             if is_customer_large(schema_name):
                 fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
                 ocp_process_queue = OCP_QUEUE_XL
-            queue_name = ocp_process_queue if provider and provider.lower() == "ocp" else None
+            queue_name = ocp_process_queue if provider_type and provider_type.lower() == "ocp" else None
             update_summary_tables.s(
-                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
+                schema_name, provider_type, provider_uuid, str(start_date), end_date, queue_name=queue_name
             ).apply_async(queue=queue_name or fallback_queue)
     except AccountsAccessorError as error:
         LOG.error("Unable to get accounts. Error: %s", str(error))

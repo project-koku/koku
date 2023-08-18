@@ -26,8 +26,8 @@ from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
+from masu.processor.tasks import update_summary_tables_by_provider
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"
@@ -142,7 +142,7 @@ def report_data(request):
 
             if key_set:
                 for month in months:
-                    async_result = update_all_summary_tables.delay(month[0], month[1], provider_type)
+                    async_result = update_summary_tables_by_provider.delay(month[0], month[1], provider_type)
                     async_results.append({str(month): str(async_result)})
 
         return Response({REPORT_DATA_KEY: async_results})

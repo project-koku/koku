@@ -65,10 +65,10 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
-from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
+from masu.processor.tasks import update_summary_tables_by_provider
 from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -937,10 +937,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
-    def test_get_report_data_for_all_providers(self, mock_update):
+    def test_update_summary_tables_by_provider(self, mock_update):
         """Test GET report_data endpoint with provider_uuid=*."""
         start_date = date.today()
-        update_all_summary_tables(start_date)
+        update_summary_tables_by_provider(start_date, Provider.PROVIDER_AWS)
         mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, queue_name=ANY)
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -948,7 +948,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test GET report_data endpoint with provider and XL queue"""
         start_date = date.today()
         with patch("masu.processor.tasks.is_customer_large", return_value=True):
-            update_all_summary_tables(start_date)
+            update_summary_tables_by_provider(start_date, Provider.PROVIDER_AWS)
             mock_update.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
 
     @patch("masu.processor.tasks.connection")

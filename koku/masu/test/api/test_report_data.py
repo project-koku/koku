@@ -389,12 +389,15 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_has_calls(expected_calls, any_order=True)
 
-    @override_settings(DEVELOPMENT=True)
+    @patch("masu.api.report_data.set_cached_resummarize_by_provider_type")
+    @patch("masu.api.report_data.get_cached_resummarize_by_provider_type")
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.update_all_summary_tables")
-    def test_get_report_data_for_all_providers_dev_true(self, mock_update, _):
+    @patch("masu.api.report_data.update_summary_tables_by_provider")
+    def test_get_report_data_for_all_providers_dev_true(self, mock_update, _, mock_get_cache, mock_set_cache):
         """Test GET report_data endpoint with provider_uuid=*."""
-        params = {"provider_uuid": "*", "start_date": self.start_date}
+        mock_get_cache.return_value = [False, 0]
+        mock_set_cache.return_value = True
+        params = {"provider_uuid": "*", "start_date": self.start_date, "provider_type": Provider.PROVIDER_AWS}
         expected_key = "Report Data Task IDs"
 
         response = self.client.get(reverse("report_data"), params)
@@ -403,12 +406,12 @@ class ReportDataTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(
-            params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"), invoice_month=None
+            params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"), Provider.PROVIDER_AWS
         )
 
     @override_settings(DEVELOPMENT=False)
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.update_all_summary_tables")
+    @patch("masu.api.report_data.update_summary_tables_by_provider")
     def test_get_report_data_for_all_providers_dev_false(self, mock_update, _):
         """Test GET report_data endpoint with provider_uuid=*."""
         params = {"provider_uuid": "*", "start_date": self.start_date}
