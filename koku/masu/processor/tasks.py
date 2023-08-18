@@ -740,7 +740,7 @@ def update_openshift_on_cloud(  # noqa: C901
 
 
 @celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
-def update_all_summary_tables(start_date, end_date=None):
+def update_all_summary_tables(start_date, end_date=None, provider_type=None):
     """Populate all the summary tables for reporting.
 
     Args:
@@ -754,7 +754,10 @@ def update_all_summary_tables(start_date, end_date=None):
     # Get all providers for all schemas
     all_accounts = []
     try:
-        all_accounts = AccountsAccessor().get_accounts()
+        if provider_type:
+            all_accounts = AccountsAccessor().get_accounts(provider_type=provider_type)
+        else:
+            all_accounts = AccountsAccessor().get_accounts()
         for account in all_accounts:
             log_statement = (
                 f"Gathering data for for\n"

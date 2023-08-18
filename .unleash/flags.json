@@ -260,7 +260,46 @@
             ],
             "variants": [],
             "createdAt": "2023-04-06T09:40:54.492Z"
+        },
+        {
+            "name": "cost-management.backend.large-customer.rate-limit",
+            "description": "Large customer account list for separate queue",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-04-06T09:40:54.492Z"
+        },
+        {
+            "name": "cost-management.backend.large-customer",
+            "description": "Large customer account list for separate queue",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-04-06T09:40:54.492Z"
         }
+
     ],
     "strategies": [
         {

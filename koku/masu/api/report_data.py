@@ -18,6 +18,8 @@ from rest_framework.settings import api_settings
 
 from api.models import Provider
 from api.utils import get_months_in_date_range
+from koku.cache import get_cached_resummarize_by_provider_type
+from koku.cache import set_cached_resummarize_by_provider_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
@@ -26,6 +28,8 @@ from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
+
+# from koku.cache import get_cache_key_timeout
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"
@@ -118,14 +122,31 @@ def report_data(request):
                 ).apply_async(queue=queue_name or fallback_queue)
                 async_results.append({str(month): str(async_result)})
         else:
-            # TODO: when DEVELOPMENT=False, disable resummarization for all providers to prevent burning the db.
-            # this query could be re-enabled if we need it, but we should consider limiting its use to a schema.
-            if not settings.DEVELOPMENT:
-                errmsg = "?provider_uuid=* is invalid query."
+            provider_list = [
+                Provider.PROVIDER_AWS,
+                Provider.PROVIDER_GCP,
+                Provider.PROVIDER_AZURE,
+                Provider.PROVIDER_OCI,
+                Provider.PROVIDER_OCP,
+            ]
+            if not provider_type:
+                errmsg = "provider_type is required when resummarizing all"
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-            for month in months:
-                async_result = update_all_summary_tables.delay(month[0], month[1], invoice_month=month[2])
-                async_results.append({str(month): str(async_result)})
+            if provider_type not in provider_list:
+                errmsg = f"unrecongized provider_type: {provider_type}"
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            key_exist, timeout = get_cached_resummarize_by_provider_type(provider_type)
+            if key_exist:
+                errmsg = f"provider_type ({provider_type}) still disabled for {round(timeout/60, 2)} minutes"
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+            key_set = set_cached_resummarize_by_provider_type(provider_type)
+
+            if key_set:
+                for month in months:
+                    async_result = update_all_summary_tables.delay(month[0], month[1], provider_type)
+                    async_results.append({str(month): str(async_result)})
+
         return Response({REPORT_DATA_KEY: async_results})
 
     if request.method == "DELETE":
