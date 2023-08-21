@@ -26,13 +26,13 @@ faker = Faker()
 class MockDetails:
     """Mock details object."""
 
-    def __init__(self, name, source_uuid, source_type, endpoint_id):
+    def __init__(self, name, source_uuid, source_type, endpoint_id, auth_header=Config.SOURCES_FAKE_HEADER):
         """Init mock details."""
         self.name = name
         self.source_uuid = source_uuid
         self.source_type = source_type
         self.endpoint_id = endpoint_id
-        self.auth_header = Config.SOURCES_FAKE_HEADER
+        self.auth_header = auth_header
 
 
 class MockProvider:
@@ -163,22 +163,25 @@ class SourcesStorageTest(TestCase):
 
     def test_add_provider_sources_details(self):
         """Tests that adding information retrieved from the sources network API is successful."""
+        test_header = "different-header"
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertIsNone(test_source.name)
         self.assertEqual(test_source.source_type, "")
         self.assertEqual(test_source.authentication, {})
+        self.assertNotEqual(test_source.auth_header, test_header)
 
         test_name = "My Source Name"
         source_type = Provider.PROVIDER_AWS
         endpoint_id = 1
         source_uuid = faker.uuid4()
-        mock_details = MockDetails(test_name, source_uuid, source_type, endpoint_id)
+        mock_details = MockDetails(test_name, source_uuid, source_type, endpoint_id, test_header)
         storage.add_provider_sources_details(mock_details, self.test_source_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
         self.assertEqual(test_source.source_type, source_type)
         self.assertEqual(str(test_source.source_uuid), source_uuid)
+        self.assertEqual(test_source.auth_header, test_header)
 
     def test_add_provider_sources_details_not_found(self):
         """Tests that adding information retrieved from the sources network API is not successful."""
