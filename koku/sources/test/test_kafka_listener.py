@@ -731,7 +731,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+            builder = SourcesProviderCoordinator(source_id, provider.auth_header, provider.account_id, provider.org_id)
             builder.create_account(provider)
 
         self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
@@ -766,7 +766,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 source_integration.execute_koku_provider_op(msg)
 
-        builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+        builder = SourcesProviderCoordinator(source_id, provider.auth_header, provider.account_id, provider.org_id)
 
         source = storage.get_source_instance(source_id)
         uuid = source.koku_uuid
