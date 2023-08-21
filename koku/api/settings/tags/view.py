@@ -4,6 +4,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import ModelMultipleChoiceFilter
 from django_filters import MultipleChoiceFilter
+from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -22,8 +23,17 @@ from reporting.provider.all.models import EnabledTagKeys
 LOG = logging.getLogger(__name__)
 
 
+class NonValidatingMultipleChoiceField(MultipleChoiceField):
+    def validate(self, value):
+        pass
+
+
+class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
+    field_class = NonValidatingMultipleChoiceField
+
+
 class SettingsTagFilter(SettingsFilter):
-    key = MultipleChoiceFilter(lookup_expr="icontains")
+    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
     source_type = ModelMultipleChoiceFilter(
         to_field_name="provider_type",
         queryset=EnabledTagKeys.objects.all(),
