@@ -303,6 +303,9 @@ class OCPProviderMap(ProviderMap):
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_cpu_core_hours"),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "cluster_instance_counts": {
                                 "capacity_count": Max("node_capacity_cpu_cores"),
                                 "capacity_count_units": Value("Core", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
@@ -396,8 +399,11 @@ class OCPProviderMap(ProviderMap):
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
-                                "capacity_count": Max("node_capacity_memory_gigabytes"),
                                 "capacity_count_units": Value("GB", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "cluster_instance_counts": {
+                                "capacity_count": Max("node_capacity_memory_gigabytes"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
@@ -494,6 +500,11 @@ class OCPProviderMap(ProviderMap):
                             "cluster": {
                                 "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
                                 "capacity_count_units": Value("GB", output_field=CharField()),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "cluster_instance_counts": {
+                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity_count_units": Value("Core", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
