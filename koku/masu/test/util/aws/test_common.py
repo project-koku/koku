@@ -13,6 +13,7 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import boto3
+import numpy as np
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
@@ -621,6 +622,54 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+    def test_match_openshift_labels_with_nan_resources(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
+
+        matched_tags = [{"key": "value"}]
+        data = [
+            {"lineitem_resourceid": np.nan, "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+        ]
+
+        df = pd.DataFrame(data)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # tag matching
+        result = matched_df["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
+    def test_match_openshift_resource_with_nan_labels(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
+
+        matched_tags = [{"key": "value"}]
+        data = [
+            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": np.nan},
+        ]
+
+        df = pd.DataFrame(data)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
 
     @patch("masu.util.aws.common.get_s3_resource")
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
