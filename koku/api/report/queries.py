@@ -786,7 +786,7 @@ class ReportQueryHandler(QueryHandler):
 
         return out_data
 
-    def _clean_grouping_labels(self, group, all_pack_keys=[]):
+    def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
         """build grouping prefix"""
         check_pack_prefix = None
         prefix_mapping = {TAG_PREFIX: self._mapper.tag_column}
@@ -798,10 +798,6 @@ class ReportQueryHandler(QueryHandler):
                 check_pack_prefix = prefix
         if check_pack_prefix and group in all_pack_keys:
             group = check_pack_prefix + group
-            return group
-        if clean_group_label := self._mapper.provider_map.get("clean_group_label"):
-            if group_title := clean_group_label.get(group):
-                return group_title
         return group
 
     def _apply_group_null_label(self, data, groupby=None):
@@ -819,7 +815,7 @@ class ReportQueryHandler(QueryHandler):
 
         for group in groupby:
             if group in data and pd.isnull(data.get(group)) or data.get(group) == "":
-                value = self._clean_grouping_labels(group)
+                value = self._clean_prefix_grouping_labels(group)
                 group_label = f"No-{value}"
                 data[group] = group_label
 
@@ -912,7 +908,7 @@ class ReportQueryHandler(QueryHandler):
         delete_keys = []
         new_data = {}
         for data_key in data.keys():
-            clean_prefix = self._clean_grouping_labels(data_key, all_pack_keys)
+            clean_prefix = self._clean_prefix_grouping_labels(data_key, all_pack_keys)
             if clean_prefix != data_key:
                 new_data[clean_prefix] = data[data_key]
                 delete_keys.append(data_key)
@@ -938,10 +934,10 @@ class ReportQueryHandler(QueryHandler):
 
         if next_group_index < groups_len:
             label = groups[next_group_index] + "s"
-            label = self._clean_grouping_labels(label)
+            label = self._clean_prefix_grouping_labels(label)
 
         for group, group_value in data.items():
-            group_title = self._clean_grouping_labels(group_type)
+            group_title = self._clean_prefix_grouping_labels(group_type)
             group_label = group
             if group is None:
                 group_label = f"No-{group_title}"

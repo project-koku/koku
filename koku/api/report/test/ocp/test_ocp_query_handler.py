@@ -1185,30 +1185,30 @@ class OCPReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
-    def test_exclude_pvc(self):
-        """Test that the exclude pvc works for volume endpoints."""
-        url = "?group_by[pvc]=*"
+    def test_exclude_persistentvolumeclaim(self):
+        """Test that the exclude persistentvolumeclaim works for volume endpoints."""
+        url = "?group_by[persistentvolumeclaim]=*"
         query_params = self.mocked_query_params(url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         overall_output = handler.execute_query()
         overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         opt_value = None
         for date_dict in overall_output.get("data", [{}]):
-            for element in date_dict.get("pvcs"):
-                if "No-pvc" != element.get("pvc"):
-                    opt_value = element.get("pvc")
+            for element in date_dict.get("persistentvolumeclaims"):
+                if "No-persistentvolumeclaim" != element.get("persistentvolumeclaim"):
+                    opt_value = element.get("persistentvolumeclaim")
                     break
             if opt_value:
                 break
         # Grab filtered value
-        filtered_url = f"?group_by[pvc]=*&filter[pvc]={opt_value}"
+        filtered_url = f"?group_by[persistentvolumeclaim]=*&filter[persistentvolumeclaim]={opt_value}"
         query_params = self.mocked_query_params(filtered_url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         handler.execute_query()
         filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         expected_total = overall_total - filtered_total
         # Test exclude
-        exclude_url = f"?group_by[pvc]=*&exclude[pvc]={opt_value}"
+        exclude_url = f"?group_by[persistentvolumeclaim]=*&exclude[persistentvolumeclaim]={opt_value}"
         query_params = self.mocked_query_params(exclude_url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         self.assertIsNotNone(handler.query_exclusions)
@@ -1217,11 +1217,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
         excluded_data = excluded_output.get("data")
         # Check to make sure the value is not in the return
         for date_dict in excluded_data:
-            grouping_list = date_dict.get("pvcs", [])
+            grouping_list = date_dict.get("persistentvolumeclaims", [])
             self.assertIsNotNone(grouping_list)
             for group_dict in grouping_list:
-                if "No-pvc" != opt_value:
-                    self.assertNotEqual(opt_value, group_dict.get("pvc"))
+                if "No-persistentvolumeclaim" != opt_value:
+                    self.assertNotEqual(opt_value, group_dict.get("persistentvolumeclaim"))
         self.assertAlmostEqual(expected_total, excluded_total, 6)
         self.assertNotEqual(overall_total, excluded_total)
 
@@ -1230,7 +1230,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # This is a base test, if functionality is tested separately
         # or does not apply to all ocp endpoints, then it can be added
         # here:
-        remove_from_test = {"infrastructures", "category", "pvc"}
+        remove_from_test = {"infrastructures", "category", "persistentvolumeclaim"}
         exclude_opts = set(OCPExcludeSerializer._opfields).difference(remove_from_test)
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
@@ -1347,28 +1347,28 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
-    def test_multi_exclude_pvc_functionality(self):
+    def test_multi_exclude_persistentvolumeclaim_functionality(self):
         """Test that the exclude feature works for all options."""
-        base_url = "?group_by[pvc]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
+        base_url = "?group_by[persistentvolumeclaim]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
         query_params = self.mocked_query_params(base_url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         overall_output = handler.execute_query()
         opt_dict = overall_output.get("data", [{}])[0]
-        opt_list = opt_dict.get("pvcs")
+        opt_list = opt_dict.get("persistentvolumeclaims")
         exclude_one = None
         exclude_two = None
         for exclude_option in opt_list:
-            if "No-" not in exclude_option.get("pvc"):
+            if "No-" not in exclude_option.get("persistentvolumeclaim"):
                 if not exclude_one:
-                    exclude_one = exclude_option.get("pvc")
+                    exclude_one = exclude_option.get("persistentvolumeclaim")
                 elif not exclude_two:
-                    exclude_two = exclude_option.get("pvc")
+                    exclude_two = exclude_option.get("persistentvolumeclaim")
                 else:
                     continue
         self.assertIsNotNone(exclude_one)
         self.assertIsNotNone(exclude_two)
 
-        url = base_url + f"&exclude[pvc]={exclude_one}&exclude[pvc]={exclude_two}"
+        url = base_url + f"&exclude[persistentvolumeclaim]={exclude_one}&exclude[persistentvolumeclaim]={exclude_two}"
         query_params = self.mocked_query_params(url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         self.assertIsNotNone(handler.query_exclusions)
@@ -1376,14 +1376,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
         excluded_data = excluded_output.get("data")
         self.assertIsNotNone(excluded_data)
         for date_dict in excluded_data:
-            grouping_list = date_dict.get("pvcs", [])
+            grouping_list = date_dict.get("persistentvolumeclaims", [])
             self.assertIsNotNone(grouping_list)
             for group_dict in grouping_list:
-                self.assertNotIn(group_dict.get("pvc"), [exclude_one, exclude_two])
+                self.assertNotIn(group_dict.get("persistentvolumeclaim"), [exclude_one, exclude_two])
 
     def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
-        remove_from_test = {"infrastructures", "category", "pvc"}
+        remove_from_test = {"infrastructures", "category", "persistentvolumeclaim"}
         exclude_opts = set(OCPExcludeSerializer._opfields).difference(remove_from_test)
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501

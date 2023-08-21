@@ -159,9 +159,6 @@ class OCPProviderMap(ProviderMap):
                     },
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
-                # clean_group_lable converts the db field to a preferred label for the api return
-                # see function _clean_grouping_lables
-                "clean_group_label": {"persistentvolumeclaim": "pvc", "persistentvolumeclaims": "pvcs"},
                 "tag_column": "pod_labels",
                 "report_type": {
                     "costs": {
@@ -492,7 +489,7 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                            "pvcs": ArrayAgg("persistentvolumeclaim", distinct=True),
+                            "persistent_volume_claim": ArrayAgg("persistentvolumeclaim", distinct=True),
                             "storage_class": ArrayAgg("storageclass", distinct=True),
                         },
                         "default_ordering": {"usage": "desc"},
@@ -535,7 +532,7 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "pvcs": ArrayAgg("persistentvolumeclaim", distinct=True),
+                            "persistent_volume_claim": ArrayAgg("persistentvolumeclaim", distinct=True),
                             "storage_class": ArrayAgg("storageclass", distinct=True),
                         },
                         "delta_key": {

@@ -20,8 +20,7 @@ DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("project", "cluster", "node", "pvc")
-    _op_mapping = {"pvc": "persistentvolumeclaim"}
+    _opfields = ("project", "cluster", "node", "persistentvolumeclaim")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
@@ -57,8 +56,7 @@ class OCPFilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category", "pvc")
-    _op_mapping = {"pvc": "persistentvolumeclaim"}
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
@@ -92,8 +90,7 @@ class OCPExcludeSerializer(BaseExcludeSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category", "pvc")
-    _op_mapping = {"pvc": "persistentvolumeclaim"}
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
