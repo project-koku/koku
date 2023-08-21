@@ -304,10 +304,10 @@ class OCPProviderMap(ProviderMap):
                             "cluster": {
                                 "capacity": Max("cluster_capacity_cpu_core_hours"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
+                                "capacity_count_units": Value("Core", output_field=CharField()),
                             },
                             "cluster_instance_counts": {
                                 "capacity_count": Max("node_capacity_cpu_cores"),
-                                "capacity_count_units": Value("Core", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
@@ -504,7 +504,6 @@ class OCPProviderMap(ProviderMap):
                             },
                             "cluster_instance_counts": {
                                 "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
-                                "capacity_count_units": Value("Core", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
