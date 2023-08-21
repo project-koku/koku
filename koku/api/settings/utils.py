@@ -35,8 +35,8 @@ class SettingsFilter(FilterSet):
         extra_info = self.base_filters.get(name).extra
         if to_field_name := extra_info.get("to_field_name"):
             self.filters[name].field_name = to_field_name
-        self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
 
+        self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
     def _get_order_by(
         self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
     ) -> list[str, ...]:
@@ -46,11 +46,24 @@ class SettingsFilter(FilterSet):
 
         if isinstance(order_by_params, list):
             # Already a list, just return it.
-            return order_by_params
+            translated = []
+            for item in order_by_params:
+                bare_param = item.lstrip("-")
+                if replace := self.Meta.translation.get(bare_param):
+                    translated.append(item.replace(bare_param, replace))
+                else:
+                    translated.append(item)
+
+            return translated
 
         if isinstance(order_by_params, str):
             # If only one order_by parameter was given, it is a string.
-            return [order_by_params]
+            translated = [order_by_params]
+            bare_param = order_by_params.lstrip("-")
+            if replace := self.Meta.translation.get(bare_param):
+                translated = [order_by_params.replace(bare_param, replace)]
+
+            return translated
 
         # Support order_by[field]=desc
         if isinstance(order_by_params, dict):
