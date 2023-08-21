@@ -779,19 +779,22 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies
     )
     resource_ids = tuple(resource_ids)
+    data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["lineitem_resourceid"]
+    if not resource_id_df.isna().values.all():
+        LOG.info("Matching OpenShift on AWS by resource ID.")
+        resource_id_matched = resource_id_df.str.endswith(resource_ids)
+        data_frame["resource_id_matched"] = resource_id_matched
 
-    LOG.info("Matching OpenShift on AWS by resource ID.")
-    resource_id_matched = resource_id_df.str.endswith(resource_ids)
-    data_frame["resource_id_matched"] = resource_id_matched
-
+    data_frame["special_case_tag_matched"] = False
     tags = data_frame["resourcetags"]
-    tags = tags.str.lower()
+    if not tags.isna().values.all():
+        tags = tags.str.lower()
 
-    special_case_tag_matched = tags.str.contains(
-        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
-    )
-    data_frame["special_case_tag_matched"] = special_case_tag_matched
+        special_case_tag_matched = tags.str.contains(
+            "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+        )
+        data_frame["special_case_tag_matched"] = special_case_tag_matched
 
     if matched_tags:
         tag_keys = []
