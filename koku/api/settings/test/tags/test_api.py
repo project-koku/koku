@@ -133,16 +133,21 @@ class TagsSettings(IamTestCase):
             self.assertEqual(important_values, test_case["expected"])
 
     def test_tags_order_by_invalid(self):
+        test_cases = (
+            {"description": "Standard DRF syntax", "params": {"order_by": "NOPE"}},
+            {"description": "Custom order_by syntax", "params": {"order_by[NOPE]": "asc"}},
+        )
         tags_url = reverse("settings-tags")
-        with self.subTest():
-            with schema_context(self.schema_name):
-                client = rest_framework.test.APIClient()
-                response = client.get(tags_url, {"order_by": "NOPE"}, **self.headers)
+        for case in test_cases:
+            with self.subTest(case["description"]):
+                with schema_context(self.schema_name):
+                    client = rest_framework.test.APIClient()
+                    response = client.get(tags_url, case["params"], **self.headers)
 
-        error_message = response.data["errors"][0]["detail"]
+                error_message = response.data.get("errors", [{}])[0].get("detail")
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("cannot resolve keyword", error_message.lower())
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("cannot resolve keyword", error_message.lower())
 
     def test_enable_tags(self):
         """PUT a list of UUIDs and ensure they are enabled"""

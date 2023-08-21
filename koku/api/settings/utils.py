@@ -69,7 +69,7 @@ class SettingsFilter(FilterSet):
         if isinstance(order_by_params, dict):
             result = set()
             for field, order in order_by_params.items():
-                extra_info = self.base_filters.get(field).extra
+                extra_info = getattr(self.base_filters.get(field), "extra", {})
                 if to_field_name := extra_info.get("to_field_name"):
                     field = to_field_name
                 try:
