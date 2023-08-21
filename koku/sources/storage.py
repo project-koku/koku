@@ -227,7 +227,7 @@ def load_providers_to_delete():
     ]
 
 
-def get_source(source_id, err_msg, logger):
+def get_source(source_id, err_msg, logger) -> Sources:
     """Access Sources, log err on DoesNotExist, close connection on InterfaceError."""
     try:
         return Sources.objects.get(source_id=source_id)
@@ -400,6 +400,9 @@ def add_provider_sources_details(details, source_id):
             save_needed = True
         if source.source_type != details.source_type:
             source.source_type = details.source_type
+            save_needed = True
+        if source.auth_header != details.auth_header:
+            source.auth_header = details.auth_header
             save_needed = True
         if save_needed:
             source.save()

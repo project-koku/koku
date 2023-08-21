@@ -44,6 +44,7 @@ class SourcesTasksTest(TestCase):
             "billing_source": {"data_source": {"bucket": "fake-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "org1234567",
+            "org_id": "org1234567",
             "offset": 10,
             "pending_delete": True,
         }
@@ -57,6 +58,7 @@ class SourcesTasksTest(TestCase):
             "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "org1234567",
+            "org_id": "org1234567",
             "offset": 11,
         }
 
@@ -82,10 +84,22 @@ class SourcesTasksTest(TestCase):
             provider = Sources(**s)
             provider.save()
 
-        delete_source(source_id_aws, self.aws_source.get("auth_header"), self.aws_source.get("source_uuid"))
+        delete_source(
+            source_id_aws,
+            self.aws_source["auth_header"],
+            self.aws_source["source_uuid"],
+            self.aws_source["account_id"],
+            self.aws_source["org_id"],
+        )
 
         try:
-            delete_source(source_id_aws, self.aws_source.get("auth_header"), self.aws_source.get("source_uuid"))
+            delete_source(
+                source_id_aws,
+                self.aws_source["auth_header"],
+                self.aws_source["source_uuid"],
+                self.aws_source["account_id"],
+                self.aws_source["org_id"],
+            )
         except Exception as error:
             self.fail(f"test_execute_koku_provider_op_destroy test failure: {error}")
 
