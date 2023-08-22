@@ -71,7 +71,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     """Filter a dataframe to the subset that matches an OpenShift source."""
     tags = data_frame["labels"]
     tags = tags.str.lower()
-    resource_id_df = data_frame.get("resource_name")
+    resource_id_df = data_frame[data_frame.get("resource_name").str.len() > 0]
     match_columns = []
 
     for i, cluster_topology in enumerate(cluster_topologies):
