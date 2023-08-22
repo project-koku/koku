@@ -30,8 +30,8 @@
             "description": "Operations about OCI report interactions"
         },
         {
-            "name": "Sources",
-            "description": "Operations about platform sources interactions"
+            "name": "Integrations",
+            "description": "Operations about platform integrations interactions"
         },
         {
             "name": "Cost Models",
@@ -3925,9 +3925,9 @@
         "/sources/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "List the sources",
+                "summary": "List the integrations",
                 "operationId": "listSources",
                 "parameters": [{
                         "name": "type",
@@ -3984,7 +3984,7 @@
         "/sources/{source_id}/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
                 "summary": "Get a source",
                 "operationId": "getSource",
@@ -4042,7 +4042,7 @@
         "/sources/{source_id}/stats/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
                 "summary": "Get a source statistics",
                 "operationId": "getSourceStats",
@@ -4112,7 +4112,7 @@
         "/sources/aws-s3-regions/":{
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
                 "summary": "List available AWS S3 regions",
                 "operationId": "getAWSS3Regions",
