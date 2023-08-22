@@ -30,7 +30,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
-                  storage_class: gp2
+                  storage_class: pd-standard
                   volume_request_gig: 20
                   labels: label_environment:ruby|label_app:fall|label_version:red|label_storageclass:banana
                   volume_claims:
@@ -60,7 +60,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
-                  storage_class: gp2
+                  storage_class: pd-standard
                   volume_request_gig: 20
                   labels: label_environment:ruby|label_app:snowdown|label_version:red|label_storageclass:watermelon
                   volume_claims:
@@ -95,7 +95,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
-                  storage_class: gp2
+                  storage_class: pd-standard
                   volume_request_gig: 20
                   labels: label_environment:clyde|label_app:winter|label_version:green|label_storageclass:apple
                   volume_claims:
@@ -131,7 +131,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_4
-                  storage_class: gp2
+                  storage_class: pd-standard
                   volume_request_gig: 20
                   labels: label_environment:murphy|label_app:spring|label_version:blue|label_storageclass:orange
                   volume_claims:
