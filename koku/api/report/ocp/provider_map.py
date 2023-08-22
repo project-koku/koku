@@ -594,6 +594,10 @@ class OCPProviderMap(ProviderMap):
                 ("cluster",): OCPVolumeSummaryP,
                 ("project",): OCPVolumeSummaryByProjectP,
                 ("cluster", "project"): OCPVolumeSummaryByProjectP,
+                ("persistentvolumeclaim",): OCPVolumeSummaryP,
+                ("persistentvolumeclaim", "cluster"): OCPVolumeSummaryP,
+                ("persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
+                ("persistentvolumeclaim", "project", "cluster"): OCPVolumeSummaryByProjectP,
             },
         }
         super().__init__(provider, report_type)
