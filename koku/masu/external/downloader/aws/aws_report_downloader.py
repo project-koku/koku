@@ -132,8 +132,8 @@ def create_daily_archives(
                 )
                 daily_file_names.append(day_filepath)
     date_range = {
-        "start": min(dates) if dates != () else None,
-        "end": max(dates) if dates != () else None,
+        "start": min(dates),
+        "end": max(dates),
         "invoice_month": None,
     }
     return daily_file_names, date_range
