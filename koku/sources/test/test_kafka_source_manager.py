@@ -40,9 +40,9 @@ class ProviderBuilderTest(IamTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        account = "12345"
-        org_id = "3333333"
-        IdentityHeaderMiddleware.create_customer(account, org_id)
+        cls.account = "12345"
+        cls.org_id = "3333333"
+        IdentityHeaderMiddleware.create_customer(cls.account, cls.org_id)
 
     def setUp(self):
         """Test case setup."""
@@ -60,7 +60,9 @@ class ProviderBuilderTest(IamTestCase):
         """Test to create a provider."""
         # Delete tenants
         Tenant.objects.filter(schema_name="org3333333").delete()  # filtering avoids migrating the template0 again
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             mock_source = MockSourceObject(self.name, self.provider_type, self.authentication, self.billing_source)
             provider = client.create_provider_from_source(mock_source)
@@ -70,7 +72,9 @@ class ProviderBuilderTest(IamTestCase):
         """Test to create an OCP provider with a System identity."""
         # Delete tenants
         Tenant.objects.filter(schema_name="org3333333").delete()  # filtering avoids migrating the template0 again
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_CLUSTER_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_CLUSTER_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             mock_source_auth = {"credentials": {"cluster_id": "0bb29135-d6d1-478b-b5b6-6bd129cb6d5d1001"}}
             mock_source = MockSourceObject(self.name, Provider.PROVIDER_OCP, mock_source_auth, None)
@@ -79,7 +83,9 @@ class ProviderBuilderTest(IamTestCase):
 
     def test_create_provider_no_tenant(self):
         """Test to create a provider after tenant was removed."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             mock_source = MockSourceObject(self.name, self.provider_type, self.authentication, self.billing_source)
             provider = client.create_provider_from_source(mock_source)
@@ -87,7 +93,9 @@ class ProviderBuilderTest(IamTestCase):
 
     def test_create_provider_with_source_uuid(self):
         """Test to create a provider with source uuid ."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider_from_source(self.mock_source)
             self.assertEqual(provider.name, self.name)
@@ -101,14 +109,18 @@ class ProviderBuilderTest(IamTestCase):
     )
     def test_create_provider_exceptions(self, mock_sts):
         """Test to create a provider with a non-recoverable error."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with self.assertRaises(ValidationError):
             client.create_provider_from_source(self.mock_source)
 
     @patch("masu.celery.tasks.delete_archived_data.delay")
     def test_destroy_provider(self, _):
         """Test to destroy a provider."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider_from_source(self.mock_source)
@@ -120,7 +132,9 @@ class ProviderBuilderTest(IamTestCase):
 
     def test_destroy_provider_exception(self):
         """Test to destroy a provider with a connection error."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider_from_source(self.mock_source)
             self.assertEqual(provider.name, self.name)
@@ -131,7 +145,9 @@ class ProviderBuilderTest(IamTestCase):
 
     def test_update_provider(self):
         """Test to update a provider."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider_from_source(self.mock_source)
             new_name = "Aws Test"
@@ -142,7 +158,9 @@ class ProviderBuilderTest(IamTestCase):
 
     def test_update_provider_pause(self):
         """Test to update a provider for pause/unpause."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider_from_source(self.mock_source)
             self.assertFalse(provider.paused)
@@ -154,7 +172,9 @@ class ProviderBuilderTest(IamTestCase):
 
     def test_update_provider_exception(self):
         """Test to update a provider with a connection error."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with self.assertRaises(Provider.DoesNotExist):
             client.update_provider_from_source(self.mock_source)
 
@@ -166,7 +186,9 @@ class ProviderBuilderTest(IamTestCase):
     )
     def test_update_provider_error(self, mock_sts):
         """Test to update a provider with a koku server error."""
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             client.create_provider_from_source(self.mock_source)
         with self.assertRaises(ValidationError):
@@ -198,7 +220,9 @@ class ProviderBuilderTest(IamTestCase):
                 "expected_response": {},
             },
         ]
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
 
         for test in test_matrix:
             with self.subTest(test=test):
@@ -224,7 +248,9 @@ class ProviderBuilderTest(IamTestCase):
                 "expected_response": ProviderBuilderError,
             },
         ]
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
 
         for test in test_matrix:
             with self.assertRaises(test.get("expected_response")):
@@ -245,7 +271,9 @@ class ProviderBuilderTest(IamTestCase):
                 "expected_response": {"data_source": {"foo": "bar"}},
             },
         ]
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
 
         for test in test_matrix:
             with self.subTest(test=test):
@@ -268,7 +296,9 @@ class ProviderBuilderTest(IamTestCase):
                 "expected_response": ProviderBuilderError,
             },
         ]
-        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(
+            auth_header=Config.SOURCES_FAKE_HEADER, account_number=self.account, org_id=self.org_id
+        )
 
         for test in test_matrix:
             with self.assertRaises(test.get("expected_response")):

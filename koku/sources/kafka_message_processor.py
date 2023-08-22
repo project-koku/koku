@@ -68,6 +68,7 @@ class SourceDetails:
         sources_network = SourcesHTTPClient(auth_header, source_id, account_id, org_id)
         details = sources_network.get_source_details()
         self.name = details.get("name")
+        self.auth_header = auth_header
         self.source_type_id = int(details.get("source_type_id"))
         self.source_uuid = details.get("uid")
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
@@ -91,12 +92,11 @@ class KafkaMessageProcessor:
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
         decoded_header = convert_header_to_dict(self.auth_header, True)
-        self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
-            "identity", {}
-        ).get("account_number")
-        self.org_id = extract_from_header(msg.headers(), KAFKA_HDR_ORG_ID) or decoded_header.get("identity", {}).get(
-            "org_id"
+        identity = decoded_header.get("identity", {})
+        self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or identity.get(
+            "account_number"
         )
+        self.org_id = extract_from_header(msg.headers(), KAFKA_HDR_ORG_ID) or identity.get("org_id")
         if None in (self.org_id, self.auth_header):
             msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or  org_id: {msg.headers()}"
             LOG.warning(msg)
@@ -130,9 +130,9 @@ class KafkaMessageProcessor:
         return self.event_type in (KAFKA_SOURCE_UPDATE,)
 
     def get_sources_client(self):
-        return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number)
+        return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number, self.org_id)
 
-    def get_source_details(self):
+    def get_source_details(self) -> SourceDetails:
         return SourceDetails(self.auth_header, self.source_id, self.account_number, self.org_id)
 
     def save_sources_details(self):
