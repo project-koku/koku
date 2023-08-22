@@ -656,10 +656,9 @@ class AWSReportDownloaderTest(MasuTestCase):
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
                     return_value=expected_date,
                 ):
-                    data_frame, time_interval, process_date = get_processing_date(
+                    time_interval, process_date = get_processing_date(
                         temp_path, None, 1, self.aws_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
-                    self.assertIsNotNone(data_frame)
                     self.assertEqual(time_interval, expected_interval)
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
