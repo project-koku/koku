@@ -3986,7 +3986,7 @@
                 "tags": [
                     "Integrations"
                 ],
-                "summary": "Get a source",
+                "summary": "Get an integration",
                 "operationId": "getSource",
                 "parameters": [{
                     "name": "source_id",
@@ -4044,7 +4044,7 @@
                 "tags": [
                     "Integrations"
                 ],
-                "summary": "Get a source statistics",
+                "summary": "Get integration statistics",
                 "operationId": "getSourceStats",
                 "parameters": [{
                     "name": "source_id",
