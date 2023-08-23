@@ -489,8 +489,12 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                            "persistent_volume_claim": ArrayAgg("persistentvolumeclaim", distinct=True),
-                            "storage_class": ArrayAgg("storageclass", distinct=True),
+                            "persistent_volume_claim": ArrayAgg(
+                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                            ),
+                            "storage_class": ArrayAgg(
+                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                            ),
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
@@ -532,8 +536,12 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "persistent_volume_claim": ArrayAgg("persistentvolumeclaim", distinct=True),
-                            "storage_class": ArrayAgg("storageclass", distinct=True),
+                            "persistent_volume_claim": ArrayAgg(
+                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                            ),
+                            "storage_class": ArrayAgg(
+                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
@@ -543,17 +551,6 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_volume_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
-                        "conditionals": {
-                            OCPUsageLineItemDailySummary: {
-                                "filter": [
-                                    {
-                                        "field": "persistentvolumeclaim",
-                                        "operation": "isnull",
-                                        "parameter": False,
-                                    },
-                                ],
-                            },
-                        },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Mo",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
@@ -595,9 +592,9 @@ class OCPProviderMap(ProviderMap):
                 ("project",): OCPVolumeSummaryByProjectP,
                 ("cluster", "project"): OCPVolumeSummaryByProjectP,
                 ("persistentvolumeclaim",): OCPVolumeSummaryP,
-                ("persistentvolumeclaim", "cluster"): OCPVolumeSummaryP,
+                ("cluster", "persistentvolumeclaim"): OCPVolumeSummaryP,
                 ("persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
-                ("persistentvolumeclaim", "project", "cluster"): OCPVolumeSummaryByProjectP,
+                ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
         super().__init__(provider, report_type)
