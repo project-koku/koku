@@ -6345,6 +6345,16 @@
                         "type": "integer",
                         "format": "int64",
                         "example": 30
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 5
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 10
                     }
                 }
             },
@@ -9975,7 +9985,7 @@
                   }
                 }
               },
-              "UserSetting": {
+            "UserSetting": {
                 "properties": {
                     "setting": {
                     "type": "string"
