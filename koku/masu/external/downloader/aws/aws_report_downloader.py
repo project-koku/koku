@@ -100,7 +100,6 @@ def create_daily_archives(
     """
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
-    date_range = {}
     dates = set()
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
@@ -122,7 +121,6 @@ def create_daily_archives(
             if not dates:
                 return [], {}
             directory = os.path.dirname(local_file)
-            date_range = {"start": min(dates), "end": max(dates), "invoice_month": None}
             data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
@@ -133,6 +131,11 @@ def create_daily_archives(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
+    date_range = {
+        "start": min(dates),
+        "end": max(dates),
+        "invoice_month": None,
+    }
     return daily_file_names, date_range
 
 
