@@ -1,10 +1,10 @@
 from decimal import Decimal
 
 
-def _calculate_unused(row, update_row_values={}):
+def _calculate_unused(row, finalized_mapping={}):
     """Calculates the unused portions of the capacity & request."""
     # Populate unused request and capacity
-    for key, value in update_row_values.items():
+    for key, value in finalized_mapping.items():
         row[key] = value
     capacity = row.get("capacity", Decimal(0))
     if not capacity:

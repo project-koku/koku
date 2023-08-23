@@ -21,10 +21,10 @@ from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
+from api.report.ocp.dataclasses.cluster_capacity import ClusterCapacity
+from api.report.ocp.dataclasses.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
-from api.report.ocp.utils.cluster_capacity import ClusterCapacity
-from api.report.ocp.utils.common import _calculate_unused
-from api.report.ocp.utils.node_capacity import NodeCapacity
+from api.report.ocp.utils import _calculate_unused
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
@@ -123,9 +123,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         if is_grouped_by_node(self.parameters):
             # This adds the instance counts to the node group by.
-            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
+            if self._mapper.report_type_map.get("capacity_dataclass", {}).get("node"):
                 self.report_annotations.update(
-                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
+                    self._mapper.report_type_map.get("capacity_dataclass", {}).get("node", {})
                 )
 
         return annotations

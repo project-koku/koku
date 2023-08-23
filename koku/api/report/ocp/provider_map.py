@@ -201,7 +201,7 @@ class OCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "capacity_aggregate": {},
+                        "capacity_dataclass": {},
                         "delta_key": {
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
@@ -266,7 +266,7 @@ class OCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "capacity_aggregate": {},
+                        "capacity_dataclass": {},
                         "delta_key": {
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
@@ -300,11 +300,10 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
                         },
-                        "capacity_aggregate": {
+                        "capacity_dataclass": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_cpu_core_hours"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
-                                "capacity_count_units": Value("Core", output_field=CharField()),
                             },
                             "cluster_instance_counts": {
                                 "capacity_count": Max("node_capacity_cpu_cores"),
@@ -313,7 +312,6 @@ class OCPProviderMap(ProviderMap):
                             "node": {
                                 "capacity": Max("node_capacity_cpu_core_hours"),
                                 "capacity_count": Max("node_capacity_cpu_cores"),
-                                "capacity_count_units": Value("Core", output_field=CharField()),
                             },
                         },
                         "default_ordering": {"usage": "desc"},
@@ -397,7 +395,7 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
                         },
-                        "capacity_aggregate": {
+                        "capacity_dataclass": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
@@ -409,7 +407,6 @@ class OCPProviderMap(ProviderMap):
                             "node": {
                                 "capacity": Max("node_capacity_memory_gigabyte_hours"),
                                 "capacity_count": Max("node_capacity_memory_gigabytes"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
                             },
                         },
                         "default_ordering": {"usage": "desc"},
@@ -497,10 +494,9 @@ class OCPProviderMap(ProviderMap):
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                         },
                         "default_ordering": {"usage": "desc"},
-                        "capacity_aggregate": {
+                        "capacity_dataclass": {
                             "cluster": {
                                 "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "cluster_instance_counts": {
@@ -510,7 +506,6 @@ class OCPProviderMap(ProviderMap):
                             "node": {
                                 "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                                 "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
                             },
                         },
                         "annotations": {
