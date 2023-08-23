@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWS S3 utility functions."""
+import copy
 import io
 import logging
 import os.path
@@ -31,6 +32,7 @@ from masu.external.downloader.aws.aws_report_downloader import get_processing_da
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
+from masu.util.aws import common as utils
 from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
@@ -647,6 +649,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_interval = "identity/TimeInterval"
+        expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS)
+        expected_cols |= {"costCategory/qe_source", "costCategory/name", "costCategory/cost_env"}
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
@@ -656,9 +660,10 @@ class AWSReportDownloaderTest(MasuTestCase):
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
                     return_value=expected_date,
                 ):
-                    time_interval, process_date = get_processing_date(
+                    use_cols, time_interval, process_date = get_processing_date(
                         temp_path, None, 1, self.aws_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
+                    self.assertEqual(use_cols, expected_cols)
                     self.assertEqual(time_interval, expected_interval)
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
