@@ -131,8 +131,6 @@ RECOMMENDED_ALT_COLUMNS = {
 }
 
 OPTIONAL_COLS = {
-    "resourcetags",
-    "costcategory",
     "product/physicalCores",
     "product/instanceType",
     "product/vcpu",
@@ -140,8 +138,6 @@ OPTIONAL_COLS = {
 }
 
 OPTIONAL_ALT_COLS = {
-    "resource_tags",
-    "cost_category",
     "product_physical_cores",
     "product_instancetype",
     "product_vcpu",

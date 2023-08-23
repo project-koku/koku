@@ -649,7 +649,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_interval = "identity/TimeInterval"
-        expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS)
+        expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
         expected_cols |= {"costCategory/qe_source", "costCategory/name", "costCategory/cost_env"}
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)

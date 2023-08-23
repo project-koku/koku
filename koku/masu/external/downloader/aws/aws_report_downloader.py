@@ -61,12 +61,12 @@ def get_processing_date(
     try:
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
         optional_cols = ["resourcetags", "costcategory"]
-        base_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS)
+        base_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
     except ValueError:
         invoice_bill = "bill_invoice_id"
         time_interval = "identity_time_interval"
         optional_cols = ["resource_tags", "cost_category"]
-        base_cols = copy.deepcopy(utils.RECOMMENDED_ALT_COLUMNS)
+        base_cols = copy.deepcopy(utils.RECOMMENDED_ALT_COLUMNS) | copy.deepcopy(utils.OPTIONAL_ALT_COLS)
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
