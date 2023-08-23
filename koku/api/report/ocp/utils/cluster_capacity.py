@@ -8,10 +8,6 @@ from functools import cached_property
 from api.report.ocp.utils.common import _calculate_unused
 
 
-# TODO (cody): Figure out if I could combine these two classes into one.
-# Potentially, duck typing this class with the Node capacity.
-
-
 @dataclass
 class ClusterCapacitySubsets:
     """ """
