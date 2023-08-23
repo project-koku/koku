@@ -372,6 +372,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
+                        "count_units_key": "Core",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
@@ -399,7 +400,6 @@ class OCPProviderMap(ProviderMap):
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "cluster_instance_counts": {
@@ -470,6 +470,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Hours",
+                        "count_units_key": "GB",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
                     "volume": {
@@ -550,6 +551,7 @@ class OCPProviderMap(ProviderMap):
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Mo",
+                        "count_units_key": "GB",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
