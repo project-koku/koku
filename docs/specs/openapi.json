@@ -5560,7 +5560,95 @@
                     "basic_auth": []
                 }]
             }
-        }
+        },
+        "/settings/tags/": {
+            "get": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Query tags in Cost Management from cloud sources",
+                "operationId": "getSettingsTags",
+                "responses": {
+                    "200": {
+                        "description": "Returned tags sucessfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/SettingsTags"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameter"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/settings/tags/enable/": {
+            "put": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Enable tags in Cost Management",
+                "operationId": "putSettingsTagsEnable",
+                "parameters": [
+                    {
+                        "name": "ids",
+                        "description": "List of UUIDs to enable",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content",
+                    },
+                    "400": {
+                        "description": "Invalid request parameter"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/settings/tags/disable/": {}
     },
     "externalDocs": {
         "description": "Find out more about Cost Management",
@@ -5782,7 +5870,25 @@
                     "type": "string",
                     "enum": ["value", "-value"]
                 }
-            }
+            },
+            "SettingsTagsUUIDs": {
+                "in": "query",
+                "name": "ids",
+                "type": "array",
+                "required": [
+                    "ids"
+                ],
+                "properties": {
+                    "ids": {
+                        "type": "array",
+                        "example": [
+                            "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                            "67423602-0f13-47dc-ac09-4d145a9def35",
+                            "832a3858-d80f-4751-bbcc-b345febacf99"
+                        ]
+                    }
+                }
+            },
         },
         "securitySchemes": {
             "basic_auth": {
@@ -9770,6 +9876,32 @@
                         "type": "string"
                     }
                 }
+            },
+            "SettingsTags": {
+                "allof": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "example": [
+                                    {
+                                        "uuid": "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                                        "key": "openshift_project",
+                                        "enabled": false,
+                                        "source_type": "AWS"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ]
             },
             "GetAwsCategorySettings": {
                 "allOf": [{
