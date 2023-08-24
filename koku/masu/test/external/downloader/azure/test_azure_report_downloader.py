@@ -413,7 +413,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        expected_daily_files = [f"{temp_dir}/2019-07-28_0_0.csv", f"{temp_dir}/2019-07-29_0_0.csv"]
+        expected_daily_files = [f"{temp_dir}/2019-07-28_0.csv", f"{temp_dir}/2019-07-29_0.csv"]
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.azure_provider_uuid, temp_path, self.azure_manifest_id, start_date, None
