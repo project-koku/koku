@@ -210,12 +210,14 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
+    @patch("masu.external.downloader.aws.aws_report_downloader.create_daily_archives")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
     @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_download_file(self, fake_session, mock_remove, mock_check_size):
+    def test_download_file(self, fake_session, mock_remove, mock_check_size, mock_daily_archives):
         """Test the download file method."""
         mock_check_size.return_value = True
+        mock_daily_archives.return_value = [], {}
         downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
         with patch("masu.external.downloader.aws.aws_report_downloader.pd.read_csv"):
             downloader.download_file(self.fake.file_path(), manifest_id=1)
