@@ -94,6 +94,7 @@ class OCPCloudUpdaterBase:
         # Save to DB
         self.set_provider_infra_map(infra_map)
 
+        set_cached_infra_map(self._schema, self._provider.type, self._provider_uuid, infra_map)
         return infra_map
 
     def _generate_ocp_infra_map_from_sql_trino(self, start_date, end_date):

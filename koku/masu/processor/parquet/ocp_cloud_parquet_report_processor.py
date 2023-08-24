@@ -20,6 +20,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import is_postgres_ocpinfra_map_cost_4118
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
@@ -86,7 +87,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST and str(self.provider_uuid) not in infra_provider_uuids:
             # When running for an Infrastructure provider we want all
             # of the matching clusters to run
-            infra_map = updater._generate_ocp_infra_map_from_sql_trino(self.start_date, self.end_date)
+            if is_postgres_ocpinfra_map_cost_4118(self._schema_name):
+                infra_map = updater._generate_ocp_infra_map_from_sql(self.start_date, self.end_date)
+            else:
+                infra_map = updater._generate_ocp_infra_map_from_sql_trino(self.start_date, self.end_date)
 
         return infra_map
 

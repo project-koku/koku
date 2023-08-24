@@ -14,6 +14,7 @@ from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor import is_postgres_ocpinfra_map_cost_4118
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -162,10 +163,12 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         LOG.info(log_json(msg="checking if OCP cluster is running on cloud infrastructure", context=self._context))
 
         updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
-        if (
-            infra_map := updater_base.get_infra_map_from_providers()
-            or updater_base._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
-        ):
+        updater_method_name = "_generate_ocp_infra_map_from_sql_trino"
+        if is_postgres_ocpinfra_map_cost_4118(self._schema):
+            updater_method_name = "_generate_ocp_infra_map_from_sql"
+
+        updater_method = getattr(updater_base, updater_method_name)
+        if infra_map := updater_base.get_infra_map_from_providers() or updater_method(start_date, end_date):
             for ocp_source, infra_tuple in infra_map.items():
                 LOG.info(
                     log_json(

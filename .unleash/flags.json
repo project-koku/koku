@@ -260,6 +260,24 @@
             ],
             "variants": [],
             "createdAt": "2023-04-06T09:40:54.492Z"
+        },
+        {
+            "name": "cost-management.backend.postgres_ocpinfra_map_cost_4118",
+            "description": "A list of customers to .",
+            "type": "operational",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    }
+                }
+            ],
+            "variants": [],
+            "createdAt": "2023-08-23T18:49:38.445Z"
         }
     ],
     "strategies": [
