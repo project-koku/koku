@@ -32,7 +32,7 @@ from reporting.provider.aws.models import AWSCostEntryBill
 LOG = logging.getLogger(__name__)
 
 
-REQUIRED_COLUMNS = {
+RECOMMENDED_COLUMNS = {
     "bill/BillingEntity",
     "bill/BillType",
     "bill/PayerAccountId",
@@ -81,7 +81,7 @@ REQUIRED_COLUMNS = {
     "reservation/EndTime",
 }
 
-REQUIRED_ALT_COLUMNS = {
+RECOMMENDED_ALT_COLUMNS = {
     "bill_billing_entity",
     "bill_bill_type",
     "bill_payer_account_id",
@@ -131,8 +131,6 @@ REQUIRED_ALT_COLUMNS = {
 }
 
 OPTIONAL_COLS = {
-    "resourcetags",
-    "costcategory",
     "product/physicalCores",
     "product/instanceType",
     "product/vcpu",
@@ -140,8 +138,6 @@ OPTIONAL_COLS = {
 }
 
 OPTIONAL_ALT_COLS = {
-    "resource_tags",
-    "cost_category",
     "product_physical_cores",
     "product_instancetype",
     "product_vcpu",
