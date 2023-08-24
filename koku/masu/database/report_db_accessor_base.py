@@ -182,7 +182,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
-        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
+        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, remaining_attempts=attempts_left, context=ctx))
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
