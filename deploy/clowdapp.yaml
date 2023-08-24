@@ -311,6 +311,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -667,6 +669,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1186,6 +1190,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1367,6 +1373,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1550,6 +1558,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1733,6 +1743,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1916,6 +1928,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2099,6 +2113,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2284,6 +2300,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2469,6 +2487,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2652,6 +2672,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2835,6 +2857,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3018,6 +3042,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3201,6 +3227,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3384,6 +3412,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3569,6 +3599,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3752,6 +3784,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3897,6 +3931,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -4294,6 +4330,10 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
+- description: Number of seconds to wait before retrying Trino SQL
+  displayName: Hive wait time
+  name: HIVE_WAIT_TIME
+  value: "10"
 - description: Flag to use account enhanced prometheus metricsworker
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS

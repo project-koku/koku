@@ -61,6 +61,8 @@
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: HIVE_WAIT_TIME
+          value: ${HIVE_WAIT_TIME}
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT

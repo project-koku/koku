@@ -358,6 +358,10 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
+- description: Number of seconds to wait before retrying Trino SQL
+  displayName: Hive wait time
+  name: HIVE_WAIT_TIME
+  value: "10"
 
 - description: Flag to use account enhanced prometheus metricsworker
   displayName: Account Enhanced Metrics

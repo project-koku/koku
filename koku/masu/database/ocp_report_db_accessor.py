@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import pkgutil
+import time
 import uuid
 
 from dateutil.parser import parse
@@ -267,12 +268,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "gcp_provider_uuid": gcp_provider_uuid,
                     "resource_level": resource_level,
                 }
+                retries = settings.HIVE_RETRIES
+                wait_time = settings.HIVE_WAIT_TIME
+                for i in range(retries):
+                    try:
+                        results = self._execute_trino_raw_sql_query(
+                            sql,
+                            sql_params=sql_params,
+                            log_ref="reporting_ocpinfrastructure_provider_map.sql",
+                            attempts_left=(retries - 1) - i,
+                        )
+                        break
+                    except TrinoExternalError as err:
+                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            raise err
 
-                results = self._execute_trino_raw_sql_query(
-                    sql,
-                    sql_params=sql_params,
-                    log_ref="reporting_ocpinfrastructure_provider_map.sql",
-                )
                 for entry in results:
                     # This dictionary is keyed on an OpenShift provider UUID
                     # and the tuple contains
