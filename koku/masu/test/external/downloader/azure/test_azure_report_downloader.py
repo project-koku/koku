@@ -386,10 +386,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2020-09-01_0_0.csv",
-            f"{temp_dir}/2020-09-10_0_0.csv",
-            f"{temp_dir}/2020-09-11_0_0.csv",
-            f"{temp_dir}/2020-09-22_0_0.csv",
+            f"{temp_dir}/2020-09-01_0.csv",
+            f"{temp_dir}/2020-09-10_0.csv",
+            f"{temp_dir}/2020-09-11_0.csv",
+            f"{temp_dir}/2020-09-22_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2020, month=9, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
