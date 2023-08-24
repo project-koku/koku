@@ -9,8 +9,12 @@ from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from django_filters import MultipleChoiceFilter
+from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import FilterSet
 from django_tenants.utils import schema_context
+from django.core.exceptions import FieldError
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import QuerySet
 from querystring_parser import parser
 from rest_framework.exceptions import ValidationError
 
@@ -27,6 +31,14 @@ from reporting.user_settings.models import UserSettings
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
+
+class NonValidatingMultipleChoiceField(MultipleChoiceField):
+    def validate(self, value):
+        pass
+
+
+class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
+    field_class = NonValidatingMultipleChoiceField
 
 
 class SettingsFilter(FilterSet):

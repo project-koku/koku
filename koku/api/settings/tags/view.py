@@ -3,8 +3,6 @@ import logging
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import ModelMultipleChoiceFilter
-from django_filters import MultipleChoiceFilter
-from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -16,20 +14,12 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tags.serializers import SettingsTagIDSerializer
 from api.settings.tags.serializers import SettingsTagSerializer
+from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
-
-
-class NonValidatingMultipleChoiceField(MultipleChoiceField):
-    def validate(self, value):
-        pass
-
-
-class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
-    field_class = NonValidatingMultipleChoiceField
 
 
 class SettingsTagFilter(SettingsFilter):
