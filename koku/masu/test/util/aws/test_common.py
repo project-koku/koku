@@ -456,6 +456,33 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(removed, [])
 
+    def test_clear_s3_files(self):
+        """Test clearing s3 files."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        context = {"account": self.account_id, "provider_type": self.aws_provider.type}
+        date_accessor = DateAccessor()
+        start_date = date_accessor.today_with_timezone("UTC").replace(day=1).replace(tzinfo=None)
+        s3_csv_path = get_path_prefix(
+            self.account_id, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, Config.CSV_DATA_TYPE
+        )
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils.clear_s3_files(s3_csv_path, self.aws_provider_uuid, start_date, context, "requiest_id")
+                mock_delete.assert_called
+
     def test_remove_s3_objects_matching_metadata(self):
         """Test remove_s3_objects_matching_metadata."""
         metadata_key = "manifestid"
@@ -676,10 +703,20 @@ class TestAWSUtils(MasuTestCase):
         """test getting daily archive start date"""
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
-        result = utils.get_or_clear_daily_s3_by_date(
-            "None", start_date, end_date, 1, {"context": "test"}, "request_id"
-        )
-        self.assertEqual(result, start_date)
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+            return_value=None,
+        ):
+            result = utils.get_or_clear_daily_s3_by_date(
+                "None",
+                "provider_uuid",
+                start_date,
+                end_date,
+                1,
+                {"account": "test", "provider_type": "AWS"},
+                "request_id",
+            )
+            self.assertEqual(result, start_date)
 
 
 class AwsArnTest(TestCase):

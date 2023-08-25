@@ -22,10 +22,12 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
+from masu.util.common import get_path_prefix
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import AWSCostEntryBill
 
@@ -572,16 +574,20 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, context, request_id):
+def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_date, manifest_id, context, request_id):
     """
-    Fetches latest processed date based on daily csv files or clears all csv's to process full month
+    Fetches latest processed date based on daily csv files and clears relevant s3 files
     """
-    processing_date = start_date
+    # We do this if we have multiple workers running different files for a single manifest.
+    processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+    if processing_date:
+        return processing_date
+    processing_date = start_date.replace(tzinfo=None)
     try:
         s3_date = None
-        for obj_summary in _get_s3_objects(s3_path):
+        for obj_summary in _get_s3_objects(csv_s3_path):
             existing_object = obj_summary.Object()
-            date = datetime.datetime.strptime(existing_object.key.split(f"{s3_path}/")[1].split("_")[0], DATE_FMT)
+            date = datetime.datetime.strptime(existing_object.key.split(f"{csv_s3_path}/")[1].split("_")[0], DATE_FMT)
             if not s3_date:
                 s3_date = date
             else:
@@ -592,7 +598,10 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, co
             process_date = s3_date if s3_date < end_date else end_date
             processing_date = (
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
-            )
+            ).replace(tzinfo=None)
+            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+            # clear s3 files for processing dates
+            clear_s3_files(csv_s3_path, provider_uuid, processing_date, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
@@ -606,9 +615,10 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, co
                 bucket=settings.S3_BUCKET_NAME,
             ),
         )
+        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
         to_delete = get_s3_objects_not_matching_metadata(
             request_id,
-            s3_path,
+            csv_s3_path,
             metadata_key="manifestid",
             metadata_value_check=manifest_id,
             context=context,
@@ -620,7 +630,7 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, co
         LOG.info(
             log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
         )
-    return processing_date.replace(tzinfo=None)
+    return processing_date
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
@@ -756,6 +766,33 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
             exc_info=err,
         )
     return []
+
+
+def clear_s3_files(csv_s3_path, provider_uuid, start_date, context, request_id):
+    """Clear s3 files for daily archive processing AWS/Azure ONLY"""
+    account = context.get("account")
+    provider_type = context.get("provider_type")
+    parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
+    parquet_daily_path_s3 = get_path_prefix(
+        account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True
+    )
+    parquet_ocp_on_cloud_path_s3 = get_path_prefix(
+        account, provider_type, provider_uuid, start_date, "parquet", report_type="openshift", daily=True
+    )
+    s3_prefixes = []
+    dh = DateHelper()
+    list_days = dh.list_days(start_date, dh.now.replace(tzinfo=None))
+    for day in list_days:
+        path = f"/{day.date()}"
+        s3_prefixes.append(csv_s3_path + path)
+        s3_prefixes.append(parquet_path_s3 + path)
+        s3_prefixes.append(parquet_daily_path_s3 + path)
+        s3_prefixes.append(parquet_ocp_on_cloud_path_s3 + path)
+    to_delete = []
+    for prefix in s3_prefixes:
+        for obj_summary in _get_s3_objects(prefix):
+            to_delete.append(obj_summary.Object().key)
+    delete_s3_objects(request_id, to_delete, context)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):
