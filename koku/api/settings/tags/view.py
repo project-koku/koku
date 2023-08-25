@@ -19,11 +19,13 @@ from api.settings.utils import SettingsFilter
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
 
+ENABLED_TAG_KEYS_QS = EnabledTagKeys.objects.all()
 LOG = logging.getLogger(__name__)
 
 
 class SettingsTagFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
+    uuid = ModelMultipleChoiceFilter(to_field_name="uuid", queryset=ENABLED_TAG_KEYS_QS)
     source_type = ModelMultipleChoiceFilter(
         to_field_name="provider_type",
         queryset=EnabledTagKeys.objects.all(),
@@ -31,7 +33,7 @@ class SettingsTagFilter(SettingsFilter):
 
     class Meta:
         model = EnabledTagKeys
-        fields = ("enabled", "uuid")
+        fields = ("enabled",)
         default_ordering = ["provider_type", "-enabled"]
         translation: dict[str, str] = {
             "source_type": "provider_type",
