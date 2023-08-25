@@ -26,9 +26,11 @@ LOG = logging.getLogger(__name__)
 class SettingsTagFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
     uuid = ModelMultipleChoiceFilter(to_field_name="uuid", queryset=ENABLED_TAG_KEYS_QS)
+    provider_type = ModelMultipleChoiceFilter(to_field_name="provider_type", queryset=ENABLED_TAG_KEYS_QS)
     source_type = ModelMultipleChoiceFilter(
+        field_name="provider_type",
         to_field_name="provider_type",
-        queryset=EnabledTagKeys.objects.all(),
+        queryset=ENABLED_TAG_KEYS_QS,
     )
 
     class Meta:
