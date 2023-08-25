@@ -37,9 +37,6 @@ class SettingsTagFilter(SettingsFilter):
         model = EnabledTagKeys
         fields = ("enabled",)
         default_ordering = ["provider_type", "-enabled"]
-        translation: dict[str, str] = {
-            "source_type": "provider_type",
-        }
 
 
 class SettingsTagView(generics.GenericAPIView):

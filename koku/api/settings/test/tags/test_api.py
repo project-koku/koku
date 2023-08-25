@@ -68,12 +68,20 @@ class TagsSettings(IamTestCase):
 
     def test_get_tags_filtering(self):
         test_matrix = (
+            # Custom syntax
             {"filter": {"filter[source_type]": "AWS"}, "key": "source_type", "expected": {"AWS"}},
             {"filter": {"filter[source_type]": ["AWS", "GCP"]}, "key": "source_type", "expected": {"AWS", "GCP"}},
             {"filter": {"filter[key]": "env"}, "key": "key", "expected": {"env", "Environment"}},
             {"filter": {"filter[enabled]": True}, "key": "enabled", "expected": {True}},
             {"filter": {"filter[enabled]": "true"}, "key": "enabled", "expected": {True}},
             {"filter": {"filter[enabled]": "false"}, "key": "enabled", "expected": {False}},
+            # DRF Syntax
+            {"filter": {"source_type": "AWS"}, "key": "source_type", "expected": {"AWS"}},
+            {"filter": {"provider_type": ["AWS", "GCP"]}, "key": "source_type", "expected": {"AWS", "GCP"}},
+            {"filter": {"key": "env"}, "key": "key", "expected": {"env", "Environment"}},
+            {"filter": {"enabled": True}, "key": "enabled", "expected": {True}},
+            {"filter": {"enabled": "true"}, "key": "enabled", "expected": {True}},
+            {"filter": {"enabled": "false"}, "key": "enabled", "expected": {False}},
         )
         tags_url = reverse("settings-tags")
 
@@ -92,7 +100,7 @@ class TagsSettings(IamTestCase):
                 self.assertLessEqual(count, self.total_record_length)
 
     def test_tags_order_by(self):
-        """Test one or more order_by patameres using two syntaxes
+        """Test one or more order_by parameters using two syntaxes.
 
         Standard Django ordering:
             No prefix is ascending order. A '-' prefix is descending order.
@@ -108,16 +116,26 @@ class TagsSettings(IamTestCase):
 
         tags_url = reverse("settings-tags")
         test_matrix = (
+            # DRF syntax
             {"order": {"order_by": "enabled"}, "key": "enabled", "expected": False},
             {"order": {"order_by": "-enabled"}, "key": "enabled", "expected": True},
+            {"order": {"order_by": "provider_type"}, "key": "source_type", "expected": "AWS"},
+            {"order": {"order_by": "source_type"}, "key": "source_type", "expected": "AWS"},
+            {"order": {"order_by": ["source_type", "key"]}, "key": "source_type", "expected": "AWS"},
+            {"order": {"order_by": "-key"}, "key": "key", "expected": "zoo"},
+            # Custom syntax
             {"order": {"order_by[key]": "desc"}, "key": "key", "expected": "zoo"},
             {
                 "order": {"order_by[source_type]": "asc", "order_by[key]": "desc"},
                 "keys": ("source_type", "key"),
                 "expected": ("AWS", "zoo"),
             },
+            {
+                "order": {"order_by[provider_type]": "asc", "order_by[key]": "desc"},
+                "keys": ("source_type", "key"),
+                "expected": ("AWS", "zoo"),
+            },
         )
-
         for test_case in test_matrix:
             with self.subTest():
                 with schema_context(self.schema_name):
@@ -211,6 +229,18 @@ class TagsSettings(IamTestCase):
 
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("invalid uuid supplied", error_details)
+
+    def test_get_tags_bad_filter_key(self):
+        tags_url = reverse("settings-tags")
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            response = client.get(tags_url, {"filter[NOPE]": "aws"}, **self.headers)
+
+        error_detail = response.data.get("errors", [{}])[0].get("detail").lower()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unsupported parameter or invalid value", error_detail)
 
     def test_get_tags_bad_filter_value(self):
         tags_url = reverse("settings-tags")

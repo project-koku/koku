@@ -12,9 +12,6 @@ from django_filters import MultipleChoiceFilter
 from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import FilterSet
 from django_tenants.utils import schema_context
-from django.core.exceptions import FieldError
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import QuerySet
 from querystring_parser import parser
 from rest_framework.exceptions import ValidationError
 
@@ -31,6 +28,7 @@ from reporting.user_settings.models import UserSettings
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
+
 
 class NonValidatingMultipleChoiceField(MultipleChoiceField):
     def validate(self, value):
@@ -51,32 +49,16 @@ class SettingsFilter(FilterSet):
 
         if isinstance(order_by_params, list):
             # Already a list, just return it.
-            translated = []
-            for item in order_by_params:
-                bare_param = item.lstrip("-")
-                if replace := self.Meta.translation.get(bare_param):
-                    translated.append(item.replace(bare_param, replace))
-                else:
-                    translated.append(item)
-
-            return translated
+            return order_by_params
 
         if isinstance(order_by_params, str):
             # If only one order_by parameter was given, it is a string.
-            translated = [order_by_params]
-            bare_param = order_by_params.lstrip("-")
-            if replace := self.Meta.translation.get(bare_param):
-                translated = [order_by_params.replace(bare_param, replace)]
-
-            return translated
+            return [order_by_params]
 
         # Support order_by[field]=desc
         if isinstance(order_by_params, dict):
             result = set()
             for field, order in order_by_params.items():
-                extra_info = getattr(self.base_filters.get(field), "extra", {})
-                if to_field_name := extra_info.get("to_field_name"):
-                    field = to_field_name
                 try:
                     # If a field is provided more than once, take the first sorting parameter
                     order = order.pop(0)
@@ -94,6 +76,53 @@ class SettingsFilter(FilterSet):
         # Got something unexpected
         raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
 
+    def _get_field_name(self, field: str) -> tuple[str, str]:
+        """Get the field name from the filter and return a filtering prefix if present"""
+        prefix = "-" if field.startswith("-") else ""
+        field = field.lstrip("-")
+        translated_field = getattr(self.filters.get(field, {}), "field_name", field)
+
+        return prefix, translated_field
+
+    def _translate_fields(
+        self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None]
+    ) -> t.Union[str, list[str, ...], dict[str, str]]:
+        """Get the correct field names for the given parameters.
+
+        If the filter has a `to_field` attribute, use that for filtering instead
+        of the filter attribute name.
+
+        List and str values are from the standard filtering syntax:
+
+            /?order_by=-field&order_by=key
+
+        A dictionary value comes from this query syntax:
+
+            /?order_by[field]=asc
+        """
+        if order_by_params is None:
+            return
+
+        if isinstance(order_by_params, list):
+            result = []
+            for param in order_by_params:
+                prefix, translated_field = self._get_field_name(param)
+                result.append(f"{prefix}{translated_field}")
+
+            return result
+
+        if isinstance(order_by_params, str):
+            prefix, translated_field = self._get_field_name(order_by_params)
+            return f"{prefix}{translated_field}"
+
+        if isinstance(order_by_params, dict):
+            result = {}
+            for field, filter in order_by_params.items():
+                prefix, translated_field = self._get_field_name(field)
+                result[translated_field] = filter
+
+            return result
+
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         order_by = self._get_order_by()
 
@@ -109,7 +138,6 @@ class SettingsFilter(FilterSet):
 
             # Multiple choice filter fields need to be a list. If only one filter
             # is provided, it will be a string.
-
             multiple_choice_fields = [
                 field for field, filter in self.base_filters.items() if isinstance(filter, MultipleChoiceFilter)
             ]
@@ -128,7 +156,7 @@ class SettingsFilter(FilterSet):
                 except DjangoValidationError as vexc:
                     raise ValidationError(vexc.message % vexc.params)
 
-            order_by = self._get_order_by(query_params.get("order_by"))
+            order_by = self._get_order_by(self._translate_fields(query_params.get("order_by")))
 
         try:
             return super().filter_queryset(queryset).order_by(*order_by)
