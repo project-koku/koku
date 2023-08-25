@@ -42,13 +42,6 @@ class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
 
 
 class SettingsFilter(FilterSet):
-    def generate_cleaned_data(self, name, value):
-        """converts data to internal python value, and uses the correct field name"""
-        extra_info = self.base_filters.get(name).extra
-        if to_field_name := extra_info.get("to_field_name"):
-            self.filters[name].field_name = to_field_name
-
-        self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
     def _get_order_by(
         self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
     ) -> list[str, ...]:
@@ -131,7 +124,7 @@ class SettingsFilter(FilterSet):
             # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
                 try:
-                    self.generate_cleaned_data(name, value)
+                    self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
                 except DjangoValidationError as vexc:
                     raise ValidationError(vexc.message % vexc.params)
 
