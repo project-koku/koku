@@ -45,7 +45,7 @@ class SettingsTagFilter(SettingsFilter):
 class SettingsTagView(generics.GenericAPIView):
     queryset = EnabledTagKeys.objects.all()
     serializer_class = SettingsTagSerializer
-    permission_classes = [SettingsAccessPermission]
+    permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SettingsTagFilter
 
