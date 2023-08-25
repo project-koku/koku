@@ -19,7 +19,7 @@ class TestROSReportShipper(TestCase):
         super().setUpClass()
         cls.schema_name = "org1234567"
         cls.b64_identity = "identity"
-        cls.source_id = 4
+        cls.source_id = "4"
         cls.provider_uuid = "1b09c37c-a0ca-4ad0-ac08-8db88e55e08f"
         cls.request_id = "4"
         cls.cluster_id = "ros-ocp-cluster-test"
