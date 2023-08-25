@@ -25,6 +25,7 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
+from api.provider.models import Sources
 from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
 from kafka_utils.utils import get_producer
@@ -226,6 +227,14 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
     return daily_parquet_files
 
 
+def _get_source_id(provider_uuid):
+    """Obtain the source id for a given provider uuid."""
+    source = Sources.objects.filter(koku_uuid=provider_uuid).first()
+    if source:
+        return source.source_id
+    return None
+
+
 # pylint: disable=too-many-locals
 def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     """
@@ -306,9 +315,14 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
+    source_id = None
+    provider_uuid = account.get("provider_uuid")
+    if provider_uuid:
+        source_id = _get_source_id(provider_uuid)
     context["provider_type"] = provider_type
     context["schema"] = schema_name
-    report_meta["provider_uuid"] = account.get("provider_uuid")
+    report_meta["source_id"] = source_id
+    report_meta["provider_uuid"] = provider_uuid
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
     # Existing schema will start with acct and we strip that prefix for use later
