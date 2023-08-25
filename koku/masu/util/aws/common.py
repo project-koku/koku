@@ -574,9 +574,7 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_daily_s3_by_date(  # noqa: C901
-    csv_s3_path, provider_uuid, start_date, end_date, manifest_id, context, request_id
-):
+def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_date, manifest_id, context, request_id):
     """
     Fetches latest processed date based on daily csv files and clears relevant s3 files
     """
@@ -602,30 +600,8 @@ def get_or_clear_daily_s3_by_date(  # noqa: C901
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
             ).replace(tzinfo=None)
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
-            # clear parquet files
-            account = context.get("account")
-            provider_type = context.get("provider_type")
-            parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
-            parquet_daily_path_s3 = get_path_prefix(
-                account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True
-            )
-            parquet_ocp_on_cloud_path_s3 = get_path_prefix(
-                account, provider_type, provider_uuid, start_date, "parquet", report_type="openshift", daily=True
-            )
-            s3_prefixes = []
-            dh = DateHelper()
-            list_days = dh.list_days(processing_date, dh.now.replace(tzinfo=None))
-            for day in list_days:
-                path = f"/{day.date()}"
-                s3_prefixes.append(csv_s3_path + path)
-                s3_prefixes.append(parquet_path_s3 + path)
-                s3_prefixes.append(parquet_daily_path_s3 + path)
-                s3_prefixes.append(parquet_ocp_on_cloud_path_s3 + path)
-            to_delete = []
-            for prefix in s3_prefixes:
-                for obj_summary in _get_s3_objects(prefix):
-                    to_delete.append(obj_summary.Object().key)
-            delete_s3_objects(request_id, to_delete, context)
+            # clear s3 files for processing dates
+            clear_s3_files(csv_s3_path, provider_uuid, processing_date, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
@@ -790,6 +766,33 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
             exc_info=err,
         )
     return []
+
+
+def clear_s3_files(csv_s3_path, provider_uuid, start_date, context, request_id):
+    """Clear s3 files for daily archive processing AWS/Azure ONLY"""
+    account = context.get("account")
+    provider_type = context.get("provider_type")
+    parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
+    parquet_daily_path_s3 = get_path_prefix(
+        account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True
+    )
+    parquet_ocp_on_cloud_path_s3 = get_path_prefix(
+        account, provider_type, provider_uuid, start_date, "parquet", report_type="openshift", daily=True
+    )
+    s3_prefixes = []
+    dh = DateHelper()
+    list_days = dh.list_days(start_date, dh.now.replace(tzinfo=None))
+    for day in list_days:
+        path = f"/{day.date()}"
+        s3_prefixes.append(csv_s3_path + path)
+        s3_prefixes.append(parquet_path_s3 + path)
+        s3_prefixes.append(parquet_daily_path_s3 + path)
+        s3_prefixes.append(parquet_ocp_on_cloud_path_s3 + path)
+    to_delete = []
+    for prefix in s3_prefixes:
+        for obj_summary in _get_s3_objects(prefix):
+            to_delete.append(obj_summary.Object().key)
+    delete_s3_objects(request_id, to_delete, context)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):

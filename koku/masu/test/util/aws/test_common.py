@@ -676,10 +676,20 @@ class TestAWSUtils(MasuTestCase):
         """test getting daily archive start date"""
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
-        result = utils.get_or_clear_daily_s3_by_date(
-            "None", start_date, end_date, 1, {"context": "test"}, "request_id"
-        )
-        self.assertEqual(result, start_date)
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+            return_value=None,
+        ):
+            result = utils.get_or_clear_daily_s3_by_date(
+                "None",
+                "provider_uuid",
+                start_date,
+                end_date,
+                1,
+                {"account": "test", "provider_type": "AWS"},
+                "request_id",
+            )
+            self.assertEqual(result, start_date)
 
 
 class AwsArnTest(TestCase):
