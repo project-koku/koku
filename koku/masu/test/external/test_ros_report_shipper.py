@@ -19,6 +19,7 @@ class TestROSReportShipper(TestCase):
         super().setUpClass()
         cls.schema_name = "org1234567"
         cls.b64_identity = "identity"
+        cls.source_id = 4
         cls.provider_uuid = "1b09c37c-a0ca-4ad0-ac08-8db88e55e08f"
         cls.request_id = "4"
         cls.cluster_id = "ros-ocp-cluster-test"
@@ -27,6 +28,7 @@ class TestROSReportShipper(TestCase):
         test_report_meta = {
             "cluster_id": cls.cluster_id,
             "manifest_id": "300",
+            "source_id": cls.source_id,
             "provider_uuid": cls.provider_uuid,
             "request_id": cls.request_id,
             "schema_name": cls.schema_name,
@@ -109,7 +111,8 @@ class TestROSReportShipper(TestCase):
             "metadata": {
                 "account": self.account_id,
                 "org_id": self.org_id,
-                "source_id": self.provider_uuid,
+                "source_id": self.source_id,
+                "provider_uuid": self.provider_uuid,
                 "cluster_uuid": self.cluster_id,
                 "cluster_alias": "my-source-name",
             },
