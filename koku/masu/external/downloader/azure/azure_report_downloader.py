@@ -104,8 +104,8 @@ def create_daily_archives(
     """
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
-    date_range = {}
     dates = set()
+    batch_date_range = set()
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
@@ -126,23 +126,24 @@ def create_daily_archives(
                 return [], {}
 
             dates = data_frame[time_interval].unique()
-            date_range = {
-                "start": data_frame.index[0].strftime(DATE_FORMAT),
-                "end": data_frame.index[-1].strftime(DATE_FORMAT),
-                "invoice_month": None,
-            }
-
+            batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
+            batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
             directory = os.path.dirname(local_file)
             for date in dates:
                 daily_data = data_frame.loc[date]
                 day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
-                day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id, i)
+                day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
+    date_range = {
+        "start": min(batch_date_range),
+        "end": max(batch_date_range),
+        "invoice_month": None,
+    }
     return daily_file_names, date_range
 
 

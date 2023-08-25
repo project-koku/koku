@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Project Koku and OpenShift cost management. You can find out more about Project Koku at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "description": "The API for Cost Management",
         "version": "1.0.2",
         "title": "Cost Management",
         "license": {

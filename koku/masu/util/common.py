@@ -534,11 +534,22 @@ def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_i
     """Add optional columns to columns list if they exists in files"""
     for fetch_column in fetch_columns:
         try:
-            data_frame = pd.read_csv(local_file, usecols=lambda col: col.lower().startswith(fetch_column.lower()))
-            data_frame = data_frame.dropna(axis=1, how="all")
-            fetch_cols = data_frame.columns
-            for col in fetch_cols:
-                current_columns.add(col)
+            data_frame = pd.read_csv(
+                local_file, usecols=lambda col: col.lower().startswith(fetch_column.lower()), nrows=0
+            )
+            header_chunks = chunk_columns(data_frame.columns, settings.PANDAS_COLUMN_BATCH_SIZE)
+            # Chunk out the headers for excessive tag git statcolumn counts
+            for header_chunk in header_chunks:
+                data_frame = pd.read_csv(local_file, usecols=header_chunk)
+                data_frame = data_frame.dropna(axis=1, how="all")
+                fetch_cols = data_frame.columns
+                for col in fetch_cols:
+                    current_columns.add(col)
         except ValueError:
             LOG.info(log_json(tracing_id, msg=f"customer has no {fetch_column} data to parse", context=context))
     return current_columns
+
+
+def chunk_columns(col_list, chunk_count):
+    for i in range(0, len(col_list), chunk_count):
+        yield list(col_list[i : i + chunk_count])
