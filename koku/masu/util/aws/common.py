@@ -771,7 +771,8 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
 def clear_s3_files(csv_s3_path, provider_uuid, start_date, context, request_id):
     """Clear s3 files for daily archive processing AWS/Azure ONLY"""
     account = context.get("account")
-    provider_type = context.get("provider_type")
+    # This fixes local providers s3/minio paths for deletes
+    provider_type = context.get("provider_type").strip("-local")
     parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
     parquet_daily_path_s3 = get_path_prefix(
         account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True
