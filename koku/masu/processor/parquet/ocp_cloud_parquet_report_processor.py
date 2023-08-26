@@ -135,9 +135,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Create a parquet file for daily aggregated data."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
-                parquet_base_filename = (
-                    f"{data_frame['invoice_month'].values[0]}{parquet_base_filename[parquet_base_filename.find('_'):]}"
-                )
+                # TODO This may case us to overwrite partial GCP files
+                parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{parquet_base_filename}"
         file_name = f"{parquet_base_filename}_{file_number}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
@@ -190,7 +189,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             base_filename = f"{usage_date}_p"
             counter = ReportManifestDBAccessor().update_and_get_parquet_batch_counter(base_filename, manifest_id)
             # Parquet base filename dates here DO NOT match the data written to them
-            base_file_date = parquet_base_filename.split("_")[0]
+            split_base_name = parquet_base_filename.split("_")
+            base_file_date = split_base_name[0]
+            if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                # GCP filenames start with an invoice month before the date
+                base_file_date = f"{base_file_date}_{split_base_name[1]}"
             non_date_base_name = parquet_base_filename.removeprefix(base_file_date)
             usage_day_file_name = f"{usage_date}{non_date_base_name}"
             self.start_date = usage_date
