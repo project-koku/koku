@@ -428,13 +428,8 @@ class AzureReportDownloaderTest(MasuTestCase):
             os.remove(daily_file)
         os.remove(temp_path)
 
-    @patch(
-        "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
-        return_value=None,
-    )
-    @patch("masu.external.downloader.azure.azure_report_downloader.get_or_clear_daily_s3_by_date")
     @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date")
-    def test_get_processing_date(self, mock_set_start, mock_daily_start, mock_manifest_start):
+    def test_get_processing_date(self, mock_set_start):
         """Test getting dataframe with date for processing."""
         file_name = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
@@ -443,14 +438,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         expected_interval = "UsageDateTime"
         start_date = DateHelper().this_month_start.replace(year=2123, month=12, tzinfo=None)
-        end_date = DateHelper().this_month_start.replace(year=2123, month=12, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
-        mock_daily_start.return_value = expected_date
         with patch("masu.util.common.check_setup_complete", return_Value=True):
-            time_interval, process_date = get_processing_date(
-                temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
-            )
-            mock_daily_start.assert_called()
+            time_interval, process_date = get_processing_date(temp_path, 1, self.azure_provider_uuid, start_date)
             self.assertEqual(time_interval, expected_interval)
             self.assertEqual(process_date, expected_date)
             os.remove(temp_path)

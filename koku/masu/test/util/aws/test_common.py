@@ -480,7 +480,15 @@ class TestAWSUtils(MasuTestCase):
                 matching_summary,
             ]
             with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
-                utils.clear_s3_files(s3_csv_path, self.aws_provider_uuid, start_date, context, "requiest_id")
+                utils.clear_s3_files(
+                    s3_csv_path,
+                    self.schema_name,
+                    self.aws_provider.type,
+                    self.aws_provider_uuid,
+                    start_date,
+                    context,
+                    "requiest_id",
+                )
                 mock_delete.assert_called
 
     def test_remove_s3_objects_matching_metadata(self):
@@ -709,14 +717,15 @@ class TestAWSUtils(MasuTestCase):
         ):
             result = utils.get_or_clear_daily_s3_by_date(
                 "None",
+                "test",
                 "provider_uuid",
+                "AWS",
                 start_date,
                 end_date,
                 1,
-                {"account": "test", "provider_type": "AWS"},
                 "request_id",
             )
-            self.assertEqual(result, start_date)
+            self.assertEqual(result, start_date.date())
 
 
 class AwsArnTest(TestCase):

@@ -39,9 +39,7 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_processing_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
-):
+def get_processing_date(local_file, manifest_id, provider_uuid, start_date):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
 

@@ -654,7 +654,6 @@ class AWSReportDownloaderTest(MasuTestCase):
         expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
         expected_cols |= {"costCategory/qe_source", "costCategory/name", "costCategory/cost_env"}
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
-        end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
         with patch("masu.util.common.check_setup_complete", return_Value=True):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
@@ -663,7 +662,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     use_cols, time_interval, process_date = get_processing_date(
-                        temp_path, None, 1, self.aws_provider_uuid, start_date, end_date, None, "tracing_id"
+                        temp_path, 1, self.aws_provider_uuid, start_date, "context", "tracing_id"
                     )
                     self.assertEqual(use_cols, expected_cols)
                     self.assertEqual(time_interval, expected_interval)
