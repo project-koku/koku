@@ -181,7 +181,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         }
         date_field = date_fields[self.provider_type]
         unique_usage_days = data_frame[date_field].unique()
-
         for usage_day in unique_usage_days:
             usage_date = pd.to_datetime(usage_day).date()
             # Uniqueify manifest report counter dict entry with p for parquet (dont colide with csvs)
