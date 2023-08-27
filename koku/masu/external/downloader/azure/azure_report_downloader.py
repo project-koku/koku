@@ -24,7 +24,6 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import get_or_clear_daily_s3_by_date
 from masu.util.azure import common as utils
 
 DATA_DIR = Config.TMP_DIR
@@ -57,6 +56,7 @@ def get_processing_date(
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
+    process_date = start_date
     time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
@@ -68,12 +68,8 @@ def get_processing_date(
         and dh.today.day > 1
         or not com_utils.check_setup_complete(provider_uuid)
     ):
-        process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
-    else:
-        process_date = get_or_clear_daily_s3_by_date(
-            s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
-        )
+        process_date = start_date.replace(day=1)
     return time_interval, process_date
 
 

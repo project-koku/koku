@@ -40,22 +40,19 @@ class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
 
 
-def get_processing_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
-):
+def get_processing_date(local_file, manifest_id, provider_uuid, start_date, context, tracing_id):
     """
     Fetch initial dataframe from CSV plus processing date and time_inteval.
 
     Args:
         local_file (str): The full path name of the file
-        s3_csv_path (str): The path prefix for csvs
         manifest_id (str): The manifest ID
         provider_uuid (str): The uuid of a provider
-        filepath (str): The full path name of the file
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
         tracing_id (str): The tracing id
     """
+    process_date = start_date
     invoice_bill = "bill/InvoiceId"
     time_interval = "identity/TimeInterval"
     try:
@@ -70,12 +67,9 @@ def get_processing_date(
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
-        process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
-    else:
-        process_date = utils.get_or_clear_daily_s3_by_date(
-            s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
-        )
+        process_date = start_date.replace(day=1)
+
     return use_cols, time_interval, process_date
 
 
@@ -106,8 +100,8 @@ def create_daily_archives(
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    use_cols, time_interval, process_date = get_processing_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+    use_cols, time_interval, processing_date = get_processing_date(
+        local_file, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
     with pd.read_csv(
@@ -121,7 +115,7 @@ def create_daily_archives(
                 date = interval.split("T")[0]
                 csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
                 # Adding end here so we dont bother to process future incomplete days (saving plan data)
-                if csv_date >= process_date and csv_date <= end_date:
+                if csv_date >= processing_date and csv_date <= end_date:
                     dates.add(date)
             if not dates:
                 return [], {}

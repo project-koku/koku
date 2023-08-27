@@ -197,6 +197,22 @@ class DateHelper:
             return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
         return in_date.replace(day=month_end)
 
+    def latest_date_in_month(self, in_date):
+        """Last day of giving month date or current date (today)."""
+        if isinstance(in_date, str):
+            in_date = parser.parse(in_date).date()
+        if in_date.year < self.today.year or in_date.month < self.today.month:
+            latest_month_date = in_date.replace(day=self.days_in_month(in_date))
+        else:
+            latest_month_date = self.now.date()
+        return latest_month_date
+
+    def datetime_from_date(self, in_date):
+        """convert date to datetime."""
+        if isinstance(in_date, str):
+            in_date = parser.parse(in_date).date()
+        return datetime.datetime.fromordinal(in_date.toordinal())
+
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.
 

@@ -574,15 +574,14 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_date, manifest_id, context, request_id):
+def get_or_clear_daily_s3_by_date(
+    csv_s3_path, account, provider_type, provider_uuid, start_date, end_date, manifest_id, request_id
+):
     """
     Fetches latest processed date based on daily csv files and clears relevant s3 files
     """
-    # We do this if we have multiple workers running different files for a single manifest.
-    processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
-    if processing_date:
-        return processing_date
-    processing_date = start_date.replace(tzinfo=None)
+    processing_date = start_date
+    context = {"provider_uuid": provider_uuid, "provider_type": provider_type, "account": account}
     try:
         s3_date = None
         for obj_summary in _get_s3_objects(csv_s3_path):
@@ -599,9 +598,8 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
             processing_date = (
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
             ).replace(tzinfo=None)
-            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
             # clear s3 files for processing dates
-            clear_s3_files(csv_s3_path, provider_uuid, processing_date, context, request_id)
+            clear_s3_files(csv_s3_path, account, provider_type, provider_uuid, processing_date, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
@@ -615,7 +613,6 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
                 bucket=settings.S3_BUCKET_NAME,
             ),
         )
-        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
         to_delete = get_s3_objects_not_matching_metadata(
             request_id,
             csv_s3_path,
@@ -628,9 +625,9 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
         ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
         LOG.info(
-            log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
+            log_json(msg="invalid csv file, marked manifest to clear all s3 files for reprocessing", context=context)
         )
-    return processing_date
+    return processing_date.date()
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
@@ -768,10 +765,10 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
     return []
 
 
-def clear_s3_files(csv_s3_path, provider_uuid, start_date, context, request_id):
+def clear_s3_files(csv_s3_path, account, provider_type, provider_uuid, start_date, context, request_id):
     """Clear s3 files for daily archive processing AWS/Azure ONLY"""
-    account = context.get("account")
-    provider_type = context.get("provider_type")
+    # Fix path for local downloaders
+    provider_type = provider_type.strip("-local")
     parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
     parquet_daily_path_s3 = get_path_prefix(
         account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True

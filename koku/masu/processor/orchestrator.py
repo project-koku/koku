@@ -14,6 +14,7 @@ from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -33,11 +34,14 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import get_or_clear_daily_s3_by_date
 from masu.util.common import check_setup_complete
+from masu.util.common import get_path_prefix
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
 LOG = logging.getLogger(__name__)
+dh = DateHelper()
 
 
 class Orchestrator:
@@ -222,6 +226,35 @@ class Orchestrator:
                     [report.get("local_file") for report in manifest.get("files", [])],
                     tracing_id,
                 )
+                # Set start date for daily Azure/AWS processing
+                if provider_type in [
+                    Provider.PROVIDER_AWS,
+                    Provider.PROVIDER_AWS_LOCAL,
+                    Provider.PROVIDER_AZURE,
+                    Provider.PROVIDER_AZURE_LOCAL,
+                ]:
+                    if not check_setup_complete(provider_uuid):
+                        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest["manifest_id"])
+                    else:
+                        s3_csv_path = get_path_prefix(
+                            schema_name,
+                            provider_type.strip("-local"),
+                            provider_uuid,
+                            report_month,
+                            Config.CSV_DATA_TYPE,
+                        )
+                        start_date = dh.datetime_from_date(report_month)
+                        end_date = dh.datetime_from_date(dh.latest_date_in_month(report_month))
+                        report_month = get_or_clear_daily_s3_by_date(
+                            s3_csv_path,
+                            schema_name,
+                            provider_type,
+                            provider_uuid,
+                            start_date,
+                            end_date,
+                            manifest["manifest_id"],
+                            tracing_id,
+                        )
 
             LOG.info(log_json(tracing_id, msg="found manifests", context=manifest, schema=schema_name))
 
@@ -419,7 +452,6 @@ class Orchestrator:
         tracing_id = provider_uuid
         schema = account.get("schema_name")
         LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider_uuid))
-        dh = DateHelper()
         if self.ingress_reports:
             start_date = DateAccessor().get_billing_month_start(f"{self.bill_date}01")
         else:
