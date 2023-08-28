@@ -455,7 +455,6 @@ class AzureReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         expected_interval = "date"
         start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
-        end_date = DateHelper().this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
         with patch("masu.util.common.check_setup_complete", return_Value=True):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
