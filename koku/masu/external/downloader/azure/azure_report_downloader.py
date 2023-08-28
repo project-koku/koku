@@ -99,9 +99,7 @@ def create_daily_archives(
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    time_interval, process_date = get_processing_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
-    )
+    time_interval, process_date = get_processing_date(local_file, manifest_id, provider_uuid, start_date)
     with pd.read_csv(
         local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval]
     ) as reader:

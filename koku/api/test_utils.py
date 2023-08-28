@@ -220,6 +220,27 @@ class DateHelperTest(TestCase):
         expected = datetime.date(1970, 1, 31)
         self.assertEqual(self.date_helper.month_end(today_str), expected)
 
+    def test_latest_date_in_month(self):
+        """Test latest date in month."""
+        in_date = datetime.datetime(1969, 1, 10)
+        expected = datetime.datetime(1969, 1, 31).date()
+        self.assertEqual(self.date_helper.latest_date_in_month(in_date), expected)
+
+        today_date = in_date.date()
+        today_str = today_date.strftime("%Y-%m-%d")
+        self.assertEqual(self.date_helper.latest_date_in_month(today_str), expected)
+
+    def test_datetime_from_date(self):
+        """Test getting datetime from date."""
+        today = self.date_helper.today
+
+        today_date = today.date()
+        expected = datetime.datetime(1970, 1, 10)
+        self.assertEqual(self.date_helper.datetime_from_date(today_date), expected)
+
+        today_str = today_date.strftime("%Y-%m-%d")
+        self.assertEqual(self.date_helper.datetime_from_date(today_str), expected)
+
     def test_midnight(self):
         """Test midnight property."""
         expected = datetime.time(0, 0, 0, 0)

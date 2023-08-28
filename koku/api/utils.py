@@ -200,9 +200,9 @@ class DateHelper:
     def latest_date_in_month(self, in_date):
         """Last day of giving month date or current date (today)."""
         if isinstance(in_date, str):
-            in_date = parser.parse(in_date).date()
+            in_date = parser.parse(in_date)
         if in_date.year < self.today.year or in_date.month < self.today.month:
-            latest_month_date = in_date.replace(day=self.days_in_month(in_date))
+            latest_month_date = in_date.replace(day=self.days_in_month(in_date)).date()
         else:
             latest_month_date = self.now.date()
         return latest_month_date
