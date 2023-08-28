@@ -230,6 +230,9 @@ class DateHelperTest(TestCase):
         today_str = today_date.strftime("%Y-%m-%d")
         self.assertEqual(self.date_helper.latest_date_in_month(today_str), expected)
 
+        in_date = datetime.datetime(1970, 1, 1)
+        self.assertEqual(self.date_helper.latest_date_in_month(in_date), DateHelper().now.date())
+
     def test_datetime_from_date(self):
         """Test getting datetime from date."""
         today = self.date_helper.today

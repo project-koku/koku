@@ -399,6 +399,44 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    @patch("masu.processor.orchestrator.get_path_prefix")
+    @patch("masu.processor.orchestrator.get_or_clear_daily_s3_by_date")
+    def test_start_manifest_processing_aws_clear_s3(
+        self, mock_get_clear_s3, mock_path_prefix, mock_download_manifest, mock_task, mock_inspect
+    ):
+        """Test start_manifest_processing."""
+        test_matrix = [
+            {
+                "mock_downloader_manifest_list": [
+                    {
+                        "manifest_id": 1,
+                        "files": [{"local_file": "file1.csv", "key": "filekey"}],
+                    }
+                ],
+                "expect_chord_called": True,
+            },
+        ]
+        for test in test_matrix:
+            mock_download_manifest.return_value = test.get("mock_downloader_manifest_list")
+            orchestrator = Orchestrator()
+            account = self.mock_accounts[0]
+            with patch("masu.processor.orchestrator.check_setup_complete", return_value=True):
+                orchestrator.start_manifest_processing(
+                    account.get("customer_name"),
+                    account.get("credentials"),
+                    account.get("data_source"),
+                    "AWS-local",
+                    account.get("schema_name"),
+                    account.get("provider_uuid"),
+                    DateAccessor().get_billing_months(1)[0],
+                )
+                mock_path_prefix.assert_called()
+                mock_get_clear_s3.assert_called()
+                mock_task.assert_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.chord")
     @patch("masu.processor.orchestrator.group")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
     def test_start_manifest_processing_priority_queue(
