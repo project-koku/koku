@@ -1,3 +1,4 @@
+
 #
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -463,7 +464,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     time_interval, process_date = get_processing_date(
-                        temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
+                        temp_path, 1, self.azure_provider_uuid, start_date
                     )
                     self.assertEqual(time_interval, expected_interval)
                     self.assertEqual(process_date, expected_date)
