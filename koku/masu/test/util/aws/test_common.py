@@ -480,7 +480,9 @@ class TestAWSUtils(MasuTestCase):
                 matching_summary,
             ]
             with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
-                utils.clear_s3_files(s3_csv_path, self.aws_provider_uuid, start_date, context, "requiest_id")
+                utils.clear_s3_files(
+                    s3_csv_path, self.aws_provider_uuid, start_date, "manifestid", 1, context, "requiest_id"
+                )
                 mock_delete.assert_called
 
     def test_remove_s3_objects_matching_metadata(self):
