@@ -793,10 +793,21 @@ def clear_s3_files(csv_s3_path, provider_uuid, start_date, metadata_key, metadat
     to_delete = []
     for prefix in s3_prefixes:
         for obj_summary in _get_s3_objects(prefix):
-            existing_object = obj_summary.Object()
-            metadata_value = existing_object.metadata.get(metadata_key)
-            if metadata_value != metadata_value_check:
-                to_delete.append(existing_object.key)
+            try:
+                existing_object = obj_summary.Object()
+                metadata_value = existing_object.metadata.get(metadata_key)
+                if metadata_value != metadata_value_check:
+                    to_delete.append(existing_object.key)
+            except (ClientError) as err:
+                LOG.warning(
+                    log_json(
+                        request_id,
+                        msg="unable to get matching object, likely deleted by another worker",
+                        context=context,
+                        bucket=settings.S3_BUCKET_NAME,
+                    ),
+                    exc_info=err,
+                )
     delete_s3_objects(request_id, to_delete, context)
 
 
