@@ -135,7 +135,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Create a parquet file for daily aggregated data."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
-                # TODO This may case us to overwrite partial GCP files
                 parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{parquet_base_filename}"
         file_name = f"{parquet_base_filename}_{file_number}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
@@ -180,6 +179,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             Provider.PROVIDER_GCP: "usage_start_time",
         }
         date_field = date_fields[self.provider_type]
+        if self.provider_type == Provider.PROVIDER_AZURE and date_field not in data_frame.columns:
+            date_field = "usagedatetime"
         unique_usage_days = data_frame[date_field].unique()
         for usage_day in unique_usage_days:
             usage_date = pd.to_datetime(usage_day).date()
