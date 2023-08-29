@@ -422,7 +422,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/202208_{partition}_0_0.csv",
+            f"{temp_dir}/202208_{partition}_0.csv",
         ]
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
