@@ -386,10 +386,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2020-09-01_0_0.csv",
-            f"{temp_dir}/2020-09-10_0_0.csv",
-            f"{temp_dir}/2020-09-11_0_0.csv",
-            f"{temp_dir}/2020-09-22_0_0.csv",
+            f"{temp_dir}/2020-09-01_0.csv",
+            f"{temp_dir}/2020-09-10_0.csv",
+            f"{temp_dir}/2020-09-11_0.csv",
+            f"{temp_dir}/2020-09-22_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2020, month=9, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
@@ -413,7 +413,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        expected_daily_files = [f"{temp_dir}/2019-07-28_0_0.csv", f"{temp_dir}/2019-07-29_0_0.csv"]
+        expected_daily_files = [f"{temp_dir}/2019-07-28_0.csv", f"{temp_dir}/2019-07-29_0.csv"]
         start_date = DateHelper().this_month_start.replace(year=2019, month=7, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.azure_provider_uuid, temp_path, self.azure_manifest_id, start_date, None
@@ -455,10 +455,12 @@ class AzureReportDownloaderTest(MasuTestCase):
             self.assertEqual(process_date, expected_date)
             os.remove(temp_path)
 
-    def test_get_processing_date_alt_columns(self):
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_get_processing_date_alt_columns(self, mock_resource):
         """Test getting dataframe with date for processing."""
         file_name = "camel_azure_version_2.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
+        context = {"account": self.schema_name, "provider_type": self.azure_provider.type}
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
@@ -473,7 +475,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     time_interval, process_date = get_processing_date(
-                        temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
+                        temp_path, "csv_path", 1, self.azure_provider_uuid, start_date, end_date, context, "tracing_id"
                     )
                     self.assertEqual(time_interval, expected_interval)
                     self.assertEqual(process_date, expected_date)
