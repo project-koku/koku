@@ -84,6 +84,7 @@ def create_daily_archives(
     account,
     provider_uuid,
     local_file,
+    s3_filename,
     manifest_id,
     start_date,
     context,
@@ -100,6 +101,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    base_name = s3_filename.split(".")[0]
     provider_type = Provider.PROVIDER_AWS
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
@@ -128,7 +130,7 @@ def create_daily_archives(
             data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
-                day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id, provider_type)
+                day_file = f"{date}_manifestid-{manifest_id}-basefile-{base_name}_batch-{i}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 utils.copy_local_report_file_to_s3_bucket(
@@ -416,6 +418,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     self.account,
                     self._provider_uuid,
                     full_file_path,
+                    s3_filename,
                     manifest_id,
                     start_date,
                     self.context,

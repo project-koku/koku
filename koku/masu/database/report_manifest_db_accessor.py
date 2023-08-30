@@ -18,7 +18,6 @@ from django.db.models.functions import RowNumber
 from django_tenants.utils import schema_context
 
 from api.common import log_json
-from api.models import Provider
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
@@ -297,7 +296,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             if manifest.daily_archive_start_date:
                 return manifest.daily_archive_start_date.replace(tzinfo=None)
 
-    def update_and_get_day_file(self, day, manifest_id, provider_type):
+    def update_and_get_day_file(self, day, manifest_id):
         with transaction.atomic():
             # With split payloads, we could have a race condition trying to update the `report_tracker`.
             # using a transaction and `select_for_update` should minimize the risk of multiple
@@ -308,9 +307,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             counter = manifest.report_tracker[day]
             manifest.report_tracker[day] = counter + 1
             manifest.save(update_fields=["report_tracker"])
-            if provider_type == Provider.PROVIDER_GCP:
-                return f"{day}_{counter}.csv"
-            return f"{day}_{manifest_id}_{counter}.csv"
+            return f"{day}_{counter}.csv"
 
     def update_and_get_parquet_batch_counter(self, day, manifest_id):
         """This is needed for OCP on Cloud filtered daily parquet files"""

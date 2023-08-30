@@ -82,6 +82,7 @@ def create_daily_archives(
     account,
     provider_uuid,
     local_file,
+    base_filename,
     manifest_id,
     start_date,
     context,
@@ -98,6 +99,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    base_name = base_filename.split(".")[0]
     provider_type = Provider.PROVIDER_AZURE
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
@@ -127,7 +129,7 @@ def create_daily_archives(
             for date in dates:
                 daily_data = data_frame.loc[date]
                 day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
-                day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id, provider_type)
+                day_file = f"{day_path}_manifestid-{manifest_id}-basefile-{base_name}_batch-{i}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -434,12 +436,12 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._azure_client.download_file(
             key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
         )
-
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
             full_file_path,
+            local_filename,
             manifest_id,
             start_date,
             self.context,
