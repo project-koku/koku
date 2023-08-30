@@ -98,13 +98,12 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    provider_type = Provider.PROVIDER_AZURE
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     dates = set()
     batch_date_range = set()
-    s3_csv_path = com_utils.get_path_prefix(
-        account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
-    )
+    s3_csv_path = com_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, Config.CSV_DATA_TYPE)
     time_interval, process_date = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
@@ -128,7 +127,7 @@ def create_daily_archives(
             for date in dates:
                 daily_data = data_frame.loc[date]
                 day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
-                day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
+                day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id, provider_type)
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(

@@ -105,7 +105,7 @@ def create_daily_archives(
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 if ingress_reports:
                     partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
-                        partition_date, manifest_id
+                        partition_date, manifest_id, Provider.PROVIDER_GCP
                     )
                     day_file = f"{invoice_month}_{partition_filename}"
                 day_filepath = f"{directory}/{day_file}"
