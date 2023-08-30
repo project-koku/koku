@@ -102,11 +102,12 @@ def create_daily_archives(
         context (Dict): Logging context dictionary
     """
     base_name = s3_filename.split(".")[0]
-    provider_type = Provider.PROVIDER_AWS
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     dates = set()
-    s3_csv_path = com_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+    s3_csv_path = com_utils.get_path_prefix(
+        account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
+    )
     use_cols, time_interval, process_date = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
@@ -130,6 +131,8 @@ def create_daily_archives(
             data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
+                if daily_data.empty:
+                    continue
                 day_file = f"{date}_manifestid-{manifest_id}-basefile-{base_name}_batch-{i}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)

@@ -100,12 +100,13 @@ def create_daily_archives(
         context (Dict): Logging context dictionary
     """
     base_name = base_filename.split(".")[0]
-    provider_type = Provider.PROVIDER_AZURE
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     dates = set()
     batch_date_range = set()
-    s3_csv_path = com_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+    s3_csv_path = com_utils.get_path_prefix(
+        account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
+    )
     time_interval, process_date = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
