@@ -192,7 +192,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             counter = ReportManifestDBAccessor().update_and_get_parquet_batch_counter(base_filename, manifest_id)
             # Parquet base filename dates here DO NOT match the data written to them
             split_base_name = parquet_base_filename.split("_")
-            base_file_date = f"{split_base_name[0]}_{split_base_name[1]}"
+            base_file_date = split_base_name[0]
+            if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                # GCP filenames start with an invoice month before the date
+                base_file_date = f"{base_file_date}_{split_base_name[1]}"
             non_date_base_name = parquet_base_filename.removeprefix(base_file_date)
             usage_day_file_name = f"{usage_date}{non_date_base_name}"
             self.start_date = usage_date

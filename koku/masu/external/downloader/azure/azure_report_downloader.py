@@ -139,7 +139,7 @@ def create_daily_archives(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
-    if not dates:
+    if not batch_date_range:
         return [], {}
     date_range = {
         "start": min(batch_date_range),
