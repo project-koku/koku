@@ -435,6 +435,45 @@ class AzureReportDownloaderTest(MasuTestCase):
             os.remove(daily_file)
         os.remove(temp_path)
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_dates_out_of_range(self, mock_copy):
+        """Test that we correctly create daily archive files."""
+        file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        manifest_id = self.azure_manifest_id
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = []
+        start_date = DateHelper().this_month_start.replace(year=2020, month=7, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+        )
+        expected_date_range = {}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(daily_file_names, expected_daily_files)
+
+    def test_create_daily_archives_empty_frames(self):
+        """Test that we correctly create daily archive files."""
+        file = "empty_frame"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        manifest_id = self.azure_manifest_id
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = []
+        start_date = DateHelper().this_month_start.replace(year=2020, month=7, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+        )
+        expected_date_range = {}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+
     @patch(
         "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
         return_value=None,

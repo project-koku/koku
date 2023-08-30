@@ -697,6 +697,40 @@ class AWSReportDownloaderTest(MasuTestCase):
             os.remove(daily_file)
         os.remove(temp_path)
 
+    def test_create_daily_archives_dates_out_of_range(self):
+        """Test that we correctly create daily archive files."""
+        file = "2023-06-01"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+        )
+        self.assertEqual(date_range, {})
+        self.assertEqual(daily_file_names, [])
+
+    def test_create_daily_archives_empty_frame(self):
+        """Test that we correctly create daily archive files."""
+        file = "empty_frame"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+        )
+        self.assertEqual(date_range, {})
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(daily_file_names, [])
+
     @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_alt_columns(self, mock_copy):
         """Test that we correctly create daily archive files with alt columns."""
