@@ -235,7 +235,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def process(self, parquet_base_filename, daily_data_frames, manifest_id=None):
         """Filter data and convert to parquet."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
-            LOG.info("ARE WE HERE?")
             return
         if daily_data_frames == []:
             LOG.info(
