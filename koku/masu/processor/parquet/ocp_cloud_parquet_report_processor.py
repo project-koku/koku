@@ -233,6 +233,13 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Filter data and convert to parquet."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
+        if daily_data_frames == []:
+            LOG.info(
+                log_json(
+                    msg=f"no OCP on {self.provider_type} daily frames to processes, skipping", context=self._context
+                )
+            )
+            return
 
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
