@@ -247,21 +247,24 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
             # Get matching tags
             matched_tags = self.get_matched_tags(ocp_provider_uuids)
-            daily_data_frames = pd.concat(daily_data_frames, ignore_index=True)
-            openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
-                daily_data_frames, cluster_topology, matched_tags
-            )
-
-            if self.provider_type in (
-                Provider.PROVIDER_GCP,
-                Provider.PROVIDER_GCP_LOCAL,
-                Provider.PROVIDER_AWS,
-                Provider.PROVIDER_AWS_LOCAL,
-                Provider.PROVIDER_AZURE,
-                Provider.PROVIDER_AZURE_LOCAL,
-            ):
-                self.create_partitioned_ocp_on_cloud_parquet(
-                    openshift_filtered_data_frame, parquet_base_filename, manifest_id
+            if daily_data_frames != []:
+                daily_data_frames = pd.concat(daily_data_frames, ignore_index=True)
+                openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
+                    daily_data_frames, cluster_topology, matched_tags
                 )
-            else:
-                self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, file_number=0)
+
+                if self.provider_type in (
+                    Provider.PROVIDER_GCP,
+                    Provider.PROVIDER_GCP_LOCAL,
+                    Provider.PROVIDER_AWS,
+                    Provider.PROVIDER_AWS_LOCAL,
+                    Provider.PROVIDER_AZURE,
+                    Provider.PROVIDER_AZURE_LOCAL,
+                ):
+                    self.create_partitioned_ocp_on_cloud_parquet(
+                        openshift_filtered_data_frame, parquet_base_filename, manifest_id
+                    )
+                else:
+                    self.create_ocp_on_cloud_parquet(
+                        openshift_filtered_data_frame, parquet_base_filename, file_number=0
+                    )
