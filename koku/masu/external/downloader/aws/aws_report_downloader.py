@@ -72,6 +72,7 @@ def get_processing_date(
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date.replace(tzinfo=None))
     else:
         process_date = utils.get_or_clear_daily_s3_by_date(
             s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
