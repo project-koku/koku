@@ -118,7 +118,7 @@ def create_daily_archives(
             # Adding end here so we dont bother to process future incomplete days (saving plan data)
             data_frame = data_frame.loc[process_date:end_date]
             if data_frame.empty:
-                return [], {}
+                continue
 
             dates = data_frame[time_interval].unique()
             batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
@@ -134,6 +134,8 @@ def create_daily_archives(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
+    if not dates:
+        return [], {}
     date_range = {
         "start": min(batch_date_range),
         "end": max(batch_date_range),

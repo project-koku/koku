@@ -123,7 +123,7 @@ def create_daily_archives(
                 if csv_date >= process_date and csv_date <= end_date:
                     dates.add(date)
             if not dates:
-                return [], {}
+                continue
             directory = os.path.dirname(local_file)
             data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
@@ -135,6 +135,8 @@ def create_daily_archives(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
+    if not dates:
+        return [], {}
     date_range = {
         "start": min(dates),
         "end": max(dates),
