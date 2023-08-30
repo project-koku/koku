@@ -128,7 +128,6 @@ def create_daily_archives(
             if not dates:
                 continue
             directory = os.path.dirname(local_file)
-            data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
                 if daily_data.empty:
