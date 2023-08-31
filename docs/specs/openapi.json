@@ -5598,20 +5598,12 @@
                 ],
                 "summary": "Enable tags in Cost Management",
                 "operationId": "putSettingsTagsEnable",
-                "parameters": [
-                    {
-                        "name": "ids",
-                        "description": "List of UUIDs to enable",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    }
-                ],
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/PutTagsBody"
+                },
                 "responses": {
                     "204": {
-                        "description": "No content",
+                        "description": "Successfully changed. No content"
                     },
                     "400": {
                         "description": "Invalid request parameter"
@@ -5635,8 +5627,43 @@
                 }]
             }
         },
-        "/settings/tags/disable/": {}
-    },
+        "/settings/tags/disable/": {
+            "put": {
+                    "tags": [
+                        "Settings"
+                    ],
+                    "summary": "Disable tags in Cost Management",
+                    "operationId": "putSettingsTagsDisable",
+                    "requestBody": {
+                        "$ref": "#/components/requestBodies/PutTagsBody"
+                    },
+                    "responses": {
+                        "204": {
+                            "description": "Successfully changed. No content"
+                        },
+                        "400": {
+                            "description": "Invalid request parameter"
+                        },
+                        "401": {
+                            "description": "Unauthorized"
+                        },
+                        "500": {
+                            "description": "Unexpected Error",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/Error"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{
+                        "basic_auth": []
+                    }]
+                }
+            }
+        },
     "externalDocs": {
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
@@ -5858,25 +5885,34 @@
                     "type": "string",
                     "enum": ["value", "-value"]
                 }
-            },
-            "SettingsTagsUUIDs": {
-                "in": "query",
-                "name": "ids",
-                "type": "array",
-                "required": [
-                    "ids"
-                ],
-                "properties": {
-                    "ids": {
-                        "type": "array",
-                        "example": [
-                            "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
-                            "67423602-0f13-47dc-ac09-4d145a9def35",
-                            "832a3858-d80f-4751-bbcc-b345febacf99"
-                        ]
+            }
+        },
+        "requestBodies": {
+            "PutTagsBody": {
+                "description": "List of tag UUIDs",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "ids": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            },
+                            "example": {
+                                "ids": [
+                                "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                                "67423602-0f13-47dc-ac09-4d145a9def35",
+                                "832a3858-d80f-4751-bbcc-b345febacf99"
+                                ]
+                            }
+
+                        }
                     }
                 }
-            },
+            }
         },
         "securitySchemes": {
             "basic_auth": {
