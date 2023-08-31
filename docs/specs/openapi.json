@@ -480,8 +480,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -525,8 +524,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -570,8 +568,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -615,8 +612,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -660,8 +656,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -705,8 +700,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -750,8 +744,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -795,8 +788,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -840,8 +832,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -1064,12 +1055,10 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryStartDate",
-                        "name":"QueryStartDate"
+                        "$ref": "#/components/parameters/QueryStartDate"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryEndDate",
-                        "name":"QueryEndDate"
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1282,12 +1271,10 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryStartDate",
-                        "name":"QueryStartDate"
+                        "$ref": "#/components/parameters/QueryStartDate"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryEndDate",
-                        "name":"QueryEndDate"
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -5654,7 +5641,8 @@
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
     },
-    "servers": [{
+    "servers": [
+        {
             "url": "https://{environment}.redhat.com/api/cost-management/v1",
             "description": "Target Environment",
             "variables": {
@@ -5715,7 +5703,7 @@
                 }
             },
             "QueryEndDate": {
-                "name": "end_date",
+                "name": "QueryEndDate",
                 "in": "query",
                 "description": "String to indicate end date of date range.",
                 "schema": {
@@ -5724,7 +5712,7 @@
                 }
             },
             "QueryFilter": {
-                "name": "filter",
+                "name": "QueryFilter",
                 "required": false,
                 "in": "query",
                 "description": "The filter to apply to the report as a URL encoded dictionary.",
@@ -5809,7 +5797,7 @@
                 }
             },
             "QueryStartDate": {
-                "name": "start_date",
+                "name": "QueryStartDate",
                 "in": "query",
                 "description": "String to indicate start date of date range.",
                 "schema": {
@@ -6280,23 +6268,18 @@
                                             "type": "object",
                                             "properties": {
                                                 "total": {
-                                                    "description": "The forecast Y-value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_max": {
-                                                    "description": "The forecast confidence interval's upper-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_min": {
-                                                    "description": "The forecast confidence interval's lower-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "rsquared": {
-                                                    "description": "The forecast's R-squared value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 },
                                                 "pvalues": {
-                                                    "description": "The forecast's p-test values.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 }
                                             }
@@ -6305,23 +6288,18 @@
                                             "type": "object",
                                             "properties": {
                                                 "total": {
-                                                    "description": "The forecast Y-value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_max": {
-                                                    "description": "The forecast confidence interval's upper-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_min": {
-                                                    "description": "The forecast confidence interval's lower-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "rsquared": {
-                                                    "description": "The forecast's R-squared value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 },
                                                 "pvalues": {
-                                                    "description": "The forecast's p-test values.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 }
                                             }
@@ -6330,23 +6308,18 @@
                                             "type": "object",
                                             "properties": {
                                                 "total": {
-                                                    "description": "The forecast Y-value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_max": {
-                                                    "description": "The forecast confidence interval's upper-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_min": {
-                                                    "description": "The forecast confidence interval's lower-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "rsquared": {
-                                                    "description": "The forecast's R-squared value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 },
                                                 "pvalues": {
-                                                    "description": "The forecast's p-test values.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 }
                                             }
