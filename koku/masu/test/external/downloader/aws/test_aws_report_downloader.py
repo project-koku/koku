@@ -648,7 +648,6 @@ class AWSReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         expected_interval = "identity/TimeInterval"
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
-        end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
         with patch("masu.util.common.check_setup_complete", return_Value=True):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
@@ -657,7 +656,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     data_frame, time_interval, process_date = get_initial_dataframe_with_date(
-                        temp_path, None, 1, self.aws_provider_uuid, start_date, end_date, None, "tracing_id"
+                        temp_path, None, 1, self.aws_provider_uuid, start_date, None, "tracing_id"
                     )
                     self.assertIsNotNone(data_frame)
                     self.assertEqual(time_interval, expected_interval)

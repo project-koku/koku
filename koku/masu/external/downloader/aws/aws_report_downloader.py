@@ -17,7 +17,6 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -40,7 +39,7 @@ class AWSReportDownloaderNoFileError(Exception):
 
 
 def get_initial_dataframe_with_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
 ):
     """
     Fetch initial dataframe from CSV plus processing date and time_inteval.
@@ -69,7 +68,7 @@ def get_initial_dataframe_with_date(
         process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
         if not process_date:
             process_date = utils.get_or_clear_daily_s3_by_date(
-                s3_csv_path, start_date, end_date, manifest_id, context, tracing_id
+                s3_csv_path, start_date, manifest_id, context, tracing_id
             )
             ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
     return data_frame, time_interval, process_date
@@ -96,7 +95,6 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
-    end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     date_range = {}
     dates = set()
@@ -104,14 +102,12 @@ def create_daily_archives(
         account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
     data_frame, time_interval, process_date = get_initial_dataframe_with_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
     )
     intervals = data_frame[time_interval].unique()
     for interval in intervals:
         date = interval.split("T")[0]
-        csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
-        # Adding end here so we dont bother to process future incomplete days (saving plan data)
-        if csv_date >= process_date and csv_date <= end_date:
+        if datetime.datetime.strptime(date, "%Y-%m-%d") >= process_date:
             dates.add(date)
     if not dates:
         return [], {}
