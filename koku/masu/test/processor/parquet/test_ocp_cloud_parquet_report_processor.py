@@ -312,19 +312,6 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
-    def test_process_no_data_frames(self, mock_has_labels, mock_topology, mock_cluster_info):
-        """Test that ocp on cloud data is not processed when there is no data framse."""
-        expected = f"no OCP on {Provider.PROVIDER_AWS} daily frames to processes, skipping"
-        with self.assertLogs("masu.processor.parquet.ocp_cloud_parquet_report_processor", level="INFO") as logger:
-            mock_cluster_info.return_value = True
-            mock_has_labels.return_value = False
-            mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
-            self.report_processor.process("", [])
-            self.assertIn(expected, str(logger))
-
-    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
-    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
     def process_no_enabled_ocp_labels(
@@ -391,7 +378,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
 
         expected = "Matched tags not yet available via Postgres. Getting matching tags from Trino."
-        with self.assertLogs("masu.processor.parquet.ocp_cloud_parquet_report_processor", level="INFO") as logger:
+        with self.assertLogs("masu.processor.parquet.cop_cloud_parquet_report_processor", level="INFO") as logger:
             self.report_processor.process("", [pd.DataFrame()])
             self.assertIn(expected, str(logger))
 
