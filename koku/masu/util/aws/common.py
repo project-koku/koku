@@ -775,22 +775,19 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies
     )
     resource_ids = tuple(resource_ids)
-    data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["lineitem_resourceid"]
-    if not resource_id_df.isna().values.all():
-        LOG.info("Matching OpenShift on AWS by resource ID.")
-        resource_id_matched = resource_id_df.str.endswith(resource_ids)
-        data_frame["resource_id_matched"] = resource_id_matched
 
-    data_frame["special_case_tag_matched"] = False
+    LOG.info("Matching OpenShift on AWS by resource ID.")
+    resource_id_matched = resource_id_df.str.endswith(resource_ids)
+    data_frame["resource_id_matched"] = resource_id_matched
+
     tags = data_frame["resourcetags"]
-    if not tags.isna().values.all():
-        tags = tags.str.lower()
-        LOG.info("Matching OpenShift on AWS by tags.")
-        special_case_tag_matched = tags.str.contains(
-            "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
-        )
-        data_frame["special_case_tag_matched"] = special_case_tag_matched
+    tags = tags.str.lower()
+
+    special_case_tag_matched = tags.str.contains(
+        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+    )
+    data_frame["special_case_tag_matched"] = special_case_tag_matched
 
     if matched_tags:
         tag_keys = []
@@ -799,11 +796,9 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             tag_keys.extend(list(tag.keys()))
             tag_values.extend(list(tag.values()))
 
-        any_tag_matched = None
-        if not tags.isna().values.all():
-            tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-            data_frame["tag_matched"] = tag_matched
-            any_tag_matched = tag_matched.any()
+        tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
+        data_frame["tag_matched"] = tag_matched
+        any_tag_matched = tag_matched.any()
 
         if any_tag_matched:
             tag_df = pd.concat([tags, tag_matched], axis=1)
@@ -816,7 +811,6 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             data_frame["matched_tag"] = matched_tag
             data_frame["matched_tag"].fillna(value="", inplace=True)
         else:
-            data_frame["tag_matched"] = False
             data_frame["matched_tag"] = ""
     else:
         data_frame["tag_matched"] = False
