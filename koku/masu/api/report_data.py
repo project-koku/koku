@@ -17,9 +17,11 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.models import Provider
+from api.provider.models import Provider
 from api.utils import get_months_in_date_range
 from koku.cache import get_cached_resummarize_by_provider_type
 from koku.cache import set_cached_resummarize_by_provider_type
+from masu.database.koku_database_access import KokuDBAccess
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
@@ -31,6 +33,47 @@ from masu.processor.tasks import update_summary_tables_by_provider
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"
+
+
+class GetOpenshiftOnCloudProviders(KokuDBAccess):
+    """Class to interact with the koku database for Provider Data."""
+
+    def __init__(self):
+        """
+        Establish Provider database connection.
+
+        Args:
+            provider_uuid  (String) the uuid of the provider
+            auth_id        (String) provider authentication database id
+
+        """
+        super().__init__("public")
+        self._table = Provider
+
+    def summarize(self, months, queue_name):
+        async_results = []
+        for month in months:
+            query = self._table.objects.all()
+            ocp_on_cloud = query.filter(active=True, paused=False, infrastructure_id__isnull=False)
+            LOG.info("Resummarizing ocp on cloud providers.")
+            for row in ocp_on_cloud:
+                schema_name = row.customer.schema_name
+                fallback_queue = PRIORITY_QUEUE
+                if is_customer_large(schema_name):
+                    fallback_queue = PRIORITY_QUEUE_XL
+                queue = queue_name or fallback_queue
+                async_result = update_summary_tables.s(
+                    schema_name,  # schema
+                    Provider.PROVIDER_OCP,
+                    row.uuid,  # provider_uuid
+                    month[0],
+                    month[1],
+                    invoice_month=month[2],
+                    queue_name=queue,
+                    ocp_on_cloud=True,
+                ).apply_async(queue=queue)
+                async_results.append({str(month): str(async_result)})
+        return async_results
 
 
 @never_cache
@@ -141,9 +184,15 @@ def report_data(request):
             key_set = set_cached_resummarize_by_provider_type(provider_type)
 
             if key_set:
-                for month in months:
-                    async_result = update_summary_tables_by_provider.delay(month[0], month[1], provider_type)
-                    async_results.append({str(month): str(async_result)})
+                if provider_type == Provider.PROVIDER_OCP:
+                    if ocp_on_cloud := params.get("ocp_on_cloud"):
+                        if ocp_on_cloud:
+                            ocp_on_cloud = GetOpenshiftOnCloudProviders()
+                            async_results = ocp_on_cloud.summarize(months, queue_name)
+                            return Response({REPORT_DATA_KEY: async_results})
+
+                async_result = update_summary_tables_by_provider.delay(month[0], month[1], provider_type)
+                async_results.append({str(month): str(async_result)})
 
         return Response({REPORT_DATA_KEY: async_results})
 
