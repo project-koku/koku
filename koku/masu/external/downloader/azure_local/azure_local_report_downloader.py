@@ -121,7 +121,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             self.account,
             self._provider_uuid,
             full_file_path,
-            local_filename,
             manifest_id,
             start_date,
             self.context,

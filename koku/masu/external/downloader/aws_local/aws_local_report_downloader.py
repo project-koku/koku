@@ -210,7 +210,6 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         file_names = []
         date_range = {}
-        s3_filename = key.split("/")[-1]
         local_s3_filename = utils.get_local_file_name(key)
 
         directory_path = f"{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}"
@@ -239,7 +238,6 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     self.account,
                     self._provider_uuid,
                     full_file_path,
-                    s3_filename,
                     manifest_id,
                     start_date,
                     self.context,

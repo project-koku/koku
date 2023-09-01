@@ -72,7 +72,6 @@ def get_processing_date(
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
-        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date.replace(tzinfo=None))
     else:
         process_date = utils.get_or_clear_daily_s3_by_date(
             s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
@@ -85,7 +84,6 @@ def create_daily_archives(
     account,
     provider_uuid,
     local_file,
-    s3_filename,
     manifest_id,
     start_date,
     context,
@@ -102,7 +100,6 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
-    base_name = s3_filename.split(".")[0]
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
     dates = set()
@@ -127,21 +124,18 @@ def create_daily_archives(
                 if csv_date >= process_date and csv_date <= end_date:
                     dates.add(date)
             if not dates:
-                continue
+                return [], {}
             directory = os.path.dirname(local_file)
+            data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
-                if daily_data.empty:
-                    continue
-                day_file = f"{date}_manifestid-{manifest_id}-basefile-{base_name}_batch-{i}.csv"
+                day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id)
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 utils.copy_local_report_file_to_s3_bucket(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
-    if not dates:
-        return [], {}
     date_range = {
         "start": min(dates),
         "end": max(dates),
@@ -421,7 +415,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     self.account,
                     self._provider_uuid,
                     full_file_path,
-                    s3_filename,
                     manifest_id,
                     start_date,
                     self.context,
