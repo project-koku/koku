@@ -119,13 +119,19 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
 
     for report in reports_deduplicated:
-        if report.get("provider_type") == Provider.PROVIDER_OCP:
-            return
         start_date = None
         end_date = None
-        LOG.info("using start and end dates from the manifest for HCS processing")
-        start_date = parser.parse(report.get("start")).date()
-        end_date = parser.parse(report.get("end")).date()
+        if report.get("start") and report.get("end"):
+            LOG.info("using start and end dates from the manifest for HCS processing")
+            start_date = parser.parse(report.get("start")).date()
+            end_date = parser.parse(report.get("end")).date()
+        else:
+            # GCP and OCI set report start and report end, AWS/Azure do not
+            date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
+            if not date_tuple:
+                LOG.debug(f"SKIPPING REPORT, no manifest found: {report}")
+                continue
+            start_date, end_date = date_tuple
         schema_name = report.get("schema_name")
         provider_type = report.get("provider_type")
         provider_uuid = report.get("provider_uuid")

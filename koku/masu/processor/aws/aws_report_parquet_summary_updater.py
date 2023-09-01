@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Summary Updater for AWS Parquet files."""
+import calendar
 import logging
 
 import ciso8601
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django_tenants.utils import schema_context
 
@@ -15,6 +17,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
+from masu.util.common import determine_if_full_summary_update_needed
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -36,12 +39,53 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
+        with AWSReportDBAccessor(self._schema) as accessor:
+            # This is the normal processing route
+            if self._manifest:
+                # Override the bill date to correspond with the manifest
+                bill_date = self._manifest.billing_period_start_datetime.date()
+                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
+                bills = bills.filter(billing_period_start=bill_date).all()
+                first_bill = bills.filter(billing_period_start=bill_date).first()
+                do_month_update = False
+                with schema_context(self._schema):
+                    if first_bill:
+                        do_month_update = determine_if_full_summary_update_needed(first_bill)
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
+                    start_date = bill_date
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    start_date, end_date = self._adjust_start_date_if_finalized(bill_date, start_date, end_date)
+                    LOG.info(
+                        log_json(
+                            msg="overriding start and end date to process full month",
+                            context=self._context,
+                            start_date=start_date,
+                            end_date=end_date,
+                        )
+                    )
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
         if isinstance(end_date, str):
             end_date = ciso8601.parse_datetime(end_date).date()
 
+        return start_date, end_date
+
+    def _adjust_start_date_if_finalized(self, bill_date, start_date, end_date):
+        """If the bill date is from a prior month, check for an invoice ID and adjust start date."""
+        now_utc = DateAccessor().today()
+
+        is_previous_month = bill_date.year != now_utc.year or bill_date.month != now_utc.month
+        if is_previous_month:
+            with AWSReportDBAccessor(self._schema) as accessor:
+                invoice_ids = accessor.check_for_invoice_id_trino(str(self._provider.uuid), bill_date)
+                if invoice_ids:
+                    msg = "report is finalized"
+                else:
+                    msg = "report is not finalized"
+                    start_date = end_date - relativedelta(days=2)
+                LOG.info(log_json(msg=msg, context=self._context, bill_date=bill_date, start_date=start_date))
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date, **kwargs):

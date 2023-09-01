@@ -25,10 +25,7 @@ class CostUsageReportManifest(models.Model):
     billing_period_start_datetime = models.DateTimeField()
     num_total_files = models.IntegerField()
     s3_csv_cleared = models.BooleanField(default=False, null=True)
-    # New daily archives for AWS/Azure set this to False when finalizing a bill
-    s3_parquet_cleared = models.BooleanField(default=True, null=True)
-    # Indicates what initial date to start at for daily processing
-    daily_archive_start_date = models.DateTimeField(null=True)
+    s3_parquet_cleared = models.BooleanField(default=False, null=True)
     operator_version = models.TextField(null=True)
     cluster_channel = models.TextField(null=True)
     operator_certified = models.BooleanField(null=True)

@@ -30,7 +30,7 @@ class GCPReportDownloaderError(Exception):
     pass
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context):
+def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 

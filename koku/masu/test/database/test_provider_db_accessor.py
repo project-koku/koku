@@ -206,18 +206,6 @@ class ProviderDBAccessorTest(MasuTestCase):
         ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
         self.assertGreater(ProviderDBAccessor(self.aws_provider_uuid).provider.data_updated_timestamp, now)
 
-    def test_get_updated_timestamp(self):
-        """Test that the data updated timestamp is updated."""
-        now = DateAccessor().today_with_timezone("UTC")
-        ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
-        get_timestamp = ProviderDBAccessor(self.aws_provider_uuid).get_data_updated_timestamp()
-        self.assertGreater(get_timestamp, now)
-
-    def test_get_updated_timestamp_no_provider(self):
-        """Test that the data updated timestamp is updated."""
-        get_timestamp = ProviderDBAccessor().get_data_updated_timestamp()
-        self.assertEqual(get_timestamp, None)
-
     def test_set_additional_context(self):
         """Test that the additional context is updated."""
         context = {"new": "context"}
