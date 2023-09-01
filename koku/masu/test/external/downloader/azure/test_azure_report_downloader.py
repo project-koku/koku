@@ -455,12 +455,10 @@ class AzureReportDownloaderTest(MasuTestCase):
             self.assertEqual(process_date, expected_date)
             os.remove(temp_path)
 
-    @patch("masu.util.aws.common.get_s3_resource")
-    def test_get_processing_date_alt_columns(self, mock_resource):
+    def test_get_processing_date_alt_columns(self):
         """Test getting dataframe with date for processing."""
         file_name = "camel_azure_version_2.csv"
         file_path = f"./koku/masu/test/data/azure/{file_name}"
-        context = {"account": self.schema_name, "provider_type": self.azure_provider.type}
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
@@ -475,7 +473,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                     return_value=expected_date,
                 ):
                     time_interval, process_date = get_processing_date(
-                        temp_path, "csv_path", 1, self.azure_provider_uuid, start_date, end_date, context, "tracing_id"
+                        temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
                     self.assertEqual(time_interval, expected_interval)
                     self.assertEqual(process_date, expected_date)
