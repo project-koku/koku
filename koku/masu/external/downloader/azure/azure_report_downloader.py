@@ -104,8 +104,8 @@ def create_daily_archives(
     """
     end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
+    date_range = {}
     dates = set()
-    batch_date_range = set()
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
@@ -126,8 +126,12 @@ def create_daily_archives(
                 return [], {}
 
             dates = data_frame[time_interval].unique()
-            batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
-            batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
+            date_range = {
+                "start": data_frame.index[0].strftime(DATE_FORMAT),
+                "end": data_frame.index[-1].strftime(DATE_FORMAT),
+                "invoice_month": None,
+            }
+
             directory = os.path.dirname(local_file)
             for date in dates:
                 daily_data = data_frame.loc[date]
@@ -139,11 +143,6 @@ def create_daily_archives(
                     tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                 )
                 daily_file_names.append(day_filepath)
-    date_range = {
-        "start": min(batch_date_range),
-        "end": max(batch_date_range),
-        "invoice_month": None,
-    }
     return daily_file_names, date_range
 
 
