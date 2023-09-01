@@ -9,8 +9,8 @@ from api.common import log_json
 from api.models import Provider
 from masu.util.aws.common import OPTIONAL_ALT_COLS
 from masu.util.aws.common import OPTIONAL_COLS
-from masu.util.aws.common import RECOMMENDED_ALT_COLUMNS
-from masu.util.aws.common import RECOMMENDED_COLUMNS
+from masu.util.aws.common import REQUIRED_ALT_COLUMNS
+from masu.util.aws.common import REQUIRED_COLUMNS
 from masu.util.common import batch
 from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
@@ -139,9 +139,9 @@ class AWSPostProcessor:
         """
         Checks the required columns for ingress.
         """
-        if not set(col_names).issuperset(RECOMMENDED_COLUMNS):
-            if not set(col_names).issuperset(RECOMMENDED_ALT_COLUMNS):
-                missing_columns = [x for x in RECOMMENDED_ALT_COLUMNS if x not in col_names]
+        if not set(col_names).issuperset(REQUIRED_COLUMNS):
+            if not set(col_names).issuperset(REQUIRED_ALT_COLUMNS):
+                missing_columns = [x for x in REQUIRED_ALT_COLUMNS if x not in col_names]
                 return missing_columns
         return None
 
@@ -183,7 +183,7 @@ class AWSPostProcessor:
             col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
         }
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        csv_columns = RECOMMENDED_COLUMNS.union(RECOMMENDED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
+        csv_columns = REQUIRED_COLUMNS.union(REQUIRED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
         panda_kwargs["usecols"] = [
             col for col in col_names if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
         ]

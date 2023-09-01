@@ -1731,8 +1731,6 @@ objects:
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: PANDAS_COLUMN_BATCH_SIZE
-          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -1916,8 +1914,6 @@ objects:
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: PANDAS_COLUMN_BATCH_SIZE
-          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2471,8 +2467,6 @@ objects:
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: PANDAS_COLUMN_BATCH_SIZE
-          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -2656,8 +2650,6 @@ objects:
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: PANDAS_COLUMN_BATCH_SIZE
-          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -4292,11 +4284,6 @@ parameters:
   name: PARQUET_PROCESSING_BATCH_SIZE
   required: true
   value: "200000"
-- description: How many pandas columns to read from file
-  displayName: Pandas column batch size
-  name: PANDAS_COLUMN_BATCH_SIZE
-  required: true
-  value: "250"
 - description: Processing batch size
   displayName: Processing batch size
   name: REPORT_PROCESSING_BATCH_SIZE
