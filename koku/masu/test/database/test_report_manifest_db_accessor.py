@@ -249,7 +249,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def test_set_and_get_manifest_daily_archive_start_date(self):
         """Test marking manifest daily archive start date."""
         manifest = self.manifest_accessor.add(**self.manifest_dict)
-        start_date = DateHelper().this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7)
         self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
         manifest_start = self.manifest_accessor.get_manifest_daily_start_date(manifest.id)
         self.assertEqual(manifest_start, start_date)

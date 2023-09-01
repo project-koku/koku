@@ -1,7 +1,6 @@
 import json
 
 import ciso8601
-import pandas
 from numpy import nan
 
 from api.models import Provider
@@ -108,9 +107,8 @@ class AzurePostProcessor:
         data_frame = data_frame.reindex(columns=columns)
 
         unique_tags = set()
-        for tags_json in data_frame["tags"].values:
-            if pandas.notnull(tags_json):
-                unique_tags.update(json.loads(tags_json))
+        for tags_json in data_frame["tags"]:
+            unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
         return data_frame, self._generate_daily_data(data_frame)
 

@@ -291,8 +291,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """
         manifest = self.get_manifest_by_id(manifest_id)
         if manifest:
-            if manifest.daily_archive_start_date:
-                return manifest.daily_archive_start_date.replace(tzinfo=None)
+            return manifest.daily_archive_start_date
 
     def update_and_get_day_file(self, day, manifest_id):
         with transaction.atomic():
