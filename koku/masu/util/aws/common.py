@@ -32,7 +32,7 @@ from reporting.provider.aws.models import AWSCostEntryBill
 LOG = logging.getLogger(__name__)
 
 
-REQUIRED_COLUMNS = {
+INGRESS_REQUIRED_COLUMNS = {
     "bill/BillingEntity",
     "bill/BillType",
     "bill/PayerAccountId",
@@ -75,13 +75,16 @@ REQUIRED_COLUMNS = {
     "product/productFamily",
     "product/servicecode",
     "product/region",
+    "product/instanceType",
+    "product/memory",
+    "product/vcpu",
     "reservation/NumberOfReservations",
     "reservation/UnitsPerReservation",
     "reservation/StartTime",
     "reservation/EndTime",
 }
 
-REQUIRED_ALT_COLUMNS = {
+INGRESS_ALT_COLUMNS = {
     "bill_billing_entity",
     "bill_bill_type",
     "bill_payer_account_id",
@@ -124,28 +127,18 @@ REQUIRED_ALT_COLUMNS = {
     "product_product_family",
     "product_servicecode",
     "product_region",
+    "product_instance_type",
+    "product_memory",
+    "product_vcpu",
     "reservation_number_of_reservations",
     "reservation_units_per_reservation",
     "reservation_start_time",
     "reservation_end_time",
 }
 
-OPTIONAL_COLS = {
-    "resourcetags",
-    "costcategory",
+SUBS_COLUMNS = {
+    "identity/TimeInterval",
     "product/physicalCores",
-    "product/instanceType",
-    "product/vcpu",
-    "product/memory",
-}
-
-OPTIONAL_ALT_COLS = {
-    "resource_tags",
-    "cost_category",
-    "product_physical_cores",
-    "product_instancetype",
-    "product_vcpu",
-    "product_memory",
 }
 
 DATE_FMT = "%Y-%m-%d"
