@@ -309,20 +309,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.save(update_fields=["report_tracker"])
             return f"{day}_{counter}.csv"
 
-    def update_and_get_parquet_batch_counter(self, day, manifest_id):
-        """This is needed for OCP on Cloud filtered daily parquet files"""
-        with transaction.atomic():
-            # With split payloads, we could have a race condition trying to update the `report_tracker`.
-            # using a transaction and `select_for_update` should minimize the risk of multiple
-            # workers trying to update this field at the same time by locking the manifest during update.
-            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
-            if not manifest.report_tracker.get(day):
-                manifest.report_tracker[day] = 0
-            counter = manifest.report_tracker[day]
-            manifest.report_tracker[day] = counter + 1
-            manifest.save(update_fields=["report_tracker"])
-            return counter
-
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""
         manifests = (

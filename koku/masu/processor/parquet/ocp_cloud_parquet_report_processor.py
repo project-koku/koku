@@ -135,9 +135,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Create a parquet file for daily aggregated data."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
-                # TODO This may case us to overwrite partial GCP files
-                parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{parquet_base_filename}"
-        file_name = f"{parquet_base_filename}_{file_number}{PARQUET_EXT}"
+                parquet_base_filename = (
+                    f"{data_frame['invoice_month'].values[0]}{parquet_base_filename[parquet_base_filename.find('_'):]}"
+                )
+        file_name = f"{parquet_base_filename}_{file_number}_{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
         self.create_parquet_table(file_path, daily=True, partition_map=self.partition_map)
@@ -172,7 +173,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
         return matched_tags
 
-    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, manifest_id):
+    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
         """Create a parquet file for daily aggregated data for each partition."""
         date_fields = {
             Provider.PROVIDER_AWS: "lineitem_usagestartdate",
@@ -181,23 +182,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         }
         date_field = date_fields[self.provider_type]
         unique_usage_days = data_frame[date_field].unique()
+
         for usage_day in unique_usage_days:
             usage_date = pd.to_datetime(usage_day).date()
-            # Uniqueify manifest report counter dict entry with p for parquet (dont colide with csvs)
-            # We use the manifest to hold dated file counts for multiple workers processing the same dates in files
-            base_filename = f"{usage_date}_p"
-            counter = ReportManifestDBAccessor().update_and_get_parquet_batch_counter(base_filename, manifest_id)
-            # Parquet base filename dates here DO NOT match the data written to them
-            split_base_name = parquet_base_filename.split("_")
-            base_file_date = split_base_name[0]
-            if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                # GCP filenames start with an invoice month before the date
-                base_file_date = f"{base_file_date}_{split_base_name[1]}"
-            non_date_base_name = parquet_base_filename.removeprefix(base_file_date)
-            usage_day_file_name = f"{usage_date}{non_date_base_name}"
             self.start_date = usage_date
             df = data_frame[data_frame[date_field] == usage_day]
-            self.create_ocp_on_cloud_parquet(df, usage_day_file_name, counter)
+            self.create_ocp_on_cloud_parquet(df, parquet_base_filename, file_number)
 
     def get_ocp_provider_uuids_tuple(self):
         """Get a list of provider UUIDs to process against."""
@@ -229,7 +219,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 ocp_provider_uuids.append(ocp_provider_uuid)
         return tuple(ocp_provider_uuids)
 
-    def process(self, parquet_base_filename, daily_data_frames, manifest_id=None):
+    def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
@@ -244,21 +234,14 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
             # Get matching tags
             matched_tags = self.get_matched_tags(ocp_provider_uuids)
-            daily_data_frames = pd.concat(daily_data_frames, ignore_index=True)
-            openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
-                daily_data_frames, cluster_topology, matched_tags
-            )
-
-            if self.provider_type in (
-                Provider.PROVIDER_GCP,
-                Provider.PROVIDER_GCP_LOCAL,
-                Provider.PROVIDER_AWS,
-                Provider.PROVIDER_AWS_LOCAL,
-                Provider.PROVIDER_AZURE,
-                Provider.PROVIDER_AZURE_LOCAL,
-            ):
-                self.create_partitioned_ocp_on_cloud_parquet(
-                    openshift_filtered_data_frame, parquet_base_filename, manifest_id
+            for i, daily_data_frame in enumerate(daily_data_frames):
+                openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
+                    daily_data_frame, cluster_topology, matched_tags
                 )
-            else:
-                self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, file_number=0)
+
+                if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                    self.create_partitioned_ocp_on_cloud_parquet(
+                        openshift_filtered_data_frame, parquet_base_filename, i
+                    )
+                else:
+                    self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, i)
