@@ -442,16 +442,18 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_interval = "UsageDateTime"
+        expected_date_fmt = "%Y-%m-%d %H:%M:%S"
         start_date = DateHelper().this_month_start.replace(year=2123, month=12, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2123, month=12, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
         mock_daily_start.return_value = expected_date
         with patch("masu.util.common.check_setup_complete", return_Value=True):
-            time_interval, process_date = get_processing_date(
+            time_interval, process_date, date_format = get_processing_date(
                 temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
             )
             mock_daily_start.assert_called()
             self.assertEqual(time_interval, expected_interval)
+            self.assertEqual(date_format, expected_date_fmt)
             self.assertEqual(process_date, expected_date)
             os.remove(temp_path)
 
@@ -463,6 +465,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_interval = "date"
+        expected_date_fmt = "%m/%d/%Y"
         start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
@@ -472,9 +475,10 @@ class AzureReportDownloaderTest(MasuTestCase):
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
                     return_value=expected_date,
                 ):
-                    time_interval, process_date = get_processing_date(
+                    time_interval, process_date, date_format = get_processing_date(
                         temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
                     )
                     self.assertEqual(time_interval, expected_interval)
+                    self.assertEqual(date_format, expected_date_fmt)
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
