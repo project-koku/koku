@@ -679,7 +679,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2023-06-01_0.csv",
+            f"{temp_dir}/2023-06-01_0_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
@@ -704,7 +704,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/2022-07-01_0.csv",
+            f"{temp_dir}/2022-07-01_0_0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2022, month=7, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(

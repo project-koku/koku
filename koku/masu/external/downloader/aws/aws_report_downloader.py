@@ -133,7 +133,7 @@ def create_daily_archives(
             data_frame = data_frame[data_frame[time_interval].str.contains("|".join(dates))]
             for date in dates:
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
-                day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id)
+                day_file = ReportManifestDBAccessor().update_and_get_day_file(date, manifest_id, i)
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 utils.copy_local_report_file_to_s3_bucket(
