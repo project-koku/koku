@@ -7,6 +7,7 @@ import datetime
 
 from django_tenants.utils import schema_context
 
+from api.models import Provider
 from api.utils import DateHelper
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.test import MasuTestCase
@@ -62,6 +63,20 @@ class OCPReportProcessorParquetTest(MasuTestCase):
                 provider=self.ocp_provider_uuid,
             )
             self.assertIsNotNone(report_period.first())
+
+        p = Provider.objects.get(uuid=self.ocp_provider_uuid)
+        p.name = "new name"
+        p.save()
+
+        self.processor.create_bill(bill_date.date())
+        with schema_context(self.schema):
+            report_period = OCPUsageReportPeriod.objects.get(
+                cluster_id=self.ocp_cluster_id,
+                report_period_start=start_date,
+                report_period_end=end_date,
+                provider=self.ocp_provider_uuid,
+            )
+            self.assertEqual(report_period.cluster_alias, "new name")
 
     def test_create_bill_with_string_arg(self):
         """Test that a bill is created in the Postgres database."""

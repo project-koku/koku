@@ -3,13 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCP Parquet files."""
-import contextlib
 import datetime
 import logging
 
 import ciso8601
 from django.conf import settings
-from django.db.utils import IntegrityError
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -94,13 +92,12 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             )
         )
         with schema_context(self._schema_name):
-            with contextlib.suppress(IntegrityError):
-                # IntegrityError caused by race condition creating this report.
-                # Skipping this error is fine because the report exists.
-                OCPUsageReportPeriod.objects.get_or_create(
-                    cluster_id=cluster_id,
-                    cluster_alias=cluster_alias,
-                    report_period_start=report_period_start,
-                    report_period_end=report_period_end,
-                    provider_id=provider.uuid,
-                )
+            bill, _ = OCPUsageReportPeriod.objects.get_or_create(
+                cluster_id=cluster_id,
+                report_period_start=report_period_start,
+                report_period_end=report_period_end,
+                provider_id=provider.uuid,
+            )
+            if bill.cluster_alias != cluster_alias:
+                bill.cluster_alias = cluster_alias
+                bill.save(update_fields=["cluster_alias"])
