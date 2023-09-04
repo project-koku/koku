@@ -57,7 +57,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         end_date = DateHelper().next_month_end + datetime.timedelta(days=1)
         self.processor.create_bill(bill_date.date())
 
-        with schema_context(self.schema):
+        with schema_context(self.schema), self.subTest("bill is created with original cluster alias"):
             report_period = OCPUsageReportPeriod.objects.get(
                 cluster_id=self.ocp_cluster_id,
                 report_period_start=start_date,
@@ -67,18 +67,18 @@ class OCPReportProcessorParquetTest(MasuTestCase):
             self.assertIsNotNone(report_period)
             self.assertEqual(report_period.cluster_alias, cluster_alias_orig)
 
+        self.processor.create_bill(bill_date.date())
+        with schema_context(self.schema), self.subTest("bill is fetched, and cluster alias did not change"):
+            report_period = OCPUsageReportPeriod.objects.get(id=report_period.id)
+            self.assertEqual(report_period.cluster_alias, cluster_alias_orig)
+
         p = Provider.objects.get(uuid=self.ocp_provider_uuid)
         p.name = cluster_alias_new
         p.save()
 
         self.processor.create_bill(bill_date.date())
-        with schema_context(self.schema):
-            report_period = OCPUsageReportPeriod.objects.get(
-                cluster_id=self.ocp_cluster_id,
-                report_period_start=start_date,
-                report_period_end=end_date,
-                provider=self.ocp_provider_uuid,
-            )
+        with schema_context(self.schema), self.subTest("bill is fetched, and cluster alias is updated"):
+            report_period = OCPUsageReportPeriod.objects.get(id=report_period.id)
             self.assertEqual(report_period.cluster_alias, cluster_alias_new)
 
     def test_create_bill_with_string_arg(self):
