@@ -485,20 +485,49 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_volume_cost,
-                            "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
-                            "request": Sum("volume_request_storage_gigabyte_months"),
-                            "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                            "usage": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "request": Sum(
+                                Coalesce(
+                                    F("volume_request_storage_gigabyte_months"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "capacity": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
                             "cluster": {
-                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity_count": Sum(
+                                    Coalesce(
+                                        F("persistentvolumeclaim_capacity_gigabyte"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                ),
                                 "capacity_count_units": Value("GB", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
-                                "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
+                                "capacity": Sum(
+                                    Coalesce(
+                                        F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                ),
+                                "capacity_count": Sum(
+                                    Coalesce(
+                                        F("persistentvolumeclaim_capacity_gigabyte"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                ),
                                 "capacity_count_units": Value("GB", output_field=CharField()),
                             },
                         },
@@ -519,9 +548,23 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_volume_cost,
-                            "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
-                            "request": Sum("volume_request_storage_gigabyte_months"),
-                            "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                            "usage": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "request": Sum(
+                                Coalesce(
+                                    F("volume_request_storage_gigabyte_months"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "capacity": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
@@ -531,8 +574,17 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "delta_key": {
-                            "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
-                            "request": Sum("volume_request_storage_gigabyte_months"),
+                            "usage": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "request": Sum(
+                                Coalesce(
+                                    F("volume_request_storage_gigabyte_months"), Value(0, output_field=DecimalField())
+                                )
+                            ),
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_volume_cost,
