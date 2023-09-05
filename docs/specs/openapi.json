@@ -5555,16 +5555,73 @@
                 ],
                 "summary": "Query tags in Cost Management from cloud sources",
                 "operationId": "getSettingsTags",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "source_type",
+                        "description": "Cloud provider type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "enabled",
+                        "description": "Enable state of the tag",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by",
+                        "description": "Field(s) used to sort results. Add a '-' prefix for descending order.",
+                        "schema": {
+                            "type": "array",
+                            "example": ["source_type", "-enabled"],
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "uuid",
+                        "description": "UUID of a tag entry",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "key",
+                        "description": "Case insensitive search of key values. One or more key parameters may be provided.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+
+                ],
                 "responses": {
                     "200": {
                         "description": "Returned tags sucessfully",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/SettingsTags"
-                                    }
+                                    "$ref": "#/components/schemas/SettingsTagsResponse"
                                 }
                             }
                         }
@@ -5787,7 +5844,7 @@
                 "description": "Parameter for selecting the offset of data.",
                 "schema": {
                     "type": "integer",
-                    "default": 0,
+                    "example": 0,
                     "minimum": 0
                 }
             },
@@ -5798,7 +5855,7 @@
                 "description": "Parameter for selecting the amount of data in a returned.",
                 "schema": {
                     "type": "integer",
-                    "default": 10,
+                    "example": 10,
                     "minimum": 1,
                     "maximum": 1000
                 }
@@ -5897,15 +5954,19 @@
                             "type": "object",
                             "properties": {
                                 "ids": {
-                                    "type": "string",
-                                    "format": "uuid"
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
                                 }
                             },
                             "example": {
                                 "ids": [
-                                "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
-                                "67423602-0f13-47dc-ac09-4d145a9def35",
-                                "832a3858-d80f-4751-bbcc-b345febacf99"
+                                    "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                                    "67423602-0f13-47dc-ac09-4d145a9def35",
+                                    "832a3858-d80f-4751-bbcc-b345febacf99"
                                 ]
                             }
 
@@ -9886,31 +9947,38 @@
                     }
                 }
             },
-            "SettingsTags": {
-                "allof": [
-                    {
-                        "$ref": "#/components/schemas/ListPagination"
+            "SettingsTagsResponse": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
                     },
-                    {
-                        "type": "object",
-                        "required": [
-                            "data"
-                        ],
-                        "properties": {
-                            "data": {
-                                "type": "array",
-                                "example": [
-                                    {
-                                        "uuid": "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
-                                        "key": "openshift_project",
-                                        "enabled": false,
-                                        "source_type": "AWS"
-                                    }
-                                ]
-                            }
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "data"
+                            ],
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            },
+                            "example": [
+                                {
+                                    "uuid": "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                                    "key": "openshift_project",
+                                    "enabled": false,
+                                    "source_type": "AWS"
+                                }
+                            ]
                         }
                     }
-                ]
+                }
             },
             "GetAwsCategorySettings": {
                 "allOf": [{
