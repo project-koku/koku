@@ -166,9 +166,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         base_file_name = f"{self.ocp_provider_uuid}"
         file_path = f"{self.report_processor.local_path}"
         df = pd.DataFrame({"test": [1, 2, 3]})
-        self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
+        self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name)
         mock_write.assert_called()
-        expected = f"{file_path}/{self.ocp_provider_uuid}_0{PARQUET_EXT}"
+        expected = f"{file_path}/{self.ocp_provider_uuid}{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True, partition_map=None)
 
     @patch.object(OCPCloudParquetReportProcessor, "create_parquet_table")
@@ -188,9 +188,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         file_path = f"{report_processor.local_path}"
         invoice_month = "202301"
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month]})
-        report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
+        report_processor.create_ocp_on_cloud_parquet(df, base_file_name)
         mock_write.assert_called()
-        expected = f"{file_path}/{invoice_month}_{base_file_name}_0{PARQUET_EXT}"
+        expected = f"{file_path}/{invoice_month}_{base_file_name}{PARQUET_EXT}"
         mock_create_table.assert_called_with(
             expected,
             daily=True,
@@ -215,10 +215,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, self.manifest_id)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
-        call_df, call_base_file_name, call_number = args
+        call_df, call_base_file_name = args
         self.assertTrue(call_df.equals(df))
         self.assertEqual(base_file_name, f"{invoice_month}_{call_base_file_name}")
-        self.assertEqual(call_number, 0)
 
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     def test_create_partitioned_ocp_on_cloud_parquet_azure(self, mock_create_table):
@@ -237,10 +236,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, self.manifest_id)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
-        call_df, call_base_file_name, call_number = args
+        call_df, call_base_file_name = args
         self.assertTrue(call_df.equals(df))
         self.assertEqual(base_file_name, f"{call_base_file_name}")
-        self.assertEqual(call_number, 0)
 
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
