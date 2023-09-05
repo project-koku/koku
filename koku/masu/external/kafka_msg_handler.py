@@ -618,6 +618,7 @@ def process_report(request_id, report):
     # to create a Hive/Trino table.
     report_dict = {
         "file": report.get("current_file"),
+        "split_files": report.get("split_files"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
@@ -687,7 +688,12 @@ def process_messages(msg):
                 # we have not received all of the daily files yet, so don't process them
                 break
             report_meta["process_complete"] = process_report(request_id, report_meta)
-            LOG.info(log_json(tracing_id, msg=f"Processing: {report_meta.get('current_file')} complete."))
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    msg=f"Processing: {report_meta.get('current_file')}|{report_meta.get('split_files')} complete.",
+                )
+            )
         process_complete = report_metas_complete(report_metas)
         summary_task_id = summarize_manifest(report_meta, tracing_id)
         if summary_task_id:
