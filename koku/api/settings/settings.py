@@ -11,26 +11,27 @@ from rest_framework.serializers import ValidationError
 
 from api.common import error_obj
 from api.provider.models import Provider
-from api.settings.utils import create_dual_list_select
-from api.settings.utils import create_plain_text
-from api.settings.utils import create_plain_text_with_doc
-from api.settings.utils import create_select
-from api.settings.utils import create_subform
-from api.settings.utils import generate_doc_link
-from api.settings.utils import get_cost_type_options
-from api.settings.utils import get_currency_options
-from api.settings.utils import get_selected_cost_type_or_setup
-from api.settings.utils import get_selected_currency_or_setup
-from api.settings.utils import set_cost_type
-from api.settings.utils import set_currency
-from api.settings.utils import SETTINGS_PREFIX
+from api.user_settings.utils import create_dual_list_select
+from api.user_settings.utils import create_plain_text
+from api.user_settings.utils import create_plain_text_with_doc
+from api.user_settings.utils import create_select
+from api.user_settings.utils import create_subform
+from api.user_settings.utils import generate_doc_link
+from api.user_settings.utils import get_cost_type_options
+from api.user_settings.utils import get_currency_options
+from api.user_settings.utils import get_selected_cost_type_or_setup
+from api.user_settings.utils import get_selected_currency_or_setup
+from api.user_settings.utils import set_cost_type
+from api.user_settings.utils import set_currency
+from api.user_settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from masu.processor import is_aws_category_settings_enabled
-from masu.processor import is_ddf_tag_form_disabled
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import EnabledTagKeys
+
+# from masu.processor import is_aws_category_settings_enabled
+# from masu.processor import is_ddf_tag_form_disabled
 
 LOG = logging.getLogger(__name__)
 
@@ -227,10 +228,10 @@ class Settings:
         }
         currency = create_select(currency_select_name, **currency_options)
         sub_form_fields = [currency_title, currency_select_text, currency]
-        if is_ddf_tag_form_disabled():
-            sub_form_fields = self._build_disabled_tag_form(sub_form_fields)
-        else:
-            sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
+        # if is_ddf_tag_form_disabled():
+        #     sub_form_fields = self._build_disabled_tag_form(sub_form_fields)
+        # else:
+        #     sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
         has_aws_providers = customer_specific_providers.filter(type__icontains=Provider.PROVIDER_AWS).exists()
@@ -251,8 +252,8 @@ class Settings:
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
             sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
-            if is_aws_category_settings_enabled(self.schema):
-                sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
+            # if is_aws_category_settings_enabled(self.schema):
+            #     sub_form_fields = self._build_enable_key_form(sub_form_fields, "aws_category")
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
@@ -375,9 +376,9 @@ class Settings:
 
         cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
         results.append(self._cost_type_handler(cost_type_settings))
-        if not is_ddf_tag_form_disabled():
-            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-            results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
+        # if not is_ddf_tag_form_disabled():
+        #     tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+        #     results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
 
         category_settings = settings.get("api", {}).get("settings", {}).get("aws-category-management", {})
         results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))

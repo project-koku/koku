@@ -36,3 +36,5 @@ USER_SETTINGS = {
         }
 }
 # fmt: on
+
+DEFAULT_USER_SETTINGS = {"currency": KOKU_DEFAULT_CURRENCY, "cost_type": KOKU_DEFAULT_COST_TYPE}

@@ -19,7 +19,6 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
-from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -28,19 +27,16 @@ from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
-from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 
 from api.common import RH_IDENTITY_HEADER
-from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.iam.serializers import UserSerializer
-from api.settings.utils import generate_doc_link
 from api.utils import DateHelper
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
@@ -103,35 +99,6 @@ class HttpResponseFailedDependency(JsonResponse):
             ]
         }
         super().__init__(data)
-
-
-class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
-    """A middleware to check if schema exists for Tenant."""
-
-    def process_exception(self, request, exception):
-        if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
-            if (
-                settings.ROOT_URLCONF == "koku.urls"
-                and request.path in reverse("settings")
-                and (not schema_exists(request.tenant.schema_name) or request.tenant.schema_name == "public")
-            ):
-
-                doc_link = generate_doc_link("/")
-
-                err_page = {
-                    "name": "middleware.settings.err",
-                    "component": "error-state",
-                    "errorTitle": "Configuration Error",
-                    "errorDescription": f"Before adding settings you must create a Source for Cost Management. "
-                    f"<br /><span><a href={doc_link}>[Learn more]</a></span>",
-                }
-
-                return JsonResponse(
-                    [{"fields": [err_page], "formProps": {"showFormControls": False}}], safe=False, status=200
-                )
-
-            paginator = EmptyResultsSetPagination([], request)
-            return paginator.get_paginated_response()
 
 
 class KokuTenantMiddleware(TenantMainMiddleware):

@@ -408,59 +408,6 @@ def populate_enabled_tag_rows_with_limit(schema: str, tags: set[str, ...], provi
             EnabledTagKeys.objects.bulk_create(new_records, ignore_conflicts=True)
 
 
-# TODO: Remove with settings deprecation COST-3797
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
-    ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
-    LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
-    changed = False
-
-    enabled_keys_set = set(enabled_keys)
-    update_keys_enabled = []
-    update_keys_disabled = []
-
-    with schema_context(schema):
-        if provider_type:
-            key_objects = enabled_keys_model.objects.filter(provider_type=provider_type)
-        else:
-            key_objects = enabled_keys_model.objects.all()
-        for key in key_objects:
-            if key.key in enabled_keys_set:
-                if not key.enabled:
-                    update_keys_enabled.append(key.key)
-            else:
-                update_keys_disabled.append(key.key)
-
-        # When we are in create mode, we do not want to change the state of existing keys
-        if update_keys_enabled or update_keys_disabled:
-            changed = True
-            if update_keys_enabled:
-                LOG.info(
-                    log_json(msg="updating keys to ENABLED", keys_to_update=len(update_keys_enabled), context=ctx)
-                )
-                if provider_type:
-                    enabled_keys_model.objects.filter(key__in=update_keys_enabled, provider_type=provider_type).update(
-                        enabled=True
-                    )
-                else:
-                    enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
-
-            if update_keys_disabled:
-                LOG.info(
-                    log_json(msg="updating keys to DISABLED", keys_to_update=len(update_keys_disabled), context=ctx)
-                )
-                if provider_type:
-                    enabled_keys_model.objects.filter(
-                        key__in=update_keys_disabled, provider_type=provider_type
-                    ).update(enabled=False)
-                else:
-                    enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
-
-    if not changed:
-        LOG.info(log_json(msg="no enabled keys updated", context=ctx))
-
-    return changed
-
-
 def execute_trino_query(schema_name, sql, params=None):
     """Execute Trino SQL."""
     connection = trino_db.connect(schema=schema_name)

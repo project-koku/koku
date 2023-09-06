@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
-from api.settings.tags.view import SettingsTagFilter
+from api.user_settings.tags.view import SettingsTagFilter
 
 
 class TestSettingsTagFilter(TestCase):
@@ -19,7 +19,7 @@ class TestSettingsTagFilter(TestCase):
 
     def test_no_request(self):
         with patch(
-            "api.settings.utils.FilterSet.filter_queryset",
+            "api.user_settings.utils.FilterSet.filter_queryset",
             side_effect=AttributeError("Raised intentionally"),
         ):
             with self.assertRaisesRegex(AttributeError, "Raised intentionally"):

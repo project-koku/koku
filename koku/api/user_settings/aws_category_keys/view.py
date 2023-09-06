@@ -17,9 +17,9 @@ from rest_framework.views import APIView
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Provider
-from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer
-from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeySerializer
-from api.settings.utils import SettingsFilter
+from api.user_settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer
+from api.user_settings.aws_category_keys.serializers import SettingsAWSCategoryKeySerializer
+from api.user_settings.utils import SettingsFilter
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 

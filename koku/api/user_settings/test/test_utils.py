@@ -4,11 +4,11 @@
 #
 from django_tenants.utils import schema_context
 
-from api.settings.utils import get_cost_type_options
-from api.settings.utils import get_selected_cost_type_or_setup
-from api.settings.utils import get_selected_currency_or_setup
-from api.settings.utils import set_cost_type
-from api.settings.utils import set_currency
+from api.user_settings.utils import get_cost_type_options
+from api.user_settings.utils import get_selected_cost_type_or_setup
+from api.user_settings.utils import get_selected_currency_or_setup
+from api.user_settings.utils import set_cost_type
+from api.user_settings.utils import set_currency
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.test import MasuTestCase
