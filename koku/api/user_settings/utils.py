@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import typing as t
+from copy import deepcopy
 
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -179,7 +180,9 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
             raise ValueError(f"{currency_code} is not a supported currency")
 
         if not account_currency_setting:
-            set_default_user_settings()
+            overwrite_default = deepcopy(DEFAULT_USER_SETTINGS)
+            overwrite_default["currency"] = currency_code
+            UserSettings.objects.create(settings=overwrite_default)
         else:
             account_currency_setting.settings["currency"] = currency_code
             account_currency_setting.save()
@@ -207,7 +210,9 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
             raise ValueError(cost_type_code + " is not a supported cost_type")
 
         if not account_current_setting:
-            set_default_user_settings()
-            account_current_setting = UserSettings.objects.all().first()
-        account_current_setting.settings["cost_type"] = cost_type_code
-        account_current_setting.save()
+            overwrite_default = deepcopy(DEFAULT_USER_SETTINGS)
+            overwrite_default["cost_type"] = cost_type_code
+            UserSettings.objects.create(settings=overwrite_default)
+        else:
+            account_current_setting.settings["cost_type"] = cost_type_code
+            account_current_setting.save()
