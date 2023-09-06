@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Project Koku and OpenShift cost management. You can find out more about Project Koku at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "description": "The API for Cost Management",
         "version": "1.0.2",
         "title": "Cost Management",
         "license": {
@@ -30,8 +30,8 @@
             "description": "Operations about OCI report interactions"
         },
         {
-            "name": "Sources",
-            "description": "Operations about platform sources interactions"
+            "name": "Integrations",
+            "description": "Operations about platform integrations interactions"
         },
         {
             "name": "Cost Models",
@@ -3925,9 +3925,9 @@
         "/sources/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "List the sources",
+                "summary": "List the integrations",
                 "operationId": "listSources",
                 "parameters": [{
                         "name": "type",
@@ -3984,9 +3984,9 @@
         "/sources/{source_id}/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "Get a source",
+                "summary": "Get an integration",
                 "operationId": "getSource",
                 "parameters": [{
                     "name": "source_id",
@@ -4042,9 +4042,9 @@
         "/sources/{source_id}/stats/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "Get a source statistics",
+                "summary": "Get integration statistics",
                 "operationId": "getSourceStats",
                 "parameters": [{
                     "name": "source_id",
@@ -4112,7 +4112,7 @@
         "/sources/aws-s3-regions/":{
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
                 "summary": "List available AWS S3 regions",
                 "operationId": "getAWSS3Regions",

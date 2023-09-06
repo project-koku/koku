@@ -68,12 +68,20 @@ class TagsSettings(IamTestCase):
 
     def test_get_tags_filtering(self):
         test_matrix = (
-            {"filter": {"filter[provider_type]": "AWS"}, "key": "provider_type", "expected": {"AWS"}},
-            {"filter": {"filter[provider_type]": ["AWS", "GCP"]}, "key": "provider_type", "expected": {"AWS", "GCP"}},
+            # Custom syntax
+            {"filter": {"filter[source_type]": "AWS"}, "key": "source_type", "expected": {"AWS"}},
+            {"filter": {"filter[source_type]": ["AWS", "GCP"]}, "key": "source_type", "expected": {"AWS", "GCP"}},
             {"filter": {"filter[key]": "env"}, "key": "key", "expected": {"env", "Environment"}},
             {"filter": {"filter[enabled]": True}, "key": "enabled", "expected": {True}},
             {"filter": {"filter[enabled]": "true"}, "key": "enabled", "expected": {True}},
             {"filter": {"filter[enabled]": "false"}, "key": "enabled", "expected": {False}},
+            # DRF Syntax
+            {"filter": {"source_type": "AWS"}, "key": "source_type", "expected": {"AWS"}},
+            {"filter": {"provider_type": ["AWS", "GCP"]}, "key": "source_type", "expected": {"AWS", "GCP"}},
+            {"filter": {"key": "env"}, "key": "key", "expected": {"env", "Environment"}},
+            {"filter": {"enabled": True}, "key": "enabled", "expected": {True}},
+            {"filter": {"enabled": "true"}, "key": "enabled", "expected": {True}},
+            {"filter": {"enabled": "false"}, "key": "enabled", "expected": {False}},
         )
         tags_url = reverse("settings-tags")
 
@@ -92,7 +100,7 @@ class TagsSettings(IamTestCase):
                 self.assertLessEqual(count, self.total_record_length)
 
     def test_tags_order_by(self):
-        """Test one or more order_by patameres using two syntaxes
+        """Test one or more order_by parameters using two syntaxes.
 
         Standard Django ordering:
             No prefix is ascending order. A '-' prefix is descending order.
@@ -108,21 +116,26 @@ class TagsSettings(IamTestCase):
 
         tags_url = reverse("settings-tags")
         test_matrix = (
+            # DRF syntax
             {"order": {"order_by": "enabled"}, "key": "enabled", "expected": False},
             {"order": {"order_by": "-enabled"}, "key": "enabled", "expected": True},
-            {
-                "order": {"order_by": ["-provider_type", "-key"]},
-                "keys": ("provider_type", "key"),
-                "expected": ("OCI", "zoo"),
-            },
+            {"order": {"order_by": "provider_type"}, "key": "source_type", "expected": "AWS"},
+            {"order": {"order_by": "source_type"}, "key": "source_type", "expected": "AWS"},
+            {"order": {"order_by": ["source_type", "key"]}, "key": "source_type", "expected": "AWS"},
+            {"order": {"order_by": "-key"}, "key": "key", "expected": "zoo"},
+            # Custom syntax
             {"order": {"order_by[key]": "desc"}, "key": "key", "expected": "zoo"},
             {
+                "order": {"order_by[source_type]": "asc", "order_by[key]": "desc"},
+                "keys": ("source_type", "key"),
+                "expected": ("AWS", "zoo"),
+            },
+            {
                 "order": {"order_by[provider_type]": "asc", "order_by[key]": "desc"},
-                "keys": ("provider_type", "key"),
+                "keys": ("source_type", "key"),
                 "expected": ("AWS", "zoo"),
             },
         )
-
         for test_case in test_matrix:
             with self.subTest():
                 with schema_context(self.schema_name):
@@ -138,16 +151,21 @@ class TagsSettings(IamTestCase):
             self.assertEqual(important_values, test_case["expected"])
 
     def test_tags_order_by_invalid(self):
+        test_cases = (
+            {"description": "Standard DRF syntax", "params": {"order_by": "NOPE"}},
+            {"description": "Custom order_by syntax", "params": {"order_by[NOPE]": "asc"}},
+        )
         tags_url = reverse("settings-tags")
-        with self.subTest():
-            with schema_context(self.schema_name):
-                client = rest_framework.test.APIClient()
-                response = client.get(tags_url, {"order_by": "NOPE"}, **self.headers)
+        for case in test_cases:
+            with self.subTest(case["description"]):
+                with schema_context(self.schema_name):
+                    client = rest_framework.test.APIClient()
+                    response = client.get(tags_url, case["params"], **self.headers)
 
-        error_message = response.data["errors"][0]["detail"]
+                error_message = response.data.get("errors", [{}])[0].get("detail")
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("cannot resolve keyword", error_message.lower())
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("cannot resolve keyword", error_message.lower())
 
     def test_enable_tags(self):
         """PUT a list of UUIDs and ensure they are enabled"""
@@ -211,6 +229,30 @@ class TagsSettings(IamTestCase):
 
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("invalid uuid supplied", error_details)
+
+    def test_get_tags_bad_filter_key(self):
+        tags_url = reverse("settings-tags")
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            response = client.get(tags_url, {"filter[NOPE]": "aws"}, **self.headers)
+
+        error_detail = response.data.get("errors", [{}])[0].get("detail").lower()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unsupported parameter or invalid value", error_detail)
+
+    def test_get_tags_bad_filter_value(self):
+        tags_url = reverse("settings-tags")
+
+        with schema_context(self.schema_name):
+            client = rest_framework.test.APIClient()
+            response = client.get(tags_url, {"filter[source_type]": "aws"}, **self.headers)
+
+        error_detail = response.data.get("errors", [{}])[0].get("detail").lower()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("select a valid choice", error_detail)
 
     @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
     def test_enable_tags_over_limit(self, mock_enabled_limit):
