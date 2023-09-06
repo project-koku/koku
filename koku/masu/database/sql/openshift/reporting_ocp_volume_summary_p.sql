@@ -25,7 +25,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_p (
     source_uuid,
     cost_category_id,
     raw_currency,
-    distributed_cost
+    distributed_cost,
+    persistentvolumeclaim,
+    storageclass
 )
     SELECT uuid_generate_v4() as id,
         cluster_id,
@@ -47,11 +49,14 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_p (
         {{source_uuid}}::uuid as source_uuid,
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency,
-        sum(distributed_cost) as distributed_cost
+        sum(distributed_cost) as distributed_cost,
+        persistentvolumeclaim,
+        storageclass
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Storage'
-    GROUP BY usage_start, cluster_id, cluster_alias, cost_model_rate_type
+        AND persistentvolumeclaim IS NOT NULL
+    GROUP BY usage_start, cluster_id, cluster_alias, cost_model_rate_type, persistentvolumeclaim, storageclass
 ;
