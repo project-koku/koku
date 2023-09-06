@@ -35,8 +35,10 @@ class ProviderBuilderError(ValidationError):
 class ProviderBuilder:
     """Provider Builder to create koku providers."""
 
-    def __init__(self, auth_header):
+    def __init__(self, auth_header, account_number, org_id):
         """Initialize the client."""
+        self.account_number = account_number
+        self.org_id = org_id
         if isinstance(auth_header, dict) and auth_header.get("x-rh-identity"):
             self._identity_header = auth_header
         else:
@@ -81,24 +83,21 @@ class ProviderBuilder:
         """Create request context object."""
         user = None
         customer = None
-        encoded_auth_header = self._identity_header.get("x-rh-identity")
-        if encoded_auth_header:
-            identity = json.loads(b64decode(encoded_auth_header))
-            account = identity.get("identity", {}).get("account_number")
-            org_id = identity.get("identity", {}).get("org_id")
-            username = identity.get("identity", {}).get("user", {}).get("username")
-            email = identity.get("identity", {}).get("user", {}).get("email")
-            identity_type = identity.get("identity", {}).get("type", "User")
-            auth_type = identity.get("identity", {}).get("auth_type")
+        if encoded_auth_header := self._identity_header.get("x-rh-identity"):
+            identity = json.loads(b64decode(encoded_auth_header)).get("identity", {})
+            username = identity.get("user", {}).get("username")
+            email = identity.get("user", {}).get("email")
+            identity_type = identity.get("type", "User")
+            auth_type = identity.get("auth_type")
 
             if identity_type == "System" and auth_type == "uhc-auth":
-                username = identity.get("identity", {}).get("system", {}).get("cluster_id")
+                username = identity.get("system", {}).get("cluster_id")
                 email = ""
 
             try:
-                customer = Customer.objects.filter(org_id=org_id).get()
+                customer = Customer.objects.filter(org_id=self.org_id).get()
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(account, org_id)
+                customer = IdentityHeaderMiddleware.create_customer(self.account_number, self.org_id)
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
@@ -109,7 +108,7 @@ class ProviderBuilder:
 
     def _tenant_for_schema(self, schema_name):
         """Get or create tenant for schema."""
-        tenant, created = Tenant.objects.get_or_create(schema_name=schema_name)
+        tenant, _ = Tenant.objects.get_or_create(schema_name=schema_name)
         if not schema_exists(schema_name):
             tenant.create_schema()
             msg = f"Created tenant {schema_name}"

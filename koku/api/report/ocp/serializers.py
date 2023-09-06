@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Serializers."""
-from collections.abc import Mapping
-
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -22,32 +20,25 @@ DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("project", "cluster", "node")
+    _opfields = ("project", "cluster", "node", "persistentvolumeclaim")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
+    persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
     _opfields = ("project", "cluster", "node", "date", "distributed_cost")
+    _op_mapping = DISTRIBUTED_COST_INTERNAL
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-
-    def to_internal_value(self, data):
-        """Send to internal value."""
-        if isinstance(data, Mapping):
-            for serializer_key, internal_key in DISTRIBUTED_COST_INTERNAL.items():
-                if serializer_key in data.keys():
-                    data[internal_key] = data.pop(serializer_key)
-
-        return super().to_internal_value(data)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
@@ -65,13 +56,14 @@ class OCPFilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
+    persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -98,13 +90,14 @@ class OCPExcludeSerializer(BaseExcludeSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
+    persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
         """Validate incoming data.
