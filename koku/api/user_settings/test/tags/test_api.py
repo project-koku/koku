@@ -254,7 +254,7 @@ class TagsSettings(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("select a valid choice", error_detail)
 
-    @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
+    @patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
     def test_enable_tags_over_limit(self, mock_enabled_limit):
         """Given more tags enabled than are allowed by the limit,
         ensure no more tags are enabled and an error is returned.
@@ -271,7 +271,7 @@ class TagsSettings(IamTestCase):
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("maximum number of enabled tags exceeded", error)
 
-    @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
+    @patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
     def test_enable_tags_limit_disabled(self, mock_enabled_limit):
         """Test that enabling tags is not limited if the limit is disabled."""
 
