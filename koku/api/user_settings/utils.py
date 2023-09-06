@@ -9,6 +9,7 @@ from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from django_filters import MultipleChoiceFilter
+from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import FilterSet
 from django_tenants.utils import schema_context
 from querystring_parser import parser
@@ -23,6 +24,15 @@ from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
 
 """Utilities for Settings."""
+
+
+class NonValidatingMultipleChoiceField(MultipleChoiceField):
+    def validate(self, value):
+        pass
+
+
+class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
+    field_class = NonValidatingMultipleChoiceField
 
 
 class SettingsFilter(FilterSet):
