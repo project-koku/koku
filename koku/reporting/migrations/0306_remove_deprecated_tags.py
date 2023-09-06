@@ -5,7 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0303_tags_data"),
+        ("reporting", "0305_pvc"),
     ]
 
     operations = [
