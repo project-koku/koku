@@ -182,8 +182,7 @@ def report_data(request):
                 errmsg = f"provider_type ({provider_type}) still disabled for {round(timeout/60, 2)} minutes"
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-            # key_set = set_cached_resummarize_by_provider_type(provider_type)
-            key_set = True
+            key_set = set_cached_resummarize_by_provider_type(provider_type)
 
             if key_set:
                 if provider_type == Provider.PROVIDER_OCP:
@@ -192,8 +191,9 @@ def report_data(request):
                         async_results = ocp_on_cloud_obj.summarize(months, queue_name, ocp_on_cloud_type)
                         return Response({REPORT_DATA_KEY: async_results})
 
-                async_result = update_summary_tables_by_provider.delay(month[0], month[1], provider_type)
-                async_results.append({str(month): str(async_result)})
+                for month in months:
+                    async_result = update_summary_tables_by_provider.delay(month[0], month[1], provider_type)
+                    async_results.append({str(month): str(async_result)})
 
         return Response({REPORT_DATA_KEY: async_results})
 
