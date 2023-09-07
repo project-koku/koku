@@ -212,9 +212,9 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
     return manifest_path
 
 
-def construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file):
+def construct_daily_archives(request_id, context, report_meta, payload_destination_path, report_file):
     """Build, upload and convert parquet reports."""
-    daily_parquet_files = create_daily_archives(
+    daily_archives_files = create_daily_archives(
         request_id,
         report_meta["account"],
         report_meta["provider_uuid"],
@@ -224,7 +224,7 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
         report_meta["date"],
         context,
     )
-    return daily_parquet_files
+    return daily_archives_files
 
 
 def _get_source_id(provider_uuid):
@@ -376,7 +376,9 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
                 continue
             msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
             LOG.info(log_json(manifest_uuid, msg=msg, context=context))
-            construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
+            current_meta["split_files"] = construct_daily_archives(
+                request_id, context, report_meta, payload_destination_path, report_file
+            )
             report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
@@ -616,6 +618,7 @@ def process_report(request_id, report):
     # to create a Hive/Trino table.
     report_dict = {
         "file": report.get("current_file"),
+        "split_files": report.get("split_files"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
@@ -685,7 +688,12 @@ def process_messages(msg):
                 # we have not received all of the daily files yet, so don't process them
                 break
             report_meta["process_complete"] = process_report(request_id, report_meta)
-            LOG.info(log_json(tracing_id, msg=f"Processing: {report_meta.get('current_file')} complete."))
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    msg=f"Processing: {report_meta.get('current_file')}|{report_meta.get('split_files')} complete.",
+                )
+            )
         process_complete = report_metas_complete(report_metas)
         summary_task_id = summarize_manifest(report_meta, tracing_id)
         if summary_task_id:
