@@ -22,17 +22,19 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
+from masu.util.common import get_path_prefix
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import AWSCostEntryBill
 
 LOG = logging.getLogger(__name__)
 
 
-REQUIRED_COLUMNS = {
+RECOMMENDED_COLUMNS = {
     "bill/BillingEntity",
     "bill/BillType",
     "bill/PayerAccountId",
@@ -81,7 +83,7 @@ REQUIRED_COLUMNS = {
     "reservation/EndTime",
 }
 
-REQUIRED_ALT_COLUMNS = {
+RECOMMENDED_ALT_COLUMNS = {
     "bill_billing_entity",
     "bill_bill_type",
     "bill_payer_account_id",
@@ -131,8 +133,6 @@ REQUIRED_ALT_COLUMNS = {
 }
 
 OPTIONAL_COLS = {
-    "resourcetags",
-    "costcategory",
     "product/physicalCores",
     "product/instanceType",
     "product/vcpu",
@@ -140,8 +140,6 @@ OPTIONAL_COLS = {
 }
 
 OPTIONAL_ALT_COLS = {
-    "resource_tags",
-    "cost_category",
     "product_physical_cores",
     "product_instancetype",
     "product_vcpu",
@@ -576,16 +574,21 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
-def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, context, request_id):
+def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_date, manifest_id, context, request_id):
     """
-    Fetches latest processed date based on daily csv files or clears all csv's to process full month
+    Fetches latest processed date based on daily csv files and clears relevant s3 files
     """
-    processing_date = start_date
+    # We do this if we have multiple workers running different files for a single manifest.
+    processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+    if processing_date:
+        clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
+        return processing_date
+    processing_date = start_date.replace(tzinfo=None)
     try:
         s3_date = None
-        for obj_summary in _get_s3_objects(s3_path):
+        for obj_summary in _get_s3_objects(csv_s3_path):
             existing_object = obj_summary.Object()
-            date = datetime.datetime.strptime(existing_object.key.split(f"{s3_path}/")[1].split("_")[0], DATE_FMT)
+            date = datetime.datetime.strptime(existing_object.key.split(f"{csv_s3_path}/")[1].split("_")[0], DATE_FMT)
             if not s3_date:
                 s3_date = date
             else:
@@ -596,7 +599,10 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, co
             process_date = s3_date if s3_date < end_date else end_date
             processing_date = (
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
-            )
+            ).replace(tzinfo=None)
+            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+            # clear s3 files for processing dates
+            clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
@@ -610,9 +616,10 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, co
                 bucket=settings.S3_BUCKET_NAME,
             ),
         )
+        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
         to_delete = get_s3_objects_not_matching_metadata(
             request_id,
-            s3_path,
+            csv_s3_path,
             metadata_key="manifestid",
             metadata_value_check=manifest_id,
             context=context,
@@ -624,7 +631,7 @@ def get_or_clear_daily_s3_by_date(s3_path, start_date, end_date, manifest_id, co
         LOG.info(
             log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
         )
-    return processing_date.replace(tzinfo=None)
+    return processing_date
 
 
 def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
@@ -762,6 +769,48 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
     return []
 
 
+def clear_s3_files(csv_s3_path, provider_uuid, start_date, metadata_key, metadata_value_check, context, request_id):
+    """Clear s3 files for daily archive processing AWS/Azure ONLY"""
+    account = context.get("account")
+    # This fixes local providers s3/minio paths for deletes
+    provider_type = context.get("provider_type").strip("-local")
+    parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
+    parquet_daily_path_s3 = get_path_prefix(
+        account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True
+    )
+    parquet_ocp_on_cloud_path_s3 = get_path_prefix(
+        account, provider_type, provider_uuid, start_date, "parquet", report_type="openshift", daily=True
+    )
+    s3_prefixes = []
+    dh = DateHelper()
+    list_days = dh.list_days(start_date, dh.now.replace(tzinfo=None))
+    for day in list_days:
+        path = f"/{day.date()}"
+        s3_prefixes.append(csv_s3_path + path)
+        s3_prefixes.append(parquet_path_s3 + path)
+        s3_prefixes.append(parquet_daily_path_s3 + path)
+        s3_prefixes.append(parquet_ocp_on_cloud_path_s3 + path)
+    to_delete = []
+    for prefix in s3_prefixes:
+        for obj_summary in _get_s3_objects(prefix):
+            try:
+                existing_object = obj_summary.Object()
+                metadata_value = existing_object.metadata.get(metadata_key)
+                if str(metadata_value) != str(metadata_value_check):
+                    to_delete.append(existing_object.key)
+            except (ClientError) as err:
+                LOG.warning(
+                    log_json(
+                        request_id,
+                        msg="unable to get matching object, likely deleted by another worker",
+                        context=context,
+                        bucket=settings.S3_BUCKET_NAME,
+                    ),
+                    exc_info=err,
+                )
+    delete_s3_objects(request_id, to_delete, context)
+
+
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):
     """
     Removes all files in a given prefix if they are not within the given set.
@@ -779,19 +828,22 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies
     )
     resource_ids = tuple(resource_ids)
+    data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["lineitem_resourceid"]
+    if not resource_id_df.isna().values.all():
+        LOG.info("Matching OpenShift on AWS by resource ID.")
+        resource_id_matched = resource_id_df.str.endswith(resource_ids)
+        data_frame["resource_id_matched"] = resource_id_matched
 
-    LOG.info("Matching OpenShift on AWS by resource ID.")
-    resource_id_matched = resource_id_df.str.endswith(resource_ids)
-    data_frame["resource_id_matched"] = resource_id_matched
-
+    data_frame["special_case_tag_matched"] = False
     tags = data_frame["resourcetags"]
-    tags = tags.str.lower()
-
-    special_case_tag_matched = tags.str.contains(
-        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
-    )
-    data_frame["special_case_tag_matched"] = special_case_tag_matched
+    if not tags.isna().values.all():
+        tags = tags.str.lower()
+        LOG.info("Matching OpenShift on AWS by tags.")
+        special_case_tag_matched = tags.str.contains(
+            "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+        )
+        data_frame["special_case_tag_matched"] = special_case_tag_matched
 
     if matched_tags:
         tag_keys = []
@@ -800,9 +852,11 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             tag_keys.extend(list(tag.keys()))
             tag_values.extend(list(tag.values()))
 
-        tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-        data_frame["tag_matched"] = tag_matched
-        any_tag_matched = tag_matched.any()
+        any_tag_matched = None
+        if not tags.isna().values.all():
+            tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
+            data_frame["tag_matched"] = tag_matched
+            any_tag_matched = tag_matched.any()
 
         if any_tag_matched:
             tag_df = pd.concat([tags, tag_matched], axis=1)
@@ -815,6 +869,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             data_frame["matched_tag"] = matched_tag
             data_frame["matched_tag"].fillna(value="", inplace=True)
         else:
+            data_frame["tag_matched"] = False
             data_frame["matched_tag"] = ""
     else:
         data_frame["tag_matched"] = False

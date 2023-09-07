@@ -40,7 +40,7 @@ class SourceStatus:
     def __init__(self, source_id):
         """Initialize source id."""
         self.source_id = source_id
-        self.source = Sources.objects.get(source_id=source_id)
+        self.source: Sources = Sources.objects.get(source_id=source_id)
         if not source_settings_complete(self.source) or self.source.pending_delete:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
@@ -95,7 +95,9 @@ class SourceStatus:
         if source_details.get("name") != self.source.name:
             self.source.name = source_details.get("name")
             self.source.save()
-            builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
+            builder = SourcesProviderCoordinator(
+                self.source_id, self.source.auth_header, self.source.account_id, self.source.org_id
+            )
             builder.update_account(self.source)
 
     def push_status(self):
@@ -103,7 +105,9 @@ class SourceStatus:
         try:
             status_obj = self.status()
             if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
+                builder = SourcesProviderCoordinator(
+                    self.source.source_id, self.source.auth_header, self.source.account_id, self.source.org_id
+                )
                 if not status_obj:
                     if self.source.koku_uuid:
                         status_obj = self.try_catch_validation_error(status_obj, builder.update_account)

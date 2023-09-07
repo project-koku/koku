@@ -168,14 +168,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         df = pd.DataFrame({"test": [1, 2, 3]})
         self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
         mock_write.assert_called()
-        expected = f"{file_path}/{self.ocp_provider_uuid}_0_{PARQUET_EXT}"
+        expected = f"{file_path}/{self.ocp_provider_uuid}_0{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True, partition_map=None)
 
     @patch.object(OCPCloudParquetReportProcessor, "create_parquet_table")
     @patch.object(OCPCloudParquetReportProcessor, "_write_parquet_to_file")
     def test_create_ocp_on_cloud_parquet_gcp_valid_idx(self, mock_write, mock_create_table):
         """Test that we write OCP on Cloud data for a GCP provider and create a table."""
-        test_date = "2023_01_01"
+        test_date = "2023-01-01"
         base_file_name = f"{self.gcp_provider_uuid}_{test_date}"
         report_processor = OCPCloudParquetReportProcessor(
             schema_name=self.schema,
@@ -190,7 +190,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month]})
         report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
         mock_write.assert_called()
-        expected = f"{file_path}/{invoice_month}_{test_date}_0_{PARQUET_EXT}"
+        expected = f"{file_path}/{invoice_month}_{base_file_name}_0{PARQUET_EXT}"
         mock_create_table.assert_called_with(
             expected,
             daily=True,
@@ -200,7 +200,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     def test_create_partitioned_ocp_on_cloud_parquet_gcp(self, mock_create_table):
         """Test that we write partitioned OCP on Cloud data and create a table."""
-        base_file_name = f"{self.gcp_provider_uuid}"
+        test_date = "2023-01-01"
+        invoice_month = "202301"
+        base_file_name = f"{invoice_month}_{test_date}_{self.gcp_provider_uuid}"
         report_processor = OCPCloudParquetReportProcessor(
             schema_name=self.schema,
             report_path=self.report_path,
@@ -209,20 +211,41 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
-        invoice_month = "202301"
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month], "usage_start_time": "2023-01-01"})
-        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, 0)
+        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, self.manifest_id)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
         call_df, call_base_file_name, call_number = args
         self.assertTrue(call_df.equals(df))
-        self.assertEqual(base_file_name, call_base_file_name)
+        self.assertEqual(base_file_name, f"{invoice_month}_{call_base_file_name}")
+        self.assertEqual(call_number, 0)
+
+    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    def test_create_partitioned_ocp_on_cloud_parquet_azure(self, mock_create_table):
+        """Test that we write partitioned OCP on Cloud data and create a table."""
+        test_date = "2023-01-01"
+        base_file_name = f"{test_date}_{self.azure_provider_uuid}"
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.azure_provider_uuid,
+            provider_type=Provider.PROVIDER_AZURE_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+        )
+        df = pd.DataFrame({"test": [1], "usagedatetime": "2023-01-01"})
+        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, self.manifest_id)
+        mock_create_table.assert_called_once()
+        args, kwargs = mock_create_table.call_args
+        call_df, call_base_file_name, call_number = args
+        self.assertTrue(call_df.equals(df))
+        self.assertEqual(base_file_name, f"{call_base_file_name}")
         self.assertEqual(call_number, 0)
 
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
-    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
     def test_process(
         self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
@@ -285,6 +308,19 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.report_processor.process("", [pd.DataFrame()])
         mock_data_processor.assert_not_called()
         mock_create_parquet.assert_not_called()
+
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
+    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
+    def test_process_no_data_frames(self, mock_has_labels, mock_topology, mock_cluster_info):
+        """Test that ocp on cloud data is not processed when there is no data framse."""
+        expected = f"no OCP on {Provider.PROVIDER_AWS} daily frames to processes, skipping"
+        with self.assertLogs("masu.processor.parquet.ocp_cloud_parquet_report_processor", level="INFO") as logger:
+            mock_cluster_info.return_value = True
+            mock_has_labels.return_value = False
+            mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
+            self.report_processor.process("", [])
+            self.assertIn(expected, str(logger))
 
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
@@ -355,7 +391,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
 
         expected = "Matched tags not yet available via Postgres. Getting matching tags from Trino."
-        with self.assertLogs("masu.processor.parquet.cop_cloud_parquet_report_processor", level="INFO") as logger:
+        with self.assertLogs("masu.processor.parquet.ocp_cloud_parquet_report_processor", level="INFO") as logger:
             self.report_processor.process("", [pd.DataFrame()])
             self.assertIn(expected, str(logger))
 

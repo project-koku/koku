@@ -3,7 +3,6 @@ import logging
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import ModelMultipleChoiceFilter
-from django_filters import MultipleChoiceFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -15,30 +14,35 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tags.serializers import SettingsTagIDSerializer
 from api.settings.tags.serializers import SettingsTagSerializer
+from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
 
+ENABLED_TAG_KEYS_QS = EnabledTagKeys.objects.all()
 LOG = logging.getLogger(__name__)
 
 
 class SettingsTagFilter(SettingsFilter):
-    key = MultipleChoiceFilter(lookup_expr="icontains")
-    provider_type = ModelMultipleChoiceFilter(
+    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
+    uuid = ModelMultipleChoiceFilter(to_field_name="uuid", queryset=ENABLED_TAG_KEYS_QS)
+    provider_type = ModelMultipleChoiceFilter(to_field_name="provider_type", queryset=ENABLED_TAG_KEYS_QS)
+    source_type = ModelMultipleChoiceFilter(
+        field_name="provider_type",
         to_field_name="provider_type",
-        queryset=EnabledTagKeys.objects.all(),
+        queryset=ENABLED_TAG_KEYS_QS,
     )
 
     class Meta:
         model = EnabledTagKeys
-        fields = ("enabled", "uuid")
+        fields = ("enabled",)
         default_ordering = ["provider_type", "-enabled"]
 
 
 class SettingsTagView(generics.GenericAPIView):
     queryset = EnabledTagKeys.objects.all()
     serializer_class = SettingsTagSerializer
-    permission_classes = [SettingsAccessPermission]
+    permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SettingsTagFilter
 

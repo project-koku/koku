@@ -4,6 +4,7 @@
 #
 """Common serializer logic."""
 import copy
+from collections.abc import Mapping
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -137,6 +138,7 @@ class BaseSerializer(serializers.Serializer):
     """A common serializer base for all of our serializers."""
 
     _opfields = None
+    _op_mapping = None
     _tagkey_support = None
     _aws_category = False
 
@@ -154,6 +156,16 @@ class BaseSerializer(serializers.Serializer):
             add_operator_specified_fields(self.fields, self._opfields)
         if self.context.get("request"):
             self.schema = self.context["request"].user.customer.schema_name
+
+    def _op_mapping_replacement(self, data):
+        """Replaces key in the data with what is in the _op_mapping.
+        This function converts the value in the op to a db model field for querying.
+        """
+        if isinstance(data, Mapping):
+            for serializer_key, internal_key in self._op_mapping.items():
+                if serializer_key in data:
+                    data[internal_key] = data.pop(serializer_key)
+        return data
 
     def validate(self, data):
         """Validate incoming data.
@@ -199,6 +211,12 @@ class BaseSerializer(serializers.Serializer):
         for key, val in fields.items():
             setattr(self, key, val)
             self.fields.update({key: val})
+
+    def to_internal_value(self, data):
+        """Send to internal value."""
+        if self._op_mapping:
+            return super().to_internal_value(self._op_mapping_replacement(data))
+        return super().to_internal_value(data)
 
 
 class FilterSerializer(BaseSerializer):
