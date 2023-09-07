@@ -307,7 +307,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             counter = manifest.report_tracker[day]
             manifest.report_tracker[day] = counter + 1
             manifest.save(update_fields=["report_tracker"])
-            return f"{day}_{counter}.csv"
+            return f"{day}_manifestid-{manifest_id}_{counter}.csv"
 
     def update_and_get_parquet_batch_counter(self, day, manifest_id):
         """This is needed for OCP on Cloud filtered daily parquet files"""
