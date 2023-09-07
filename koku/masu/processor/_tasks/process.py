@@ -4,6 +4,7 @@
 #
 """Asynchronous tasks."""
 import logging
+from pathlib import Path
 
 import psutil
 
@@ -40,18 +41,16 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         "schema": schema_name,
         "provider_type": provider,
         "provider_uuid": provider_uuid,
-        "metadata_start_date": report_dict.get("metadata_start_date"),
-        "metadata_end_date": report_dict.get("metadata_end_date"),
         "compression": compression,
         "file": report_path,
-        "split_files": report_dict.get("split_files"),
+        "files_to_process": report_dict.get("files_to_process"),
     }
     LOG.info(log_json(tracing_id, msg="processing report", context=context))
     mem = psutil.virtual_memory()
     mem_msg = f"Avaiable memory: {mem.free} bytes ({mem.percent}%)"
     LOG.debug(log_json(tracing_id, msg=mem_msg, context=context))
 
-    file_name = report_path.split("/")[-1]
+    file_name = Path(report_path).name
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_started_datetime()
 

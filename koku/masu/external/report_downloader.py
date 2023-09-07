@@ -201,7 +201,7 @@ class ReportDownloader:
 
         # The create_table flag is used by the ParquetReportProcessor
         # to create a Hive/Trino table.
-        return {
+        report = {
             "file": file_name,
             "split_files": split_files,
             "compression": report_context.get("compression"),
@@ -213,6 +213,10 @@ class ReportDownloader:
             "start": date_range.get("start"),
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
-            "metadata_start_date": report_context.get("start"),
-            "metadata_end_date": report_context.get("end"),
         }
+        if self.provider_type == Provider.PROVIDER_OCP:
+            report["split_files"] = list(split_files.keys())
+            report["files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
+
+        LOG.warning(log_json(self.tracing_id, msg="look here yo", report=report))
+        return report
