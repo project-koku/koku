@@ -44,6 +44,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         "metadata_end_date": report_dict.get("metadata_end_date"),
         "compression": compression,
         "file": report_path,
+        "split_files": report_dict.get("split_files"),
     }
     LOG.info(log_json(tracing_id, msg="processing report", context=context))
     mem = psutil.virtual_memory()
