@@ -171,7 +171,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
         return matched_tags
 
-    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, manifest_id):
+    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):
         """Create a parquet file for daily aggregated data for each partition."""
         date_fields = {
             Provider.PROVIDER_AWS: "lineitem_usagestartdate",
@@ -263,8 +263,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 Provider.PROVIDER_AZURE,
                 Provider.PROVIDER_AZURE_LOCAL,
             ):
-                self.create_partitioned_ocp_on_cloud_parquet(
-                    openshift_filtered_data_frame, parquet_base_filename, manifest_id
-                )
+                self.create_partitioned_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename)
             else:
                 self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename)

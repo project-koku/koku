@@ -212,7 +212,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
         df = pd.DataFrame({"test": [1], "invoice_month": [invoice_month], "usage_start_time": "2023-01-01"})
-        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, self.manifest_id)
+        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
         call_df, call_base_file_name = args
@@ -233,7 +233,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
         df = pd.DataFrame({"test": [1], "usagedatetime": "2023-01-01"})
-        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name, self.manifest_id)
+        report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
         call_df, call_base_file_name = args
