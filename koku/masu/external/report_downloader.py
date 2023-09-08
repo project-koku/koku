@@ -217,6 +217,4 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_OCP:
             report["split_files"] = list(split_files.keys())
             report["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
-
-        LOG.warning(log_json(self.tracing_id, msg="look here yo", report=report))
         return report

@@ -370,7 +370,7 @@ class ParquetReportProcessor:
 
         if self.provider_type == Provider.PROVIDER_OCP and to_delete:
             # filter the report
-            LOG.warning(log_json(msg="files to delete pre filter", to_delete=to_delete))
+            LOG.info(log_json(msg="files to delete pre filter", to_delete=to_delete))
             to_delete = filter_s3_objects_less_than(
                 self.tracing_id,
                 to_delete,
@@ -378,7 +378,7 @@ class ParquetReportProcessor:
                 metadata_value_check=self.ocp_files_to_process.get(filename.stem).get("meta_reportnumhours"),
                 context=self.error_context,
             )
-            LOG.warning(log_json(msg="files to delete post filter", to_delete=to_delete))
+            LOG.info(log_json(msg="files to delete post filter", to_delete=to_delete))
             if not to_delete:
                 raise ReportsAlreadyProcessed
 
@@ -572,7 +572,7 @@ class ParquetReportProcessor:
         """Create a parquet file for daily aggregated data."""
         file_path = None
         for i, data_frame in enumerate(data_frames):
-            file_name_suffix = f"{parquet_base_filename}_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
+            file_name_suffix = f"_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
             file_path = f"{self.local_path}/{parquet_base_filename}{file_name_suffix}"
             self._write_parquet_to_file(
                 file_path, parquet_base_filename, file_name_suffix, data_frame, file_type=DAILY_FILE_TYPE
@@ -617,7 +617,6 @@ class ParquetReportProcessor:
         return get_path_prefix(**kwargs)
 
     def get_metadata(self, filename) -> dict:
-        LOG.warning(log_json(msg="get_metadata", filename=filename, self=self))
         metadata = {"ManifestId": str(self.manifest_id)}
         if self._provider_type == Provider.PROVIDER_OCP:
             metadata["ReportDateStart"] = self.ocp_files_to_process.get(filename).get("meta_reportdatestart")
@@ -625,7 +624,6 @@ class ParquetReportProcessor:
         return metadata
 
     def get_metadata_kv(self, filename) -> tuple[str, str]:
-        LOG.warning(log_json(msg="get_metadata_kv", filename=filename, self=self))
         if self._provider_type == Provider.PROVIDER_OCP:
             return ("reportdatestart", self.ocp_files_to_process.get(filename).get("meta_reportdatestart"))
         return ("manifestid", str(self.manifest_id))
@@ -640,7 +638,6 @@ class ParquetReportProcessor:
         else:
             s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
-        LOG.warning(log_json(msg="_write_parquet_to_file", file_path=file_path, filename=file_name, self=self))
         metadata = self.get_metadata(file_name_base)
         try:
             with open(file_path, "rb") as fin:
