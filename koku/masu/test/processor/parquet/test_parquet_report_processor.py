@@ -66,7 +66,12 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={
+                "tracing_id": self.tracing_id,
+                "split_files": [self.report_path],
+                "start_date": DateHelper().today,
+                "create_table": True,
+            },
         )
         self.report_processor_gcp = ParquetReportProcessor(
             schema_name=self.schema,
@@ -95,7 +100,12 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             ingress_reports=["test.csv"],
             ingress_reports_uuid=ingress_uuid,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={
+                "tracing_id": self.tracing_id,
+                "split_files": ["test.csv"],
+                "start_date": DateHelper().today,
+                "create_table": True,
+            },
         )
 
     def test_tracing_id(self):
@@ -159,7 +169,12 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={
+                "tracing_id": self.tracing_id,
+                "split_files": ["file.csv"],
+                "start_date": DateHelper().today,
+                "create_table": True,
+            },
         )
         self.assertEqual(report_processor.file_extension, CSV_EXT)
 
@@ -170,7 +185,12 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
                 manifest_id=self.manifest_id,
-                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+                context={
+                    "tracing_id": self.tracing_id,
+                    "split_files": ["file.xlsx"],
+                    "start_date": DateHelper().today,
+                    "create_table": True,
+                },
             )
             report_processor.file_extension
 
@@ -224,13 +244,8 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
     def test_convert_to_parquet_validation_error(self, mock_remove, mock_exists):
         """Test the convert_to_parquet task hits column validation error."""
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.os"
-        ) as mock_os, patch("masu.processor.parquet.parquet_report_processor.pd.read_csv") as mock_cols:
-            mock_os.path.split.return_value = ("path", "file.csv.gz")
-            mock_cols.columns.return_value = {"columns"}
-            _, __, result = self.report_processor_ingress.convert_csv_to_parquet("csv_filename.csv.gz")
-            self.assertFalse(result)
+        _, __, result = self.report_processor_ingress.convert_csv_to_parquet(Path("file.csv.gz"))
+        self.assertFalse(result)
 
     def test_unknown_provider_post_processor(self):
         """Test that nothing is returned"""

@@ -133,15 +133,12 @@ class ParquetReportProcessor:
     @property
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
-        split_files = [Path(file) for file in self._context.get("split_files", [])]
-        if self.provider_type in [
-            Provider.PROVIDER_AWS,
-            Provider.PROVIDER_AWS_LOCAL,
-            Provider.PROVIDER_AZURE,
-            Provider.PROVIDER_AZURE_LOCAL,
-        ]:
-            return split_files
-        return split_files or [self._report_file]
+        return self._context.get("split_files") or [self._report_file]
+
+    @property
+    def split_file_list(self):
+        """Always return split files."""
+        return self._context.get("split_files")
 
     @property
     def error_context(self):
@@ -417,7 +414,18 @@ class ParquetReportProcessor:
         failed_conversion = []
         daily_data_frames = []
 
-        if not self.file_list:
+        file_list = self.file_list
+
+        # Azure and AWS should now always have split daily files
+        if self.provider_type in [
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+        ]:
+            file_list = self.split_file_list
+
+        if not file_list:
             LOG.warn(
                 log_json(
                     self.tracing_id,
@@ -427,9 +435,9 @@ class ParquetReportProcessor:
             )
             return parquet_base_filename, daily_data_frames
 
-        self.prepare_parquet_s3(Path(self.file_list[0]))
+        self.prepare_parquet_s3(Path(file_list[0]))
 
-        for csv_filename in self.file_list:
+        for csv_filename in file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 LOG.warn(
                     log_json(
