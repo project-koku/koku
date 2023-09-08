@@ -66,12 +66,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={
-                "tracing_id": self.tracing_id,
-                "split_files": [self.report_path],
-                "start_date": DateHelper().today,
-                "create_table": True,
-            },
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
         self.report_processor_gcp = ParquetReportProcessor(
             schema_name=self.schema,
@@ -100,12 +95,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             ingress_reports=["test.csv"],
             ingress_reports_uuid=ingress_uuid,
-            context={
-                "tracing_id": self.tracing_id,
-                "split_files": ["test.csv"],
-                "start_date": DateHelper().today,
-                "create_table": True,
-            },
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
 
     def test_tracing_id(self):
@@ -169,12 +159,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={
-                "tracing_id": self.tracing_id,
-                "split_files": ["file.csv"],
-                "start_date": DateHelper().today,
-                "create_table": True,
-            },
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
         self.assertEqual(report_processor.file_extension, CSV_EXT)
 
@@ -185,12 +170,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
                 manifest_id=self.manifest_id,
-                context={
-                    "tracing_id": self.tracing_id,
-                    "split_files": ["file.xlsx"],
-                    "start_date": DateHelper().today,
-                    "create_table": True,
-                },
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
             )
             report_processor.file_extension
 
@@ -313,41 +293,31 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
     def test_convert_csv_to_parquet(self, mock_remove, mock_exists):
         """Test convert_csv_to_parquet."""
-        _, __, result = self.report_processor.convert_csv_to_parquet("file.csv")
+        _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv"))
         self.assertFalse(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.os"
-        ) as mock_os:
-            mock_os.path.split.return_value = ("path", "file.csv.gz")
-            _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+        with patch("masu.processor.parquet.parquet_report_processor.Path"):
+            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
             "masu.processor.parquet.parquet_report_processor.pd"
-        ) as mock_pd, patch("masu.processor.parquet.parquet_report_processor.open") as mock_open, patch(
-            "masu.processor.parquet.parquet_report_processor.os"
-        ) as mock_os:
-            mock_os.path.split.return_value = ("path", "file.csv.gz")
+        ) as mock_pd, patch("masu.processor.parquet.parquet_report_processor.open") as mock_open:
             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
             mock_open.side_effect = ValueError()
-            _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.Path"):
-            with patch("masu.processor.parquet.parquet_report_processor.pd") as mock_pd:
-                with patch("masu.processor.parquet.parquet_report_processor.open", side_effect=Exception):
-                    with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"):
-                        with patch(
-                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
-                            "create_parquet_table"
-                        ):
-                            with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
-                                mock_os.path.split.return_value = ("path", "file.csv.gz")
-                                mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
-                                # mock_copy.side_effect = Exception
-                                _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
-                                self.assertFalse(result)
+        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
+            "masu.processor.parquet.parquet_report_processor.pd"
+        ) as mock_pd, patch("masu.processor.parquet.parquet_report_processor.open", side_effect=Exception), patch(
+            "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
+        ), patch(
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "create_parquet_table"
+        ):
+            mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
+            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
+            self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
             "masu.processor.parquet.parquet_report_processor.pd"
@@ -355,18 +325,13 @@ class TestParquetReportProcessor(MasuTestCase):
             "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
         ), patch.object(
             ParquetReportProcessor, "create_parquet_table"
-        ), patch(
-            "masu.processor.parquet.parquet_report_processor.os"
-        ) as mock_os:
-            mock_os.path.split.return_value = ("path", "file.csv.gz")
-            _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+        ):
+            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertTrue(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
-        ), patch.object(ParquetReportProcessor, "create_parquet_table"), patch(
-            "masu.processor.parquet.parquet_report_processor.os"
-        ) as mock_os:
+        with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"), patch.object(
+            ParquetReportProcessor, "create_parquet_table"
+        ), patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
             mock_os.path.split.return_value = ("path", "file.csv")
             test_report_test_path = "./koku/masu/test/data/test_cur.csv.gz"
             local_path = f"{Config.TMP_DIR}/{self.schema}/{self.aws_provider_uuid}"
@@ -386,26 +351,21 @@ class TestParquetReportProcessor(MasuTestCase):
                     "create_table": True,
                 },
             )
-            _, __, result = report_processor.convert_csv_to_parquet(test_report)
+            _, __, result = report_processor.convert_csv_to_parquet(Path(test_report))
             self.assertTrue(result)
             shutil.rmtree(local_path, ignore_errors=True)
 
     def test_convert_csv_to_parquet_report_type_already_processed(self):
         """Test that we don't re-create a table when we already have created this run."""
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.pd"
-        ), patch("masu.processor.parquet.parquet_report_processor.open"), patch(
-            "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
-        ), patch.object(
+        with patch("masu.processor.parquet.parquet_report_processor.pd"), patch(
+            "masu.processor.parquet.parquet_report_processor.open"
+        ), patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"), patch.object(
             ParquetReportProcessor,
             "_set_post_processor",
             return_value=OCPPostProcessor(self.schema, "pod_usage"),
         ), patch.object(
             ParquetReportProcessor, "create_parquet_table"
-        ) as mock_create_table, patch(
-            "masu.processor.parquet.parquet_report_processor.os"
-        ) as mock_os:
-            mock_os.path.split.return_value = ("path", "file.csv")
+        ) as mock_create_table:
             report_processor = ParquetReportProcessor(
                 schema_name=self.schema,
                 report_path="pod_usage.csv",
@@ -419,7 +379,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 },
             )
             report_processor.trino_table_exists["pod_usage"] = True
-            result = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+            result = report_processor.convert_csv_to_parquet(Path("csv_filename.csv.gz"))
             self.assertTrue(result)
             mock_create_table.assert_not_called()
 

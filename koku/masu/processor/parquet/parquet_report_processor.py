@@ -92,6 +92,7 @@ class ParquetReportProcessor:
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
 
+        self.split_files = [Path(file) for file in self._context.get("split_files") or []]
         self.ocp_files_to_process: dict = self._context.get("ocp_files_to_process")
 
     @property
@@ -133,12 +134,12 @@ class ParquetReportProcessor:
     @property
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
-        return self._context.get("split_files") or [self._report_file]
+        return self.split_files or [self._report_file]
 
     @property
     def split_file_list(self):
         """Always return split files."""
-        return self._context.get("split_files")
+        return self.split_files
 
     @property
     def error_context(self):
@@ -413,7 +414,6 @@ class ParquetReportProcessor:
 
         failed_conversion = []
         daily_data_frames = []
-
         file_list = self.file_list
 
         # Azure and AWS should now always have split daily files
