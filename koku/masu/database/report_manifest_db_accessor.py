@@ -313,7 +313,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             counter = manifest.report_tracker[day]
             manifest.report_tracker[day] = counter + 1
             manifest.save(update_fields=["report_tracker"])
-            return f"{day}_{counter}.csv"
+            return f"{day}_manifestid-{manifest_id}_{counter}.csv"
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""
