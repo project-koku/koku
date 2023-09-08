@@ -373,9 +373,9 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
                 continue
             msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
             LOG.info(log_json(manifest_uuid, msg=msg, context=context))
-            current_meta["files_to_process"] = construct_daily_archives(
-                request_id, context, report_meta, payload_destination_path
-            )
+            split_files = construct_daily_archives(request_id, context, report_meta, payload_destination_path)
+            current_meta["split_files"] = list(split_files.keys())
+            current_meta["files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
@@ -615,6 +615,7 @@ def process_report(request_id, report):
     # to create a Hive/Trino table.
     report_dict = {
         "file": report.get("current_file"),
+        "split_files": report.get("split_files"),
         "files_to_process": report.get("files_to_process"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
