@@ -63,7 +63,6 @@ class SettingsTagUpdateView(APIView):
     def put(self, request: Request, **kwargs) -> Response:
         uuid_list = request.data.get("ids", [])
         serializer = SettingsTagIDSerializer(data={"id_list": uuid_list})
-        if serializer.is_valid():
             if Config.ENABLED_TAG_LIMIT > 0:
                 if self.enabled_tags_count >= Config.ENABLED_TAG_LIMIT:
                     return Response(
@@ -77,6 +76,7 @@ class SettingsTagUpdateView(APIView):
                         },
                         status=status.HTTP_412_PRECONDITION_FAILED,
                     )
+        serializer.is_valid(raise_exception=True)
 
             data = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
             data.update(enabled=self.enabled)

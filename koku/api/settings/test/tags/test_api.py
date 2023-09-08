@@ -211,7 +211,7 @@ class TagsSettings(IamTestCase):
             client = rest_framework.test.APIClient()
             enable_response = client.put(tags_enable_url, {"ids": []}, format="json", **self.headers)
 
-        error_details = enable_response.data.get("id_list", {})[0].lower()
+        error_details = enable_response.data["errors"][0]["detail"].lower()
 
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("this list may not be empty", error_details)
@@ -225,7 +225,7 @@ class TagsSettings(IamTestCase):
             client = rest_framework.test.APIClient()
             enable_response = client.put(tags_enable_url, {"ids": ["bad-uuid"]}, format="json", **self.headers)
 
-        error_details = enable_response.data.get("id_list", {}).get(0, [""])[0].lower()
+        error_details = enable_response.data["errors"][0]["detail"].lower()
 
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("invalid uuid supplied", error_details)
