@@ -1,5 +1,7 @@
 import logging
+import typing as t
 
+from django.db.models.query import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import ModelMultipleChoiceFilter
@@ -63,32 +65,35 @@ class SettingsTagUpdateView(APIView):
     def put(self, request: Request, **kwargs) -> Response:
         uuid_list = request.data.get("ids", [])
         serializer = SettingsTagIDSerializer(data={"id_list": uuid_list})
-            if Config.ENABLED_TAG_LIMIT > 0:
-                if self.enabled_tags_count >= Config.ENABLED_TAG_LIMIT:
-                    return Response(
-                        {
-                            "error": (
-                                f"Maximum number of enabled tags exceeded. There are {self.enabled_tags_count} "
-                                f"tags enabled and the limit is {Config.ENABLED_TAG_LIMIT}."
-                            ),
-                            "enabled": self.enabled_tags_count,
-                            "limit": Config.ENABLED_TAG_LIMIT,
-                        },
-                        status=status.HTTP_412_PRECONDITION_FAILED,
-                    )
         serializer.is_valid(raise_exception=True)
 
-            data = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
-            data.update(enabled=self.enabled)
-            EnabledTagKeys.objects.bulk_update(data, ["enabled"])
+        objects = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
+        if response := self._check_limit(objects):
+            return response
 
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        objects.update(enabled=self.enabled)
+        EnabledTagKeys.objects.bulk_update(objects, ["enabled"])
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SettingsEnableTagView(SettingsTagUpdateView):
     enabled = True
+
+    def _check_limit(self, qs: QuerySet) -> t.Optional[Response]:
+        if Config.ENABLED_TAG_LIMIT > 0:
+            # Only count UUIDs requested to be enabled that are currently disabled.
+            records_to_update_count = qs.filter(enabled=False).count()
+            future_enabled_tags_count = self.enabled_tags_count + records_to_update_count
+            if future_enabled_tags_count > Config.ENABLED_TAG_LIMIT:
+                return Response(
+                    {
+                        "error": f"The maximum number of enabled tags is {Config.ENABLED_TAG_LIMIT}.",
+                        "enabled": self.enabled_tags_count,
+                        "limit": Config.ENABLED_TAG_LIMIT,
+                    },
+                    status=status.HTTP_412_PRECONDITION_FAILED,
+                )
 
     @property
     def enabled_tags_count(self):
@@ -97,4 +102,6 @@ class SettingsEnableTagView(SettingsTagUpdateView):
 
 class SettingsDisableTagView(SettingsTagUpdateView):
     enabled = False
-    enabled_tags_count = -1
+
+    def _check_limit(self, qs):
+        pass

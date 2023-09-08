@@ -271,7 +271,7 @@ class TagsSettings(IamTestCase):
         expected_keys = {"error", "enabled", "limit"}
 
         self.assertEqual(enable_response.status_code, status.HTTP_412_PRECONDITION_FAILED)
-        self.assertIn("maximum number of enabled tags exceeded", error)
+        self.assertIn("maximum number of enabled tags", error)
         self.assertEqual(expected_keys, enable_response.data.keys())
 
     @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
