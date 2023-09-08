@@ -786,15 +786,15 @@ def clear_s3_files(
     s3_prefixes = []
     dh = DateHelper()
     list_datetimes = dh.list_days(start_date, dh.now.replace(tzinfo=None))
-    path = "/"
+    og_path = "/"
     if provider_type == "GCP":
-        path += f"{invoice_month}_"
+        og_path += f"{invoice_month}_"
         # GCP openshift data is partitioned by day
         day = start_date.strftime("%d")
         parquet_ocp_on_cloud_path_s3 += f"/day={day}"
         list_datetimes = [start_date]
     for date_time in list_datetimes:
-        path += f"{date_time.date()}"
+        path = f"{og_path}{date_time.date()}"
         s3_prefixes.append(csv_s3_path + path)
         s3_prefixes.append(parquet_path_s3 + path)
         s3_prefixes.append(parquet_daily_path_s3 + path)
