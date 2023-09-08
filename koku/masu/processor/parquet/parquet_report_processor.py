@@ -92,7 +92,7 @@ class ParquetReportProcessor:
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
 
-        self.files_to_process: dict = self._context.get("files_to_process")
+        self.ocp_files_to_process: dict = self._context.get("ocp_files_to_process")
 
     @property
     def schema_name(self):
@@ -377,7 +377,7 @@ class ParquetReportProcessor:
                 self.tracing_id,
                 to_delete,
                 metadata_key="reportnumhours",
-                metadata_value_check=self.files_to_process.get(filename.stem).get("meta_reportnumhours"),
+                metadata_value_check=self.ocp_files_to_process.get(filename.stem).get("meta_reportnumhours"),
                 context=self.error_context,
             )
             LOG.warning(log_json(msg="files to delete post filter", to_delete=to_delete))
@@ -612,14 +612,14 @@ class ParquetReportProcessor:
         LOG.warning(log_json(msg="get_metadata", filename=filename, self=self))
         metadata = {"ManifestId": str(self.manifest_id)}
         if self._provider_type == Provider.PROVIDER_OCP:
-            metadata["ReportDateStart"] = self.files_to_process.get(filename).get("meta_reportdatestart")
-            metadata["ReportNumHours"] = self.files_to_process.get(filename).get("meta_reportnumhours")
+            metadata["ReportDateStart"] = self.ocp_files_to_process.get(filename).get("meta_reportdatestart")
+            metadata["ReportNumHours"] = self.ocp_files_to_process.get(filename).get("meta_reportnumhours")
         return metadata
 
     def get_metadata_kv(self, filename) -> tuple[str, str]:
         LOG.warning(log_json(msg="get_metadata_kv", filename=filename, self=self))
         if self._provider_type == Provider.PROVIDER_OCP:
-            return ("reportdatestart", self.files_to_process.get(filename).get("meta_reportdatestart"))
+            return ("reportdatestart", self.ocp_files_to_process.get(filename).get("meta_reportdatestart"))
         return ("manifestid", str(self.manifest_id))
 
     def _write_parquet_to_file(self, file_path, file_name_base, file_name_suffix, data_frame, file_type=None):

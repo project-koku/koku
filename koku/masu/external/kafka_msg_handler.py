@@ -375,7 +375,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             LOG.info(log_json(manifest_uuid, msg=msg, context=context))
             split_files = construct_daily_archives(request_id, context, report_meta, payload_destination_path)
             current_meta["split_files"] = list(split_files.keys())
-            current_meta["files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
+            current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
@@ -616,7 +616,7 @@ def process_report(request_id, report):
     report_dict = {
         "file": report.get("current_file"),
         "split_files": report.get("split_files"),
-        "files_to_process": report.get("files_to_process"),
+        "ocp_files_to_process": report.get("ocp_files_to_process"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
@@ -688,7 +688,7 @@ def process_messages(msg):
                 log_json(
                     tracing_id,
                     msg=f"Processing: {report_meta.get('current_file')} complete.",
-                    files_to_process=report_meta.get("files_to_process"),
+                    ocp_files_to_process=report_meta.get("ocp_files_to_process"),
                 )
             )
         process_complete = report_metas_complete(report_metas)

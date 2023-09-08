@@ -43,7 +43,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         "provider_uuid": provider_uuid,
         "compression": compression,
         "file": report_path,
-        "files_to_process": report_dict.get("files_to_process"),
+        "ocp_files_to_process": report_dict.get("ocp_files_to_process"),
     }
     LOG.info(log_json(tracing_id, msg="processing report", context=context))
     mem = psutil.virtual_memory()
