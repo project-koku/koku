@@ -769,8 +769,10 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
     return []
 
 
-def clear_s3_files(csv_s3_path, provider_uuid, start_date, metadata_key, metadata_value_check, context, request_id):
-    """Clear s3 files for daily archive processing AWS/Azure ONLY"""
+def clear_s3_files(
+    csv_s3_path, provider_uuid, start_date, metadata_key, metadata_value_check, context, request_id, invoice_month=None
+):
+    """Clear s3 files for daily archive processing"""
     account = context.get("account")
     # This fixes local providers s3/minio paths for deletes
     provider_type = context.get("provider_type").strip("-local")
@@ -783,9 +785,16 @@ def clear_s3_files(csv_s3_path, provider_uuid, start_date, metadata_key, metadat
     )
     s3_prefixes = []
     dh = DateHelper()
-    list_days = dh.list_days(start_date, dh.now.replace(tzinfo=None))
-    for day in list_days:
-        path = f"/{day.date()}"
+    list_datetimes = dh.list_days(start_date, dh.now.replace(tzinfo=None))
+    og_path = "/"
+    if provider_type == "GCP":
+        og_path += f"{invoice_month}_"
+        # GCP openshift data is partitioned by day
+        day = start_date.strftime("%d")
+        parquet_ocp_on_cloud_path_s3 += f"/day={day}"
+        list_datetimes = [start_date]
+    for date_time in list_datetimes:
+        path = f"{og_path}{date_time.date()}"
         s3_prefixes.append(csv_s3_path + path)
         s3_prefixes.append(parquet_path_s3 + path)
         s3_prefixes.append(parquet_daily_path_s3 + path)
