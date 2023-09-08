@@ -159,7 +159,7 @@ class OCPProviderMap(ProviderMap):
                     },
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
-                "tag_column": "pod_labels",
+                "tag_column": "all_labels",
                 "report_type": {
                     "costs": {
                         "tables": {"query": OCPUsageLineItemDailySummary},
