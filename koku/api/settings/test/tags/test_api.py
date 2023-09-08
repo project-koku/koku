@@ -268,8 +268,11 @@ class TagsSettings(IamTestCase):
             enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
 
         error = enable_response.data.get("error", "").lower()
-        self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST)
+        expected_keys = {"error", "enabled", "limit"}
+
+        self.assertEqual(enable_response.status_code, status.HTTP_412_PRECONDITION_FAILED)
         self.assertIn("maximum number of enabled tags exceeded", error)
+        self.assertEqual(expected_keys, enable_response.data.keys())
 
     @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
     def test_enable_tags_limit_disabled(self, mock_enabled_limit):

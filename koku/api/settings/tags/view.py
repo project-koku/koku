@@ -71,9 +71,11 @@ class SettingsTagUpdateView(APIView):
                             "error": (
                                 f"Maximum number of enabled tags exceeded. There are {self.enabled_tags_count} "
                                 f"tags enabled and the limit is {Config.ENABLED_TAG_LIMIT}."
-                            )
+                            ),
+                            "enabled": self.enabled_tags_count,
+                            "limit": Config.ENABLED_TAG_LIMIT,
                         },
-                        status=status.HTTP_400_BAD_REQUEST,
+                        status=status.HTTP_412_PRECONDITION_FAILED,
                     )
 
             data = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
