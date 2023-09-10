@@ -253,7 +253,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy(self.aws_test_provider_uuid)
-            expected_log_msg = "account hierarchy crawler found %s accounts to scan" % ("1")
+            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % ("1")
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
@@ -267,7 +267,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
-            expected_log_msg = "account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
+            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")

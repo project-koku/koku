@@ -25,6 +25,7 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
+from api.provider.models import Provider
 from api.provider.models import Sources
 from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
@@ -33,8 +34,6 @@ from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.ros_report_shipper import ROSReportShipper
@@ -493,8 +492,8 @@ def get_account(provider_uuid, manifest_uuid, context={}):
 
     """
     try:
-        return AccountsAccessor().get_account_from_uuid(provider_uuid)
-    except AccountsAccessorError as error:
+        return Provider.objects.get(uuid=provider_uuid).account
+    except Provider.DoesNotExist as error:
         msg = f"Unable to get accounts. Error: {str(error)}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
         return None

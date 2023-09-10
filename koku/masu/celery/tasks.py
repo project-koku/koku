@@ -29,7 +29,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
@@ -362,7 +361,7 @@ def crawl_account_hierarchy(provider_uuid=None):
         polling_accounts = Provider.objects.filter(uuid=provider_uuid)
     else:
         polling_accounts = Provider.batch_objects.all()
-    LOG.info(f"account hierarchy crawler found {len(polling_accounts)} accounts to scan")
+    LOG.info(f"Account hierarchy crawler found {len(polling_accounts)} accounts to scan")
     processed = 0
     skipped = 0
     for provider in polling_accounts:
@@ -392,20 +391,20 @@ def check_cost_model_status(provider_uuid=None):
     """Scheduled task to initiate source check and notification fire."""
     providers = []
     if provider_uuid:
-        provider = Provider.objects.filter(uuid=provider_uuid).values("uuid", "type")
-        if provider[0].get("type") == Provider.PROVIDER_OCP:
-            providers = provider
+        provider = Provider.objects.filter(uuid=provider_uuid).first()
+        if provider.type == Provider.PROVIDER_OCP:
+            providers = [provider]
         else:
             LOG.info(f"Source {provider_uuid} is not an openshift source.")
+            return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
     LOG.info("Cost model status check found %s providers to scan" % len(providers))
     processed = 0
     skipped = 0
     for provider in providers:
-        uuid = provider_uuid if provider_uuid else provider.uuid
-        account = AccountsAccessor().get_account_from_uuid(uuid)
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), uuid)
+        account = provider.account
+        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider.uuid)
         if cost_model_map.cost_model:
             skipped += 1
         else:
@@ -431,7 +430,7 @@ def check_for_stale_ocp_source(provider_uuid=None):
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                account = AccountsAccessor().get_account_from_uuid(data.get("provider_id"))
+                account = Provider.objects.filter(uuid=data.get("provider_id")).first().account
                 NotificationService().ocp_stale_source_notification(account)
                 processed += 1
             else:
