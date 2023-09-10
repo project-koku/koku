@@ -286,6 +286,11 @@ def get_cluster_id_from_provider(provider_uuid):
     """
     cluster_id = None
     if provider := Provider.objects.select_related("authentication").filter(uuid=provider_uuid).first():
+        if not provider.authentication:
+            LOG.warning(
+                f"cannot find cluster-id for provider-uuid: {provider_uuid} because it does not have credentials"
+            )
+            return cluster_id
         cluster_id = provider.authentication.credentials.get("cluster_id")
         LOG.info(f"found cluster_id: {cluster_id} for provider-uuid: {provider_uuid}")
     return cluster_id
