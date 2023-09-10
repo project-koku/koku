@@ -17,7 +17,6 @@ from dateutil.relativedelta import relativedelta
 from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper as dh
-from masu.config import Config
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 
@@ -343,28 +342,6 @@ def get_provider_uuid_from_cluster_id(cluster_id):
         LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
 
     return provider_uuid
-
-
-def poll_ingest_override_for_provider(provider_uuid):
-    """
-    Return whether or not the OpenShift provider should be treated like a POLLING provider.
-
-    The purpose of this is to continue to support back-door (no upload service) OpenShift
-    report ingest.  Used for development and local test automation.
-
-    On the masu-worker if the insights local directory exists for the given provider then
-    the masu orchestrator will treat it as a polling provider rather than listening.
-
-    Args:
-        provider_uuid (String): Provider UUID.
-
-    Returns:
-        (Boolean): True: OCP provider should be treated like a polling provider.
-
-    """
-    cluster_id = get_cluster_id_from_provider(provider_uuid)
-    local_ingest_path = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{str(cluster_id)}"
-    return os.path.exists(local_ingest_path)
 
 
 def detect_type(report_path):
