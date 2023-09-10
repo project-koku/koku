@@ -76,13 +76,13 @@ class Orchestrator:
             account = provider.account
             schema_name = account.get("schema_name")
             if is_cloud_source_processing_disabled(schema_name):
-                LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
+                LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
                 continue
             provider_uuid = account.get("provider_uuid")
             if is_source_disabled(provider_uuid):
                 LOG.info(
                     log_json(
-                        "get_accounts",
+                        "get_polling_batch",
                         msg="processing disabled for source",
                         schema=schema_name,
                         provider_uuid=provider_uuid,

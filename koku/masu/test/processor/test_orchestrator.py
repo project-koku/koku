@@ -13,8 +13,6 @@ import faker
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -135,8 +133,7 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.AccountLabel")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
-    @patch("masu.external.accounts_accessor.AccountsAccessor.get_accounts", return_value=[])
-    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect, mock_account_labler):
+    def test_prepare_no_accounts(self, mock_downloader, mock_inspect, mock_account_labler):
         """Test downloading cost usage reports."""
         orchestrator = Orchestrator()
         reports = orchestrator.prepare()
@@ -160,16 +157,6 @@ class OrchestratorTest(MasuTestCase):
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
             orchestrator.get_polling_batch()
             self.assertIn(expected_result, captured_logs.output[0])
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_all_accounts_error(self, mock_accessor, mock_inspect):
-        """Test initializing orchestrator accounts error."""
-        mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
-        try:
-            Orchestrator()
-        except Exception:
-            self.fail("unexpected error")
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(ExpiredDataRemover, "remove")

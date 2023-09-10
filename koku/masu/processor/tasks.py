@@ -36,8 +36,6 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_customer_large
@@ -752,31 +750,28 @@ def update_all_summary_tables(start_date, end_date=None):
 
     """
     # Get all providers for all schemas
-    all_accounts = []
-    try:
-        all_accounts = AccountsAccessor().get_accounts()
-        for account in all_accounts:
-            log_statement = (
-                f"Gathering data for for\n"
-                f' schema_name: {account.get("schema_name")}\n'
-                f' provider: {account.get("provider_type")}\n'
-                f' account (provider uuid): {account.get("provider_uuid")}'
-            )
-            LOG.info(log_statement)
-            schema_name = account.get("schema_name")
-            provider = account.get("provider_type")
-            provider_uuid = account.get("provider_uuid")
-            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-            ocp_process_queue = OCP_QUEUE
-            if is_customer_large(schema_name):
-                fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
-                ocp_process_queue = OCP_QUEUE_XL
-            queue_name = ocp_process_queue if provider and provider.lower() == "ocp" else None
-            update_summary_tables.s(
-                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
-            ).apply_async(queue=queue_name or fallback_queue)
-    except AccountsAccessorError as error:
-        LOG.error("Unable to get accounts. Error: %s", str(error))
+    all_providers = Provider.objects.all()
+    for provider in all_providers:
+        account = provider.account
+        log_statement = (
+            f"Gathering data for for\n"
+            f' schema_name: {account.get("schema_name")}\n'
+            f' provider: {account.get("provider_type")}\n'
+            f' account (provider uuid): {account.get("provider_uuid")}'
+        )
+        LOG.info(log_statement)
+        schema_name = account.get("schema_name")
+        provider = account.get("provider_type")
+        provider_uuid = account.get("provider_uuid")
+        fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
+        ocp_process_queue = OCP_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            ocp_process_queue = OCP_QUEUE_XL
+        queue_name = ocp_process_queue if provider and provider.lower() == "ocp" else None
+        update_summary_tables.s(
+            schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
+        ).apply_async(queue=queue_name or fallback_queue)
 
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)

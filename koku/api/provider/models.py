@@ -51,6 +51,9 @@ class ProviderManager(models.Manager):
     def get_queryset(self) -> QuerySet:
         return super().get_queryset().select_related("authentication", "billing_source", "customer")
 
+    def get_accounts(self):
+        return [p.account for p in self.all()]
+
 
 class ProviderBatchManager(ProviderManager):
     def get_queryset(self):

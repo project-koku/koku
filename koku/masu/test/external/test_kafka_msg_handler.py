@@ -23,8 +23,6 @@ from requests.exceptions import HTTPError
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
 from masu.config import Config
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
@@ -903,11 +901,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertIsNotNone(ocp_account)
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
 
-    @patch.object(AccountsAccessor, "get_account_from_uuid")
-    def test_get_account_exception(self, mock_accessor):
+    def test_get_account_exception(self):
         """Test that no account is returned upon exception."""
-        mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
-        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id")
+        ocp_account = msg_handler.get_account(uuid.uuid4(), "test_request_id")
         self.assertIsNone(ocp_account)
 
     def test_delivery_callback(self):
