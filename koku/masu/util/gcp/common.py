@@ -201,7 +201,7 @@ def deduplicate_reports_for_gcp(report_list):
 
 def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
-    if provider := Provider.objects.filter(uuid=gcp_provider_uuid):
+    if provider := Provider.objects.filter(uuid=gcp_provider_uuid).first():
         account = provider.account
         if is_gcp_resource_matching_disabled(account.get("schema_name")):
             LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
