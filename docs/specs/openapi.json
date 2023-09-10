@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Project Koku and OpenShift cost management. You can find out more about Project Koku at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "description": "The API for Cost Management",
         "version": "1.0.2",
         "title": "Cost Management",
         "license": {
@@ -30,8 +30,8 @@
             "description": "Operations about OCI report interactions"
         },
         {
-            "name": "Sources",
-            "description": "Operations about platform sources interactions"
+            "name": "Integrations",
+            "description": "Operations about platform integrations interactions"
         },
         {
             "name": "Cost Models",
@@ -480,8 +480,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -525,8 +524,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -570,8 +568,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -615,8 +612,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -660,8 +656,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -705,8 +700,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -750,8 +744,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -795,8 +788,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -840,8 +832,7 @@
             "get": {
                 "tags":["Forecasts"],
                 "parameters": [{
-                    "$ref": "#/components/parameters/QueryFilter",
-                    "name":"QueryFilter"
+                    "$ref": "#/components/parameters/QueryFilter"
                 }],
                 "responses": {
                     "200": {
@@ -1064,12 +1055,10 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryStartDate",
-                        "name":"QueryStartDate"
+                        "$ref": "#/components/parameters/QueryStartDate"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryEndDate",
-                        "name":"QueryEndDate"
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1282,12 +1271,10 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryStartDate",
-                        "name":"QueryStartDate"
+                        "$ref": "#/components/parameters/QueryStartDate"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryEndDate",
-                        "name":"QueryEndDate"
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -3925,9 +3912,9 @@
         "/sources/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "List the sources",
+                "summary": "List the integrations",
                 "operationId": "listSources",
                 "parameters": [{
                         "name": "type",
@@ -3984,9 +3971,9 @@
         "/sources/{source_id}/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "Get a source",
+                "summary": "Get an integration",
                 "operationId": "getSource",
                 "parameters": [{
                     "name": "source_id",
@@ -4042,9 +4029,9 @@
         "/sources/{source_id}/stats/": {
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
-                "summary": "Get a source statistics",
+                "summary": "Get integration statistics",
                 "operationId": "getSourceStats",
                 "parameters": [{
                     "name": "source_id",
@@ -4112,7 +4099,7 @@
         "/sources/aws-s3-regions/":{
             "get": {
                 "tags": [
-                    "Sources"
+                    "Integrations"
                 ],
                 "summary": "List available AWS S3 regions",
                 "operationId": "getAWSS3Regions",
@@ -5560,13 +5547,186 @@
                     "basic_auth": []
                 }]
             }
-        }
-    },
+        },
+        "/settings/tags/": {
+            "get": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Query tags in Cost Management from cloud sources",
+                "operationId": "getSettingsTags",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "source_type",
+                        "description": "Cloud provider type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "enabled",
+                        "description": "Enable state of the tag",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by",
+                        "description": "Field(s) used to sort results. Add a '-' prefix for descending order.",
+                        "schema": {
+                            "type": "array",
+                            "example": ["source_type", "-enabled"],
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "uuid",
+                        "description": "UUID of a tag entry",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "key",
+                        "description": "Case insensitive search of key values. One or more key parameters may be provided.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returned tags sucessfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SettingsTagsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameter"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/settings/tags/enable/": {
+            "put": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Enable tags in Cost Management",
+                "operationId": "putSettingsTagsEnable",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/PutTagsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Successfully changed. No content"
+                    },
+                    "400": {
+                        "description": "Invalid request parameter"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/settings/tags/disable/": {
+            "put": {
+                    "tags": [
+                        "Settings"
+                    ],
+                    "summary": "Disable tags in Cost Management",
+                    "operationId": "putSettingsTagsDisable",
+                    "requestBody": {
+                        "$ref": "#/components/requestBodies/PutTagsBody"
+                    },
+                    "responses": {
+                        "204": {
+                            "description": "Successfully changed. No content"
+                        },
+                        "400": {
+                            "description": "Invalid request parameter"
+                        },
+                        "401": {
+                            "description": "Unauthorized"
+                        },
+                        "500": {
+                            "description": "Unexpected Error",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/Error"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{
+                        "basic_auth": []
+                    }]
+                }
+            }
+        },
     "externalDocs": {
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
     },
-    "servers": [{
+    "servers": [
+        {
             "url": "https://{environment}.redhat.com/api/cost-management/v1",
             "description": "Target Environment",
             "variables": {
@@ -5627,7 +5787,7 @@
                 }
             },
             "QueryEndDate": {
-                "name": "end_date",
+                "name": "QueryEndDate",
                 "in": "query",
                 "description": "String to indicate end date of date range.",
                 "schema": {
@@ -5636,7 +5796,7 @@
                 }
             },
             "QueryFilter": {
-                "name": "filter",
+                "name": "QueryFilter",
                 "required": false,
                 "in": "query",
                 "description": "The filter to apply to the report as a URL encoded dictionary.",
@@ -5684,7 +5844,7 @@
                 "description": "Parameter for selecting the offset of data.",
                 "schema": {
                     "type": "integer",
-                    "default": 0,
+                    "example": 0,
                     "minimum": 0
                 }
             },
@@ -5695,7 +5855,7 @@
                 "description": "Parameter for selecting the amount of data in a returned.",
                 "schema": {
                     "type": "integer",
-                    "default": 10,
+                    "example": 10,
                     "minimum": 1,
                     "maximum": 1000
                 }
@@ -5721,7 +5881,7 @@
                 }
             },
             "QueryStartDate": {
-                "name": "start_date",
+                "name": "QueryStartDate",
                 "in": "query",
                 "description": "String to indicate start date of date range.",
                 "schema": {
@@ -5781,6 +5941,37 @@
                 "schema": {
                     "type": "string",
                     "enum": ["value", "-value"]
+                }
+            }
+        },
+        "requestBodies": {
+            "PutTagsBody": {
+                "description": "List of tag UUIDs",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "ids": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                }
+                            },
+                            "example": {
+                                "ids": [
+                                    "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                                    "67423602-0f13-47dc-ac09-4d145a9def35",
+                                    "832a3858-d80f-4751-bbcc-b345febacf99"
+                                ]
+                            }
+
+                        }
+                    }
                 }
             }
         },
@@ -6174,23 +6365,18 @@
                                             "type": "object",
                                             "properties": {
                                                 "total": {
-                                                    "description": "The forecast Y-value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_max": {
-                                                    "description": "The forecast confidence interval's upper-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_min": {
-                                                    "description": "The forecast confidence interval's lower-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "rsquared": {
-                                                    "description": "The forecast's R-squared value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 },
                                                 "pvalues": {
-                                                    "description": "The forecast's p-test values.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 }
                                             }
@@ -6199,23 +6385,18 @@
                                             "type": "object",
                                             "properties": {
                                                 "total": {
-                                                    "description": "The forecast Y-value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_max": {
-                                                    "description": "The forecast confidence interval's upper-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_min": {
-                                                    "description": "The forecast confidence interval's lower-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "rsquared": {
-                                                    "description": "The forecast's R-squared value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 },
                                                 "pvalues": {
-                                                    "description": "The forecast's p-test values.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 }
                                             }
@@ -6224,23 +6405,18 @@
                                             "type": "object",
                                             "properties": {
                                                 "total": {
-                                                    "description": "The forecast Y-value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_max": {
-                                                    "description": "The forecast confidence interval's upper-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "confidence_min": {
-                                                    "description": "The forecast confidence interval's lower-bound.",
                                                     "$ref": "#/components/schemas/ForecastDataValueNumber"
                                                 },
                                                 "rsquared": {
-                                                    "description": "The forecast's R-squared value.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 },
                                                 "pvalues": {
-                                                    "description": "The forecast's p-test values.",
                                                     "$ref": "#/components/schemas/ForecastDataValueString"
                                                 }
                                             }
@@ -6345,6 +6521,16 @@
                         "type": "integer",
                         "format": "int64",
                         "example": 30
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 5
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 10
                     }
                 }
             },
@@ -9761,6 +9947,39 @@
                     }
                 }
             },
+            "SettingsTagsResponse": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "data"
+                            ],
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            },
+                            "example": [
+                                {
+                                    "uuid": "ac6efba7-6047-4d8f-9055-8f3a1c896a18",
+                                    "key": "openshift_project",
+                                    "enabled": false,
+                                    "source_type": "AWS"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
             "GetAwsCategorySettings": {
                 "allOf": [{
                     "$ref": "#/components/schemas/ListPagination"
@@ -9975,7 +10194,7 @@
                   }
                 }
               },
-              "UserSetting": {
+            "UserSetting": {
                 "properties": {
                     "setting": {
                     "type": "string"

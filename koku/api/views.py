@@ -73,6 +73,9 @@ from api.resource_types.view import ResourceTypeView
 from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsDisableAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
+from api.settings.tags.view import SettingsDisableTagView
+from api.settings.tags.view import SettingsEnableTagView
+from api.settings.tags.view import SettingsTagView
 from api.settings.view import SettingsView
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView

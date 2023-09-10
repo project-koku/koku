@@ -79,13 +79,16 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         match_col_name = f"ocp_matched_{i}"
         cluster_id = cluster_topology.get("cluster_id", "")
         cluster_alias = cluster_topology.get("cluster_alias", "")
-        nodes = cluster_topology.get("nodes", [])
-        volumes = cluster_topology.get("persistent_volumes", [])
+        nodes = list(filter(None, cluster_topology.get("nodes", [])))
+        volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
         matchable_resources = nodes + volumes
 
         if resource_id_df.any():
             LOG.info("Matching OpenShift on GCP by resource ID.")
-            ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
+            matching_check = "|".join(matchable_resources)
+            if not matching_check:
+                continue
+            ocp_matched = resource_id_df.str.contains(matching_check)
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
             cluster_strings = [

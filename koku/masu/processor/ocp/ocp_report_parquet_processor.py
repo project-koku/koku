@@ -92,10 +92,12 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             )
         )
         with schema_context(self._schema_name):
-            OCPUsageReportPeriod.objects.get_or_create(
+            bill, _ = OCPUsageReportPeriod.objects.get_or_create(
                 cluster_id=cluster_id,
-                cluster_alias=cluster_alias,
                 report_period_start=report_period_start,
                 report_period_end=report_period_end,
                 provider_id=provider.uuid,
             )
+            if bill.cluster_alias != cluster_alias:
+                bill.cluster_alias = cluster_alias
+                bill.save(update_fields=["cluster_alias"])

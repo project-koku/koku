@@ -490,7 +490,7 @@ def delete_source_helper(source):
     if source.koku_uuid:
         # if there is a koku-uuid, a Provider also exists.
         # Go thru delete_source to remove the Provider and the Source
-        delete_source(source.source_id, source.auth_header, source.koku_uuid)
+        delete_source(source.source_id, source.auth_header, source.koku_uuid, source.account_id, source.org_id)
     else:
         # here, no Provider exists, so just delete the Source
         source.delete()

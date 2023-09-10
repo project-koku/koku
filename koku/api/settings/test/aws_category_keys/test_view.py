@@ -66,6 +66,28 @@ class AwsCategoryKeysSettingsViewTest(TestAwsCategoryClass):
         response = client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_get_bad_filter_param(self):
+        url = reverse("settings-aws-category-keys") + "?" + "filter[bad_param]=key"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_multiple_filters(self):
+        # using substrings to confirm or logic on same key
+        url_pieces = [
+            reverse("settings-aws-category-keys"),
+            "?",
+            f"filter[key]={self.key[:2]}",
+            f"filter[key]={self.key[-1]}",
+        ]
+        url = "".join(url_pieces)
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data.get("data")
+        for return_value in data:
+            self.assertIn(return_value.get("key"), self.keys)
+
 
 class SettingsAWSCategoryRBACTest(TestAwsCategoryClass):
     """Test case for RBAC permissions to access settings."""
