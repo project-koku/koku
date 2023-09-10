@@ -71,26 +71,25 @@ class Orchestrator:
 
     def get_polling_batch(self):
         batch = []
-        providers = Provider.polling_objects.get_batch(Config.POLLING_BATCH_SIZE)
+        providers = Provider.polling_objects.get_polling_batch(Config.POLLING_BATCH_SIZE)
         for provider in providers:
+            provider.polling_timestamp = DH.now_utc
+            provider.save(update_fields=["polling_timestamp"])
             account = provider.account
             schema_name = account.get("schema_name")
             if is_cloud_source_processing_disabled(schema_name):
                 LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
                 continue
-            provider_uuid = account.get("provider_uuid")
-            if is_source_disabled(provider_uuid):
+            if is_source_disabled(provider.uuid):
                 LOG.info(
                     log_json(
                         "get_polling_batch",
                         msg="processing disabled for source",
                         schema=schema_name,
-                        provider_uuid=provider_uuid,
+                        provider_uuid=provider.uuid,
                     )
                 )
                 continue
-            provider.polling_timestamp = DH.now_utc
-            provider.save(update_fields=["polling_timestamp"])
             batch.append(account)
         return batch
 

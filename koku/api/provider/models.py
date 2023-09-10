@@ -59,11 +59,13 @@ class ProviderPollingManager(ProviderManager):
     def get_queryset(self):
         return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
 
-    def get_batch(self, size=-1):
+    def get_polling_batch(self, limit=-1, offset=0):
         one_day_ago = datetime.now(tz=settings.UTC) - timedelta(hours=24)
-        if size < 0:
+        if limit < 1:
+            # Django can't do negative indexing, so just return all the Providers.
+            # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
             return self.exclude(polling_timestamp__lt=one_day_ago)
-        return self.exclude(polling_timestamp__lt=one_day_ago)[:size]
+        return self.exclude(polling_timestamp__lt=one_day_ago)[offset : limit + offset]
 
 
 class Provider(models.Model):
