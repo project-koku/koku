@@ -259,7 +259,7 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
-        polling_accounts = Provider.batch_objects.all()
+        polling_accounts = Provider.polling_objects.all()
         providers = Provider.objects.all()
         for provider in providers:
             provider.polling_timestamp = None

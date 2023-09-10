@@ -66,12 +66,12 @@ class Orchestrator:
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._polling_accounts = [p.account for p in Provider.batch_objects.all()]
+        self._polling_accounts = [p.account for p in Provider.polling_objects.all()]
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     def get_polling_batch(self):
         batch = []
-        providers = Provider.batch_objects.get_batch(Config.POLLING_BATCH_SIZE)
+        providers = Provider.polling_objects.get_batch(Config.POLLING_BATCH_SIZE)
         for provider in providers:
             account = provider.account
             schema_name = account.get("schema_name")

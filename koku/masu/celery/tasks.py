@@ -360,7 +360,7 @@ def crawl_account_hierarchy(provider_uuid=None):
     if provider_uuid:
         polling_accounts = Provider.objects.filter(uuid=provider_uuid)
     else:
-        polling_accounts = Provider.batch_objects.all()
+        polling_accounts = Provider.polling_objects.all()
     LOG.info(f"Account hierarchy crawler found {len(polling_accounts)} accounts to scan")
     processed = 0
     skipped = 0
@@ -374,13 +374,17 @@ def crawl_account_hierarchy(provider_uuid=None):
 
         if crawler:
             LOG.info(
-                f'Starting account hierarchy crawler for type {account.get("provider_type")} with provider_uuid: {account.get("provider_uuid")}'  # noqa: E501
+                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
+                    account.get("provider_type"), account.get("provider_uuid")
+                )
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
             LOG.info(
-                f'No known crawler for account with provider_uuid: {account.get("provider_uuid")} of type {account.get("provider_type")}'  # noqa: E501
+                "No known crawler for account with provider_uuid: {} of type {}".format(
+                    account.get("provider_uuid"), account.get("provider_type")
+                )
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
@@ -392,7 +396,7 @@ def check_cost_model_status(provider_uuid=None):
     providers = []
     if provider_uuid:
         provider = Provider.objects.filter(uuid=provider_uuid).first()
-        if provider.type == Provider.PROVIDER_OCP:
+        if provider and provider.type == Provider.PROVIDER_OCP:
             providers = [provider]
         else:
             LOG.info(f"Source {provider_uuid} is not an openshift source.")

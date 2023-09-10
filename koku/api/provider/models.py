@@ -55,7 +55,7 @@ class ProviderManager(models.Manager):
         return [p.account for p in self.all()]
 
 
-class ProviderBatchManager(ProviderManager):
+class ProviderPollingManager(ProviderManager):
     def get_queryset(self):
         return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
 
@@ -64,11 +64,6 @@ class ProviderBatchManager(ProviderManager):
         if size < 0:
             return self.exclude(polling_timestamp__lt=one_day_ago)
         return self.exclude(polling_timestamp__lt=one_day_ago)[:size]
-
-
-class AWSManager(ProviderManager):
-    def get_queryset(self) -> QuerySet:
-        return super().get_queryset().filter(type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL])
 
 
 class Provider(models.Model):
@@ -183,8 +178,7 @@ class Provider(models.Model):
     additional_context = JSONField(null=True, default=dict)
 
     objects = ProviderManager()
-    batch_objects = ProviderBatchManager()
-    aws_objects = AWSManager()
+    polling_objects = ProviderPollingManager()
 
     @property
     def account(self) -> dict:
