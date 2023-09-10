@@ -6,6 +6,7 @@
 from unittest.mock import ANY
 from unittest.mock import patch
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from celery.result import AsyncResult
 from django.test.utils import override_settings
@@ -38,6 +39,26 @@ class PurgeTrinoFilesTest(MasuTestCase):
                 body = response.json()
                 errmsg = body.get("Error")
                 expected_errmsg = "Parameter missing. Required: provider_uuid, schema, bill date"
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(errmsg, expected_errmsg)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_provider_uuid_does_not_exist(self, _):
+        """Test the purge_trino_files endpoint with no parameters."""
+        fake_uuid = uuid4()
+        params = {"provider_uuid": fake_uuid}
+        query_string = urlencode(params)
+        url = reverse("purge_trino_files") + "?" + query_string
+        response_types = ["GET", "DELETE"]
+        for response_type in response_types:
+            with self.subTest(response_type):
+                if response_type == "GET":
+                    response = self.client.get(url)
+                else:
+                    response = self.client.delete(url)
+                body = response.json()
+                errmsg = body.get("Error")
+                expected_errmsg = f"The provider_uuid {fake_uuid} does not exist."
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(errmsg, expected_errmsg)
 

@@ -134,3 +134,26 @@ class ProviderModelTest(MasuTestCase):
             call(self.schema, Provider.PROVIDER_AZURE_LOCAL, UUID(self.azure_provider_uuid)),
         ]
         mock_delete_archived_data.delay.assert_has_calls(expected_calls, any_order=True)
+
+    def test_get_pollable_providers(self):
+        """Test that the pollable manager returns non-OCP providers only."""
+        non_ocp_providers_count = Provider.objects.exclude(type=Provider.PROVIDER_OCP).count()
+        pollable = Provider.polling_objects.get_polling_batch(0)
+        self.assertEqual(pollable.count(), non_ocp_providers_count)
+        for p in pollable:
+            self.assertNotEqual(p.type, Provider.PROVIDER_OCP)
+
+    def test_get_pollable_limits_offest(self):
+        """Test the limits and offset params of pollable providers."""
+        pollable_count = Provider.polling_objects.get_polling_batch(0).count()
+        first = Provider.polling_objects.get_polling_batch(1)
+        seen = set(first)
+        for i in range(1, pollable_count):
+            nextp = Provider.polling_objects.get_polling_batch(1, i)
+            self.assertNotEqual(first, nextp)
+            self.assertNotIn(nextp, seen)
+            seen.add(nextp)
+            first = nextp
+
+        len_two = Provider.polling_objects.get_polling_batch(2).count()
+        self.assertEqual(len_two, 2)

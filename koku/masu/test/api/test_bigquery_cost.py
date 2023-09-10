@@ -6,6 +6,7 @@
 from collections import OrderedDict
 from unittest.mock import patch
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -63,6 +64,20 @@ class BigQueryCostTest(MasuTestCase):
         body = response.json()
         errmsg = body.get("Error")
         expected_errmsg = "provider_uuid is a required parameter."
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_bigquery_request_with_bad_provider_uuid(self, _):
+        """Test the GET bigquery_cost endpoint with incorrect provider uuid."""
+        provider_uuid = uuid4()
+        params = {"provider_uuid": provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("bigquery_cost") + "?" + query_string
+        response = self.client.get(url)
+        body = response.json()
+        errmsg = body.get("Error")
+        expected_errmsg = f"The provider_uuid {provider_uuid} does not exist."
         self.assertEqual(response.status_code, 400)
         self.assertEqual(errmsg, expected_errmsg)
 

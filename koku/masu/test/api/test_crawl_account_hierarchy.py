@@ -6,6 +6,7 @@
 from datetime import datetime
 from unittest.mock import patch
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -102,6 +103,21 @@ class crawlAccountHierarchyTest(MasuTestCase):
         self.assertIsNotNone(body.get(expected_key))
         self.assertEqual(response.status_code, 200)
         mock_update.delay.assert_called_with(provider_uuid=self.aws_test_provider_uuid)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_crawl_account_hierarchy_bad_provider_uuid(self, _):
+        """Test the GET crawl_account_hierarchy endpoint with bad provider uuid."""
+        bad_provider_uuid = uuid4()
+        params = {"provider_uuid": bad_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
+        expected_errmsg = f"The provider_uuid {bad_provider_uuid} does not exist."
+        response = self.client.get(url)
+        body = response.json()
+        errmsg = body.get("Error")
+        self.assertIsNotNone(errmsg)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_require_provider_uuid(self, _):
