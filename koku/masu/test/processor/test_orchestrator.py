@@ -158,7 +158,7 @@ class OrchestratorTest(MasuTestCase):
             provider.polling_timestamp = None
             provider.save()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
-            orchestrator.get_polling_accounts()
+            orchestrator.get_polling_batch()
             self.assertIn(expected_result, captured_logs.output[0])
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -200,8 +200,7 @@ class OrchestratorTest(MasuTestCase):
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
 
-        with patch.object(Orchestrator, "get_all_accounts") as submethod_mocked:
-            submethod_mocked.return_value = []
+        with patch("api.provider.models.Provider.objects", return_value=[]):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
 

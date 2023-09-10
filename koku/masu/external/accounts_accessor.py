@@ -34,26 +34,14 @@ def get_pollable_providers(filters: dict = None, excludes: dict = None):
 
 
 def get_account_from_uuid(provider_uuid):
-    if provider := get_pollable_providers(filters={"uuid": provider_uuid}).first():
-        return get_account_information(provider)
+    if provider := Provider.objects.filter(uuid=provider_uuid).first():
+        return provider.account
     else:
         raise AccountsAccessorError("provider not found")
 
 
 def get_all_tenants():
     return Tenant.objects.exclude(schema_name__in=["public", "template0"]).values_list("schema_name", flat=True)
-
-
-def get_account_information(provider) -> dict:
-    """Return account information in dictionary."""
-    return {
-        "customer_name": getattr(provider.customer, "schema_name", None),
-        "credentials": getattr(provider.authentication, "credentials", None),
-        "data_source": getattr(provider.billing_source, "data_source", None),
-        "provider_type": provider.type,
-        "schema_name": getattr(provider.customer, "schema_name", None),
-        "provider_uuid": provider.uuid,
-    }
 
 
 def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
@@ -85,7 +73,7 @@ def get_accounts_from_source(provider_type=None, scheduled=False) -> list:
         )
     )
 
-    return [get_account_information(p) for p in pollable_providers]
+    return [p.account for p in pollable_providers]
 
 
 class AccountsAccessorError(Exception):

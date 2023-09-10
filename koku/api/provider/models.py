@@ -4,6 +4,8 @@
 #
 """Models for provider management."""
 import logging
+from datetime import datetime
+from datetime import timedelta
 from uuid import uuid4
 
 from django.conf import settings
@@ -13,6 +15,7 @@ from django.db import models
 from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
+from django.db.models.query import QuerySet
 from django.db.models.signals import post_delete
 from django_tenants.utils import schema_context
 
@@ -42,6 +45,27 @@ class ProviderBillingSource(models.Model):
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
     data_source = JSONField(null=False, default=dict)
+
+
+class ProviderManager(models.Manager):
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().select_related("authentication", "billing_source", "customer")
+
+
+class ProviderBatchManager(ProviderManager):
+    def get_queryset(self):
+        return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
+
+    def get_batch(self, size=-1):
+        one_day_ago = datetime.now(tz=settings.UTC) - timedelta(hours=24)
+        if size < 0:
+            return self.exclude(polling_timestamp__lt=one_day_ago)
+        return self.exclude(polling_timestamp__lt=one_day_ago)[:size]
+
+
+class AWSManager(ProviderManager):
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL])
 
 
 class Provider(models.Model):
@@ -154,6 +178,22 @@ class Provider(models.Model):
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
     additional_context = JSONField(null=True, default=dict)
+
+    objects = ProviderManager()
+    batch_objects = ProviderBatchManager()
+    aws_objects = AWSManager()
+
+    @property
+    def account(self) -> dict:
+        """Return account information in dictionary."""
+        return {
+            "customer_name": getattr(self.customer, "schema_name", None),
+            "credentials": getattr(self.authentication, "credentials", None),
+            "data_source": getattr(self.billing_source, "data_source", None),
+            "provider_type": self.type,
+            "schema_name": getattr(self.customer, "schema_name", None),
+            "provider_uuid": self.uuid,
+        }
 
     def save(self, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""

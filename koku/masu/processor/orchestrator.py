@@ -15,11 +15,6 @@ from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
 from masu.external.account_label import AccountLabel
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
-from masu.external.accounts_accessor import get_account_information
-from masu.external.accounts_accessor import get_all_providers
-from masu.external.accounts_accessor import get_pollable_providers
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
@@ -71,59 +66,14 @@ class Orchestrator:
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self.pollable_providers = get_pollable_providers(excludes={"type": Provider.PROVIDER_OCP})
-        self._polling_accounts = self.get_polling_accounts(
-            self.provider_uuid,
-            self.provider_type,
-            self.scheduled,
-        )
+        self._polling_accounts = [p.account for p in Provider.batch_objects.all()]
         self._summarize_reports = kwargs.get("summarize_reports", True)
-
-    @staticmethod
-    def get_all_accounts():
-        return [get_account_information(p) for p in get_all_providers()]
-
-    @staticmethod
-    def get_polling_accounts(provider_uuid=None, provider_type=None, scheduled=False):
-        """Prepare a list of accounts for the orchestrator to get CUR from."""
-        accounts = []
-        polling_accounts = []
-        try:
-            accessor = AccountsAccessor()
-            if provider_uuid:
-                accounts = [accessor.get_account_from_uuid(provider_uuid)]
-            else:
-                accounts = accessor.get_accounts(provider_type, scheduled)
-        except AccountsAccessorError as error:
-            LOG.error("Unable to get accounts. Error: %s", str(error))
-
-        for account in accounts:
-            schema_name = account.get("schema_name")
-            if is_cloud_source_processing_disabled(schema_name) and not provider_uuid:
-                LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
-                continue
-            if is_source_disabled(provider_uuid):
-                LOG.info(
-                    log_json(
-                        "get_accounts",
-                        msg="processing disabled for source",
-                        schema=schema_name,
-                        provider_uuid=provider_uuid,
-                    )
-                )
-                continue
-
-            if AccountsAccessor().is_polling_account(account):
-                polling_accounts.append(account)
-
-        return polling_accounts
 
     def get_polling_batch(self):
         batch = []
-        for provider in self.pollable_providers:
-            if len(batch) >= Config.POLLING_BATCH_SIZE:
-                break
-            account = get_account_information(provider)
+        providers = Provider.batch_objects.get_batch(Config.POLLING_BATCH_SIZE)
+        for provider in providers:
+            account = provider.account
             schema_name = account.get("schema_name")
             if is_cloud_source_processing_disabled(schema_name):
                 LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
@@ -139,11 +89,9 @@ class Orchestrator:
                     )
                 )
                 continue
-            poll_timestamp = provider.polling_timestamp
-            if not poll_timestamp or ((DH.now_utc - poll_timestamp).total_seconds()) > Config.POLLING_TIMER:
-                batch.append(account)
-                provider.polling_timestamp = DH.now_utc
-                provider.save()
+            provider.polling_timestamp = DH.now_utc
+            provider.save(update_fields=["polling_timestamp"])
+            batch.append(account)
         return batch
 
     def get_reports(self, provider_uuid):
@@ -467,7 +415,8 @@ class Orchestrator:
 
         """
         async_results = []
-        for account in self.get_all_accounts():
+        for provider in Provider.objects.all():
+            account = provider.account
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
                 schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate

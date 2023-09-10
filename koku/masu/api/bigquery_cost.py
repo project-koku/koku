@@ -16,8 +16,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.utils import DateHelper
-from masu.database.provider_collector import ProviderCollector
+
 
 LOG = logging.getLogger(__name__)
 
@@ -100,13 +101,10 @@ def bigquery_cost(request):  # noqa: C901
         errmsg = "provider_uuid is a required parameter."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Grab info needed for bigqury from source
-    with ProviderCollector() as collector:
-        all_providers = collector.get_provider_uuid_map()
-        provider = all_providers.get(str(provider_uuid))
-        if not provider:
-            errmsg = f"The provider_uuid {provider_uuid} does not exist."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        errmsg = f"The provider_uuid {provider_uuid} does not exist."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     credentials = provider.authentication.credentials
     data_source = provider.billing_source.data_source
 

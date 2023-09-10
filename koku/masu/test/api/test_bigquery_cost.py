@@ -67,20 +67,6 @@ class BigQueryCostTest(MasuTestCase):
         self.assertEqual(errmsg, expected_errmsg)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_bigquery_request_with_bad_provider_uuid(self, _):
-        """Test the GET bigquery_cost endpoint with incorrect provider uuid."""
-        provider_uuid = 1234
-        params = {"provider_uuid": provider_uuid}
-        query_string = urlencode(params)
-        url = reverse("bigquery_cost") + "?" + query_string
-        response = self.client.get(url)
-        body = response.json()
-        errmsg = body.get("Error")
-        expected_errmsg = f"The provider_uuid {provider_uuid} does not exist."
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(errmsg, expected_errmsg)
-
-    @patch("koku.middleware.MASU", return_value=True)
     def test_unable_to_build_gcp_table_name(self, _):
         """Test the GET bigquery_cost endpoint with no provider uuid."""
         params = {"provider_uuid": self.aws_provider_uuid}

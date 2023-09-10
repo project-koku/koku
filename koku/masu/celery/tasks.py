@@ -359,13 +359,14 @@ def get_daily_currency_rates():
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
     if provider_uuid:
-        polling_accounts = Orchestrator.get_polling_accounts(provider_uuid=provider_uuid)
+        polling_accounts = Provider.objects.filter(uuid=provider_uuid)
     else:
-        polling_accounts = Orchestrator.get_polling_accounts()
-    LOG.info("Account hierarchy crawler found %s accounts to scan" % len(polling_accounts))
+        polling_accounts = Provider.batch_objects.all()
+    LOG.info(f"account hierarchy crawler found {len(polling_accounts)} accounts to scan")
     processed = 0
     skipped = 0
-    for account in polling_accounts:
+    for provider in polling_accounts:
+        account = provider.account
         crawler = None
 
         # Look for a known crawler class to handle this provider
@@ -374,17 +375,13 @@ def crawl_account_hierarchy(provider_uuid=None):
 
         if crawler:
             LOG.info(
-                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
-                    account.get("provider_type"), account.get("provider_uuid")
-                )
+                f'Starting account hierarchy crawler for type {account.get("provider_type")} with provider_uuid: {account.get("provider_uuid")}'  # noqa: E501
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
             LOG.info(
-                "No known crawler for account with provider_uuid: {} of type {}".format(
-                    account.get("provider_uuid"), account.get("provider_type")
-                )
+                f'No known crawler for account with provider_uuid: {account.get("provider_uuid")} of type {account.get("provider_type")}'  # noqa: E501
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")

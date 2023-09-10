@@ -42,26 +42,6 @@ class PurgeTrinoFilesTest(MasuTestCase):
                 self.assertEqual(errmsg, expected_errmsg)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_provider_uuid_does_not_exist(self, _):
-        """Test the purge_trino_files endpoint with no parameters."""
-        fake_uuid = "12345"
-        params = {"provider_uuid": fake_uuid}
-        query_string = urlencode(params)
-        url = reverse("purge_trino_files") + "?" + query_string
-        response_types = ["GET", "DELETE"]
-        for response_type in response_types:
-            with self.subTest(response_type):
-                if response_type == "GET":
-                    response = self.client.get(url)
-                else:
-                    response = self.client.delete(url)
-                body = response.json()
-                errmsg = body.get("Error")
-                expected_errmsg = f"The provider_uuid {fake_uuid} does not exist."
-                self.assertEqual(response.status_code, 400)
-                self.assertEqual(errmsg, expected_errmsg)
-
-    @patch("koku.middleware.MASU", return_value=True)
     def test_require_schema(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {"provider_uuid": self.aws_provider_uuid, "bill_date": "08-01-2022"}

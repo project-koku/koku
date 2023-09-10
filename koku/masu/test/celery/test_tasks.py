@@ -17,7 +17,6 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
 
@@ -254,13 +253,13 @@ class TestCeleryTasks(MasuTestCase):
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy(self.aws_test_provider_uuid)
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % ("1")
+            expected_log_msg = "account hierarchy crawler found %s accounts to scan" % ("1")
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
-        polling_accounts = Orchestrator.get_polling_accounts()
+        polling_accounts = Provider.batch_objects.all()
         providers = Provider.objects.all()
         for provider in providers:
             provider.polling_timestamp = None
@@ -268,7 +267,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
+            expected_log_msg = "account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
