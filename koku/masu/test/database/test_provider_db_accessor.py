@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
-from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -87,13 +86,9 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_get_customer_uuid(self):
         """Test provider billing_source getter."""
-        expected_uuid = None
-        with CustomerDBAccessor(self.customer.id) as customer_accessor:
-            expected_uuid = customer_accessor.get_uuid()
-
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(expected_uuid, accessor.get_customer_uuid())
+            self.assertEqual(self.customer.uuid, accessor.get_customer_uuid())
 
     def test_get_customer_name(self):
         """Test provider customer getter."""
