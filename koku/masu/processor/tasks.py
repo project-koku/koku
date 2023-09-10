@@ -750,9 +750,8 @@ def update_all_summary_tables(start_date, end_date=None):
 
     """
     # Get all providers for all schemas
-    all_providers = Provider.objects.all()
-    for provider in all_providers:
-        account = provider.account
+    all_accounts = Provider.objects.get_accounts()
+    for account in all_accounts:
         log_statement = (
             f"Gathering data for for\n"
             f' schema_name: {account.get("schema_name")}\n'
@@ -761,16 +760,16 @@ def update_all_summary_tables(start_date, end_date=None):
         )
         LOG.info(log_statement)
         schema_name = account.get("schema_name")
-        provider = account.get("provider_type")
+        provider_type = account.get("provider_type")
         provider_uuid = account.get("provider_uuid")
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
         ocp_process_queue = OCP_QUEUE
         if is_customer_large(schema_name):
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
             ocp_process_queue = OCP_QUEUE_XL
-        queue_name = ocp_process_queue if provider and provider.lower() == "ocp" else None
+        queue_name = ocp_process_queue if provider_type and provider_type.lower() == "ocp" else None
         update_summary_tables.s(
-            schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
+            schema_name, provider_type, provider_uuid, str(start_date), end_date, queue_name=queue_name
         ).apply_async(queue=queue_name or fallback_queue)
 
 

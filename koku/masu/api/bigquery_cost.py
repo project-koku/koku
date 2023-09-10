@@ -19,7 +19,6 @@ from rest_framework.settings import api_settings
 from api.provider.models import Provider
 from api.utils import DateHelper
 
-
 LOG = logging.getLogger(__name__)
 
 
