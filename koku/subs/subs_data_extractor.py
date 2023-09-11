@@ -85,6 +85,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return id_list
 
     def determine_end_time(self, year, month):
+        """Determine the end time for subs processing."""
         sql = (
             f" SELECT MAX(lineitem_usagestartdate) FROM aws_line_items"
             f" WHERE source='{self.provider_uuid}' AND year='{year}' AND month='{month}'"
@@ -208,6 +209,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return upload_keys
 
     def copy_data_to_subs_s3_bucket(self, data, cols, filename):
+        """Copy subs data to the right S3 bucket."""
         my_df = pd.DataFrame(data)
         my_df.to_csv(filename, header=cols, index=False)
         with open(filename, "rb") as fin:
