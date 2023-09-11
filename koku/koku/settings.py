@@ -127,6 +127,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "koku.middleware.IdentityHeaderMiddleware",
     "koku.middleware.KokuTenantMiddleware",
+    "koku.middleware.KokuTenantSchemaExistsMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     PROMETHEUS_AFTER_MIDDLEWARE,
