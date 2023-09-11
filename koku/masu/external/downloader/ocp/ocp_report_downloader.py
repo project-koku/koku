@@ -32,7 +32,7 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path: PosixPath, manifest_id: int):
+def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     """
     Split local file into daily content.
     """
@@ -67,7 +67,7 @@ def divide_csv_daily(file_path: PosixPath, manifest_id: int):
             manifest.report_tracker[file_prefix] = counter + 1
             manifest.save(update_fields=["report_tracker"])
         day_file = f"{file_prefix}.{counter}.csv"
-        day_filepath = Path(file_path.parent, day_file)
+        day_filepath = file_path.parent.joinpath(day_file)
         df.to_csv(day_filepath, index=False, header=True)
         daily_files.append(
             {
@@ -307,7 +307,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         local_filename = utils.get_local_file_name(key)
 
         directory_path = Path(DATA_DIR, self.customer_name, "ocp", self.cluster_id)
-        full_file_path = Path(directory_path, local_filename)
+        full_file_path = directory_path.joinpath(local_filename)
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)

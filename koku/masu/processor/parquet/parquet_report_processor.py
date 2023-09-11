@@ -321,7 +321,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def prepare_parquet_s3(self, filename: PosixPath):
+    def prepare_parquet_s3(self, filename: os.PathLike):
 
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
@@ -495,7 +495,7 @@ class ParquetReportProcessor:
                         ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
                 raise ValidationError(message, code="Missing_columns")
 
-    def convert_csv_to_parquet(self, csv_filename: PosixPath):  # noqa: C901
+    def convert_csv_to_parquet(self, csv_filename: os.PathLike):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
         post_processor = self._set_post_processor()
         if not post_processor:

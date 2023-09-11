@@ -215,6 +215,6 @@ class ReportDownloader:
             "invoice_month": date_range.get("invoice_month"),
         }
         if self.provider_type == Provider.PROVIDER_OCP:
-            report["split_files"] = list(split_files.keys())
+            report["split_files"] = list(split_files)
             report["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
         return report

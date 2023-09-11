@@ -348,7 +348,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     manifest_files = report_meta.get("files") or []
     for ros_file in manifest_ros_files:
         if ros_file in payload_files:
-            ros_reports.append((ros_file, Path(payload_path.parent, ros_file)))
+            ros_reports.append((ros_file, payload_path.with_name(ros_file)))
     ros_processor = ROSReportShipper(
         report_meta,
         b64_identity,
@@ -374,7 +374,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
             LOG.info(log_json(manifest_uuid, msg=msg, context=context))
             split_files = construct_daily_archives(request_id, context, report_meta, payload_destination_path)
-            current_meta["split_files"] = list(split_files.keys())
+            current_meta["split_files"] = list(split_files)
             current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
         except FileNotFoundError:
