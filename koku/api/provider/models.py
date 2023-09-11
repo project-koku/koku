@@ -54,8 +54,9 @@ class ProviderObjectsManager(models.Manager):
         """
         Override the default queryset to select the authentication, billing_source, and customer fields.
 
-        This override gives us access to these other fields without needing extra db queries, and enables
-        the `account` property of the Provider rows.
+        This override gives us access to these other fields without needing extra db queries. This make
+        the `account` property of the Provider table a single db query instead of one for each foreign key
+        lookup. This class should be used as a base class for any new managers created for the Provider model.
         """
         return super().get_queryset().select_related("authentication", "billing_source", "customer")
 
@@ -77,7 +78,7 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
 
     def get_polling_batch(self, limit=-1, offset=0):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
-        one_day_ago = datetime.now(tz=settings.UTC) - timedelta(hours=24)
+        one_day_ago = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.

@@ -7,6 +7,7 @@ import logging
 
 from celery import chord
 from celery import group
+from django.conf import settings
 
 from api.common import log_json
 from api.models import Provider
@@ -71,7 +72,7 @@ class Orchestrator:
 
     def get_polling_batch(self):
         batch = []
-        providers = Provider.polling_objects.get_polling_batch(Config.POLLING_BATCH_SIZE)
+        providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE)
         for provider in providers:
             provider.polling_timestamp = DH.now_utc
             provider.save(update_fields=["polling_timestamp"])
