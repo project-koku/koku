@@ -54,6 +54,7 @@ FROM
       AND lineitem_usagestartdate > {{ start_time }}
       AND lineitem_usagestartdate <= {{ end_time }}
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
+      AND lineitem_usageaccountid IN {{ ids | inclause }}
     OFFSET
       {{ offset }}
     LIMIT
