@@ -118,7 +118,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_line_item_count")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_latest_processed_time_for_provider")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_start_time")
     def test_extract_data_to_s3(
         self, mock_latest_time, mock_where_clause, mock_li_count, mock_trino, mock_copy, mock_update, mock_end_time
     ):
@@ -147,3 +147,40 @@ class TestSUBSDataExtractor(SUBSTestCase):
         self.extractor.s3_resource.Object.side_effect = EndpointConnectionError(endpoint_url="fakeurl")
         actual_key = self.extractor.copy_data_to_subs_s3_bucket(["data"], ["column"], "filename")
         self.assertIsNone(actual_key)
+
+    def test_determine_start_time(self):
+        """Test that determing the start time for different scenarios evaluates correctly."""
+        test_table = {
+            "no_base_prov_created_same_month": {
+                "latest": None,
+                "prov_created": datetime.datetime(2023, 8, 7),
+                "expected_return": datetime.datetime(2023, 8, 5, 23),
+            },
+            "no_base_prov_created_prev_month": {
+                "latest": None,
+                "prov_created": datetime.datetime(2023, 7, 7),
+                "expected_return": datetime.datetime(2023, 7, 31, 23),
+            },
+            "base_prov_created_before": {
+                "latest": datetime.datetime(2023, 8, 10, 12),
+                "prov_created": datetime.datetime(2023, 8, 7),
+                "expected_return": datetime.datetime(2023, 8, 10, 12),
+            },
+            "base_prov_created_after": {
+                "latest": datetime.datetime(2023, 8, 10, 12),
+                "prov_created": datetime.datetime(2023, 8, 15),
+                "expected_return": datetime.datetime(2023, 8, 13, 23),
+            },
+        }
+        for test_case, expected in test_table.items():
+            with self.subTest(case=test_case):
+                with patch(
+                    "subs.subs_data_extractor.SUBSDataExtractor.determine_latest_processed_time_for_provider"
+                ) as mock_latest:
+                    with patch("subs.subs_data_extractor.Provider.objects") as mock_prov:
+                        mock_prov.get.return_value.created_timestamp = expected["prov_created"]
+                        mock_latest.return_value = expected["latest"]
+                        actual = self.extractor.determine_start_time(
+                            year="2023", month="08", month_start=datetime.datetime(2023, 8, 1)
+                        )
+                        self.assertEqual(expected["expected_return"], actual)
