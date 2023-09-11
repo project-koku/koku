@@ -485,6 +485,33 @@ class TestAWSUtils(MasuTestCase):
                 )
                 mock_delete.assert_called
 
+    def test_clear_s3_files_gcp(self):
+        """Test clearing s3 GCP ingress files."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        prov_uuid = self.gcp_provider_uuid
+        prov_type = self.gcp_provider.type
+        context = {"account": self.account_id, "provider_type": prov_type}
+        date_accessor = DateAccessor()
+        start_date = date_accessor.today_with_timezone("UTC").replace(day=1).replace(tzinfo=None)
+        s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils.clear_s3_files(s3_csv_path, prov_uuid, start_date, "manifestid", 1, context, "requiest_id")
+                mock_delete.assert_called
+
     def test_remove_s3_objects_matching_metadata(self):
         """Test remove_s3_objects_matching_metadata."""
         metadata_key = "manifestid"
