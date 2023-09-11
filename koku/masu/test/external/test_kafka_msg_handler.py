@@ -925,7 +925,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test construct parquet reports."""
         report_meta = {"account": "testaccount", "provider_uuid": "abc", "manifest_id": 1, "date": "today"}
 
-        reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
+        reports = msg_handler.construct_daily_archives(1, "context", report_meta, "/payload/path", "report_file")
         self.assertEqual(reports, [])
 
     def test_summarize_manifest_called_with_XL_queue(self):
