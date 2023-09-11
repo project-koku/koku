@@ -2,6 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+"""Dataclass used to calculate node capacity."""
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from api.report.ocp.utils import calculate_unused
 @dataclass
 class NodeCapacity:
     """
+    A class to calaculate the cluster capacity.
+
     report_type_map:        provider_map report type
     query:                  django base query
     resolution:             resolution provider by request

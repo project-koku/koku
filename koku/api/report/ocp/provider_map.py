@@ -502,10 +502,6 @@ class OCPProviderMap(ProviderMap):
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_dataclass": {
-                            "cluster": {
-                                "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                                "cluster": Coalesce("cluster_alias", "cluster_id"),
-                            },
                             "cluster_instance_counts": {
                                 "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),

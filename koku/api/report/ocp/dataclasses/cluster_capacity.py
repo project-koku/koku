@@ -2,6 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+"""Dataclass used to calculate cluster capacity."""
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
@@ -19,7 +20,8 @@ class ClusterCapacity:
     """A class to calaculate the cluster capacity.
 
     Formula:
-        Sum([Max(day0), Max(day1)])
+        capacity: Sum([Max(day0), Max(day1)])
+        count: Sum(node instance counts in cluster)
 
     Due to our different resolutions this dataclass generates
     capacity for:
@@ -61,35 +63,21 @@ class ClusterCapacity:
         return self.report_type_map.get("capacity_dataclass", {}).get("cluster_instance_counts")
 
     @cached_property
-    def cluster_count_mapping(self):
+    def _populate_count_values(self):
         """
-        Creates a mapping of cluster to node instance counts. This is only
-        used to create the instance counts for the cluster level view.
-
-        Mapping Layout:
-        {usage_key: {cluster: sum(node_instance_count)}}
-
-        usage_key: str(date) ex. "2023-08-22"
-        cluster: Coalesce("cluster_alias", "cluster_id")
-        node_instance_count: max(instance column)
+        If count annotations are present in the provider map populate the counts.
         """
+        # I chose to make this check a cached property for the advantages listed here
+        # https://www.tutorialspoint.com/how-do-i-cache-method-calls-in-python
         if not self.count_annotations:
-            return {}
-        cluster_capacity_vals = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
-        cluster_mapping = {}
-        for cluster_to_node in cluster_capacity_vals:
+            return False
+        node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
+        for cluster_to_node in node_instance_counts:
             cluster = cluster_to_node.get("cluster")
             usage_key = self._resolution_usage_converter(cluster_to_node.get("usage_start"))
             capacity_count = cluster_to_node.get("capacity_count")
-
-            if usage_mapping := cluster_mapping.get(cluster):
-                current_capacity_count = 0
-                if mapping_count := usage_mapping.get(usage_key):
-                    current_capacity_count = mapping_count
-                usage_mapping[usage_key] = current_capacity_count + capacity_count
-            else:
-                cluster_mapping[cluster] = {usage_key: capacity_count}
-        return cluster_mapping
+            self._add_count(capacity_count, usage_key, cluster)
+        return True
 
     def _add_capacity(self, cap_value, usage_start, level_value):
         """Adds the capacity value to to all capacity aggregrations."""
@@ -119,6 +107,7 @@ class ClusterCapacity:
         """
         Retrieves data to populates the capacity dataclass.
         """
+        self._populate_count_values
         if not self.capacity_annotations:
             return False
         cap_key = list(self.capacity_annotations.keys())[0]
@@ -129,8 +118,6 @@ class ClusterCapacity:
                 usage_start = self._resolution_usage_converter(entry.get("usage_start", ""))
                 cap_value = entry.get(cap_key, 0)
                 self._add_capacity(cap_value, usage_start, cluster_key)
-                cluster_mapping_value = self.cluster_count_mapping.get(cluster_key, {}).get(usage_start)
-                self._add_count(cluster_mapping_value, usage_start, cluster_key)
 
     def _finalize_mapping(self, dataset_mapping):
         """

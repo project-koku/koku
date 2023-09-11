@@ -52,9 +52,10 @@ class ClusterCapacityDataclassTest(IamTestCase):
                 capacity_dataclass = report_type_map.get("capacity_dataclass")
                 self.assertTrue(capacity_dataclass)
                 # Confirm cluster structure in provider map
-                self.assertTrue(capacity_dataclass.get("cluster"))
-                self.assertIn("capacity", capacity_dataclass["cluster"])
-                self.assertIn("cluster", capacity_dataclass["cluster"])
+                if report_type != "volume":
+                    self.assertTrue(capacity_dataclass.get("cluster"))
+                    self.assertIn("capacity", capacity_dataclass["cluster"])
+                    self.assertIn("cluster", capacity_dataclass["cluster"])
                 # Confirm cluster instance count structure in provider map
                 self.assertTrue(capacity_dataclass.get("cluster_instance_counts"))
                 self.assertIn("capacity_count", capacity_dataclass["cluster_instance_counts"])
@@ -77,6 +78,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
                 with tenant_context(self.tenant):
                     query = build_query(handler)
                     cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, query, _resolution)
+                    cluster_capacity.populate_dataclass()
                     # build expected values
                     expected_values = {}
                     cluster_capacity_vals = (
@@ -93,7 +95,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
                             expected_values[cluster] = capacity_count
                     today_str = str(self.dh.today.date())
                     for cluster, expected_count_value in expected_values.items():
-                        result = cluster_capacity.cluster_count_mapping.get(cluster, {}).get(today_str)
+                        result = cluster_capacity.count_by_usage_cluster.get(today_str).get(cluster, {})
                         self.assertEqual(expected_count_value, result)
 
     def test_cluster_capacity_no_dataclass_field_in_provider_map(self):
@@ -109,7 +111,6 @@ class ClusterCapacityDataclassTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, None, _resolution)
-        self.assertEqual(cluster_capacity.cluster_count_mapping, {})
         self.assertFalse(cluster_capacity.populate_dataclass())
 
     def test_get_cluster_capacity_counts_by_cluster(self):
@@ -167,7 +168,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
             "group_by[cluster]": "*",
         }
         url = "?" + urlencode(params, quote_via=quote_plus)
-        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
+        for view in [OCPCpuView, OCPMemoryView]:
             with self.subTest(view=view):
                 expected_cluster_capacity = {}
                 expected_date_capacity = {}
