@@ -266,7 +266,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
     # Capacity Calculations
 
     def get_capacity(self, query_data):  # noqa: C901
-        """Calculate capacity & instance clount for all nodes over the date range."""
+        """Calculate capacity & instance count for all nodes over the date range."""
         q_table = self._mapper.query_table
         LOG.debug(f"Using query table: {q_table}")
         query = q_table.objects.filter(self.query_filter)

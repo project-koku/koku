@@ -1,3 +1,7 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
@@ -12,9 +16,13 @@ from api.report.ocp.utils import _calculate_unused
 @dataclass
 class NodeCapacity:
     """
-    report_type_map:    provider_map report type
-    query:              django base query
-    resolution:         resolution provider by request
+    report_type_map:        provider_map report type
+    query:                  django base query
+    resolution:             resolution provider by request
+    -- Calaculated during populate dataclass --
+    capacity_total:         total capacity count
+    capacity_usage_by_node: capacity total by usage date and node
+    count_total:            total instance count
     """
 
     report_type_map: defaultdict
@@ -81,7 +89,7 @@ class NodeCapacity:
         return finalized_mapping
 
     def _retrieve_all_values(self, row):
-        """Generates the update update_mapping"""
+        """Generates a mapping of values that need to be updated."""
         update_mapping = {"capacity_count_units": self.count_units}
         update_mapping["capacity"] = self.capacity_by_usage_node.get(row.get("date"), {}).get(
             row.get("node"), Decimal(0)
