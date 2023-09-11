@@ -125,12 +125,9 @@ def create_daily_archives(
             batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
             directory = os.path.dirname(local_file)
             for date in dates:
-                daily_data = data_frame.loc[date]
+                daily_data = data_frame.loc[[date]]
                 if daily_data.empty:
                     continue
-                # using loc here can return Series if only one row matches the date
-                if isinstance(daily_data, pd.Series):
-                    daily_data = daily_data.to_frame().T
                 day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
                 day_file = f"{day_path}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
                 day_filepath = f"{directory}/{day_file}"
