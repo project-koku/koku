@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 
-def _calculate_unused(row, finalized_mapping={}):
+def calculate_unused(row, finalized_mapping={}):
     """Calculates the unused portions of the capacity & request."""
     # Populate unused request and capacity
     for key, value in finalized_mapping.items():

@@ -11,7 +11,7 @@ from functools import cached_property
 
 from django.db.models.query import QuerySet
 
-from api.report.ocp.utils import _calculate_unused
+from api.report.ocp.utils import calculate_unused
 
 
 @dataclass
@@ -120,7 +120,7 @@ class ClusterCapacity:
         Retrieves data to populates the capacity dataclass.
         """
         if not self.capacity_annotations:
-            return None
+            return False
         cap_key = list(self.capacity_annotations.keys())[0]
         cap_data = self.query.values(*["usage_start", "cluster_id"]).annotate(**self.capacity_annotations)
         for entry in cap_data:
@@ -190,7 +190,7 @@ class ClusterCapacity:
     def update_row(self, row, start_date_param):
         """Modify the rows"""
         finalized_mapping = self._finalize_mapping(self._retrieve_all_values(row, start_date_param))
-        _calculate_unused(row, finalized_mapping)
+        calculate_unused(row, finalized_mapping)
 
     def generate_query_sum(self):
         """

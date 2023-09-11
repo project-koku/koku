@@ -24,7 +24,7 @@ from api.models import Provider
 from api.report.ocp.dataclasses.cluster_capacity import ClusterCapacity
 from api.report.ocp.dataclasses.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
-from api.report.ocp.utils import _calculate_unused
+from api.report.ocp.utils import calculate_unused
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
@@ -232,7 +232,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data, total_capacity = self.get_capacity(query_data)
             if total_capacity:
                 query_sum.update(total_capacity)
-                _calculate_unused(query_sum)
+                calculate_unused(query_sum)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)

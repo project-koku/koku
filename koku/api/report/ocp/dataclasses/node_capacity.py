@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from django.db.models.query import QuerySet
 
-from api.report.ocp.utils import _calculate_unused
+from api.report.ocp.utils import calculate_unused
 
 
 @dataclass
@@ -98,7 +98,7 @@ class NodeCapacity:
 
     def update_row(self, row, _):
         finalized_mapping = self._finalize_mapping(self._retrieve_all_values(row))
-        _calculate_unused(row, finalized_mapping)
+        calculate_unused(row, finalized_mapping)
 
     def generate_query_sum(self):
         """
