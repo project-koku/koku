@@ -741,7 +741,7 @@ def update_openshift_on_cloud(  # noqa: C901
 
 @celery_app.task(name="masu.processor.tasks.update_summary_tables_by_provider", queue=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_summary_tables_by_provider(start_date, provider_type, end_date=None):
-    """Populate all the summary tables for a provider for reporting.
+    """Populate all the summary tables by provider for reporting.
 
     Args:
         start_date    (str) The date to start populating the table.
@@ -756,7 +756,7 @@ def update_summary_tables_by_provider(start_date, provider_type, end_date=None):
     try:
         all_accounts = AccountsAccessor().get_accounts(provider_type=provider_type)
         for account in all_accounts:
-            msg = "Summarize by provider type."
+            msg = "summarize by provider type"
             cxt = {
                 "schema_name": account.get("schema_name"),
                 "provider_type": account.get("provider_type"),

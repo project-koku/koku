@@ -35,48 +35,6 @@ LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"
 
 
-class GetOpenshiftOnCloudProviders(KokuDBAccess):
-    """Class to interact with the koku database for Provider Data."""
-
-    def __init__(self):
-        """
-        Establish Provider database connection.
-
-        Args:
-            provider_uuid  (String) the uuid of the provider
-            auth_id        (String) provider authentication database id
-
-        """
-        super().__init__("public")
-        self._table = Provider
-
-    def summarize(self, months, queue_name, ocp_on_cloud_type):
-        async_results = []
-        for month in months:
-            query = self._table.objects.all()
-            ocp_on_cloud = query.filter(active=True, paused=False, infrastructure_id__isnull=False)
-            LOG.info("Resummarizing ocp on cloud providers.")
-            for row in ocp_on_cloud:
-                schema_name = row.customer.schema_name
-                fallback_queue = PRIORITY_QUEUE
-                if is_customer_large(schema_name):
-                    fallback_queue = PRIORITY_QUEUE_XL
-                queue = queue_name or fallback_queue
-                if row.infrastructure.infrastructure_provider.type == ocp_on_cloud_type:
-                    async_result = update_summary_tables.s(
-                        schema_name,  # schema
-                        Provider.PROVIDER_OCP,
-                        row.uuid,  # provider_uuid
-                        month[0],
-                        month[1],
-                        invoice_month=month[2],
-                        queue_name=queue,
-                        ocp_on_cloud=True,
-                    ).apply_async(queue=queue)
-                    async_results.append({str(month): str(async_result)})
-        return async_results
-
-
 @never_cache
 @api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
@@ -185,12 +143,6 @@ def report_data(request):
             key_set = set_cached_resummarize_by_provider_type(provider_type)
 
             if key_set:
-                if provider_type == Provider.PROVIDER_OCP:
-                    if ocp_on_cloud_type := params.get("ocp_on_cloud_type"):
-                        ocp_on_cloud_obj = GetOpenshiftOnCloudProviders()
-                        async_results = ocp_on_cloud_obj.summarize(months, queue_name, ocp_on_cloud_type)
-                        return Response({REPORT_DATA_KEY: async_results})
-
                 for month in months:
                     async_result = update_summary_tables_by_provider.delay(month[0], month[1], provider_type)
                     async_results.append({str(month): str(async_result)})
