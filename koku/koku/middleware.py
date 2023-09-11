@@ -19,6 +19,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -31,6 +32,7 @@ from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 
 from api.common import RH_IDENTITY_HEADER
+from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
@@ -99,6 +101,15 @@ class HttpResponseFailedDependency(JsonResponse):
             ]
         }
         super().__init__(data)
+
+
+class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
+    """A middleware to check if schema exists for Tenant."""
+
+    def process_exception(self, request, exception):
+        if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
 
 
 class KokuTenantMiddleware(TenantMainMiddleware):
