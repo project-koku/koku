@@ -147,3 +147,10 @@ def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
         limit = settings.MAX_GROUP_BY
 
     return limit
+
+
+def check_ingress_columns(account):  # pragma: no cover
+    """Should check ingress columns."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
