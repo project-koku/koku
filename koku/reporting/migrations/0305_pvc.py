@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0305_pvc"),
+        ("reporting", "0304_subslastprocessed"),
     ]
 
     operations = [
