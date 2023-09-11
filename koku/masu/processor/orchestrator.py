@@ -414,8 +414,7 @@ class Orchestrator:
 
         """
         async_results = []
-        for provider in Provider.objects.all():
-            account = provider.account
+        for account in Provider.objects.get_accounts():
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
                 schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate

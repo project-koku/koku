@@ -47,19 +47,36 @@ class ProviderBillingSource(models.Model):
     data_source = JSONField(null=False, default=dict)
 
 
-class ProviderManager(models.Manager):
+class ProviderObjectsManager(models.Manager):
+    """Default manager for Provider model."""
+
     def get_queryset(self) -> QuerySet:
+        """
+        Override the default queryset to select the authentication, billing_source, and customer fields.
+
+        This override gives us access to these other fields without needing extra db queries, and enables
+        the `account` property of the Provider rows.
+        """
         return super().get_queryset().select_related("authentication", "billing_source", "customer")
 
     def get_accounts(self):
+        """Return a list of all accounts."""
         return [p.account for p in self.all()]
 
 
-class ProviderPollingManager(ProviderManager):
+class ProviderObjectsPollingManager(ProviderObjectsManager):
+    """
+    Manager for pollable Providers.
+
+    Pollable Providers are all Providers that are not OCP.
+    """
+
     def get_queryset(self):
+        """Return a Queryset of non-OCP and active and non-paused Providers."""
         return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
 
     def get_polling_batch(self, limit=-1, offset=0):
+        """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
         one_day_ago = datetime.now(tz=settings.UTC) - timedelta(hours=24)
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
@@ -179,8 +196,8 @@ class Provider(models.Model):
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
     additional_context = JSONField(null=True, default=dict)
 
-    objects = ProviderManager()
-    polling_objects = ProviderPollingManager()
+    objects = ProviderObjectsManager()
+    polling_objects = ProviderObjectsPollingManager()
 
     @property
     def account(self) -> dict:
