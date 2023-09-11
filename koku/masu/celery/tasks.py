@@ -148,7 +148,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         s3_bucket_name (str): The s3 bucket name
         prefix (str): The prefix for deletion
     """
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     s3_bucket = s3_resource.Bucket(s3_bucket_name)
     object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
     LOG.info(f"Starting objects: {len(object_keys)}")
@@ -490,7 +490,7 @@ def delete_source_helper(source):
     if source.koku_uuid:
         # if there is a koku-uuid, a Provider also exists.
         # Go thru delete_source to remove the Provider and the Source
-        delete_source(source.source_id, source.auth_header, source.koku_uuid)
+        delete_source(source.source_id, source.auth_header, source.koku_uuid, source.account_id, source.org_id)
     else:
         # here, no Provider exists, so just delete the Source
         source.delete()

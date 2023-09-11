@@ -7,11 +7,13 @@ import random
 from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
+from unittest.mock import mock_open
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import boto3
+import numpy as np
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
@@ -19,6 +21,7 @@ from django_tenants.utils import schema_context
 from faker import Faker
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -453,6 +456,62 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(removed, [])
 
+    def test_clear_s3_files(self):
+        """Test clearing s3 files."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        context = {"account": self.account_id, "provider_type": self.aws_provider.type}
+        date_accessor = DateAccessor()
+        start_date = date_accessor.today_with_timezone("UTC").replace(day=1).replace(tzinfo=None)
+        s3_csv_path = get_path_prefix(
+            self.account_id, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, Config.CSV_DATA_TYPE
+        )
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils.clear_s3_files(
+                    s3_csv_path, self.aws_provider_uuid, start_date, "manifestid", 1, context, "requiest_id"
+                )
+                mock_delete.assert_called
+
+    def test_clear_s3_files_gcp(self):
+        """Test clearing s3 GCP ingress files."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        prov_uuid = self.gcp_provider_uuid
+        prov_type = self.gcp_provider.type
+        context = {"account": self.account_id, "provider_type": prov_type}
+        date_accessor = DateAccessor()
+        start_date = date_accessor.today_with_timezone("UTC").replace(day=1).replace(tzinfo=None)
+        s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils.clear_s3_files(s3_csv_path, prov_uuid, start_date, "manifestid", 1, context, "requiest_id")
+                mock_delete.assert_called
+
     def test_remove_s3_objects_matching_metadata(self):
         """Test remove_s3_objects_matching_metadata."""
         metadata_key = "manifestid"
@@ -519,16 +578,22 @@ class TestAWSUtils(MasuTestCase):
             upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
             self.assertIsNone(upload)
 
-    def test_copy_hcs_data_to_s3_bucket(self):
-        """Test copy_hcs_data_to_s3_bucket."""
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNotNone(upload)
-
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNone(upload)
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
+    def test_copy_local_hcs_report_file_to_s3_bucket_with_finalize(self, mock_copy):
+        """Test that the proper metadata is used when a finalized date is passed in with the finalize option"""
+        fake_request_id = "fake_id"
+        fake_s3_path = "fake_path"
+        fake_filename = "fake_filename"
+        expected_metadata = {"finalized": "True", "finalized-date": "2023-08-15"}
+        expected_context = {}
+        mock_op = mock_open(read_data="x,y,z")
+        with patch("builtins.open", mock_op):
+            utils.copy_local_hcs_report_file_to_s3_bucket(
+                fake_request_id, fake_s3_path, fake_filename, fake_filename, True, "2023-08-15", expected_context
+            )
+        mock_copy.assert_called_once_with(
+            fake_request_id, fake_s3_path, fake_filename, mock_op(), expected_metadata, expected_context
+        )
 
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
@@ -613,6 +678,74 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+    def test_match_openshift_labels_with_nan_resources(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
+
+        matched_tags = [{"key": "value"}]
+        data = [
+            {"lineitem_resourceid": np.nan, "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+        ]
+
+        df = pd.DataFrame(data)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # tag matching
+        result = matched_df["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
+    def test_match_openshift_resource_with_nan_labels(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
+
+        matched_tags = [{"key": "value"}]
+        data = [
+            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": np.nan},
+        ]
+
+        df = pd.DataFrame(data)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_get_or_clear_daily_s3_by_date(self, mock_resource):
+        """test getting daily archive start date"""
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
+        end_date = DateHelper().this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+            return_value=None,
+        ):
+            result = utils.get_or_clear_daily_s3_by_date(
+                "None",
+                "provider_uuid",
+                start_date,
+                end_date,
+                1,
+                {"account": "test", "provider_type": "AWS"},
+                "request_id",
+            )
+            self.assertEqual(result, start_date)
 
 
 class AwsArnTest(TestCase):

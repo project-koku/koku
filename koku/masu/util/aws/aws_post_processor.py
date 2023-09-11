@@ -1,14 +1,24 @@
 import json
+import logging
 
 import ciso8601
 import pandas as pd
+from django_tenants.utils import schema_context
 
-from masu.util.common import create_enabled_keys
+from api.common import log_json
+from api.models import Provider
+from masu.util.aws.common import OPTIONAL_ALT_COLS
+from masu.util.aws.common import OPTIONAL_COLS
+from masu.util.aws.common import RECOMMENDED_ALT_COLUMNS
+from masu.util.aws.common import RECOMMENDED_COLUMNS
+from masu.util.common import batch
+from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
+
+LOG = logging.getLogger(__name__)
 
 
 def scrub_resource_col_name(res_col_name, column_prefix):
@@ -31,116 +41,33 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
     return column_dict.apply(json.dumps), unique_keys
 
 
+def create_enabled_categories(schema, enabled_keys):
+    enabled_keys_model = AWSEnabledCategoryKeys
+    ctx = {"schema": schema, "enabled_categories": enabled_keys}
+    if not enabled_keys:
+        LOG.info(log_json(msg="no categories found, skipping category enablement", context=ctx))
+        return
+    with schema_context(schema):
+        LOG.info(log_json(msg="searching for new category keys", context=ctx))
+        new_keys = list(set(enabled_keys) - {k for k in enabled_keys_model.objects.values_list("key", flat=True)})
+        if not new_keys:
+            LOG.info(log_json(msg="no enabled keys added", context=ctx))
+            return
+
+        LOG.info(log_json(msg="creating enabled key records", context=ctx))
+        for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+            batch_size = len(new_batch)
+            LOG.info(log_json(msg="create batch", batch_number=(batch_num + 1), batch_size=batch_size, context=ctx))
+            for ix in range(batch_size):
+                new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+            enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
+
+
 class AWSPostProcessor:
 
-    PRODUCT_SKU_COL = "product/sku"  # removes code smell
     ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
     RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
     COST_CATEGORY_PREFIX = "costCategory/"
-
-    INGRESS_REQUIRED_COLUMNS = {
-        "bill/BillingEntity",
-        "bill/BillType",
-        "bill/PayerAccountId",
-        "bill/BillingPeriodStartDate",
-        "bill/BillingPeriodEndDate",
-        "bill/InvoiceId",
-        "lineItem/LineItemType",
-        "lineItem/UsageAccountId",
-        "lineItem/UsageStartDate",
-        "lineItem/UsageEndDate",
-        "lineItem/ProductCode",
-        "lineItem/UsageType",
-        "lineItem/Operation",
-        "lineItem/AvailabilityZone",
-        "lineItem/ResourceId",
-        "lineItem/UsageAmount",
-        "lineItem/NormalizationFactor",
-        "lineItem/NormalizedUsageAmount",
-        "lineItem/CurrencyCode",
-        "lineItem/UnblendedRate",
-        "lineItem/UnblendedCost",
-        "lineItem/BlendedRate",
-        "lineItem/BlendedCost",
-        "savingsPlan/SavingsPlanEffectiveCost",
-        "lineItem/TaxType",
-        "pricing/publicOnDemandCost",
-        "pricing/publicOnDemandRate",
-        "reservation/AmortizedUpfrontFeeForBillingPeriod",
-        "reservation/AmortizedUpfrontCostForUsage",
-        "reservation/RecurringFeeForUsage",
-        "reservation/UnusedQuantity",
-        "reservation/UnusedRecurringFee",
-        "pricing/term",
-        "pricing/unit",
-        PRODUCT_SKU_COL,
-        "product/ProductName",
-        "product/productFamily",
-        "product/servicecode",
-        "product/region",
-        "product/instanceType",
-        "product/memory",
-        "product/vcpu",
-        "reservation/ReservationARN",
-        "reservation/NumberOfReservations",
-        "reservation/UnitsPerReservation",
-        "reservation/StartTime",
-        "reservation/EndTime",
-    }
-
-    INGRESS_ALT_COLUMNS = {
-        "bill_billing_entity",
-        "bill_bill_type",
-        "bill_payer_account_id",
-        "bill_billing_period_start_date",
-        "bill_billing_period_end_date",
-        "bill_invoice_id",
-        "line_item_line_item_type",
-        "line_item_usage_account_id",
-        "line_item_usage_start_date",
-        "line_item_usage_end_date",
-        "line_item_product_code",
-        "line_item_usage_type",
-        "line_item_operation",
-        "line_item_availability_zone",
-        "line_item_resource_id",
-        "line_item_usage_amount",
-        "line_item_normalization_factor",
-        "line_item_normalized_usage_amount",
-        "line_item_currency_code",
-        "line_item_unblended_rate",
-        "line_item_unblended_cost",
-        "line_item_blended_rate",
-        "line_item_blended_cost",
-        "savings_plan_savings_plan_effective_cost",
-        "line_item_tax_type",
-        "pricing_public_on_demand_cost",
-        "pricing_public_on_demand_rate",
-        "reservation_amortized_upfront_fee_for_billing_period",
-        "reservation_amortized_upfront_cost_for_usage",
-        "reservation_recurring_fee_for_usage",
-        "reservation_unused_quantity",
-        "reservation_unused_recurring_fee",
-        "pricing_term",
-        "pricing_unit",
-        "product_sku",
-        "product_product_name",
-        "product_product_family",
-        "product_servicecode",
-        "product_region",
-        "product_instance_type",
-        "product_memory",
-        "product_vcpu",
-        "reservation_number_of_reservations",
-        "reservation_units_per_reservation",
-        "reservation_start_time",
-        "reservation_end_time",
-    }
-
-    SUBS_COLUMNS = {
-        "identity/TimeInterval",
-        "product/physicalCores",
-    }
 
     COL_TRANSLATION = {
         "bill_billing_entity": "bill/BillingEntity",
@@ -177,7 +104,7 @@ class AWSPostProcessor:
         "reservation_unused_recurring_fee": "reservation/UnusedRecurringFee",
         "pricing_term": "pricing/term",
         "pricing_unit": "pricing/unit",
-        "product_sku": PRODUCT_SKU_COL,
+        "product_sku": "product/sku",
         "product_product_name": "product/ProductName",
         "product_product_family": "product/productFamily",
         "product_servicecode": "product/servicecode",
@@ -200,7 +127,7 @@ class AWSPostProcessor:
         "lineItem/",
         "pricing/",
         "discount/",
-        PRODUCT_SKU_COL,
+        "product/sku",
     )
 
     def __init__(self, schema):
@@ -212,9 +139,9 @@ class AWSPostProcessor:
         """
         Checks the required columns for ingress.
         """
-        if not set(col_names).issuperset(self.INGRESS_REQUIRED_COLUMNS):
-            if not set(col_names).issuperset(self.INGRESS_ALT_COLUMNS):
-                missing_columns = [x for x in self.INGRESS_ALT_COLUMNS if x not in col_names]
+        if not set(col_names).issuperset(RECOMMENDED_COLUMNS):
+            if not set(col_names).issuperset(RECOMMENDED_ALT_COLUMNS):
+                missing_columns = [x for x in RECOMMENDED_ALT_COLUMNS if x not in col_names]
                 return missing_columns
         return None
 
@@ -256,7 +183,7 @@ class AWSPostProcessor:
             col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
         }
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        csv_columns = self.INGRESS_REQUIRED_COLUMNS.union(self.INGRESS_ALT_COLUMNS).union(self.SUBS_COLUMNS)
+        csv_columns = RECOMMENDED_COLUMNS.union(RECOMMENDED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
         panda_kwargs["usecols"] = [
             col for col in col_names if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
         ]
@@ -348,5 +275,5 @@ class AWSPostProcessor:
         """
         Uses information gather in the
         """
-        create_enabled_keys(self.schema, AWSEnabledTagKeys, self.enabled_tag_keys)
-        create_enabled_keys(self.schema, AWSEnabledCategoryKeys, self.enabled_categories)
+        populate_enabled_tag_rows_with_limit(self.schema, self.enabled_tag_keys, Provider.PROVIDER_AWS)
+        create_enabled_categories(self.schema, self.enabled_categories)

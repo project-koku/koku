@@ -8,7 +8,6 @@ import logging
 import pkgutil
 import uuid
 
-import ciso8601
 from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
@@ -17,6 +16,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
+from api.provider.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -351,13 +351,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
-                    source_uuid=provider_uuid, source_type="AWS", **date_filters
+                    source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
                 ).update(project_markup_cost=(F("pod_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
-                    markup_model.objects.filter(source_uuid=provider_uuid, source_type="AWS", **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
+                    markup_model.objects.filter(
+                        source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
+                    ).update(markup_cost=(F("unblended_cost") * markup))
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
@@ -370,7 +370,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = self._table_map["enabled_tag_keys"]
+        table_name = "reporting_enabledtagkeys"
         sql = pkgutil.get_data("masu.database", "sql/reporting_awsenabledtagkeys.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -449,9 +449,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_awsenabledtagkeys as aws
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key
-                WHERE aws.enabled = true AND ocp.enabled = true;
+            SELECT COUNT(*) FROM (SELECT COUNT(provider_type) AS p_count FROM
+                {self.schema}.reporting_enabledtagkeys WHERE enabled=True AND provider_type IN ('AWS', 'OCP')
+                GROUP BY key) AS c WHERE c.p_count > 1;
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
@@ -461,23 +461,3 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on AWS", schema=self.schema))
                 return False
         return True
-
-    def check_for_invoice_id_trino(self, source_uuid, check_date):
-        """Check if this month's data has been finalized by AWS."""
-        if isinstance(check_date, str):
-            check_date = ciso8601.parse_datetime(check_date).date()
-
-        year = check_date.strftime("%Y")
-        month = check_date.strftime("%m")
-
-        sql = f"""
-            SELECT DISTINCT bill_invoiceid
-            FROM aws_line_items
-            WHERE year = '{year}'
-                AND month = '{month}'
-                AND source = '{source_uuid}'
-        """
-
-        results = self._execute_trino_raw_sql_query(sql, log_ref="check_for_invoice_id_trino")
-
-        return [result[0] for result in results if result[0] != ""]

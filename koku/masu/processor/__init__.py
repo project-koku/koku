@@ -123,6 +123,11 @@ def is_aws_category_settings_enabled(account):  # pragma: no cover
     )
 
 
+def is_ddf_tag_form_disabled():  # pragma: no cover
+    """Disable ingress rate limiting"""
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ddf-tag-form")
+
+
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing
@@ -156,3 +161,10 @@ def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
         limit = settings.MAX_GROUP_BY
 
     return limit
+
+
+def check_ingress_columns(account):  # pragma: no cover
+    """Should check ingress columns."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)

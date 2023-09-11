@@ -4,7 +4,9 @@
 #
 """Test the AzureReportDownloader object."""
 import json
+import os.path
 import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -13,16 +15,19 @@ from unittest.mock import patch
 
 from faker import Faker
 
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
+from masu.external.downloader.azure.azure_report_downloader import create_daily_archives
+from masu.external.downloader.azure.azure_report_downloader import get_processing_date
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.test import MasuTestCase
 from masu.util import common as utils
 from masu.util.azure.common import AzureBlobExtension
-
+from reporting_common.models import CostUsageReportManifest
 
 DATA_DIR = Config.TMP_DIR
 
@@ -167,6 +172,8 @@ class AzureReportDownloaderTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
             ingress_reports=None,
         )
+        self.azure_manifest = CostUsageReportManifest.objects.filter(provider_id=self.azure_provider_uuid).first()
+        self.azure_manifest_id = self.azure_manifest.id
 
     def tearDown(self):
         """Remove created test data."""
@@ -225,7 +232,6 @@ class AzureReportDownloaderTest(MasuTestCase):
     def test_get_manifest(self):
         """Test that Azure manifest is created."""
         expected_start, expected_end = self.mock_data.month_range.split("-")
-
         manifest, _ = self.downloader._get_manifest(self.mock_data.test_date)
 
         self.assertEqual(manifest.get("assemblyId"), self.mock_data.export_uuid)
@@ -293,9 +299,14 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
-        self.assertEqual(full_file_path, expected_full_path)
-        self.assertEqual(etag, self.mock_data.export_etag)
+        with patch("masu.external.downloader.azure.azure_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
+                self.assertEqual(full_file_path, expected_full_path)
+                self.assertEqual(etag, self.mock_data.export_etag)
 
     def test_download_missing_file(self):
         """Test that Azure report is not downloaded for incorrect key."""
@@ -309,21 +320,13 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.ingress_reports[0]
         )
-        full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
-        self.assertEqual(full_file_path, expected_full_path)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
-    def test_download_file_matching_etag(self, mock_download_cost_method):
-        """Test that Azure report is not downloaded with matching etag."""
-        expected_full_path = "{}/{}/azure/{}/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
-        )
-        full_file_path, etag, _, __, ___ = self.downloader.download_file(
-            self.mock_data.export_key, self.mock_data.export_etag
-        )
-        self.assertEqual(full_file_path, expected_full_path)
-        self.assertEqual(etag, self.mock_data.export_etag)
-        mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
+        with patch("masu.external.downloader.azure.azure_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
+                self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
@@ -373,3 +376,153 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(result.get("assembly_id"), assembly_id)
         self.assertEqual(result.get("compression"), compression)
         self.assertIsNotNone(result.get("files"))
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_alt_columns(self, mock_copy):
+        """Test that we correctly create daily archive files with alt columns."""
+        file = "azure_version_2"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        manifest_id = self.azure_manifest_id
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/2020-09-01_manifestid-{manifest_id}-basefile-{file}_batch-0.csv",
+            f"{temp_dir}/2020-09-10_manifestid-{manifest_id}-basefile-{file}_batch-0.csv",
+            f"{temp_dir}/2020-09-11_manifestid-{manifest_id}-basefile-{file}_batch-0.csv",
+            f"{temp_dir}/2020-09-22_manifestid-{manifest_id}-basefile-{file}_batch-0.csv",
+        ]
+        start_date = DateHelper().this_month_start.replace(year=2020, month=9, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+        )
+        expected_date_range = {"start": "2020-09-01", "end": "2020-09-22", "invoice_month": None}
+        mock_copy.assert_called()
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_copy):
+        """Test that we correctly create daily archive files."""
+        file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        manifest_id = self.azure_manifest_id
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/2019-07-28_manifestid-{manifest_id}-basefile-{file}_batch-0.csv",
+            f"{temp_dir}/2019-07-29_manifestid-{manifest_id}-basefile-{file}_batch-0.csv",
+        ]
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+        )
+        expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}
+        mock_copy.assert_called()
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_dates_out_of_range(self, mock_copy):
+        """Test that we correctly create daily archive files."""
+        file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        manifest_id = self.azure_manifest_id
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = []
+        start_date = DateHelper().this_month_start.replace(year=2020, month=7, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+        )
+        expected_date_range = {}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(daily_file_names, expected_daily_files)
+
+    def test_create_daily_archives_empty_frames(self):
+        """Test that we correctly create daily archive files."""
+        file = "empty_frame"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        manifest_id = self.azure_manifest_id
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = []
+        start_date = DateHelper().this_month_start.replace(year=2020, month=7, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+        )
+        expected_date_range = {}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+
+    @patch(
+        "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+        return_value=None,
+    )
+    @patch("masu.external.downloader.azure.azure_report_downloader.get_or_clear_daily_s3_by_date")
+    @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date")
+    def test_get_processing_date(self, mock_set_start, mock_daily_start, mock_manifest_start):
+        """Test getting dataframe with date for processing."""
+        file_name = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_interval = "UsageDateTime"
+        start_date = DateHelper().this_month_start.replace(year=2123, month=12, tzinfo=None)
+        end_date = DateHelper().this_month_start.replace(year=2123, month=12, day=2, tzinfo=None)
+        expected_date = DateHelper().this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
+        mock_daily_start.return_value = expected_date
+        with patch("masu.util.common.check_setup_complete", return_Value=True):
+            time_interval, process_date = get_processing_date(
+                temp_path, None, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
+            )
+            mock_daily_start.assert_called()
+            self.assertEqual(time_interval, expected_interval)
+            self.assertEqual(process_date, expected_date)
+            os.remove(temp_path)
+
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_get_processing_date_alt_columns(self, mock_resource):
+        """Test getting dataframe with date for processing."""
+        file_name = "camel_azure_version_2.csv"
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        context = {"account": self.schema_name, "provider_type": self.azure_provider.type}
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_interval = "date"
+        start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
+        end_date = DateHelper().this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
+        expected_date = DateHelper().this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
+        with patch("masu.util.common.check_setup_complete", return_Value=True):
+            with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
+                with patch(
+                    "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+                    return_value=expected_date,
+                ):
+                    time_interval, process_date = get_processing_date(
+                        temp_path, "csv_path", 1, self.azure_provider_uuid, start_date, end_date, context, "tracing_id"
+                    )
+                    self.assertEqual(time_interval, expected_interval)
+                    self.assertEqual(process_date, expected_date)
+                    os.remove(temp_path)

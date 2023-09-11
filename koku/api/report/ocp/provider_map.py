@@ -150,6 +150,7 @@ class OCPProviderMap(ProviderMap):
                         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
                         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
                     ],
+                    "persistentvolumeclaim": {"field": "persistentvolumeclaim", "operation": "icontains"},
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
                     "infrastructures": {
@@ -158,7 +159,7 @@ class OCPProviderMap(ProviderMap):
                         "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
                     },
                 },
-                "group_by_options": ["cluster", "project", "node"],
+                "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
                 "tag_column": "pod_labels",
                 "report_type": {
                     "costs": {
@@ -489,6 +490,12 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                            "persistent_volume_claim": ArrayAgg(
+                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                            ),
+                            "storage_class": ArrayAgg(
+                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                            ),
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
@@ -529,6 +536,12 @@ class OCPProviderMap(ProviderMap):
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
+                            "persistent_volume_claim": ArrayAgg(
+                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                            ),
+                            "storage_class": ArrayAgg(
+                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
                             ),
                         },
                         "delta_key": {
@@ -581,6 +594,10 @@ class OCPProviderMap(ProviderMap):
                 ("cluster",): OCPVolumeSummaryP,
                 ("project",): OCPVolumeSummaryByProjectP,
                 ("cluster", "project"): OCPVolumeSummaryByProjectP,
+                ("persistentvolumeclaim",): OCPVolumeSummaryP,
+                ("cluster", "persistentvolumeclaim"): OCPVolumeSummaryP,
+                ("persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
+                ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
         super().__init__(provider, report_type)

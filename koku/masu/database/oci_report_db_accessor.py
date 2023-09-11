@@ -150,7 +150,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = self._table_map["enabled_tag_keys"]
+        table_name = "reporting_enabledtagkeys"
         sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocienabledtagkeys.sql")
         sql = sql.decode("utf-8")
         sql_params = {

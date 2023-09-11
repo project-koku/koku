@@ -19,6 +19,7 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import check_ingress_columns
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -134,6 +135,11 @@ class ParquetReportProcessor:
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
         return self._context.get("split_files") or [self._report_file]
+
+    @property
+    def split_file_list(self):
+        """Always return split files."""
+        return self._context.get("split_files")
 
     @property
     def error_context(self):
@@ -319,7 +325,7 @@ class ParquetReportProcessor:
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
-        # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+        # AWS and Azure should remove files when running final bills
         # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
         if (
             not manifest_accessor.should_s3_parquet_be_cleared(manifest)
@@ -410,7 +416,28 @@ class ParquetReportProcessor:
 
         failed_conversion = []
         daily_data_frames = []
-        for csv_filename in self.file_list:
+        file_list = self.file_list
+
+        # Azure and AWS should now always have split daily files
+        if self.provider_type in [
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+        ]:
+            file_list = self.split_file_list
+
+        if not file_list:
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="no split files to convert to parquet",
+                    context=self.error_context,
+                )
+            )
+            return parquet_base_filename, daily_data_frames
+
+        for csv_filename in file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 LOG.warn(
                     log_json(
@@ -459,12 +486,13 @@ class ParquetReportProcessor:
 
     def check_required_columns_for_ingress_reports(self, post_processor, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
-        if missing_cols := post_processor.check_ingress_required_columns(col_names):
-            message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
-            if self.ingress_reports_uuid:
-                with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
-                    ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
-            raise ValidationError(message, code="Missing_columns")
+        if not check_ingress_columns:
+            if missing_cols := post_processor.check_ingress_required_columns(col_names):
+                message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
+                if self.ingress_reports_uuid:
+                    with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
+                        ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
+                raise ValidationError(message, code="Missing_columns")
 
     def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""

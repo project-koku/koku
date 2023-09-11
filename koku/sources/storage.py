@@ -44,7 +44,6 @@ def _aws_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and aws_settings_ready(provider)
-        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -61,7 +60,6 @@ def _ocp_provider_ready_for_create(provider):
         and provider.name
         and ocp_settings_ready(provider)
         and provider.auth_header
-        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -87,7 +85,6 @@ def _azure_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and azure_settings_ready(provider)
-        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -104,7 +101,6 @@ def _gcp_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and gcp_settings_ready(provider)
-        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -121,7 +117,6 @@ def _oci_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and oci_settings_ready(provider)
-        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -232,7 +227,7 @@ def load_providers_to_delete():
     ]
 
 
-def get_source(source_id, err_msg, logger):
+def get_source(source_id, err_msg, logger) -> Sources:
     """Access Sources, log err on DoesNotExist, close connection on InterfaceError."""
     try:
         return Sources.objects.get(source_id=source_id)
@@ -405,6 +400,9 @@ def add_provider_sources_details(details, source_id):
             save_needed = True
         if source.source_type != details.source_type:
             source.source_type = details.source_type
+            save_needed = True
+        if source.auth_header != details.auth_header:
+            source.auth_header = details.auth_header
             save_needed = True
         if save_needed:
             source.save()

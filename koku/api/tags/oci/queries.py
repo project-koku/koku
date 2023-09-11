@@ -12,7 +12,7 @@ from api.models import Provider
 from api.report.oci.provider_map import OCIProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCITagsSummary
-from reporting.provider.oci.models import OCIEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.oci.models import OCITagsValues
 
 
@@ -20,7 +20,7 @@ class OCITagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCI."""
 
     provider = Provider.PROVIDER_OCI
-    enabled = OCIEnabledTagKeys.objects.filter(key=OuterRef("key"))
+    enabled = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI).filter(key=OuterRef("key"))
     data_sources = [
         {
             "db_table": OCITagsSummary,
