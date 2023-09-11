@@ -139,7 +139,7 @@ def download_payload(request_id, url, context={}):
         context (Dict): Context for logging (account, etc)
 
         Returns:
-        Tuple: temp_dir (String), temp_file (String)
+        Tuple: temp_file (os.Pathlike)
     """
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
@@ -158,11 +158,9 @@ def download_payload(request_id, url, context={}):
         raise KafkaMsgHandlerError(msg) from err
 
     sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
-    gzip_filename = f"{sanitized_request_id}.tar.gz"
-    temp_file = f"{temp_dir}/{gzip_filename}"
+    temp_file = Path(temp_dir, sanitized_request_id).with_suffix(".tar.gz")
     try:
-        with open(temp_file, "wb") as temp_file_hdl:
-            temp_file_hdl.write(download_response.content)
+        temp_file.write_bytes(download_response.content)
     except OSError as error:
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
@@ -178,9 +176,7 @@ def extract_payload_contents(request_id, tarball_path, context={}):
 
         Args:
         request_id (String): Identifier associated with the payload
-        out_dir (String): temporary directory to extract data to
-        tarball_path (String): the path to the payload file to extract
-        tarball (String): the payload file to extract
+        tarball_path (os.Pathlike): the path to the payload file to extract
         context (Dict): Context for logging (account, etc)
 
         Returns:
@@ -335,7 +331,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = Path(destination_dir, report_meta.get("manifest_path").name)
+    manifest_destination_path = Path(destination_dir, report_meta["manifest_path"].name)
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
     # Save Manifest

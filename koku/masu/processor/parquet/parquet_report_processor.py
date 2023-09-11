@@ -7,7 +7,6 @@ import datetime
 import logging
 import os
 from pathlib import Path
-from pathlib import PosixPath
 
 import pandas as pd
 from dateutil import parser
@@ -188,9 +187,10 @@ class ParquetReportProcessor:
     def file_extension(self):
         """File format compression."""
         first_file = self.file_list[0]
-        if first_file.name.endswith(CSV_EXT):
+        filename = first_file.name.lower()
+        if filename.endswith(CSV_EXT):
             return CSV_EXT
-        elif first_file.name.endswith(CSV_GZIP_EXT):
+        elif filename.endswith(CSV_GZIP_EXT):
             return CSV_GZIP_EXT
         else:
             msg = f"file {first_file} is not valid CSV - conversion to parquet skipped"
@@ -376,7 +376,7 @@ class ParquetReportProcessor:
                 self.tracing_id,
                 to_delete,
                 metadata_key="reportnumhours",
-                metadata_value_check=self.ocp_files_to_process.get(filename.stem).get("meta_reportnumhours"),
+                metadata_value_check=self.ocp_files_to_process[filename.stem]["meta_reportnumhours"],
                 context=self.error_context,
             )
             LOG.info(log_json(msg="files to delete post filter", to_delete=to_delete))
