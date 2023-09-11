@@ -9,7 +9,6 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from pathlib import PosixPath
 
 import pandas as pd
 from django.db import transaction
