@@ -275,7 +275,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             _class = NodeCapacity if is_grouped_by_node(self.parameters) else ClusterCapacity
             capacity = _class(self._mapper.report_type_map, query, self.resolution)
-            if not capacity.capacity_annotations:
+            if not capacity.capacity_dataclass:
+                # short circuit for if the capacity dataclass in report provider map
                 return query_data, {}
             capacity.populate_dataclass()
         for row in query_data:

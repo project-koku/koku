@@ -95,7 +95,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
                             expected_values[cluster] = capacity_count
                     today_str = str(self.dh.today.date())
                     for cluster, expected_count_value in expected_values.items():
-                        result = cluster_capacity.count_by_usage_cluster.get(today_str).get(cluster, {})
+                        result = cluster_capacity.count_by_date_cluster.get(today_str).get(cluster, {})
                         self.assertEqual(expected_count_value, result)
 
     def test_cluster_capacity_no_dataclass_field_in_provider_map(self):
@@ -156,7 +156,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     self.assertEqual(cluster_expected_count, cluster_capacity.count_by_cluster.get(cluster))
 
                 for usage_date, usage_expected_count in expected_date_count.items():
-                    self.assertEqual(usage_expected_count, cluster_capacity.count_by_usage.get(usage_date))
+                    self.assertEqual(usage_expected_count, cluster_capacity.count_by_date.get(usage_date))
 
     def test_capacity_aggregations(self):
         """Test the volume capacities of a daily volume report with various group bys matches expected"""
@@ -188,7 +188,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
                         cluster = row.get("cluster_id")
                         expected_capacity = row.get("capacity")
                         expected_total_capacity += expected_capacity
-                        result_value = cluster_capacity.capacity_by_usage_cluster.get(usage_start, {}).get(cluster)
+                        result_value = cluster_capacity.capacity_by_date_cluster.get(usage_start, {}).get(cluster)
                         self.assertEqual(result_value, expected_capacity)
                         if current_cluster_capacity := expected_cluster_capacity.get(cluster):
                             expected_cluster_capacity[cluster] = current_cluster_capacity + expected_capacity
@@ -199,7 +199,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
                         else:
                             expected_date_capacity[usage_start] = expected_capacity
                     for usage_date, expected_usage_capacity in expected_date_capacity.items():
-                        self.assertEqual(cluster_capacity.capacity_by_usage[usage_date], expected_usage_capacity)
+                        self.assertEqual(cluster_capacity.capacity_by_date[usage_date], expected_usage_capacity)
                     for cluster, _expected_cluster_capacity in expected_cluster_capacity.items():
                         self.assertEqual(cluster_capacity.capacity_by_cluster.get(cluster), _expected_cluster_capacity)
                     self.assertEqual(expected_total_capacity, cluster_capacity.capacity_total)
@@ -259,6 +259,6 @@ class NodeCapacityDataclassTest(IamTestCase):
                         node = row.get("node")
                         expected_capacity = row.get("capacity")
                         expected_total_capacity += expected_capacity
-                        result_value = node_capacity.capacity_by_usage_node.get(usage_start, {}).get(node)
+                        result_value = node_capacity.capacity_by_date_node.get(usage_start, {}).get(node)
                         self.assertEqual(result_value, expected_capacity)
                     self.assertEqual(expected_total_capacity, node_capacity.capacity_total)

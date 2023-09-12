@@ -32,12 +32,16 @@ class NodeCapacity:
     query: QuerySet
     resolution: str
     capacity_total: Decimal = Decimal(0)
-    capacity_by_usage_node: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
+    capacity_by_date_node: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
     count_total: Decimal = Decimal(0)
 
     @property
+    def capacity_dataclass(self):
+        return self.report_type_map.get("capacity_dataclass", {})
+
+    @property
     def capacity_annotations(self):
-        return self.report_type_map.get("capacity_dataclass", {}).get("node")
+        return self.capacity_dataclass.get("node", {})
 
     @property
     def count_units(self):
@@ -47,7 +51,7 @@ class NodeCapacity:
         """Adds the capacity values for annotations & aggregation."""
         if capacity_value:
             self.capacity_total += capacity_value
-            self.capacity_by_usage_node[usage_start][node_key] += capacity_value
+            self.capacity_by_date_node[usage_start][node_key] += capacity_value
 
     def _add_count(self, count_value):
         """Adds the count values together for total aggregation"""
@@ -76,32 +80,33 @@ class NodeCapacity:
 
     def _finalize_mapping(self, dataset_mapping):
         """
-        This method controls the logic to decide which keys
-        from the dataset that should be updated or added
-        in the row.
+        Logic to decide which keys to update in the row,
+        based off of the keys are present in the
+        report type provider map.
 
-        Currently we only accept keys found in the capacity dataclass.
+        For example, we do not want to overwrite capacity for
+        the volume endpoint, because it is already summed.
         """
-        # We are using this logic to not update the capacity for
-        # the volume endpoints since it is already summed.
         finalized_mapping = {}
         keep_keys = set(dataset_mapping).intersection(self.capacity_annotations.keys())
-        keep_keys.add("capacity_count_units")
+        if "capacity_count" in keep_keys:
+            keep_keys.add("capacity_count_units")
         for key in keep_keys:
             finalized_mapping[key] = dataset_mapping.get(key)
         return finalized_mapping
 
-    def _retrieve_all_values(self, row):
-        """Generates a mapping of values that need to be updated."""
+    def update_row(self, row, _):
+        """Updates the row with the capacity aggregation.
+
+        Developers Note:
+        We are garunteed to be group by node, which eliminates
+        alot of the complexities we see for cluster capacity.
+        """
         update_mapping = {"capacity_count_units": self.count_units}
-        update_mapping["capacity"] = self.capacity_by_usage_node.get(row.get("date"), {}).get(
+        update_mapping["capacity"] = self.capacity_by_date_node.get(row.get("date"), {}).get(
             row.get("node"), Decimal(0)
         )
-        return update_mapping
-
-    def update_row(self, row, _):
-        finalized_mapping = self._finalize_mapping(self._retrieve_all_values(row))
-        calculate_unused(row, finalized_mapping)
+        calculate_unused(row, self._finalize_mapping(update_mapping))
 
     def generate_query_sum(self):
         """

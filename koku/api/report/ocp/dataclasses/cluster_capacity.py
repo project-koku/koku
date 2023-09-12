@@ -28,8 +28,8 @@ class ClusterCapacity:
       query:              django base query
       resolution:         resolution provider by request
       *_total:            overall total over time period
-      *_by_usage:         overall sum for given time range
-      *_by_usage_cluster: overall sum per cluster per day
+      *_by_date:         overall sum for given time range
+      *_by_date_cluster: overall sum per cluster per day
       *_by_cluster:       overall sum per cluster
     """
 
@@ -37,21 +37,21 @@ class ClusterCapacity:
     query: QuerySet
     resolution: str
     capacity_total: Decimal = Decimal(0)
-    capacity_by_usage: defaultdict = field(default_factory=lambda: defaultdict(Decimal))  # resolution_total:
-    capacity_by_usage_cluster: defaultdict = field(
-        default_factory=lambda: defaultdict(lambda: defaultdict(Decimal))
-    )  # resolution_level_total
-    capacity_by_cluster: defaultdict = field(default_factory=lambda: defaultdict(Decimal))  # by_level
+    capacity_by_date: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
+    capacity_by_date_cluster: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
+    capacity_by_cluster: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
     count_total: Decimal = Decimal(0)
-    count_by_usage: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
-    count_by_usage_cluster: defaultdict = field(
-        default_factory=lambda: defaultdict(lambda: defaultdict(Decimal))
-    )  # count_by_usage_level
+    count_by_date: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
+    count_by_date_cluster: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
     count_by_cluster: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
 
     @property
+    def capacity_dataclass(self):
+        return self.report_type_map.get("capacity_dataclass", {})
+
+    @property
     def capacity_annotations(self):
-        return self.report_type_map.get("capacity_dataclass", {}).get("cluster")
+        return self.capacity_dataclass.get("cluster", {})
 
     @property
     def count_units(self):
@@ -59,16 +59,19 @@ class ClusterCapacity:
 
     @property
     def count_annotations(self):
-        return self.report_type_map.get("capacity_dataclass", {}).get("cluster_instance_counts")
+        return self.capacity_dataclass.get("cluster_instance_counts", {})
 
     def __post_init__(self):
         self._populate_count_values()
 
     def _populate_count_values(self):
         """
-        If count annotations are present in the provider map populate the counts.
+        Queries for the node instance counts, then iterates over the values to
+        aggregate our different resolution variants for our time scope options.
         """
         if not self.count_annotations:
+            # Short circuit for if the count annotations is
+            # not present in the provider map
             return False
         node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
         for cluster_to_node in node_instance_counts:
@@ -78,24 +81,24 @@ class ClusterCapacity:
             self._add_count(capacity_count, usage_key, cluster)
         return True
 
-    def _add_capacity(self, cap_value, usage_start, level_value):
-        """Adds the capacity value to to all capacity aggregrations."""
+    def _add_capacity(self, cap_value, usage_start, cluster_key):
+        """Adds the capacity value to to all capacity resolution variants."""
         if cap_value:
             self.capacity_total += cap_value
-            self.capacity_by_cluster[level_value] += cap_value
-            self.capacity_by_usage[usage_start] += cap_value
-            self.capacity_by_usage_cluster[usage_start][level_value] += cap_value
+            self.capacity_by_cluster[cluster_key] += cap_value
+            self.capacity_by_date[usage_start] += cap_value
+            self.capacity_by_date_cluster[usage_start][cluster_key] += cap_value
 
     def _add_count(self, cluster_mapping_value, usage_start, cluster_key):
-        """adds the count values together."""
+        """Adds the count value to all count resolution variants."""
         if cluster_mapping_value:
             self.count_total += cluster_mapping_value
-            self.count_by_usage_cluster[usage_start][cluster_key] += cluster_mapping_value
-            self.count_by_usage[usage_start] += cluster_mapping_value
+            self.count_by_date_cluster[usage_start][cluster_key] += cluster_mapping_value
+            self.count_by_date[usage_start] += cluster_mapping_value
             self.count_by_cluster[cluster_key] += cluster_mapping_value
 
     def _resolution_usage_converter(self, usage_start):
-        """Converts the usage data in to the correct key based on resolution."""
+        """Normalizes the usage_start based on the resolution provided."""
         if self.resolution == "daily" and isinstance(usage_start, datetime.date):
             usage_start = usage_start.isoformat()
         if self.resolution == "monthly":
@@ -104,9 +107,11 @@ class ClusterCapacity:
 
     def populate_dataclass(self):
         """
-        Retrieves data to populates the capacity dataclass.
+        Retrieves data to populates the capacity resolution variants.
         """
         if not self.capacity_annotations:
+            # Short circuit for if the capacity annotations is
+            # not present in the provider map.
             return False
         cap_key = list(self.capacity_annotations.keys())[0]
         cap_data = self.query.values(*["usage_start", "cluster_id"]).annotate(**self.capacity_annotations)
@@ -119,11 +124,12 @@ class ClusterCapacity:
 
     def _finalize_mapping(self, dataset_mapping):
         """
-        This method controls the logic to decide which keys
-        from the dataset that should be updated or added
-        in the row.
+        Logic to decide which keys to update in the row,
+        based off of the keys are present in the
+        report type provider map.
 
-        Currently we only accept keys found in the capacity dataclass.
+        For example, we do not want to overwrite capacity for
+        the volume endpoint, because it is already summed.
         """
         # We are using this logic to not update the capacity for
         # the volume endpoints since it is already summed.
@@ -136,8 +142,13 @@ class ClusterCapacity:
             finalized_mapping[key] = dataset_mapping.get(key)
         return finalized_mapping
 
-    def _retrieve_all_values(self, row, start_date_param):
-        """Generates a values mapping with the dataset calculations."""
+    def _generate_resolution_values(self, row, start_date_param):
+        """
+        Determines which capacity and count to use based off the resolution
+        and start date parameter. If multiple clusters are found it will sum
+        the count and capacity values for each cluster present for an overall
+        total.
+        """
         update_mapping = {"capacity_count_units": self.count_units}
         cluster_list = row.get("clusters")
         if self.resolution == "monthly" and not start_date_param:
@@ -156,25 +167,25 @@ class ClusterCapacity:
         if cluster_list:
             update_mapping["capacity"] = sum(
                 [
-                    self.capacity_by_usage_cluster.get(row_date, {}).get(cluster_id, Decimal(0))
+                    self.capacity_by_date_cluster.get(row_date, {}).get(cluster_id, Decimal(0))
                     for cluster_id in cluster_list
                 ]
             )
             update_mapping["capacity_count"] = sum(
                 [
-                    self.count_by_usage_cluster.get(row_date, {}).get(cluster_id, Decimal(0))
+                    self.count_by_date_cluster.get(row_date, {}).get(cluster_id, Decimal(0))
                     for cluster_id in cluster_list
                 ]
             )
             return update_mapping
         else:
-            update_mapping["capacity"] = self.capacity_by_usage.get(row_date, Decimal(0))
-            update_mapping["capacity_count"] = self.count_by_usage.get(row_date, Decimal(0))
+            update_mapping["capacity"] = self.capacity_by_date.get(row_date, Decimal(0))
+            update_mapping["capacity_count"] = self.count_by_date.get(row_date, Decimal(0))
         return update_mapping
 
     def update_row(self, row, start_date_param):
         """Modify the rows"""
-        finalized_mapping = self._finalize_mapping(self._retrieve_all_values(row, start_date_param))
+        finalized_mapping = self._finalize_mapping(self._generate_resolution_values(row, start_date_param))
         calculate_unused(row, finalized_mapping)
 
     def generate_query_sum(self):
