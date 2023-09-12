@@ -574,6 +574,8 @@ services:
     build:
         context: .
         dockerfile: Dockerfile.minio
+        args:
+          USER_ID: ${USER_ID-1000}
     container_name: kokuminio
     environment:
       MINIO_ROOT_USER: kokuminioaccess

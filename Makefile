@@ -354,7 +354,7 @@ docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets
-docker-up-min-with-subs: docker-up-min docker-trino-up
+docker-up-min-with-subs: docker-trino-setup docker-up-min
 	$(DOCKER_COMPOSE) up -d --scale subs-worker=$(scale) subs-worker
 
 docker-up-min-no-build-with-subs: docker-up-min-no-build
