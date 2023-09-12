@@ -260,7 +260,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest = {}
         if self.ingress_reports:
-            report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
+            reports = [report.split(f"{self.container_name}/")[1] for report in self.ingress_reports]
             year = date_time.strftime("%Y")
             month = date_time.strftime("%m")
             dh = DateHelper()
@@ -268,15 +268,17 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "start": f"{year}{month}01",
                 "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
             }
-            try:
-                blob = self._azure_client.get_file_for_key(report, self.container_name)
-            except AzureCostReportNotFound as ex:
-                msg = f"Unable to find report. Error: {ex}"
-                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-                return manifest, None
-            report_name = blob.name
+            report_keys = []
+            for report in reports:
+                try:
+                    blob = self._azure_client.get_file_for_key(report, self.container_name)
+                    report_keys.append(blob.name)
+                except AzureCostReportNotFound as ex:
+                    msg = f"Unable to find report. Error: {ex}"
+                    LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
+                    return manifest, None
             last_modified = blob.last_modified
-            manifest["reportKeys"] = [blob.name]
+            manifest["reportKeys"] = report_keys
             manifest["assemblyId"] = uuid.uuid4()
         else:
             report_path = self._get_report_path(date_time)
