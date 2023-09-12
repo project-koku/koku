@@ -8,7 +8,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
 from decimal import Decimal
-from functools import cached_property
 
 from django.db.models.query import QuerySet
 
@@ -62,13 +61,13 @@ class ClusterCapacity:
     def count_annotations(self):
         return self.report_type_map.get("capacity_dataclass", {}).get("cluster_instance_counts")
 
-    @cached_property
+    def __post_init__(self):
+        self._populate_count_values()
+
     def _populate_count_values(self):
         """
         If count annotations are present in the provider map populate the counts.
         """
-        # I chose to make this check a cached property for the advantages listed here
-        # https://www.tutorialspoint.com/how-do-i-cache-method-calls-in-python
         if not self.count_annotations:
             return False
         node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
@@ -107,7 +106,6 @@ class ClusterCapacity:
         """
         Retrieves data to populates the capacity dataclass.
         """
-        self._populate_count_values
         if not self.capacity_annotations:
             return False
         cap_key = list(self.capacity_annotations.keys())[0]
