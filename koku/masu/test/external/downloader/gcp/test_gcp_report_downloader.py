@@ -422,25 +422,27 @@ class GCPReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = [
-            f"{temp_dir}/202208_{partition}_0.csv",
+            f"{temp_dir}/202208_{partition}_manifestid-{self.gcp_manifest_id}_0.csv",
         ]
+        context = {"account": self.schema_name, "provider_type": "GCP"}
         start_date = DateHelper().this_month_start
-        daily_file_names, date_range = create_daily_archives(
-            "request_id",
-            "account",
-            self.gcp_provider_uuid,
-            [temp_path],
-            self.gcp_manifest_id,
-            start_date,
-            None,
-            "ingress_reports",
-        )
-        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
-        self.assertEqual(date_range, expected_date_range)
-        self.assertIsInstance(daily_file_names, list)
-        mock_s3.assert_called()
-        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-        for daily_file in expected_daily_files:
-            self.assertTrue(os.path.exists(daily_file))
-            os.remove(daily_file)
-        os.remove(temp_path)
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.clear_s3_files"):
+            daily_file_names, date_range = create_daily_archives(
+                "request_id",
+                "account",
+                self.gcp_provider_uuid,
+                [temp_path],
+                self.gcp_manifest_id,
+                start_date,
+                context,
+                "ingress_reports",
+            )
+            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            mock_s3.assert_called()
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)

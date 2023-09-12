@@ -23,7 +23,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Production|label_app:OpenCart|label_version:Production|label_storageclass:gold|label_dashed-key-on-prem:dashed-value
                   volume_claims:
@@ -45,7 +45,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Development|label_app:Phoenix|label_version:Development|label_storageclass:silver
                   volume_claims:
@@ -73,7 +73,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Development|label_app:Candlepin|label_version:Development|label_storageclass:bronze
                   volume_claims:
@@ -95,7 +95,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_4
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Production|label_app:Candlepin|label_version:Production|label_storageclass:gold
                   volume_claims:
@@ -123,7 +123,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_5
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Production|label_app:Cygwin|label_version:Production|label_storageclass:gold
                   volume_claims:
@@ -145,7 +145,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_6
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:QA|label_app:Phoenix|label_version:QA|label_storageclass:silver
                   volume_claims:
@@ -173,7 +173,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_7
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
                   volume_claims:
@@ -195,7 +195,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_8
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Test|label_app:Atomic|label_version:Test|label_storageclass:bronze
                   volume_claims:
@@ -223,7 +223,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_9
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Production|label_app:Wordpress|label_version:Production|label_storageclass:gold
                   volume_claims:
@@ -245,7 +245,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_10
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:QA|label_app:Wordpress|label_version:QA|label_storageclass:silver
                   volume_claims:
@@ -273,7 +273,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_11
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Production|label_app:MongoDB|label_version:Production|label_storageclass:gold
                   volume_claims:
@@ -295,7 +295,7 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_12
-                  storage_class: gp2
+                  storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
                   volume_claims:

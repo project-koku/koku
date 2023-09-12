@@ -409,8 +409,8 @@ def summarize_reports(  # noqa: C901
                 if report.get("start") and report.get("end"):
                     starts.append(report.get("start"))
                     ends.append(report.get("end"))
-                start = min(starts) if starts != [] else None
-                end = max(ends) if ends != [] else None
+            start = min(starts) if starts != [] else None
+            end = max(ends) if ends != [] else None
             reports_deduplicated.append(
                 {
                     "manifest_id": report.get("manifest_id"),

@@ -24,12 +24,14 @@ class SourcesProviderCoordinatorError(ValidationError):
 class SourcesProviderCoordinator:
     """Coordinator to control source and provider operations."""
 
-    def __init__(self, source_id, auth_header):
+    def __init__(self, source_id, auth_header, account_number, org_id):
         """Initialize the client."""
         header = {"x-rh-identity": auth_header, "sources-client": "True"}
         self._source_id = source_id
         self._identity_header = header
-        self._provider_builder = ProviderBuilder(self._identity_header)
+        self._account_number = account_number
+        self._org_id = org_id
+        self._provider_builder = ProviderBuilder(self._identity_header, self._account_number, self._org_id)
 
     def create_account(self, source):
         """Call to create provider."""

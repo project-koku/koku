@@ -40,8 +40,8 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_initial_dataframe_with_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+def get_processing_date(
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
 ):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
@@ -57,26 +57,25 @@ def get_initial_dataframe_with_date(
         tracing_id (str): The tracing id
     """
     dh = DateHelper()
-    date_format = "%Y-%m-%d %H:%M:%S"
-    time_interval = "UsageDateTime"
-    data_frame = pd.read_csv(local_file)
-    if "Date" in data_frame.columns:
-        time_interval = "Date"
-        date_format = "%Y-%m-%d"
-    elif "date" in data_frame.columns:
-        time_interval = "date"
-        date_format = "%m/%d/%Y"
+    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
+        {"UsageDateTime", "Date", "date", "usagedatetime"}
+    )[0]
     # Azure does not have an invoice column so we have to do some guessing here
-    if start_date.month < dh.today.month and dh.today.day > 1 or not com_utils.check_setup_complete(provider_uuid):
+    if (
+        start_date.year < dh.today.year
+        and dh.today.day > 1
+        or start_date.month < dh.today.month
+        and dh.today.day > 1
+        or not com_utils.check_setup_complete(provider_uuid)
+    ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date.replace(tzinfo=None))
     else:
-        # We do this if we have multiple workers running different files for a single manifest.
-        process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
-        if not process_date:
-            process_date = get_or_clear_daily_s3_by_date(s3_csv_path, start_date, manifest_id, context, tracing_id)
-            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
-    return data_frame, time_interval, process_date, date_format
+        process_date = get_or_clear_daily_s3_by_date(
+            s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
+        )
+    return time_interval, process_date
 
 
 def create_daily_archives(
@@ -84,6 +83,7 @@ def create_daily_archives(
     account,
     provider_uuid,
     local_file,
+    base_filename,
     manifest_id,
     start_date,
     context,
@@ -100,37 +100,53 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    base_name = base_filename.split(".")[0]
+    end_date = DateHelper().now.replace(tzinfo=None)
     daily_file_names = []
-    date_range = {}
     dates = set()
+    batch_date_range = set()
     s3_csv_path = com_utils.get_path_prefix(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
-    data_frame, time_interval, process_date, date_format = get_initial_dataframe_with_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, context, tracing_id
+    time_interval, process_date = get_processing_date(
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
-    intervals = data_frame[time_interval].unique()
-    for interval in intervals:
-        if datetime.datetime.strptime(interval, date_format) >= process_date:
-            dates.add(interval)
-    if not dates:
+    with pd.read_csv(
+        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval]
+    ) as reader:
+        for i, data_frame in enumerate(reader):
+            if data_frame.empty:
+                continue
+            data_frame = data_frame.set_index(time_interval, drop=False).sort_index()
+
+            # Adding end here so we dont bother to process future incomplete days (saving plan data)
+            data_frame = data_frame.loc[process_date:end_date]
+            if data_frame.empty:
+                continue
+
+            dates = data_frame[time_interval].unique()
+            batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
+            batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
+            directory = os.path.dirname(local_file)
+            for date in dates:
+                daily_data = data_frame.loc[date]
+                if daily_data.empty:
+                    continue
+                day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
+                day_file = f"{day_path}_manifestid-{manifest_id}-basefile-{base_name}_batch-{i}.csv"
+                day_filepath = f"{directory}/{day_file}"
+                daily_data.to_csv(day_filepath, index=False, header=True)
+                copy_local_report_file_to_s3_bucket(
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                )
+                daily_file_names.append(day_filepath)
+    if not batch_date_range:
         return [], {}
-    directory = os.path.dirname(local_file)
     date_range = {
-        "start": datetime.datetime.strptime(min(dates), date_format).strftime(DATE_FORMAT),
-        "end": datetime.datetime.strptime(max(dates), date_format).strftime(DATE_FORMAT),
+        "start": min(batch_date_range),
+        "end": max(batch_date_range),
         "invoice_month": None,
     }
-    for date in dates:
-        day_path = datetime.datetime.strptime(date, date_format).strftime(DATE_FORMAT)
-        daily_data = data_frame[data_frame[time_interval].str.match(date)]
-        day_file = ReportManifestDBAccessor().update_and_get_day_file(day_path, manifest_id)
-        day_filepath = f"{directory}/{day_file}"
-        daily_data.to_csv(day_filepath, index=False, header=True)
-        copy_local_report_file_to_s3_bucket(
-            tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
-        )
-        daily_file_names.append(day_filepath)
     return daily_file_names, date_range
 
 
@@ -244,7 +260,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest = {}
         if self.ingress_reports:
-            report = self.ingress_reports[0].split(f"{self.container_name}/")[1]
+            reports = [report.split(f"{self.container_name}/")[1] for report in self.ingress_reports]
             year = date_time.strftime("%Y")
             month = date_time.strftime("%m")
             dh = DateHelper()
@@ -252,15 +268,17 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "start": f"{year}{month}01",
                 "end": f"{year}{month}{dh.days_in_month(date_time, int(year), int(month))}",
             }
-            try:
-                blob = self._azure_client.get_file_for_key(report, self.container_name)
-            except AzureCostReportNotFound as ex:
-                msg = f"Unable to find report. Error: {ex}"
-                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-                return manifest, None
-            report_name = blob.name
+            report_keys = []
+            for report in reports:
+                try:
+                    blob = self._azure_client.get_file_for_key(report, self.container_name)
+                    report_keys.append(blob.name)
+                except AzureCostReportNotFound as ex:
+                    msg = f"Unable to find report. Error: {ex}"
+                    LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
+                    return manifest, None
             last_modified = blob.last_modified
-            manifest["reportKeys"] = [blob.name]
+            manifest["reportKeys"] = report_keys
             manifest["assemblyId"] = uuid.uuid4()
         else:
             report_path = self._get_report_path(date_time)
@@ -424,12 +442,12 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._azure_client.download_file(
             key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
         )
-
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
             full_file_path,
+            local_filename,
             manifest_id,
             start_date,
             self.context,
