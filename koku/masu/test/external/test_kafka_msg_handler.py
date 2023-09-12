@@ -816,7 +816,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
-            with patch("masu.external.kafka_msg_handler.open") as mock_oserror:
+            with patch("masu.external.kafka_msg_handler.Path.write_bytes") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                     msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
