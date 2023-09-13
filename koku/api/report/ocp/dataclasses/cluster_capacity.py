@@ -192,8 +192,9 @@ class ClusterCapacity:
         """
         Returns the values that should be added to the meta total.
         """
-        return {
-            "capacity": self.capacity_total,
-            "capacity_count": self.count_total,
-            "capacity_count_units": self.count_units,
-        }
+        query_sum = {"capacity_count_units": self.count_units}
+        if self.capacity_annotations:
+            query_sum["capacity"] = self.capacity_total
+        if self.count_annotations:
+            query_sum["capacity_count"] = self.count_total
+        return query_sum
