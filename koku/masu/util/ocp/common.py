@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
+from pathlib import Path
 
 import pandas as pd
 from dateutil import parser
@@ -216,7 +217,7 @@ def get_report_details(report_directory):
         LOG.error("unable to extract manifest data", exc_info=exc)
         return {}
 
-    payload_dict["manifest_path"] = manifest_path
+    payload_dict["manifest_path"] = Path(manifest_path)
     # parse start and end dates if in manifest
     if payload_start := payload_dict.get("start"):
         payload_dict["start"] = parser.parse(payload_start)
