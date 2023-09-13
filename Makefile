@@ -16,8 +16,10 @@ KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
 MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
-DOCKER_BUILDKIT = 1
 scale = 1
+
+export DOCKER_BUILDKIT = 1
+export USER_ID ?= $(shell id -u)
 
 # Prefer Docker Compose v2
 DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
