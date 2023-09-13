@@ -3,11 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Downloader."""
-import datetime
 import hashlib
 import logging
 import os
 import shutil
+from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from django.db import transaction
@@ -30,12 +31,11 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path: str, manifest_id: int):
+def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     """
     Split local file into daily content.
     """
     daily_files = []
-    directory = os.path.dirname(file_path)
 
     try:
         data_frame = pd.read_csv(file_path)
@@ -66,15 +66,19 @@ def divide_csv_daily(file_path: str, manifest_id: int):
             manifest.report_tracker[file_prefix] = counter + 1
             manifest.save(update_fields=["report_tracker"])
         day_file = f"{file_prefix}.{counter}.csv"
-        day_filepath = f"{directory}/{day_file}"
+        day_filepath = file_path.parent.joinpath(day_file)
         df.to_csv(day_filepath, index=False, header=True)
         daily_files.append(
-            {"filename": day_file, "filepath": day_filepath, "date": datetime.datetime.strptime(day, "%Y-%m-%d")}
+            {
+                "filepath": day_filepath,
+                "date": datetime.strptime(day, "%Y-%m-%d"),
+                "num_hours": len(df.interval_start.unique()),
+            }
         )
     return daily_files
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -82,19 +86,18 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
-        filename (str): The OCP file name
-        filepath (str): The full path name of the file
+        filepath (PosixPath): The full path name of the file
         manifest_id (int): The manifest identifier
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
     manifest = CostUsageReportManifest.objects.get(id=manifest_id)
-    daily_file_names = []
+    daily_file_names = {}
     if manifest.operator_version and not manifest.operator_daily_reports:
         # operator_version and NOT operator_daily_reports is used for payloads received from
         # cost-mgmt-metrics-operators that are not generating daily reports
         # These reports are additive and cannot be split
-        daily_files = [{"filepath": filepath, "filename": filename, "date": start_date}]
+        daily_files = [{"filepath": filepath, "date": start_date, "num_hours": 0}]
     else:
         # we call divide_csv_daily for really old operators (those still relying on metering)
         # or for operators sending daily files
@@ -105,15 +108,19 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         s3_csv_path = get_path_prefix(
             account, Provider.PROVIDER_OCP, provider_uuid, daily_file.get("date"), Config.CSV_DATA_TYPE
         )
+        filepath = daily_file.get("filepath")
         copy_local_report_file_to_s3_bucket(
             tracing_id,
             s3_csv_path,
-            daily_file.get("filepath"),
-            daily_file.get("filename"),
+            filepath,
+            filepath.name,
             manifest_id,
             context,
         )
-        daily_file_names.append(daily_file.get("filepath"))
+        daily_file_names[filepath] = {
+            "meta_reportdatestart": str(daily_file["date"].date()),
+            "meta_reportnumhours": str(daily_file["num_hours"]),
+        }
     return daily_file_names
 
 
@@ -297,8 +304,8 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
         local_filename = utils.get_local_file_name(key)
 
-        directory_path = f"{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}"
-        full_file_path = f"{directory_path}/{local_filename}"
+        directory_path = Path(DATA_DIR, self.customer_name, "ocp", self.cluster_id)
+        full_file_path = directory_path.joinpath(local_filename)
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
@@ -311,13 +318,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"Downloading {key} to {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             shutil.move(key, full_file_path)
-            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
+            file_creation_date = datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
         file_names = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
-            local_filename,
             full_file_path,
             manifest_id,
             start_date,
@@ -336,7 +342,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         date_range = utils.month_date_range(manifest.get("date"))
         billing_str = date_range.split("-")[0]
-        billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
+        billing_start = datetime.strptime(billing_str, "%Y%m%d")
         manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files") or [])
         manifest_info = process_cr(manifest)
