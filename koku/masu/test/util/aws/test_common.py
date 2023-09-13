@@ -370,6 +370,28 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
+    def test_safe_str_int_conversion_valid_int_str(self):
+        """Test safe_str_int_conversion with valid integer str."""
+
+        test_int_str_lst = ["5", "8", "13", "21"]
+
+        for int_str in test_int_str_lst:
+            expected_resp = int(int_str)
+            with self.subTest(int_str=int_str):
+                test_resp = utils.safe_str_int_conversion(int_str)
+            self.assertIsInstance(test_resp, int)
+            self.assertEqual(expected_resp, test_resp)
+
+    def test_safe_str_int_conversion_invalid_int_str(self):
+        """Test safe_str_int_conversion with invalid integer str."""
+
+        test_invalid_int_str_lst = ["", "  ", "None", None, "invalid string"]
+
+        for invalid_int_str in test_invalid_int_str_lst:
+            with self.subTest(invalid_str=invalid_int_str):
+                test_resp = utils.safe_str_int_conversion(invalid_int_str)
+                self.assertIsNone(test_resp)
+
     def test_filter_s3_objects_less_than(self):
         """Test filter_s3_objects_less_than."""
         metadata_key = "number-of-hours-in-report"
@@ -389,6 +411,12 @@ class TestAWSUtils(MasuTestCase):
                 "request_id", keys, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
             self.assertListEqual(filtered, [18])
+
+    def test_filter_s3_objects_less_than_with_error(self):
+        """Test filter_s3_objects_less_than with error."""
+
+        metadata_key = "number-of-hours-in-report"
+        metadata_value = "24"
 
         metadata = PropertyMock(
             side_effect=[{metadata_key: "18", "extra": "this will NOT be filtered"}, ClientError({}, "test")]
