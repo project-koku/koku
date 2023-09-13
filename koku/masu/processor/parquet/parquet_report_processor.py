@@ -93,7 +93,7 @@ class ParquetReportProcessor:
         self.ingress_reports_uuid = ingress_reports_uuid
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]
-        self.ocp_files_to_process: dict = self._context.get("ocp_files_to_process")
+        self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
 
     @property
     def schema_name(self):

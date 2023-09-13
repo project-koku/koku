@@ -139,7 +139,7 @@ def download_payload(request_id, url, context={}):
         context (Dict): Context for logging (account, etc)
 
         Returns:
-        Tuple: temp_file (os.Pathlike)
+        Tuple: temp_file (os.PathLike)
     """
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
@@ -167,7 +167,7 @@ def download_payload(request_id, url, context={}):
         LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
         raise KafkaMsgHandlerError(msg) from error
 
-    return Path(temp_file)
+    return temp_file
 
 
 def extract_payload_contents(request_id, tarball_path, context={}):
@@ -176,7 +176,7 @@ def extract_payload_contents(request_id, tarball_path, context={}):
 
         Args:
         request_id (String): Identifier associated with the payload
-        tarball_path (os.Pathlike): the path to the payload file to extract
+        tarball_path (os.PathLike): the path to the payload file to extract
         context (Dict): Context for logging (account, etc)
 
         Returns:
