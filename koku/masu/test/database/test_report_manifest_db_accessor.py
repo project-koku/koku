@@ -256,8 +256,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Test marking manifest daily archive start date."""
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         start_date = DateHelper().this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
-        self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
-        manifest_start = self.manifest_accessor.get_manifest_daily_start_date(manifest.id)
+        manifest_start = self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
         self.assertEqual(manifest_start, start_date)
 
     def test_should_s3_parquet_be_cleared_no_manifest(self):

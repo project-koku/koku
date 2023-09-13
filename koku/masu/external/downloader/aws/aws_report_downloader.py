@@ -51,8 +51,8 @@ def get_processing_date(
         s3_csv_path (str): The path prefix for csvs
         manifest_id (str): The manifest ID
         provider_uuid (str): The uuid of a provider
-        filepath (str): The full path name of the file
-        start_date (Datetime): The start datetime of incoming report
+        start_date (Datetime): The start datetime for incoming report
+        end_date (Datetime): The end datetime for incoming report
         context (Dict): Logging context dictionary
         tracing_id (str): The tracing id
     """
@@ -70,9 +70,8 @@ def get_processing_date(
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
     if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
-        process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
-        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date.replace(tzinfo=None))
+        process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
     else:
         process_date = utils.get_or_clear_daily_s3_by_date(
             s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
@@ -98,6 +97,7 @@ def create_daily_archives(
         account (str): The account number
         provider_uuid (str): The uuid of a provider
         local_file (str): The full path name of the file
+        s3_filename (str): The original downloaded file name
         manifest_id (int): The manifest identifier
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
@@ -133,11 +133,11 @@ def create_daily_archives(
                 daily_data = data_frame[data_frame[time_interval].str.match(date)]
                 if daily_data.empty:
                     continue
-                day_file = f"{date}_manifestid-{manifest_id}-basefile-{base_name}_batch-{i}.csv"
+                day_file = f"{date}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 daily_data.to_csv(day_filepath, index=False, header=True)
                 utils.copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
                 )
                 daily_file_names.append(day_filepath)
     if not dates:
