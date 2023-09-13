@@ -4,6 +4,7 @@
 #
 """Test view caching functions."""
 import random
+from unittest.mock import patch
 
 from django.core.cache import caches
 from django.test.utils import override_settings
@@ -14,6 +15,7 @@ from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import get_cached_infra_map
 from koku.cache import get_cached_matching_tags
+from koku.cache import get_cached_resummarize_by_provider_type
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -25,6 +27,7 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import set_cached_infra_map
 from koku.cache import set_cached_matching_tags
+from koku.cache import set_cached_resummarize_by_provider_type
 
 
 CACHE_PREFIXES = (
@@ -252,3 +255,13 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(initial)
         cached = get_cached_infra_map(schema, provider_type, p_uuid)
         self.assertEqual(cached, infra_map)
+
+    @patch("koku.cache.get_cache_key_timeout")
+    def test_get_cache_timeout(self, patch_ttl):
+        """Test that we can get the cache timeout."""
+        patch_ttl.return_value = None
+        set_cached_resummarize_by_provider_type(Provider.PROVIDER_AWS)
+        value, _ = get_cached_resummarize_by_provider_type(Provider.PROVIDER_AWS)
+        self.assertEqual(value, Provider.PROVIDER_AWS)
+        # Test double set
+        self.assertFalse(set_cached_resummarize_by_provider_type(Provider.PROVIDER_AWS))

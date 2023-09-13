@@ -412,6 +412,24 @@ class ReportDataTests(TestCase):
     @override_settings(DEVELOPMENT=False)
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables_by_provider")
+    def test_get_report_data_by_provider_no_provider_type(self, mock_update, _):
+        """Test GET report_data endpoint with provider_uuid=*."""
+        params = {"provider_uuid": "*", "start_date": self.start_date}
+        response = self.client.get(reverse("report_data"), params)
+        self.assertEqual(response.status_code, 400)
+
+    @override_settings(DEVELOPMENT=False)
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.update_summary_tables_by_provider")
+    def test_get_report_data_by_provider_invalid_provider_type(self, mock_update, _):
+        """Test GET report_data endpoint with provider_uuid=*."""
+        params = {"provider_uuid": "*", "start_date": self.start_date, "provider_type": "invalid"}
+        response = self.client.get(reverse("report_data"), params)
+        self.assertEqual(response.status_code, 400)
+
+    @override_settings(DEVELOPMENT=False)
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.update_summary_tables_by_provider")
     def test_get_report_data_for_all_providers_dev_false(self, mock_update, _):
         """Test GET report_data endpoint with provider_uuid=*."""
         params = {"provider_uuid": "*", "start_date": self.start_date}
