@@ -131,12 +131,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return self.parquet_ocp_on_cloud_path_s3
         return None
 
-    def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number):
+    def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):
         """Create a parquet file for daily aggregated data."""
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
                 parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{parquet_base_filename}"
-        file_name = f"{parquet_base_filename}_{file_number}{PARQUET_EXT}"
+        file_name = f"{parquet_base_filename}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
         self.create_parquet_table(file_path, daily=True, partition_map=self.partition_map)
@@ -171,7 +171,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
         return matched_tags
 
-    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, manifest_id):
+    def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):
         """Create a parquet file for daily aggregated data for each partition."""
         date_fields = {
             Provider.PROVIDER_AWS: "lineitem_usagestartdate",
@@ -186,10 +186,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         unique_usage_days = data_frame[date_field].unique()
         for usage_day in unique_usage_days:
             usage_date = pd.to_datetime(usage_day).date()
-            # Uniqueify manifest report counter dict entry with p for parquet (dont colide with csvs)
-            # We use the manifest to hold dated file counts for multiple workers processing the same dates in files
-            base_filename = f"{usage_date}_p"
-            counter = ReportManifestDBAccessor().update_and_get_parquet_batch_counter(base_filename, manifest_id)
             # Parquet base filename dates here DO NOT match the data written to them
             split_base_name = parquet_base_filename.split("_")
             base_file_date = split_base_name[0]
@@ -200,7 +196,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             usage_day_file_name = f"{usage_date}{non_date_base_name}"
             self.start_date = usage_date
             df = data_frame[data_frame[date_field] == usage_day]
-            self.create_ocp_on_cloud_parquet(df, usage_day_file_name, counter)
+            self.create_ocp_on_cloud_parquet(df, usage_day_file_name)
 
     def get_ocp_provider_uuids_tuple(self):
         """Get a list of provider UUIDs to process against."""
@@ -267,8 +263,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 Provider.PROVIDER_AZURE,
                 Provider.PROVIDER_AZURE_LOCAL,
             ):
-                self.create_partitioned_ocp_on_cloud_parquet(
-                    openshift_filtered_data_frame, parquet_base_filename, manifest_id
-                )
+                self.create_partitioned_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename)
             else:
-                self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename, file_number=0)
+                self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename)

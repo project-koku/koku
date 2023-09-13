@@ -104,7 +104,6 @@ def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepa
             monthly_file.get("filepath"),
             monthly_file.get("filename"),
             manifest_id,
-            monthly_file.get("start_date"),
             context,
         )
         monthly_file_names.append(monthly_file.get("filepath"))
