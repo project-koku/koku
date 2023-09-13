@@ -109,7 +109,7 @@ def create_daily_archives(
     s3_csv_path = get_path_prefix(account, Provider.PROVIDER_IBM, provider_uuid, start_date, Config.CSV_DATA_TYPE)
     # add day to S3 CSV path because the IBM report is monthly and we want to diff between two days
     s3_csv_path = f"{s3_csv_path}/day={start_date.strftime('%d')}"
-    copy_local_report_file_to_s3_bucket(request_id, s3_csv_path, file_path, filename, manifest_id, start_date, context)
+    copy_local_report_file_to_s3_bucket(request_id, s3_csv_path, file_path, filename, manifest_id, context)
     return [file_path]
 
 

@@ -540,7 +540,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context=None
+    request_id, s3_path, full_file_path, local_filename, manifest_id, context=None
 ):
     """
     Copies local report file to s3 bucket
@@ -581,9 +581,10 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
     # We do this if we have multiple workers running different files for a single manifest.
     processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
     if processing_date:
+        # Prevent other works running trino queries until all files are removed.
         clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
         return processing_date
-    processing_date = start_date.replace(tzinfo=None)
+    processing_date = start_date
     try:
         s3_date = None
         for obj_summary in _get_s3_objects(csv_s3_path):
@@ -599,10 +600,11 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
             process_date = s3_date if s3_date < end_date else end_date
             processing_date = (
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
-            ).replace(tzinfo=None)
-            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
-            # clear s3 files for processing dates
-            clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
+            )
+            # Set processing date for all workers
+            processing_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+        # Try to clear s3 files for dates. Small edge case, we may have parquet files even without csvs
+        clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
@@ -616,7 +618,7 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
                 bucket=settings.S3_BUCKET_NAME,
             ),
         )
-        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+        processing_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
         to_delete = get_s3_objects_not_matching_metadata(
             request_id,
             csv_s3_path,
