@@ -170,10 +170,10 @@ delete-testing:
 	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 delete-trino:
-	$(PREFIX) rm -fr ./.trino/
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
 
 delete-trino-data:
-	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/**
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/{*,.minio*}
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -214,7 +214,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data
+	$(PREFIX) rm -rf $(TOPDIR)/pg_data/*
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
