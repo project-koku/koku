@@ -352,7 +352,7 @@ docker-up-no-build: docker-up-db
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
-docker-up-min-no-build: docker-up-db
+docker-up-min-no-build: docker-host-dir-setup docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets
@@ -401,9 +401,14 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-docker-trino-setup: delete-trino
-	mkdir -p -m a+rwx ./.trino
-	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
+CONTAINER_DIRS = $(TOPDIR)/pg_data $(TOPDIR)/.trino/{parquet_data,trino}
+docker-host-dir-setup:
+	$(DOCKER_COMPOSE) build --no-cache koku-minio
+	mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
+	chown -R $(USER_ID) $(CONTAINER_DIRS)
+	chmod 0755 $(CONTAINER_DIRS)
+
+docker-trino-setup: delete-trino docker-host-dir-setup
 
 docker-trino-up: docker-trino-setup
 	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
