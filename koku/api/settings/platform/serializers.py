@@ -9,5 +9,5 @@ class ListStringSerializer(serializers.ListField):
     child = serializers.CharField()
 
 
-class PlatformSettingsSerializer(serializers.Serializer):
+class NonEmptyListSerializer(serializers.Serializer):
     projects = ListStringSerializer(allow_empty=False, min_length=1)
