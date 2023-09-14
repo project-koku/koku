@@ -212,10 +212,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if provider.setup_complete:
             scan_start = dh.today - relativedelta(days=10)
+            LOG.info(f"EVADEBUG set scan_start, setup_complete {scan_start} - {self._provider_uuid}")
         else:
             months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
             scan_start = dh.today - relativedelta(months=months_delta)
             scan_start = scan_start.replace(day=1)
+            LOG.info(f"EVADEBUG set scan_start, setup not complete {scan_start} - {self._provider_uuid}")
         return scan_start.date()
 
     @cached_property
@@ -277,6 +279,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         mapping = {}
         try:
             client = bigquery.Client()
+            LOG.info(f"EVADEBUG export to partition table {self.table_name}, scan_start {self.scan_start}")
             export_partition_date_query = f"""
                 SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
@@ -392,8 +395,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             reports_list.append(self.get_report_from_manifest(manifest, date, ctx))
         else:
             current_manifests = self.retrieve_current_manifests_mapping()
+            LOG.info(f"EVADEBUG CURRENT_MANIFESTS {current_manifests}")
             bigquery_mapping = self.bigquery_export_to_partition_mapping()
+            LOG.info(f"EVADEBUG BIGQUERY MAPPING {bigquery_mapping}")
+
             new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
+            LOG.info(f"EVADEBUG new_manifest_list {new_manifest_list}")
             for manifest in new_manifest_list:
                 LOG.info(
                     log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **manifest)

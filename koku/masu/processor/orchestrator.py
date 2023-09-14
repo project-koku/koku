@@ -272,6 +272,7 @@ class Orchestrator:
                 if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                     if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
+                        LOG.info(f"EVADEBUG REPORT MONTH {report_month} {provider_uuid}")
                 elif provider_type == Provider.PROVIDER_OCP:
                     # The report month is used in the metadata of OCP files in s3.
                     # Setting the report_month to the start date allows us to
@@ -428,6 +429,7 @@ class Orchestrator:
         else:
             start_date = dh.today
         account["report_month"] = start_date
+        LOG.info(f"EVADEBUG account {account}")
         try:
             LOG.info(
                 log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid)

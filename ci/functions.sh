@@ -51,7 +51,7 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
     elif grep -E "azure-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
     elif grep -E "gcp-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+        export IQE_FILTER_EXPRESSION="ingest_single or ingest_multi or test_api_ocp_ingest_source_ros_data"
     elif grep -E "oci-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
     elif grep -E "ocp-smoke-tests" <<< "$SMOKE_LABELS"; then
