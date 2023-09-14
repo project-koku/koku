@@ -228,7 +228,8 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_s3_parquet_cleared_ocp_with_file_name(self):
         """Test that s3 CSV clear status is reported."""
-        file_name = "my-made-up-report"
+        file_name_nocounter = "my-made-up-report"
+        file_name = f"{file_name_nocounter}.counter"
         self.manifest_dict["cluster_id"] = "cluster_id"
         manifest = self.manifest_accessor.add(**self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, file_name)
@@ -236,7 +237,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
         self.manifest_accessor.mark_s3_parquet_cleared(manifest, file_name)
 
-        self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {file_name: True})
+        self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {file_name_nocounter: True})
         self.assertTrue(manifest.s3_parquet_cleared)
 
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, file_name)

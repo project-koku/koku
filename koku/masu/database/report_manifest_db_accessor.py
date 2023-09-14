@@ -246,20 +246,22 @@ class ReportManifestDBAccessor(KokuDBAccess):
         )
         return result
 
-    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, file_prefix: str = None) -> bool:
+    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, file_stem: str = None) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
         if not manifest:
             return False
-        if manifest.cluster_id and file_prefix:
-            return manifest.s3_parquet_cleared_tracker.get(file_prefix)
+        if manifest.cluster_id and file_stem:
+            filename_nocounter = file_stem.rsplit(".", 1)[0]
+            return manifest.s3_parquet_cleared_tracker.get(filename_nocounter)
         return manifest.s3_parquet_cleared
 
-    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, file_prefix: str = None) -> None:
+    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, file_stem: str = None) -> None:
         """Mark Parquet files have been cleared from S3 for this manifest."""
         if not manifest:
             return
-        if manifest.cluster_id and file_prefix:
-            manifest.s3_parquet_cleared_tracker[file_prefix] = True
+        if manifest.cluster_id and file_stem:
+            filename_nocounter = file_stem.rsplit(".", 1)[0]
+            manifest.s3_parquet_cleared_tracker[filename_nocounter] = True
             update_fields = ["s3_parquet_cleared_tracker"]
         else:
             manifest.s3_parquet_cleared = True
