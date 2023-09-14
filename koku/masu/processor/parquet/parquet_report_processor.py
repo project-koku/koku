@@ -19,6 +19,7 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import check_ingress_columns
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -78,7 +79,7 @@ class ParquetReportProcessor:
             context = {}
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
-        self._report_file = report_path
+        self._report_file = Path(report_path)
         self._provider_type = provider_type
         self._manifest_id = manifest_id
         self._context = context
@@ -91,8 +92,8 @@ class ParquetReportProcessor:
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
 
-        self.metadata_start_date: str = self._context.get("metadata_start_date")
-        self.metadata_end_date: str = self._context.get("metadata_end_date")
+        self.split_files = [Path(file) for file in self._context.get("split_files") or []]
+        self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
 
     @property
     def schema_name(self):
@@ -133,12 +134,12 @@ class ParquetReportProcessor:
     @property
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
-        return self._context.get("split_files") or [self._report_file]
+        return self.split_files or [self._report_file]
 
     @property
     def split_file_list(self):
         """Always return split files."""
-        return self._context.get("split_files")
+        return self.split_files
 
     @property
     def error_context(self):
@@ -186,9 +187,10 @@ class ParquetReportProcessor:
     def file_extension(self):
         """File format compression."""
         first_file = self.file_list[0]
-        if first_file.lower().endswith(CSV_EXT):
+        filename = first_file.name.lower()
+        if filename.endswith(CSV_EXT):
             return CSV_EXT
-        elif first_file.lower().endswith(CSV_GZIP_EXT):
+        elif filename.endswith(CSV_GZIP_EXT):
             return CSV_GZIP_EXT
         else:
             msg = f"file {first_file} is not valid CSV - conversion to parquet skipped"
@@ -260,8 +262,8 @@ class ParquetReportProcessor:
 
     @property
     def local_path(self):
-        local_path = f"{Config.TMP_DIR}/{self.account}/{self.provider_uuid}"
-        Path(local_path).mkdir(parents=True, exist_ok=True)
+        local_path = Path(Config.TMP_DIR, self.account, self.provider_uuid)
+        local_path.mkdir(parents=True, exist_ok=True)
         return local_path
 
     @property
@@ -319,7 +321,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def prepare_parquet_s3(self):
+    def prepare_parquet_s3(self, filename: os.PathLike):
 
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
@@ -339,7 +341,7 @@ class ParquetReportProcessor:
         ):
             return
 
-        metadata_key, metadata_value = self.get_metadata_kv()
+        metadata_key, metadata_value = self.get_metadata_kv(filename.stem)
 
         to_delete = self.parquet_file_getter(
             self.tracing_id,
@@ -369,15 +371,15 @@ class ParquetReportProcessor:
 
         if self.provider_type == Provider.PROVIDER_OCP and to_delete:
             # filter the report
-            LOG.warning(log_json(msg="files to delete pre filter", to_delete=to_delete))
+            LOG.info(log_json(msg="files to delete pre filter", to_delete=to_delete))
             to_delete = filter_s3_objects_less_than(
                 self.tracing_id,
                 to_delete,
                 metadata_key="reportnumhours",
-                metadata_value_check=self.metadata_end_date[11:13],
+                metadata_value_check=self.ocp_files_to_process[filename.stem]["meta_reportnumhours"],
                 context=self.error_context,
             )
-            LOG.warning(log_json(msg="files to delete post filter", to_delete=to_delete))
+            LOG.info(log_json(msg="files to delete post filter", to_delete=to_delete))
             if not to_delete:
                 raise ReportsAlreadyProcessed
 
@@ -411,8 +413,6 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        self.prepare_parquet_s3()
-
         failed_conversion = []
         daily_data_frames = []
         file_list = self.file_list
@@ -436,6 +436,8 @@ class ParquetReportProcessor:
             )
             return parquet_base_filename, daily_data_frames
 
+        self.prepare_parquet_s3(Path(file_list[0]))
+
         for csv_filename in file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 LOG.warn(
@@ -449,7 +451,7 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
             if self.provider_type == Provider.PROVIDER_OCI:
-                file_specific_start_date = csv_filename.split(".")[1]
+                file_specific_start_date = str(csv_filename).split(".")[1]
                 self.start_date = file_specific_start_date
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
@@ -485,14 +487,15 @@ class ParquetReportProcessor:
 
     def check_required_columns_for_ingress_reports(self, post_processor, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
-        if missing_cols := post_processor.check_ingress_required_columns(col_names):
-            message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
-            if self.ingress_reports_uuid:
-                with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
-                    ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
-            raise ValidationError(message, code="Missing_columns")
+        if not check_ingress_columns:
+            if missing_cols := post_processor.check_ingress_required_columns(col_names):
+                message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
+                if self.ingress_reports_uuid:
+                    with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
+                        ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
+                raise ValidationError(message, code="Missing_columns")
 
-    def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
+    def convert_csv_to_parquet(self, csv_filename: os.PathLike):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
         post_processor = self._set_post_processor()
         if not post_processor:
@@ -502,9 +505,8 @@ class ParquetReportProcessor:
             return None, None, False
 
         daily_data_frames = []
-        _, csv_name = os.path.split(csv_filename)
-        parquet_file = None
-        parquet_base_filename = csv_name.replace(self.file_extension, "")
+        parquet_filepath = ""
+        parquet_base_filename = csv_filename.name.replace(self.file_extension, "")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
             kwargs["compression"] = "gzip"
@@ -525,8 +527,8 @@ class ParquetReportProcessor:
                 for i, data_frame in enumerate(reader):
                     if data_frame.empty:
                         continue
-                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
-                    parquet_file = f"{self.local_path}/{parquet_filename}"
+                    parquet_filename_suffix = f"_{i}{PARQUET_EXT}"
+                    parquet_filepath = f"{self.local_path}/{parquet_base_filename}{parquet_filename_suffix}"
                     data_frame, daily_frames = post_processor.process_dataframe(data_frame)
                     daily_data_frames.append(daily_frames)
                     LOG.info(
@@ -537,7 +539,9 @@ class ParquetReportProcessor:
                             file_name=csv_filename,
                         )
                     )
-                    success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
+                    success = self._write_parquet_to_file(
+                        parquet_filepath, parquet_base_filename, parquet_filename_suffix, data_frame
+                    )
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
                 LOG.info(
@@ -550,7 +554,7 @@ class ParquetReportProcessor:
                 )
                 post_processor.finalize_post_processing()
             if self.create_table and not self.trino_table_exists.get(self.report_type):
-                self.create_parquet_table(parquet_file)
+                self.create_parquet_table(parquet_filepath)
 
         except Exception as err:
             LOG.warn(
@@ -570,9 +574,11 @@ class ParquetReportProcessor:
         """Create a parquet file for daily aggregated data."""
         file_path = None
         for i, data_frame in enumerate(data_frames):
-            file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
-            file_path = f"{self.local_path}/{file_name}"
-            self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
+            file_name_suffix = f"_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
+            file_path = f"{self.local_path}/{parquet_base_filename}{file_name_suffix}"
+            self._write_parquet_to_file(
+                file_path, parquet_base_filename, file_name_suffix, data_frame, file_type=DAILY_FILE_TYPE
+            )
         if file_path:
             self.create_parquet_table(file_path, daily=True)
 
@@ -612,20 +618,21 @@ class ParquetReportProcessor:
 
         return get_path_prefix(**kwargs)
 
-    def get_metadata(self) -> dict:
+    def get_metadata(self, filename) -> dict:
         metadata = {"ManifestId": str(self.manifest_id)}
         if self._provider_type == Provider.PROVIDER_OCP:
-            metadata["ReportDateStart"] = self.metadata_start_date
-            metadata["ReportNumHours"] = self.metadata_end_date[11:13]
+            metadata["ReportDateStart"] = self.ocp_files_to_process.get(filename).get("meta_reportdatestart")
+            metadata["ReportNumHours"] = self.ocp_files_to_process.get(filename).get("meta_reportnumhours")
         return metadata
 
-    def get_metadata_kv(self) -> tuple[str, str]:
+    def get_metadata_kv(self, filename) -> tuple[str, str]:
         if self._provider_type == Provider.PROVIDER_OCP:
-            return ("reportdatestart", self.metadata_start_date)
+            return ("reportdatestart", self.ocp_files_to_process.get(filename).get("meta_reportdatestart"))
         return ("manifestid", str(self.manifest_id))
 
-    def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
+    def _write_parquet_to_file(self, file_path, file_name_base, file_name_suffix, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
+        file_name = file_name_base + file_name_suffix
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             # We need to determine the parquet file path based off
             # of the start of the invoice month and usage start for GCP.
@@ -633,7 +640,7 @@ class ParquetReportProcessor:
         else:
             s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
-        metadata = self.get_metadata()
+        metadata = self.get_metadata(file_name_base)
         try:
             with open(file_path, "rb") as fin:
                 copy_data_to_s3_bucket(

@@ -43,8 +43,8 @@ ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
 APP_OPT_EXTRA_FEILD_MAP = {
     Provider.PROVIDER_OCP: [],
-    Provider.PROVIDER_AWS: ["storage_only", "bucket_region"],
-    Provider.PROVIDER_AWS_LOCAL: ["storage_only", "bucket_region"],
+    Provider.PROVIDER_AWS: ["storage_only", "bucket_region", "metered"],
+    Provider.PROVIDER_AWS_LOCAL: ["storage_only", "bucket_region", "metered"],
     Provider.PROVIDER_AZURE: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage_only"],
     Provider.PROVIDER_GCP: ["dataset", "bucket", "storage_only"],

@@ -28,6 +28,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import clear_s3_files
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
@@ -104,6 +105,18 @@ def create_daily_archives(
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 if ingress_reports:
+                    # Ingress flow needs to clear s3 files prior to processing
+                    date_time = datetime.datetime.strptime(partition_date, "%Y-%m-%d")
+                    clear_s3_files(
+                        s3_csv_path,
+                        provider_uuid,
+                        date_time,
+                        "manifestid",
+                        manifest_id,
+                        context,
+                        tracing_id,
+                        invoice_month,
+                    )
                     partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
                         partition_date, manifest_id
                     )
@@ -111,7 +124,7 @@ def create_daily_archives(
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
                 )
                 daily_file_names.append(day_filepath)
     return daily_file_names, date_range

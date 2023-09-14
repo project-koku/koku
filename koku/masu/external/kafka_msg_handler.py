@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import traceback
+from pathlib import Path
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -138,7 +139,7 @@ def download_payload(request_id, url, context={}):
         context (Dict): Context for logging (account, etc)
 
         Returns:
-        Tuple: temp_dir (String), temp_file (String)
+        Tuple: temp_file (os.PathLike)
     """
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
@@ -154,33 +155,28 @@ def download_payload(request_id, url, context={}):
         shutil.rmtree(temp_dir)
         msg = f"Unable to download file. Error: {str(err)}"
         LOG.warning(log_json(request_id, msg=msg), exc_info=err)
-        raise KafkaMsgHandlerError(msg)
+        raise KafkaMsgHandlerError(msg) from err
 
     sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
-    gzip_filename = f"{sanitized_request_id}.tar.gz"
-    temp_file = f"{temp_dir}/{gzip_filename}"
+    temp_file = Path(temp_dir, sanitized_request_id).with_suffix(".tar.gz")
     try:
-        temp_file_hdl = open(temp_file, "wb")
-        temp_file_hdl.write(download_response.content)
-        temp_file_hdl.close()
+        temp_file.write_bytes(download_response.content)
     except OSError as error:
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
         LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
-        raise KafkaMsgHandlerError(msg)
+        raise KafkaMsgHandlerError(msg) from error
 
-    return (temp_dir, temp_file, gzip_filename)
+    return temp_file
 
 
-def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context={}):
+def extract_payload_contents(request_id, tarball_path, context={}):
     """
     Extract the payload contents into a temporary location.
 
         Args:
         request_id (String): Identifier associated with the payload
-        out_dir (String): temporary directory to extract data to
-        tarball_path (String): the path to the payload file to extract
-        tarball (String): the payload file to extract
+        tarball_path (os.PathLike): the path to the payload file to extract
         context (Dict): Context for logging (account, etc)
 
         Returns:
@@ -195,13 +191,13 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
 
     try:
         mytar = TarFile.open(tarball_path, mode="r:gz")
-        mytar.extractall(path=out_dir)
+        mytar.extractall(path=tarball_path.parent)
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
     except (ReadError, EOFError, OSError) as error:
         msg = f"Unable to untar file {tarball_path}. Reason: {str(error)}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
-        shutil.rmtree(out_dir)
+        shutil.rmtree(tarball_path.parent)
         raise KafkaMsgHandlerError("Extraction failure.")
 
     if not manifest_path:
@@ -209,22 +205,20 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
         LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError("No manifest found in payload.")
 
-    return manifest_path
+    return manifest_path[0], files
 
 
-def construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file):
+def construct_daily_archives(request_id, context, report_meta, report_file_path):
     """Build, upload and convert parquet reports."""
-    daily_parquet_files = create_daily_archives(
+    return create_daily_archives(
         request_id,
         report_meta["account"],
         report_meta["provider_uuid"],
-        report_file,
-        payload_destination_path,
+        report_file_path,
         report_meta["manifest_id"],
         report_meta["date"],
         context,
     )
-    return daily_parquet_files
 
 
 def _get_source_id(provider_uuid):
@@ -284,12 +278,12 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
                 current_file: String
 
     """
-    temp_dir, temp_file_path, temp_file = download_payload(request_id, url, context)
-    manifest_path = extract_payload_contents(request_id, temp_dir, temp_file_path, temp_file, context)
+    payload_path = download_payload(request_id, url, context)
+    manifest_path, payload_files = extract_payload_contents(request_id, payload_path, context)
 
     # Open manifest.json file and build the payload dictionary.
-    full_manifest_path = f"{temp_dir}/{manifest_path[0]}"
-    report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
+    full_manifest_path = Path(payload_path.parent, manifest_path)
+    report_meta = utils.get_report_details(full_manifest_path.parent)
 
     # Filter and get account from payload's cluster-id
     cluster_id = report_meta.get("cluster_id")
@@ -311,7 +305,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     if not account:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
-        shutil.rmtree(temp_dir)
+        shutil.rmtree(payload_path.parent)
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
@@ -333,11 +327,11 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
-    destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{report_meta.get('cluster_id')}/{usage_month}"
+    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, report_meta.get("cluster_id"), usage_month)
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = f"{destination_dir}/{os.path.basename(report_meta.get('manifest_path'))}"
+    manifest_destination_path = Path(destination_dir, report_meta["manifest_path"].name)
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
     # Save Manifest
@@ -346,12 +340,11 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     # Copy report payload
     report_metas = []
     ros_reports = []
-    subdirectory = os.path.dirname(full_manifest_path)
     manifest_ros_files = report_meta.get("resource_optimization_files") or []
     manifest_files = report_meta.get("files") or []
     for ros_file in manifest_ros_files:
-        if os.path.exists(f"{subdirectory}/{ros_file}"):
-            ros_reports.append((ros_file, f"{subdirectory}/{ros_file}"))
+        if ros_file in payload_files:
+            ros_reports.append((ros_file, payload_path.with_name(ros_file)))
     ros_processor = ROSReportShipper(
         report_meta,
         b64_identity,
@@ -365,8 +358,8 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
     for report_file in manifest_files:
         current_meta = report_meta.copy()
-        payload_source_path = f"{subdirectory}/{report_file}"
-        payload_destination_path = f"{destination_dir}/{report_file}"
+        payload_source_path = Path(payload_path.parent, report_file)
+        payload_destination_path = Path(destination_dir, report_file)
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
@@ -376,13 +369,15 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
                 continue
             msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
             LOG.info(log_json(manifest_uuid, msg=msg, context=context))
-            construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
+            split_files = construct_daily_archives(request_id, context, report_meta, payload_destination_path)
+            current_meta["split_files"] = list(split_files)
+            current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest_uuid, msg=msg, context=context))
     # Remove temporary directory and files
-    shutil.rmtree(temp_dir)
+    shutil.rmtree(payload_path.parent)
     return report_metas, manifest_uuid
 
 
@@ -616,6 +611,8 @@ def process_report(request_id, report):
     # to create a Hive/Trino table.
     report_dict = {
         "file": report.get("current_file"),
+        "split_files": report.get("split_files"),
+        "ocp_files_to_process": report.get("ocp_files_to_process"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
@@ -623,8 +620,6 @@ def process_report(request_id, report):
         "tracing_id": report.get("tracing_id"),
         "provider_type": "OCP",
         "start_date": date,
-        "metadata_start_date": report.get("start").isoformat(),
-        "metadata_end_date": report.get("end").isoformat(),
         "create_table": True,
     }
     try:
@@ -685,7 +680,13 @@ def process_messages(msg):
                 # we have not received all of the daily files yet, so don't process them
                 break
             report_meta["process_complete"] = process_report(request_id, report_meta)
-            LOG.info(log_json(tracing_id, msg=f"Processing: {report_meta.get('current_file')} complete."))
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    msg=f"Processing: {report_meta.get('current_file')} complete.",
+                    ocp_files_to_process=report_meta.get("ocp_files_to_process"),
+                )
+            )
         process_complete = report_metas_complete(report_metas)
         summary_task_id = summarize_manifest(report_meta, tracing_id)
         if summary_task_id:
