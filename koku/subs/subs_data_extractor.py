@@ -106,9 +106,6 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         LOG.info(log_json(self.tracing_id, msg="beginning subs rhel extraction", context=self.context))
         month = month_start.strftime("%m")
         year = month_start.strftime("%Y")
-        # if there is no latest time for this month, we need to gather all line items relevant to the current month
-        # so we go back one hour from the month start to last month to ensure the first hour
-        # of the current month is included
         start_time = self.determine_start_time(year, month, month_start)
         end_time = self.determine_end_time(year, month)
         where_clause = self.determine_where_clause(start_time, end_time, year, month)
