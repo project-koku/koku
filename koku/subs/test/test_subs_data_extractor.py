@@ -48,13 +48,15 @@ class TestSUBSDataExtractor(SUBSTestCase):
         with schema_context(self.schema):
             year = "2023"
             month = "06"
-            expected = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+            base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
             SubsLastProcessed.objects.create(
                 source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid),
                 year=year,
                 month=month,
-                latest_processed_time=expected,
+                latest_processed_time=base_time,
             ).save()
+        # we add 1 second to the latest processed time to ensure the records are new
+        expected = base_time + timedelta(seconds=1)
         actual = self.extractor.determine_latest_processed_time_for_provider(year, month)
         self.assertEqual(actual, expected)
 
@@ -154,12 +156,12 @@ class TestSUBSDataExtractor(SUBSTestCase):
             "no_base_prov_created_same_month": {
                 "latest": None,
                 "prov_created": datetime.datetime(2023, 8, 7),
-                "expected_return": datetime.datetime(2023, 8, 5, 23),
+                "expected_return": datetime.datetime(2023, 8, 6, 0),
             },
             "no_base_prov_created_prev_month": {
                 "latest": None,
                 "prov_created": datetime.datetime(2023, 7, 7),
-                "expected_return": datetime.datetime(2023, 7, 31, 23),
+                "expected_return": datetime.datetime(2023, 8, 1, 0),
             },
             "base_prov_created_before": {
                 "latest": datetime.datetime(2023, 8, 10, 12),
@@ -169,7 +171,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
             "base_prov_created_after": {
                 "latest": datetime.datetime(2023, 8, 10, 12),
                 "prov_created": datetime.datetime(2023, 8, 15),
-                "expected_return": datetime.datetime(2023, 8, 13, 23),
+                "expected_return": datetime.datetime(2023, 8, 14, 0),
             },
         }
         for test_case, expected in test_table.items():
