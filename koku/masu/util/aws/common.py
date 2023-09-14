@@ -682,7 +682,7 @@ def filter_s3_objects_less_than(
             metadata_value = obj.metadata.get(metadata_key)
             int_metadata_value = safe_str_int_conversion(metadata_value)
 
-            if metadata_value is not None and int_metadata_value < int_metadata_value_check:
+            if int_metadata_value is not None and int_metadata_value < int_metadata_value_check:
                 filtered.append(key)
 
         except (EndpointConnectionError, ClientError) as err:
