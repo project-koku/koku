@@ -600,14 +600,10 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
     @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
-    @patch.object(ParquetReportProcessor, "get_metadata_kv")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
-    def test_prepare_parquet_s3_ocp_files_reports_already_processed(
-        self, mock_s3_getter, mock_meta, mock_s3_filter, *_
-    ):
+    def test_prepare_parquet_s3_ocp_files_reports_already_processed(self, mock_s3_getter, mock_s3_filter, *_):
         """Test raising ReportsAlreadyProcessed."""
         mock_s3_getter.return_value = ["file1"]
-        mock_meta.return_value = ("key", "value")
         mock_s3_filter.return_value = []
 
         filename = Path("pod_usage.count.csv")
@@ -638,12 +634,10 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
     @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
-    @patch.object(ParquetReportProcessor, "get_metadata_kv")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
-    def test_prepare_parquet_s3_ocp_files_reports_to_delete(self, mock_s3_getter, mock_meta, mock_s3_filter, *_):
+    def test_prepare_parquet_s3_ocp_files_reports_to_delete(self, mock_s3_getter, mock_s3_filter, *_):
         """Test that s3-parquet-tracker is updated when a we delete s3 files."""
         mock_s3_getter.return_value = ["file1"]
-        mock_meta.return_value = ("key", "value")
         mock_s3_filter.return_value = ["file1"]
 
         filename = Path("pod_usage.count.csv")
@@ -670,3 +664,97 @@ class TestParquetReportProcessor(MasuTestCase):
 
         manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
         self.assertTrue(manifest.s3_parquet_cleared_tracker["pod_usage"])
+
+    def test_get_metadata_ocp(self):
+        filename = Path("pod_usage.count.csv")
+        expected_meta = {
+            "ManifestId": str(self.ocp_manifest_id),
+            "ReportDateStart": "2023-01-01",
+            "ReportNumHours": "2",
+        }
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": DateHelper().today,
+                "ocp_files_to_process": {
+                    filename.stem: {
+                        "meta_reportdatestart": expected_meta["ReportDateStart"],
+                        "meta_reportnumhours": expected_meta["ReportNumHours"],
+                    }
+                },
+            },
+        )
+        meta = report_processor.get_metadata(filename.stem)
+        self.assertDictEqual(meta, expected_meta)
+
+    def test_get_metadata_kv_ocp(self):
+        filename = Path("pod_usage.count.csv")
+        expected_meta = {
+            "ManifestId": str(self.ocp_manifest_id),
+            "ReportDateStart": "2023-01-01",
+            "ReportNumHours": "2",
+        }
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": DateHelper().today,
+                "ocp_files_to_process": {
+                    filename.stem: {
+                        "meta_reportdatestart": expected_meta["ReportDateStart"],
+                        "meta_reportnumhours": expected_meta["ReportNumHours"],
+                    }
+                },
+            },
+        )
+        expected_result = ("reportdatestart", expected_meta["ReportDateStart"])
+        result = report_processor.get_metadata_kv(filename.stem)
+        self.assertTupleEqual(result, expected_result)
+
+    def test_get_metadata_notocp(self):
+        filename = Path("pod_usage.count.csv")
+        expected_meta = {
+            "ManifestId": str(self.manifest_id),
+        }
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS,
+            manifest_id=self.manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": DateHelper().today,
+            },
+        )
+        meta = report_processor.get_metadata(filename.stem)
+        self.assertDictEqual(meta, expected_meta)
+
+    def test_get_metadata_kv_notocp(self):
+        filename = Path("pod_usage.count.csv")
+        expected_meta = {
+            "ManifestId": str(self.manifest_id),
+        }
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS,
+            manifest_id=self.manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": DateHelper().today,
+            },
+        )
+        expected_result = ("manifestid", expected_meta["ManifestId"])
+        result = report_processor.get_metadata_kv(filename.stem)
+        self.assertTupleEqual(result, expected_result)
