@@ -60,7 +60,7 @@ def get_month_start_from_report(report):
     """Gets the month start as a datetime from a report"""
     if report.get("start"):
         start_date = parser.parse(report.get("start"))
-        return DateHelper().month_start(start_date)
+        return DateHelper().month_start_utc(start_date)
     else:
         # GCP and OCI set report start and report end, AWS/Azure do not
         with ReportManifestDBAccessor() as manifest_accessor:
