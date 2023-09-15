@@ -309,6 +309,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     "assembly_id": f"{bigquery_pd}|{bigquery_et}",
                     "bill_date": bill_date,
                     "files": [file_name],
+                    "manifest_modified_datetime": manifest_export_time,
                 }
                 new_manifests.append(manifest_metadata)
         if not new_manifests:
@@ -370,7 +371,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 )
             )
             return reports_list
-        dh = DateHelper()
         if isinstance(date, datetime.datetime):
             date = date.date()
         ctx = {
@@ -398,18 +398,20 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.info(
                     log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **manifest)
                 )
-                reports_list.append(self.get_report_from_manifest(manifest, dh._now, ctx))
+                reports_list.append(
+                    self.get_report_from_manifest(manifest, manifest.get("manifest_modified_datetime"), ctx)
+                )
 
         return reports_list
 
-    def get_report_from_manifest(self, manifest, date, context):
+    def get_report_from_manifest(self, manifest, manifest_modified_datetime, context):
         """Generate manifest and return report dict."""
         assembly_id = manifest["assembly_id"]
         manifest_id = self._process_manifest_db_record(
             assembly_id,
             manifest["bill_date"],
             len(manifest["files"]),
-            date,
+            manifest_modified_datetime,
         )
         LOG.info(
             log_json(
