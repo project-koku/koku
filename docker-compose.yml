@@ -452,7 +452,7 @@ services:
     ports:
       - 15432:5432
     volumes:
-      - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
+      - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}
       - ./pg_init:/docker-entrypoint-initdb.d
     command:
       # This command give more precise control over the parameter settings
@@ -574,6 +574,8 @@ services:
     build:
         context: .
         dockerfile: Dockerfile.minio
+        args:
+          USER_ID: ${USER_ID-1000}
     container_name: kokuminio
     environment:
       MINIO_ROOT_USER: kokuminioaccess

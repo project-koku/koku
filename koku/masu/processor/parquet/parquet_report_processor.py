@@ -326,11 +326,15 @@ class ParquetReportProcessor:
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
+        parquet_cleared_key = ""
+        if self.provider_type == Provider.PROVIDER_OCP:
+            parquet_cleared_key = filename.stem.rsplit(".", 1)[0]
+
         # AWS and Azure should remove files when running final bills
         # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
         if (
             not manifest_accessor.should_s3_parquet_be_cleared(manifest)
-            or manifest_accessor.get_s3_parquet_cleared(manifest, self.report_type)
+            or manifest_accessor.get_s3_parquet_cleared(manifest, parquet_cleared_key)
             or self.provider_type
             in (
                 Provider.PROVIDER_GCP,
@@ -384,7 +388,7 @@ class ParquetReportProcessor:
                 raise ReportsAlreadyProcessed
 
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)
-        manifest_accessor.mark_s3_parquet_cleared(manifest, self.report_type)
+        manifest_accessor.mark_s3_parquet_cleared(manifest, parquet_cleared_key)
         LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
 
     def convert_to_parquet(self):  # noqa: C901
@@ -436,9 +440,8 @@ class ParquetReportProcessor:
             )
             return parquet_base_filename, daily_data_frames
 
-        self.prepare_parquet_s3(Path(file_list[0]))
-
         for csv_filename in file_list:
+            self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 LOG.warn(
                     log_json(
@@ -621,13 +624,13 @@ class ParquetReportProcessor:
     def get_metadata(self, filename) -> dict:
         metadata = {"ManifestId": str(self.manifest_id)}
         if self._provider_type == Provider.PROVIDER_OCP:
-            metadata["ReportDateStart"] = self.ocp_files_to_process.get(filename).get("meta_reportdatestart")
-            metadata["ReportNumHours"] = self.ocp_files_to_process.get(filename).get("meta_reportnumhours")
+            metadata["ReportDateStart"] = self.ocp_files_to_process[filename]["meta_reportdatestart"]
+            metadata["ReportNumHours"] = self.ocp_files_to_process[filename]["meta_reportnumhours"]
         return metadata
 
     def get_metadata_kv(self, filename) -> tuple[str, str]:
         if self._provider_type == Provider.PROVIDER_OCP:
-            return ("reportdatestart", self.ocp_files_to_process.get(filename).get("meta_reportdatestart"))
+            return ("reportdatestart", self.ocp_files_to_process[filename]["meta_reportdatestart"])
         return ("manifestid", str(self.manifest_id))
 
     def _write_parquet_to_file(self, file_path, file_name_base, file_name_suffix, data_frame, file_type=None):
