@@ -28,6 +28,7 @@ from masu.processor.parquet.parquet_report_processor import CSV_EXT
 from masu.processor.parquet.parquet_report_processor import CSV_GZIP_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
+from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 from masu.util.aws.aws_post_processor import AWSPostProcessor
@@ -57,6 +58,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.test_etag = "fake_etag"
         self.tracing_id = 1
         self.manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first().id
+        self.ocp_manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=False).first().id
         self.start_date = DateHelper().today
         self.report_name = "koku-1.csv.gz"
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
@@ -371,7 +373,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 report_path="pod_usage.csv",
                 provider_uuid=self.ocp_provider_uuid,
                 provider_type=Provider.PROVIDER_OCP,
-                manifest_id=self.manifest_id,
+                manifest_id=self.ocp_manifest_id,
                 context={
                     "tracing_id": self.tracing_id,
                     "start_date": DateHelper().today,
@@ -544,7 +546,7 @@ class TestParquetReportProcessor(MasuTestCase):
             report_path=f"/my/{self.test_assembly_id}/{self.report_name}",
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
-            manifest_id=self.manifest_id,
+            manifest_id=self.ocp_manifest_id,
             context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "split_files": file_list},
         )
         ocp_processor.process()
@@ -593,3 +595,78 @@ class TestParquetReportProcessor(MasuTestCase):
         self.report_processor.create_daily_parquet("", [pd.DataFrame()])
         mock_write.assert_called()
         mock_create_table.assert_called()
+
+    @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
+    @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
+    @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
+    @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
+    @patch.object(ParquetReportProcessor, "get_metadata_kv")
+    @patch.object(ParquetReportProcessor, "parquet_file_getter")
+    def test_prepare_parquet_s3_ocp_files_reports_already_processed(
+        self, mock_s3_getter, mock_meta, mock_s3_filter, *_
+    ):
+        """Test raising ReportsAlreadyProcessed."""
+        mock_s3_getter.return_value = ["file1"]
+        mock_meta.return_value = ("key", "value")
+        mock_s3_filter.return_value = []
+
+        filename = Path("pod_usage.count.csv")
+        CostUsageReportManifest.objects.filter(id=self.ocp_manifest_id).update(operator_daily_reports=True)
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": DateHelper().today,
+                "ocp_files_to_process": {
+                    filename.stem: {
+                        "meta_reportdatestart": "2023-01-01",
+                        "meta_reportnumhours": "2",
+                    }
+                },
+            },
+        )
+        with self.assertRaises(ReportsAlreadyProcessed):
+            report_processor.prepare_parquet_s3(filename)
+
+    @patch("masu.processor.parquet.parquet_report_processor.delete_s3_objects")
+    @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
+    @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
+    @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
+    @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
+    @patch.object(ParquetReportProcessor, "get_metadata_kv")
+    @patch.object(ParquetReportProcessor, "parquet_file_getter")
+    def test_prepare_parquet_s3_ocp_files_reports_to_delete(self, mock_s3_getter, mock_meta, mock_s3_filter, *_):
+        """Test that s3-parquet-tracker is updated when a we delete s3 files."""
+        mock_s3_getter.return_value = ["file1"]
+        mock_meta.return_value = ("key", "value")
+        mock_s3_filter.return_value = ["file1"]
+
+        filename = Path("pod_usage.count.csv")
+        CostUsageReportManifest.objects.filter(id=self.ocp_manifest_id).update(operator_daily_reports=True)
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": DateHelper().today,
+                "ocp_files_to_process": {
+                    filename.stem: {
+                        "meta_reportdatestart": "2023-01-01",
+                        "meta_reportnumhours": "2",
+                    }
+                },
+            },
+        )
+        report_processor.prepare_parquet_s3(filename)
+
+        manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
+        self.assertTrue(manifest.s3_parquet_cleared_tracker["pod_usage"])
