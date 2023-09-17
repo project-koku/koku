@@ -52,7 +52,13 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             last_time = SubsLastProcessed.objects.filter(
                 source_uuid=self.provider_uuid, year=year, month=month
             ).first()
-        return last_time.latest_processed_time if last_time else None
+        if last_time and last_time.latest_processed_time:
+            # the stored timestamp is the latest timestamp data was gathered for
+            # and we want to gather new data we have not processed yet
+            # so we add one second to the last timestamp to ensure the time range processed
+            # is all new data
+            return last_time.latest_processed_time + timedelta(seconds=1)
+        return None
 
     def determine_ids_for_provider(self, year, month):
         """Determine the relevant IDs to process data for this provider."""
@@ -95,15 +101,12 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_start_time(self, year, month, month_start):
         """Determines the start time for subs processing"""
-        base_time = self.determine_latest_processed_time_for_provider(year, month) or (
-            month_start - timedelta(hours=1)
-        )
-        created = Provider.objects.get(uuid=self.provider_uuid).created_timestamp.replace(tzinfo=None)
+        base_time = self.determine_latest_processed_time_for_provider(year, month) or month_start
+        created = Provider.objects.get(uuid=self.provider_uuid).created_timestamp
         if base_time < created:
             # this will set the default to start collecting from the midnight hour the day prior to source creation
-            return created.replace(microsecond=0, second=0, minute=0, hour=23) - timedelta(days=2)
-        else:
-            return base_time
+            return created.replace(microsecond=0, second=0, minute=0, hour=0) - timedelta(days=1)
+        return base_time
 
     def determine_line_item_count(self, where_clause, sql_params):
         """Determine the number of records in the table that have not been processed and match the criteria"""
@@ -148,12 +151,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         LOG.info(log_json(self.tracing_id, msg="beginning subs rhel extraction", context=self.context))
         month = month_start.strftime("%m")
         year = month_start.strftime("%Y")
-        # if there is no latest time for this month, we need to gather all line items relevant to the current month
-        # so we go back one hour from the month start to last month to ensure the first hour
-        # of the current month is included
-        latest_timestamp = self.determine_latest_processed_time_for_provider(year, month) or (
-            month_start - timedelta(hours=1)
-        )
+        start_time = self.determine_start_time(year, month, month_start)
         end_time = self.determine_end_time(year, month)
         ids = self.determine_ids_for_provider(year, month)
         if not ids:
@@ -162,7 +160,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
             self.update_latest_processed_time(year, month, end_time)
             return []
-        where_clause, sql_params = self.determine_where_clause_and_params(latest_timestamp, end_time, year, month, ids)
+        where_clause, sql_params = self.determine_where_clause_and_params(start_time, end_time, year, month, ids)
         total_count = self.determine_line_item_count(where_clause, sql_params)
         LOG.debug(
             log_json(
@@ -182,7 +180,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 "provider_uuid": self.provider_uuid,
                 "year": year,
                 "month": month,
-                "start_time": latest_timestamp,
+                "start_time": start_time,
                 "end_time": end_time,
                 "offset": offset,
                 "limit": settings.PARQUET_PROCESSING_BATCH_SIZE,

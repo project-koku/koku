@@ -211,7 +211,7 @@ class TagsSettings(IamTestCase):
             client = rest_framework.test.APIClient()
             enable_response = client.put(tags_enable_url, {"ids": []}, format="json", **self.headers)
 
-        error_details = enable_response.data.get("id_list", {})[0].lower()
+        error_details = enable_response.data["errors"][0]["detail"].lower()
 
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("this list may not be empty", error_details)
@@ -225,7 +225,7 @@ class TagsSettings(IamTestCase):
             client = rest_framework.test.APIClient()
             enable_response = client.put(tags_enable_url, {"ids": ["bad-uuid"]}, format="json", **self.headers)
 
-        error_details = enable_response.data.get("id_list", {}).get(0, [""])[0].lower()
+        error_details = enable_response.data["errors"][0]["detail"].lower()
 
         self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST, enable_response.data)
         self.assertIn("invalid uuid supplied", error_details)
@@ -267,9 +267,92 @@ class TagsSettings(IamTestCase):
             client = rest_framework.test.APIClient()
             enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
 
-        error = enable_response.data.get("error", "").lower()
-        self.assertEqual(enable_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("maximum number of enabled tags exceeded", error)
+        try:
+            error = enable_response.data.get("error", "").lower()
+        except AttributeError:
+            error = {"data": {}}
+
+        expected_keys = {"error", "enabled", "limit"}
+
+        self.assertEqual(enable_response.status_code, status.HTTP_412_PRECONDITION_FAILED)
+        self.assertIn("maximum number of enabled tags", error)
+        self.assertEqual(expected_keys, enable_response.data.keys())
+
+    def test_enable_tags_would_exceed_limit(self):
+        """With fewer tags enabled than the limit, try to enable more than the limit"""
+
+        tags_enable_url = reverse("tags-enable")
+        uuids = [obj.uuid for obj in self.disabled_objs]
+
+        # Set the limit slightly more than the current number of enabled tags
+        with patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=len(self.enabled_objs) + 4):
+            with schema_context(self.schema_name):
+                client = rest_framework.test.APIClient()
+                enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
+
+        try:
+            error = enable_response.data.get("error", "").lower()
+        except AttributeError:
+            error = {"data": {}}
+
+        expected_keys = {"error", "enabled", "limit"}
+
+        self.assertEqual(enable_response.status_code, status.HTTP_412_PRECONDITION_FAILED)
+        self.assertIn("maximum number of enabled tags", error)
+        self.assertEqual(expected_keys, enable_response.data.keys())
+
+    def test_enable_tags_mixed_tags_would_not_exceed_limit(self):
+        """With fewer tags enabled than the limit, try to enable some tags that
+        are already enabled and some tags that are currently disabled where the
+        total will not exceed the limit.
+
+        This tests that only tags that would be enabled, not currently enabled tags,
+        count towards the future total enabled tags.
+        """
+
+        tags_enable_url = reverse("tags-enable")
+        tags_url = reverse("settings-tags")
+        count_to_limit = 4
+        new_limit = len(self.enabled_objs) + count_to_limit
+        uuids = [obj.uuid for obj in self.disabled_objs[:count_to_limit]]
+
+        # Set the limit slightly more than the current number of enabled tags
+        with patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
+            with schema_context(self.schema_name):
+                client = rest_framework.test.APIClient()
+                enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
+                get_response = client.get(tags_url, {"enabled": True}, **self.headers)
+
+        self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(get_response.data["meta"]["count"], new_limit)
+
+    def test_enable_tags_mixed_tags_would_exceed_limit(self):
+        """With fewer tags enabled than the limit, try to enable some tags that
+        are already enabled and some tags that are currently disabled where the
+        total will exceed the limit.
+        """
+
+        tags_enable_url = reverse("tags-enable")
+        count_to_limit = 4
+        new_limit = len(self.enabled_objs) + count_to_limit
+        uuids = [obj.uuid for obj in self.disabled_objs[: count_to_limit + 1]]
+
+        # Set the limit slightly more than the current number of enabled tags
+        with patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
+            with schema_context(self.schema_name):
+                client = rest_framework.test.APIClient()
+                enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
+
+        try:
+            error = enable_response.data.get("error", "").lower()
+        except AttributeError:
+            error = {"data": {}}
+
+        expected_keys = {"error", "enabled", "limit"}
+
+        self.assertEqual(enable_response.status_code, status.HTTP_412_PRECONDITION_FAILED)
+        self.assertIn("maximum number of enabled tags", error)
+        self.assertEqual(expected_keys, enable_response.data.keys())
 
     @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
     def test_enable_tags_limit_disabled(self, mock_enabled_limit):
@@ -284,5 +367,5 @@ class TagsSettings(IamTestCase):
             enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
             get_response = client.get(tags_url, {"filter[enabled]": True, "limit": 100}, **self.headers)
 
-        self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT, enable_response.data)
+        self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(get_response.data["meta"]["count"], self.total_record_length)
