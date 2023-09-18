@@ -25,10 +25,8 @@ class TestSUBSTasks(SUBSTestCase):
         cls.dh = DateHelper()
         cls.today = cls.dh.today
         cls.yesterday = cls.today - timedelta(days=1)
-
-    def test_check_subs_source_gate(self):
-        """Test that the SUBS task is properly gated by sources"""
-        self.assertFalse(tasks.check_subs_source_gate(self.schema))
+        cls.metered_on = "rhel"
+        cls.metered_off = ""
 
     @patch("subs.tasks.process_upload_keys_to_subs_message.delay")
     @patch("subs.tasks.enable_subs_messaging")
@@ -51,7 +49,7 @@ class TestSUBSTasks(SUBSTestCase):
         mock_message_enable.return_value = True
         expected_month_start = self.dh.month_start(self.yesterday)
         mock_month_start.return_value = expected_month_start
-        tasks.extract_subs_data_from_reports(reports)
+        tasks.extract_subs_data_from_reports(reports, self.metered_on)
         mock_extractor.return_value.extract_data_to_s3.assert_called_once_with(expected_month_start)
         mock_task.assert_called()
 
@@ -74,8 +72,8 @@ class TestSUBSTasks(SUBSTestCase):
         ]
         mock_extract_enable.return_value = True
         mock_message_enable.return_value = True
-        expected_month_start = self.dh.month_start(self.yesterday).replace(tzinfo=None)
-        tasks.extract_subs_data_from_reports(reports)
+        expected_month_start = self.dh.month_start_utc(self.yesterday)
+        tasks.extract_subs_data_from_reports(reports, "rhel")
         mock_extractor.return_value.extract_data_to_s3.assert_called_once_with(expected_month_start)
         mock_task.assert_called()
 
@@ -99,7 +97,7 @@ class TestSUBSTasks(SUBSTestCase):
         mock_extract_enable.return_value = True
         mock_message_enable.return_value = True
         mock_month_start.return_value = None
-        tasks.extract_subs_data_from_reports(reports)
+        tasks.extract_subs_data_from_reports(reports, self.metered_on)
         mock_extractor.return_value.extract_data_to_s3.assert_not_called()
         mock_task.assert_not_called()
 
@@ -120,7 +118,7 @@ class TestSUBSTasks(SUBSTestCase):
                 "tracing_id": self.tracing_id,
             }
         ]
-        tasks.extract_subs_data_from_reports(reports)
+        tasks.extract_subs_data_from_reports(reports, self.metered_on)
         mock_extract_enable.assert_not_called()
         mock_message_enable.assert_not_called()
         mock_month_start.assert_not_called()
@@ -146,8 +144,8 @@ class TestSUBSTasks(SUBSTestCase):
         ]
         mock_extract_enable.return_value = False
         mock_message_enable.return_value = True
-        tasks.extract_subs_data_from_reports(reports)
-        mock_extract_enable.assert_called_once_with(self.schema)
+        tasks.extract_subs_data_from_reports(reports, self.metered_off)
+        mock_extract_enable.assert_called_once_with(self.schema, self.metered_off)
         mock_month_start.assert_not_called()
         mock_extractor.assert_not_called()
         mock_message_enable.assert_not_called()
@@ -174,8 +172,8 @@ class TestSUBSTasks(SUBSTestCase):
         mock_message_enable.return_value = False
         expected_month_start = self.dh.month_start(self.yesterday)
         mock_month_start.return_value = expected_month_start
-        tasks.extract_subs_data_from_reports(reports)
-        mock_extract_enable.assert_called_once_with(self.schema)
+        tasks.extract_subs_data_from_reports(reports, self.metered_on)
+        mock_extract_enable.assert_called_once_with(self.schema, self.metered_on)
         mock_month_start.assert_called()
         mock_extractor.assert_called()
         mock_message_enable.assert_called_once_with(self.schema)
@@ -202,7 +200,7 @@ class TestSUBSTasks(SUBSTestCase):
             "start": self.yesterday.strftime("%Y-%m-%d"),
         }
         actual = tasks.get_month_start_from_report(report)
-        expected = self.dh.month_start(self.yesterday).replace(tzinfo=None)
+        expected = self.dh.month_start_utc(self.yesterday)
         self.assertEqual(expected, actual)
 
     def test_get_month_start_from_report_from_manifest(self):
@@ -230,3 +228,10 @@ class TestSUBSTasks(SUBSTestCase):
         report["manifest_id"] = -1
         actual = tasks.get_month_start_from_report(report)
         self.assertIsNone(actual)
+
+    def test_enable_subs_extraction(self):
+        """Test that different values for metered result in correct returns."""
+        test_table = {self.metered_on: True, self.metered_off: False, "rhel_is_the_best": False}
+        for meter_value, expected in test_table.items():
+            with self.subTest(meter_value=meter_value):
+                self.assertEqual(tasks.enable_subs_extraction(self.schema, meter_value), expected)

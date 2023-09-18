@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
+from pathlib import Path
 
 import pandas as pd
 from dateutil import parser
@@ -17,7 +18,6 @@ from dateutil.relativedelta import relativedelta
 from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper as dh
-from masu.config import Config
 
 
 LOG = logging.getLogger(__name__)
@@ -215,7 +215,7 @@ def get_report_details(report_directory):
         LOG.error("unable to extract manifest data", exc_info=exc)
         return {}
 
-    payload_dict["manifest_path"] = manifest_path
+    payload_dict["manifest_path"] = Path(manifest_path)
     # parse start and end dates if in manifest
     if payload_start := payload_dict.get("start"):
         payload_dict["start"] = parser.parse(payload_start)
@@ -285,7 +285,7 @@ def get_cluster_id_from_provider(provider_uuid):
 
     """
     cluster_id = None
-    if provider := Provider.objects.select_related("authentication").filter(uuid=provider_uuid).first():
+    if provider := Provider.objects.filter(uuid=provider_uuid).first():
         if not provider.authentication:
             LOG.warning(
                 f"cannot find cluster-id for provider-uuid: {provider_uuid} because it does not have credentials"
@@ -334,28 +334,6 @@ def get_provider_uuid_from_cluster_id(cluster_id):
         LOG.info(f"found provider: {provider_uuid} for cluster-id: {cluster_id}")
 
     return provider_uuid
-
-
-def poll_ingest_override_for_provider(provider_uuid):
-    """
-    Return whether or not the OpenShift provider should be treated like a POLLING provider.
-
-    The purpose of this is to continue to support back-door (no upload service) OpenShift
-    report ingest.  Used for development and local test automation.
-
-    On the masu-worker if the insights local directory exists for the given provider then
-    the masu orchestrator will treat it as a polling provider rather than listening.
-
-    Args:
-        provider_uuid (String): Provider UUID.
-
-    Returns:
-        (Boolean): True: OCP provider should be treated like a polling provider.
-
-    """
-    cluster_id = get_cluster_id_from_provider(provider_uuid)
-    local_ingest_path = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{str(cluster_id)}"
-    return os.path.exists(local_ingest_path)
 
 
 def detect_type(report_path):

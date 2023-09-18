@@ -540,7 +540,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context=None
+    request_id, s3_path, full_file_path, local_filename, manifest_id, context=None
 ):
     """
     Copies local report file to s3 bucket
@@ -581,9 +581,10 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
     # We do this if we have multiple workers running different files for a single manifest.
     processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
     if processing_date:
+        # Prevent other works running trino queries until all files are removed.
         clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
         return processing_date
-    processing_date = start_date.replace(tzinfo=None)
+    processing_date = start_date
     try:
         s3_date = None
         for obj_summary in _get_s3_objects(csv_s3_path):
@@ -599,10 +600,11 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
             process_date = s3_date if s3_date < end_date else end_date
             processing_date = (
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
-            ).replace(tzinfo=None)
-            ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
-            # clear s3 files for processing dates
-            clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
+            )
+            # Set processing date for all workers
+            processing_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+        # Try to clear s3 files for dates. Small edge case, we may have parquet files even without csvs
+        clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
@@ -616,7 +618,7 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
                 bucket=settings.S3_BUCKET_NAME,
             ),
         )
-        ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+        processing_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
         to_delete = get_s3_objects_not_matching_metadata(
             request_id,
             csv_s3_path,
@@ -634,29 +636,68 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
     return processing_date
 
 
-def filter_s3_objects_less_than(request_id, keys, *, metadata_key, metadata_value_check, context=None):
+def safe_str_int_conversion(value):
+    """Convert string to integer safely. If conversion fails or value is empty/None, return None."""
+    try:
+        return int(value) if value and value.strip() != "" else None
+    except ValueError:
+        return None
+
+
+def filter_s3_objects_less_than(
+    request_id: str,
+    keys: t.List[str],
+    metadata_key: str,
+    metadata_value_check: str,
+    context: t.Optional[t.Dict] = None,
+) -> t.List[str]:
+    """Filter S3 object keys based on a metadata key integer value comparison.
+
+    Parameters:
+    - request_id (str): The ID associated with the request or process.
+    - keys (list): A list of S3 object keys to be filtered.
+    - metadata_key (str): The metadata key used for the value comparison.
+    - metadata_value_check (str): The string value to be converted to an integer for comparison.
+    - context (dict, optional): Additional context for logging. Defaults to an empty dict.
+
+    Returns:
+    - list: A list of keys.
+
+    Exceptions:
+    - Logs both EndpointConnectionError and ClientError exceptions.
+    """
+    int_metadata_value_check = safe_str_int_conversion(metadata_value_check)
+    if int_metadata_value_check is None:
+        return []
+
     if context is None:
         context = {}
+
     s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
-    try:
-        filtered = []
-        for key in keys:
+
+    filtered = []
+    for key in keys:
+        try:
             obj = s3_resource.Object(settings.S3_BUCKET_NAME, key)
             metadata_value = obj.metadata.get(metadata_key)
-            if metadata_value < metadata_value_check:
+            int_metadata_value = safe_str_int_conversion(metadata_value)
+
+            if int_metadata_value is not None and int_metadata_value < int_metadata_value_check:
                 filtered.append(key)
-        return filtered
-    except (EndpointConnectionError, ClientError) as err:
-        LOG.warning(
-            log_json(
-                request_id,
-                msg="unable to get matching data in bucket",
-                context=context,
-                bucket=settings.S3_BUCKET_NAME,
-            ),
-            exc_info=err,
-        )
-    return []
+
+        except (EndpointConnectionError, ClientError) as err:
+            LOG.warning(
+                log_json(
+                    request_id,
+                    msg="unable to get matching data in bucket",
+                    context=context,
+                    bucket=settings.S3_BUCKET_NAME,
+                ),
+                exc_info=err,
+            )
+            filtered = []
+
+    return filtered
 
 
 def get_s3_objects_matching_metadata(

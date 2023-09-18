@@ -34,13 +34,7 @@ SUBS_ACCEPTED_PROVIDERS = (
 )
 
 
-def check_subs_source_gate(schema_name: str) -> bool:  # pragma: no cover
-    """Checks if the specific source is selected for RHEL Metered processing."""
-    # TODO: COST-4033 implement sources gate
-    return False
-
-
-def enable_subs_extraction(schema_name: str) -> bool:  # pragma: no cover
+def enable_subs_extraction(schema_name: str, metered: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for SUBS extraction."""
     schema_name = convert_account(schema_name)
     context = {"schema": schema_name}
@@ -48,7 +42,7 @@ def enable_subs_extraction(schema_name: str) -> bool:  # pragma: no cover
     return bool(
         UNLEASH_CLIENT.is_enabled("cost-management.backend.subs-data-extraction", context)
         or settings.ENABLE_SUBS_DEBUG
-        or check_subs_source_gate(schema_name)
+        or metered == "rhel"
     )
 
 
@@ -66,7 +60,7 @@ def get_month_start_from_report(report):
     """Gets the month start as a datetime from a report"""
     if report.get("start"):
         start_date = parser.parse(report.get("start"))
-        return DateHelper().month_start(start_date)
+        return DateHelper().month_start_utc(start_date)
     else:
         # GCP and OCI set report start and report end, AWS/Azure do not
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -75,7 +69,7 @@ def get_month_start_from_report(report):
 
 
 @celery_app.task(name="subs.tasks.extract_subs_data_from_reports", queue=SUBS_EXTRACTION_QUEUE)
-def extract_subs_data_from_reports(reports_to_extract):
+def extract_subs_data_from_reports(reports_to_extract, metered):
     """Extract relevant subs records from reports to S3 and trigger messaging task if reports are gathered."""
     reports = [report for report in reports_to_extract if report]
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
@@ -88,7 +82,7 @@ def extract_subs_data_from_reports(reports_to_extract):
         if provider_type not in SUBS_ACCEPTED_PROVIDERS:
             LOG.info(log_json(tracing_id, msg="provider type not valid for subs processing", context=context))
             continue
-        if not enable_subs_extraction(schema_name):
+        if not enable_subs_extraction(schema_name, metered):
             LOG.info(log_json(tracing_id, msg="subs processing not enabled for provider", context=context))
             continue
         month_start = get_month_start_from_report(report)
