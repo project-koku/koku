@@ -18,8 +18,7 @@ from dateutil.relativedelta import relativedelta
 from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper as dh
-from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
+
 
 LOG = logging.getLogger(__name__)
 
@@ -286,19 +285,14 @@ def get_cluster_id_from_provider(provider_uuid):
 
     """
     cluster_id = None
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider_type = provider_accessor.get_type()
-
-    if provider_type not in (Provider.PROVIDER_OCP,):
-        err_msg = f"Provider UUID is not an OpenShift type.  It is {provider_type}"
-        LOG.warning(err_msg)
-        return cluster_id
-
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        credentials = provider_accessor.get_credentials()
-        if credentials:
-            cluster_id = credentials.get("cluster_id")
-
+    if provider := Provider.objects.filter(uuid=provider_uuid).first():
+        if not provider.authentication:
+            LOG.warning(
+                f"cannot find cluster-id for provider-uuid: {provider_uuid} because it does not have credentials"
+            )
+            return cluster_id
+        cluster_id = provider.authentication.credentials.get("cluster_id")
+        LOG.info(f"found cluster_id: {cluster_id} for provider-uuid: {provider_uuid}")
     return cluster_id
 
 
@@ -314,13 +308,11 @@ def get_cluster_alias_from_cluster_id(cluster_id):
 
     """
     cluster_alias = None
-    auth_id = None
     credentials = {"cluster_id": cluster_id}
-    with ProviderAuthDBAccessor(credentials=credentials) as auth_accessor:
-        auth_id = auth_accessor.get_auth_id()
-        if auth_id:
-            with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
-                cluster_alias = provider_accessor.get_provider_name()
+    if provider := Provider.objects.filter(authentication__credentials=credentials).first():
+        cluster_alias = provider.name
+        LOG.info(f"found cluster_alias: {cluster_alias} for cluster-id: {cluster_id}")
+
     return cluster_alias
 
 
@@ -337,10 +329,9 @@ def get_provider_uuid_from_cluster_id(cluster_id):
     """
     provider_uuid = None
     credentials = {"cluster_id": cluster_id}
-    provider = Provider.objects.filter(authentication__credentials=credentials).first()
-    if provider:
+    if provider := Provider.objects.filter(authentication__credentials=credentials).first():
         provider_uuid = str(provider.uuid)
-        LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
+        LOG.info(f"found provider: {provider_uuid} for cluster-id: {cluster_id}")
 
     return provider_uuid
 
