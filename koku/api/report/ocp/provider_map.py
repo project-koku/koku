@@ -159,9 +159,10 @@ class OCPProviderMap(ProviderMap):
                     },
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
-                "tag_column": "all_labels",
+                "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {
+                        "tag_column": "all_labels",
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -211,6 +212,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
+                        "tag_column": "all_labels",
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -282,6 +284,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "cpu": {
+                        "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_cpu_supplementary_cost,
@@ -373,6 +376,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
+                        "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_memory_supplementary_cost,
