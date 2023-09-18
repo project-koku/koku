@@ -88,7 +88,7 @@ class ProviderDBAccessorTest(MasuTestCase):
         """Test provider billing_source getter."""
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(self.customer.uuid, accessor.get_customer_uuid())
+            self.assertEqual(str(self.customer.uuid), accessor.get_customer_uuid())
 
     def test_get_customer_name(self):
         """Test provider customer getter."""
