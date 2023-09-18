@@ -39,7 +39,9 @@ def get_ros_s3_client():  # pragma: no cover
 def generate_s3_object_url(client, upload_key):  # pragma: no cover
     """Generate an accessible URL for an S3 object with an expiration time of 48 hours"""
     return client.generate_presigned_url(
-        ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=172800
+        ClientMethod="get_object",
+        Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key},
+        ExpiresIn=masu_config.ROS_URL_EXPIRATION,
     )
 
 
