@@ -73,7 +73,7 @@ def purge_trino_files(request):  # noqa: C901
     # Use ParquetReportProcessor to build s3 paths
     pq_processor_object = ParquetReportProcessor(
         schema_name=schema,
-        report_path=None,
+        report_path="",
         provider_uuid=provider_uuid,
         provider_type=provider_type,
         manifest_id=None,

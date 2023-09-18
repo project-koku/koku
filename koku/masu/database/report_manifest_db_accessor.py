@@ -246,20 +246,20 @@ class ReportManifestDBAccessor(KokuDBAccess):
         )
         return result
 
-    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type: str = None) -> bool:
+    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_key: str = None) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
         if not manifest:
             return False
-        if manifest.cluster_id and report_type:
-            return manifest.s3_parquet_cleared_tracker.get(report_type)
+        if manifest.cluster_id and report_key:
+            return manifest.s3_parquet_cleared_tracker.get(report_key)
         return manifest.s3_parquet_cleared
 
-    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type: str = None) -> None:
+    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_key: str = None) -> None:
         """Mark Parquet files have been cleared from S3 for this manifest."""
         if not manifest:
             return
-        if manifest.cluster_id and report_type:
-            manifest.s3_parquet_cleared_tracker[report_type] = True
+        if manifest.cluster_id and report_key:
+            manifest.s3_parquet_cleared_tracker[report_key] = True
             update_fields = ["s3_parquet_cleared_tracker"]
         else:
             manifest.s3_parquet_cleared = True
@@ -279,12 +279,18 @@ class ReportManifestDBAccessor(KokuDBAccess):
         Mark manifest processing daily archive start date.
         Used to prevent grabbing different starts from partial processed data
         """
+        date.replace(tzinfo=None)
+        # Be race condition aware
         with transaction.atomic():
-            # Be race condition aware
+            # Check one last time another worker has not set this already
+            check_processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+            if check_processing_date:
+                return check_processing_date
             manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
             if manifest:
                 manifest.daily_archive_start_date = date
                 manifest.save(update_fields=["daily_archive_start_date"])
+                return date
 
     def get_manifest_daily_start_date(self, manifest_id):
         """
@@ -308,20 +314,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.report_tracker[day] = counter + 1
             manifest.save(update_fields=["report_tracker"])
             return f"{day}_manifestid-{manifest_id}_{counter}.csv"
-
-    def update_and_get_parquet_batch_counter(self, day, manifest_id):
-        """This is needed for OCP on Cloud filtered daily parquet files"""
-        with transaction.atomic():
-            # With split payloads, we could have a race condition trying to update the `report_tracker`.
-            # using a transaction and `select_for_update` should minimize the risk of multiple
-            # workers trying to update this field at the same time by locking the manifest during update.
-            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
-            if not manifest.report_tracker.get(day):
-                manifest.report_tracker[day] = 0
-            counter = manifest.report_tracker[day]
-            manifest.report_tracker[day] = counter + 1
-            manifest.save(update_fields=["report_tracker"])
-            return counter
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""

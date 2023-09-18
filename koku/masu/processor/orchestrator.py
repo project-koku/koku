@@ -263,7 +263,10 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                subs_task = extract_subs_data_from_reports.s().set(queue=SUBS_EXTRACTION_QUEUE)
+                # data source contains fields from applications.extra and metered is the key that gates subs processing.
+                subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
+                    queue=SUBS_EXTRACTION_QUEUE
+                )
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
             else:
                 async_id = group(report_tasks)()
