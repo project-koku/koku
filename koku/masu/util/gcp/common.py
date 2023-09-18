@@ -12,7 +12,6 @@ from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -202,10 +201,10 @@ def deduplicate_reports_for_gcp(report_list):
 
 def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
-    account = AccountsAccessor().get_accounts(gcp_provider_uuid)
-    if account != []:
-        if is_gcp_resource_matching_disabled(account[0].get("schema_name")):
-            LOG.info(f"GCP resource matching disabled for {account[0].get('schema_name')}")
+    if provider := Provider.objects.filter(uuid=gcp_provider_uuid).first():
+        account = provider.account
+        if is_gcp_resource_matching_disabled(account.get("schema_name")):
+            LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
             return False
     else:
         LOG.info("Account not returned, source likely has processing suspended.")
