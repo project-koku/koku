@@ -16,8 +16,10 @@ KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
 MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
-DOCKER_BUILDKIT = 1
 scale = 1
+
+export DOCKER_BUILDKIT = 1
+export USER_ID ?= $(shell id -u)
 
 # Prefer Docker Compose v2
 DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
@@ -168,10 +170,10 @@ delete-testing:
 	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 delete-trino:
-	$(PREFIX) rm -fr ./.trino/
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
 
 delete-trino-data:
-	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/**
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/{*,.minio*}
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -212,7 +214,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data
+	$(PREFIX) rm -rf $(TOPDIR)/pg_data/*
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -350,7 +352,7 @@ docker-up-no-build: docker-up-db
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
-docker-up-min-no-build: docker-up-db
+docker-up-min-no-build: docker-host-dir-setup docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets
@@ -399,9 +401,14 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-docker-trino-setup: delete-trino
-	mkdir -p -m a+rwx ./.trino
-	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
+CONTAINER_DIRS = $(TOPDIR)/pg_data $(TOPDIR)/.trino/{parquet_data,trino}
+docker-host-dir-setup:
+	$(DOCKER_COMPOSE) build --no-cache koku-minio
+	mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
+	chown -R $(USER_ID) $(CONTAINER_DIRS)
+	chmod 0755 $(CONTAINER_DIRS)
+
+docker-trino-setup: delete-trino docker-host-dir-setup
 
 docker-trino-up: docker-trino-setup
 	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
