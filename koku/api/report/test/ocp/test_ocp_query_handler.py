@@ -769,7 +769,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ["tag:" + group_by_key])
 
-    def test__build_prefix_filters(self):
+    def test_build_prefix_filters(self):
         """Test that tag filters are created properly."""
         filter_collection = QueryFilterCollection()
 
@@ -795,7 +795,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             filter_collection, handler._mapper.tag_column, filter_keys, TAG_PREFIX
         )
 
-        expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('pod_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('pod_labels__{group_by_key}__icontains', '{group_by_value}')), """  # noqa: E501
+        expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('all_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('all_labels__{group_by_key}__icontains', '{group_by_value}')), """  # noqa: E501
 
         self.assertEqual(repr(filter_collection), expected)
 
@@ -813,7 +813,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
         group_by = handler._get_tag_group_by()
         group = group_by[0]
-        expected = "pod_labels__" + group_by_key
+        expected = "all_labels__" + group_by_key
         self.assertEqual(len(group_by), 1)
         self.assertEqual(group[0], expected)
 
