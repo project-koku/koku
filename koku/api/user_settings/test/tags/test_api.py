@@ -285,7 +285,7 @@ class TagsSettings(IamTestCase):
         uuids = [obj.uuid for obj in self.disabled_objs]
 
         # Set the limit slightly more than the current number of enabled tags
-        with patch("api.deprecated_settings.tags.view.Config", ENABLED_TAG_LIMIT=len(self.enabled_objs) + 4):
+        with patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=len(self.enabled_objs) + 4):
             with schema_context(self.schema_name):
                 client = rest_framework.test.APIClient()
                 enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
@@ -317,7 +317,7 @@ class TagsSettings(IamTestCase):
         uuids = [obj.uuid for obj in self.disabled_objs[:count_to_limit]]
 
         # Set the limit slightly more than the current number of enabled tags
-        with patch("api.deprecated_settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
+        with patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
             with schema_context(self.schema_name):
                 client = rest_framework.test.APIClient()
                 enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
@@ -338,7 +338,7 @@ class TagsSettings(IamTestCase):
         uuids = [obj.uuid for obj in self.disabled_objs[: count_to_limit + 1]]
 
         # Set the limit slightly more than the current number of enabled tags
-        with patch("api.deprecated_settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
+        with patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
             with schema_context(self.schema_name):
                 client = rest_framework.test.APIClient()
                 enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
