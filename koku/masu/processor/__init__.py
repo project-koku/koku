@@ -7,6 +7,7 @@ import logging
 from uuid import UUID
 
 from django.conf import settings
+from django.core.cache import caches
 
 from api.common import log_json
 from koku.feature_flags import fallback_development_true
@@ -168,3 +169,34 @@ def check_ingress_columns(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
+
+
+def get_cache_feature_cost_3083_all_labels(cache_key):
+    cache = caches["default"]
+    return cache.get(cache_key)
+
+
+def set_cache_feature_cost_3083_all_labels(cache_key, tag_column):
+    cache = caches["default"]
+    return cache.set(cache_key, tag_column, timeout=3600)
+
+
+def feature_cost_3083_all_labels(account):
+    """Should all labels column be enabled."""
+    unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+    account = convert_account(account)
+    cache_key = f"{unleash_flag}-{account}"
+    tag_column = get_cache_feature_cost_3083_all_labels(cache_key)
+    if tag_column:
+        return tag_column
+    context = {"schema": account}
+    # TODO:
+    # Don't want to turn fallback for development to True
+    # until I get a chance to fix the smoke tests.
+    res = UNLEASH_CLIENT.is_enabled(unleash_flag, context)
+    if res:
+        tag_column = "all_labels"
+    else:
+        tag_column = "pod_labels"
+    set_cache_feature_cost_3083_all_labels(cache_key, tag_column)
+    return tag_column
