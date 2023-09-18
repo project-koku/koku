@@ -90,6 +90,7 @@ from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
 from api.views import SettingsEnableTagView
 from api.views import SettingsTagView
+from api.views import SettingsView
 from api.views import StatusView
 from api.views import UserAccessView
 from api.views import UserCostTypeSettings
@@ -344,6 +345,7 @@ urlpatterns = [
     ),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
+    path("settings/", SettingsView.as_view(), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
     path(
         "settings/aws_category_keys/enable/",
