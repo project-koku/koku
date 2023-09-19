@@ -74,7 +74,8 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
 
     def get_queryset(self):
         """Return a Queryset of non-OCP and active and non-paused Providers."""
-        return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
+        excludes = {} if settings.DEBUG else {"type": Provider.PROVIDER_OCP}
+        return super().get_queryset().filter(active=True, paused=False).exclude(**excludes)
 
     def get_polling_batch(self, limit=-1, offset=0):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
