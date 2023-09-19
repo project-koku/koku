@@ -62,10 +62,10 @@ def report_data(request):
         queue_name = params.get("queue") or fallback_queue
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         if queue_name not in QUEUE_LIST:
             errmsg = f"'queue' must be one of {QUEUE_LIST}."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider_uuid == "*":
             all_providers = True
@@ -75,13 +75,13 @@ def report_data(request):
                 provider_schema = provider_accessor.get_schema()
             if provider_schema != schema_name:
                 errmsg = f"provider_uuid {provider_uuid} is not associated with schema {schema_name}."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         else:
             provider = provider_type
 
         if start_date is None:
             errmsg = "start_date is a required parameter."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         # For GCP invoice month summary periods
         if not invoice_month:
@@ -99,15 +99,15 @@ def report_data(request):
         if not all_providers:
             if schema_name is None:
                 errmsg = "schema is a required parameter."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
             if provider is None:
                 errmsg = "Unable to determine provider type."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
             if provider_type and provider_type != provider:
                 errmsg = "provider_uuid and provider_type have mismatched provider types."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
             for month in months:
                 async_result = update_summary_tables.s(
@@ -131,14 +131,14 @@ def report_data(request):
             ]
             if not provider_type:
                 errmsg = "provider_type is required when resummarizing all"
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             if provider_type not in provider_list:
                 errmsg = f"unrecongized provider_type: {provider_type}"
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             key_exist, timeout = get_cached_resummarize_by_provider_type(provider_type)
             if key_exist:
                 errmsg = f"provider_type ({provider_type}) still disabled for {round(timeout/60, 2)} minutes"
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
             key_set = set_cached_resummarize_by_provider_type(provider_type)
 
@@ -159,19 +159,19 @@ def report_data(request):
 
         if schema_name is None:
             errmsg = "schema is a required parameter."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider is None:
             errmsg = "provider is a required parameter."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider_uuid is None:
             errmsg = "provider_uuid is a required parameter."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if simulate is not None and simulate.lower() not in ("true", "false"):
             errmsg = "simulate must be a boolean."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         simulate = simulate is not None and simulate.lower() == "true"
         LOG.info("Calling remove_expired_data async task.")
