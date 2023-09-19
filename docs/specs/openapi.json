@@ -5668,6 +5668,16 @@
                     "401": {
                         "description": "Unauthorized"
                     },
+                    "412": {
+                        "description": "Request would exceed enabled tags limit",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SettingsTagsEnabledLimitError"
+                                }
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Unexpected Error",
                         "content": {
@@ -9977,6 +9987,22 @@
                                 }
                             ]
                         }
+                    }
+                }
+            },
+            "SettingsTagsEnabledLimitError": {
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "default": "The maximum number of enabled tags is 200."
+                    },
+                    "enabled": {
+                        "type": "integer",
+                        "example": 187
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "example": 200
                     }
                 }
             },

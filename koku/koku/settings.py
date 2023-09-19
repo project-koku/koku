@@ -527,6 +527,8 @@ PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default
 
 # Flag for automatic data ingest on Provider create
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
+POLLING_BATCH_SIZE = ENVIRONMENT.int("POLLING_BATCH_SIZE", default=100)
+POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=86400)
 QE_SCHEMA = ENVIRONMENT.get_value("QE_SCHEMA", default=None)
 
 # Flag for maximum retries for source delete before proceeding

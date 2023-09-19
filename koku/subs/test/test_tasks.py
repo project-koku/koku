@@ -72,7 +72,7 @@ class TestSUBSTasks(SUBSTestCase):
         ]
         mock_extract_enable.return_value = True
         mock_message_enable.return_value = True
-        expected_month_start = self.dh.month_start(self.yesterday).replace(tzinfo=None)
+        expected_month_start = self.dh.month_start_utc(self.yesterday)
         tasks.extract_subs_data_from_reports(reports, "rhel")
         mock_extractor.return_value.extract_data_to_s3.assert_called_once_with(expected_month_start)
         mock_task.assert_called()
@@ -200,7 +200,7 @@ class TestSUBSTasks(SUBSTestCase):
             "start": self.yesterday.strftime("%Y-%m-%d"),
         }
         actual = tasks.get_month_start_from_report(report)
-        expected = self.dh.month_start(self.yesterday).replace(tzinfo=None)
+        expected = self.dh.month_start_utc(self.yesterday)
         self.assertEqual(expected, actual)
 
     def test_get_month_start_from_report_from_manifest(self):

@@ -7,7 +7,7 @@ USER root
 RUN groupadd -g ${USER_ID} kminio \
     && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root kminio \
     && mkdir /data || true \
-    && chown root:root /data \
+    && chown kminio:root /data \
     && chmod u+rwx /data \
     && chmod g+rwx /opt
 
