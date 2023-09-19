@@ -330,26 +330,22 @@ class GCPReportDBAccessorTest(MasuTestCase):
             ocp_provider.save()
             with self.subTest(distribution=distribution):
                 expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
-                with patch(
-                    "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
-                    Mock(return_value={"table_id": "resource"}),
-                ):
-                    with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-                        self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
-                            start_date,
-                            end_date,
-                            self.ocp_provider_uuid,
-                            self.ocp_cluster_id,
-                            self.gcp_provider_uuid,
-                            self.ocp_cluster_id,
-                            current_bill_id,
-                            markup_value,
-                            distribution,
-                        )
-                        mock_trino.assert_called()
-                        mock_delete.assert_called()
-                        mock_month_delete.assert_called()
-                        self.assertIn(expected_log, logger.output)
+                with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+                    self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
+                        start_date,
+                        end_date,
+                        self.ocp_provider_uuid,
+                        self.ocp_cluster_id,
+                        self.gcp_provider_uuid,
+                        self.ocp_cluster_id,
+                        current_bill_id,
+                        markup_value,
+                        distribution,
+                    )
+                    mock_trino.assert_called()
+                    mock_delete.assert_called()
+                    mock_month_delete.assert_called()
+                    self.assertIn(expected_log, logger.output)
 
     def test_get_openshift_on_cloud_matched_tags(self):
         """Test that matched tags are returned."""
