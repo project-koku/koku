@@ -5,14 +5,11 @@
 """Test the OCP util."""
 import copy
 import json
-import os
-import shutil
 import tempfile
 from unittest.mock import patch
 from uuid import UUID
 
 from api.provider.models import Provider
-from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -58,6 +55,12 @@ class OCPUtilTests(MasuTestCase):
         cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
         self.assertIsNotNone(cluster_alias)
 
+    def test_get_cluster_alias_from_cluster_id_non_existent_cluster_id(self):
+        """Test that the cluster alias is returned from cluster_id."""
+        cluster_id = "not a real cluster id"
+        cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
+        self.assertIsNone(cluster_alias)
+
     def test_get_provider_uuid_from_cluster_id(self):
         """Test that the provider uuid is returned for a cluster ID."""
         cluster_id = self.ocp_cluster_id
@@ -72,16 +75,6 @@ class OCPUtilTests(MasuTestCase):
         cluster_id = "bad_cluster_id"
         provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
         self.assertIsNone(provider_uuid)
-
-    def test_poll_ingest_override_for_provider(self):
-        """Test that OCP polling override returns True if insights local path exists."""
-        fake_dir = tempfile.mkdtemp()
-        with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
-            cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
-            expected_path = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{cluster_id}/"
-            os.makedirs(expected_path, exist_ok=True)
-            self.assertTrue(utils.poll_ingest_override_for_provider(self.ocp_test_provider_uuid))
-        shutil.rmtree(fake_dir)
 
     def test_match_openshift_labels(self):
         """Test that a label match returns."""

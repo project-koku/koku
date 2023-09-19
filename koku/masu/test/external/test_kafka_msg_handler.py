@@ -23,8 +23,6 @@ from requests.exceptions import HTTPError
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
 from masu.config import Config
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
@@ -155,6 +153,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         no_manifest_file.close()
 
         self.ros_tarball_file = ros_payload_file.read()
+        ros_payload_file.close()
 
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
@@ -815,7 +814,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
-            with patch("masu.external.kafka_msg_handler.open") as mock_oserror:
+            with patch("masu.external.kafka_msg_handler.Path.write_bytes") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                     msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
@@ -903,11 +902,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertIsNotNone(ocp_account)
         self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
 
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_get_account_exception(self, mock_accessor):
+    def test_get_account_exception(self):
         """Test that no account is returned upon exception."""
-        mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
-        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id")
+        ocp_account = msg_handler.get_account(uuid.uuid4(), "test_request_id")
         self.assertIsNone(ocp_account)
 
     def test_delivery_callback(self):
@@ -919,14 +916,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.ERROR):
             msg_handler.delivery_callback(err, msg)
-
-    @patch("masu.external.kafka_msg_handler.create_daily_archives", return_value=[])
-    def test_construct_parquet_reports(self, mock_daily_archives):
-        """Test construct parquet reports."""
-        report_meta = {"account": "testaccount", "provider_uuid": "abc", "manifest_id": 1, "date": "today"}
-
-        reports = msg_handler.construct_daily_archives(1, "context", report_meta, "/payload/path", "report_file")
-        self.assertEqual(reports, [])
 
     def test_summarize_manifest_called_with_XL_queue(self):
         """Test report summarization."""

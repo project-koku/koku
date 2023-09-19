@@ -4,6 +4,8 @@
 #
 """Models for provider management."""
 import logging
+from datetime import datetime
+from datetime import timedelta
 from uuid import uuid4
 
 from django.conf import settings
@@ -13,6 +15,7 @@ from django.db import models
 from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
+from django.db.models.query import QuerySet
 from django.db.models.signals import post_delete
 from django_tenants.utils import schema_context
 
@@ -42,6 +45,45 @@ class ProviderBillingSource(models.Model):
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
     data_source = JSONField(null=False, default=dict)
+
+
+class ProviderObjectsManager(models.Manager):
+    """Default manager for Provider model."""
+
+    def get_queryset(self) -> QuerySet:
+        """
+        Override the default queryset to select the authentication, billing_source, and customer fields.
+
+        This override gives us access to these other fields without needing extra db queries. This make
+        the `account` property of the Provider table a single db query instead of one for each foreign key
+        lookup. This class should be used as a base class for any new managers created for the Provider model.
+        """
+        return super().get_queryset().select_related("authentication", "billing_source", "customer")
+
+    def get_accounts(self):
+        """Return a list of all accounts."""
+        return [p.account for p in self.all()]
+
+
+class ProviderObjectsPollingManager(ProviderObjectsManager):
+    """
+    Manager for pollable Providers.
+
+    Pollable Providers are all Providers that are not OCP.
+    """
+
+    def get_queryset(self):
+        """Return a Queryset of non-OCP and active and non-paused Providers."""
+        return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
+
+    def get_polling_batch(self, limit=-1, offset=0):
+        """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
+        polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
+        if limit < 1:
+            # Django can't do negative indexing, so just return all the Providers.
+            # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
+            return self.exclude(polling_timestamp__gt=polling_delta)
+        return self.exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
 
 
 class Provider(models.Model):
@@ -154,6 +196,21 @@ class Provider(models.Model):
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
     additional_context = JSONField(null=True, default=dict)
+
+    objects = ProviderObjectsManager()
+    polling_objects = ProviderObjectsPollingManager()
+
+    @property
+    def account(self) -> dict:
+        """Return account information in dictionary."""
+        return {
+            "customer_name": getattr(self.customer, "schema_name", None),
+            "credentials": getattr(self.authentication, "credentials", None),
+            "data_source": getattr(self.billing_source, "data_source", None),
+            "provider_type": self.type,
+            "schema_name": getattr(self.customer, "schema_name", None),
+            "provider_uuid": self.uuid,
+        }
 
     def save(self, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""

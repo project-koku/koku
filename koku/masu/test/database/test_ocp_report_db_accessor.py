@@ -601,16 +601,12 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
         expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
-        with patch(
-            "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
-            Mock(return_value={"table_id": "resource"}),
-        ):
-            with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-                self.accessor.get_ocp_infrastructure_map_trino(
-                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
-                )
-                mock_trino.assert_called()
-                self.assertIn(expected_log, logger.output)
+        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+            self.accessor.get_ocp_infrastructure_map_trino(
+                start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+            )
+            mock_trino.assert_called()
+            self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
