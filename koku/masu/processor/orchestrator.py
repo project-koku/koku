@@ -70,15 +70,13 @@ class Orchestrator:
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     def get_polling_batch(self):
-        if self.scheduled:
-            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE)
+        if not self.scheduled and self.provider_uuid:
+            providers = Provider.objects.filter(uuid=self.provider_uuid)
         else:
             filters = {}
             if self.provider_type:
                 filters["type"] = self.provider_type
-            if self.provider_uuid:
-                filters["uuid"] = self.provider_uuid
-            providers = Provider.objects.filter(**filters)
+            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
 
         batch = []
         for provider in providers:
