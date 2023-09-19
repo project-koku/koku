@@ -54,7 +54,7 @@ class Orchestrator:
         self,
         provider_uuid=None,
         provider_type=None,
-        scheduled=False,
+        scheduled=True,
         bill_date=None,
         queue_name=None,
         **kwargs,
@@ -71,8 +71,17 @@ class Orchestrator:
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     def get_polling_batch(self):
+        if self.scheduled:
+            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE)
+        else:
+            filters = {}
+            if self.provider_type:
+                filters["type"] = self.provider_type
+            if self.provider_uuid:
+                filters["uuid"] = self.provider_uuid
+            providers = Provider.objects.filter(**filters)
+
         batch = []
-        providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE)
         for provider in providers:
             provider.polling_timestamp = DH.now_utc
             provider.save(update_fields=["polling_timestamp"])
@@ -279,9 +288,15 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        for account in self.get_polling_batch():
+        accounts = self.get_polling_batch()
+        if not accounts:
+            LOG.info("no accounts to be polled")
+
+        for account in accounts:
             provider_uuid = account.get("provider_uuid")
             provider_type = account.get("provider_type")
+
+            LOG.info(log_json(msg="polling for account", provider_uuid=provider_uuid))
 
             if provider_type in [
                 Provider.PROVIDER_OCI,

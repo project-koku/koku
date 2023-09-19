@@ -496,3 +496,19 @@ class OrchestratorTest(MasuTestCase):
         orchestrator = Orchestrator(bill_date=dh.today)
         result = orchestrator.get_reports(self.aws_provider_uuid)
         self.assertEqual(result, expected)
+
+    @patch("masu.processor.orchestrator.WorkerCache")
+    def test_orchestrator_args_polling_batch(self, *args):
+        """Test that args to Orchestrator change the polling-batch result"""
+        o = Orchestrator(
+            provider_uuid=self.aws_provider_uuid,
+            scheduled=False,
+        )
+        p = o.get_polling_batch()
+        self.assertEqual(len(p), 1)
+
+        expected_providers = Provider.objects.filter(type=Provider.PROVIDER_AWS)
+        o = Orchestrator(scheduled=False, provider_type="AWS")
+
+        p = o.get_polling_batch()
+        self.assertEqual(len(p), expected_providers.count())
