@@ -12,6 +12,7 @@ from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
@@ -56,7 +57,7 @@ PROVIDER_REPORT_TYPE_MAP = {
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
-    LOG.info("checking for report updates")
+    LOG.info(log_json(msg="checking for report updates", args=args, kwargs=kwargs))
     orchestrator.prepare()
 
 
