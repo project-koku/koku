@@ -202,7 +202,7 @@ class OCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "capacity_dataclass": {},
+                        "capacity_aggregate": {},
                         "delta_key": {
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                         },
@@ -267,7 +267,7 @@ class OCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "capacity_dataclass": {},
+                        "capacity_aggregate": {},
                         "delta_key": {
                             "cost_total": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
@@ -301,7 +301,7 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
                         },
-                        "capacity_dataclass": {
+                        "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_cpu_core_hours"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
@@ -396,7 +396,7 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
                         },
-                        "capacity_dataclass": {
+                        "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
@@ -515,7 +515,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "default_ordering": {"usage": "desc"},
-                        "capacity_dataclass": {
+                        "capacity_aggregate": {
                             "cluster_instance_counts": {
                                 "capacity_count": Sum(
                                     Coalesce(

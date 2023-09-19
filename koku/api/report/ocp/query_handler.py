@@ -123,9 +123,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         if is_grouped_by_node(self.parameters):
             # This adds the instance counts to the node group by.
-            if self._mapper.report_type_map.get("capacity_dataclass", {}).get("node"):
+            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
                 self.report_annotations.update(
-                    self._mapper.report_type_map.get("capacity_dataclass", {}).get("node", {})
+                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
                 )
 
         return annotations
@@ -275,7 +275,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             _class = NodeCapacity if is_grouped_by_node(self.parameters) else ClusterCapacity
             capacity = _class(self._mapper.report_type_map, query, self.resolution)
-            if not capacity.capacity_dataclass:
+            if not capacity.capacity_aggregate:
                 # short circuit for if the capacity dataclass in report provider map
                 return query_data, {}
             capacity.populate_dataclass()

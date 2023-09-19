@@ -46,12 +46,12 @@ class ClusterCapacity:
     count_by_cluster: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
 
     @property
-    def capacity_dataclass(self):
-        return self.report_type_map.get("capacity_dataclass", {})
+    def capacity_aggregate(self):
+        return self.report_type_map.get("capacity_aggregate", {})
 
     @property
     def capacity_annotations(self):
-        return self.capacity_dataclass.get("cluster", {})
+        return self.capacity_aggregate.get("cluster", {})
 
     @property
     def count_units(self):
@@ -59,7 +59,7 @@ class ClusterCapacity:
 
     @property
     def count_annotations(self):
-        return self.capacity_dataclass.get("cluster_instance_counts", {})
+        return self.capacity_aggregate.get("cluster_instance_counts", {})
 
     def __post_init__(self):
         self._populate_count_values()

@@ -39,9 +39,9 @@ class ClusterCapacityDataclassTest(IamTestCase):
         """Test that the volume map has the required mappings."""
         for report_type in ["costs", "costs_by_project"]:
             report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
-            self.assertEqual(report_type_map.get("capacity_dataclass"), {})
+            self.assertEqual(report_type_map.get("capacity_aggregate"), {})
 
-    def test_capacity_dataclass_values_in_provider_map(self):
+    def test_capacity_aggregate_values_in_provider_map(self):
         """Test the required structure exist in the provider map for the dataclass."""
         # Used to confirm the dictionary structure for the dataclass exists in the
         # provider map.
@@ -49,17 +49,17 @@ class ClusterCapacityDataclassTest(IamTestCase):
             with self.subTest(report_type=report_type):
                 report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
                 self.assertTrue(report_type_map.get("count_units_key"))
-                capacity_dataclass = report_type_map.get("capacity_dataclass")
-                self.assertTrue(capacity_dataclass)
+                capacity_aggregate = report_type_map.get("capacity_aggregate")
+                self.assertTrue(capacity_aggregate)
                 # Confirm cluster structure in provider map
                 if report_type != "volume":
-                    self.assertTrue(capacity_dataclass.get("cluster"))
-                    self.assertIn("capacity", capacity_dataclass["cluster"])
-                    self.assertIn("cluster", capacity_dataclass["cluster"])
+                    self.assertTrue(capacity_aggregate.get("cluster"))
+                    self.assertIn("capacity", capacity_aggregate["cluster"])
+                    self.assertIn("cluster", capacity_aggregate["cluster"])
                 # Confirm cluster instance count structure in provider map
-                self.assertTrue(capacity_dataclass.get("cluster_instance_counts"))
-                self.assertIn("capacity_count", capacity_dataclass["cluster_instance_counts"])
-                self.assertIn("cluster", capacity_dataclass["cluster_instance_counts"])
+                self.assertTrue(capacity_aggregate.get("cluster_instance_counts"))
+                self.assertIn("capacity_count", capacity_aggregate["cluster_instance_counts"])
+                self.assertIn("cluster", capacity_aggregate["cluster_instance_counts"])
 
     def test_cluster_count_mapping_property_today(self):
         """Test the cluster count mapping property"""
@@ -214,9 +214,9 @@ class NodeCapacityDataclassTest(IamTestCase):
         """Test that the volume map has the required mappings."""
         for report_type in ["costs", "costs_by_project"]:
             report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
-            self.assertEqual(report_type_map.get("capacity_dataclass"), {})
+            self.assertEqual(report_type_map.get("capacity_aggregate"), {})
 
-    def test_capacity_dataclass_values_in_provider_map(self):
+    def test_capacity_aggregate_values_in_provider_map(self):
         """Test the required structure exist in the provider map for the dataclass."""
         # Used to confirm the dictionary structure for the dataclass exists in the
         # provider map.
@@ -224,12 +224,12 @@ class NodeCapacityDataclassTest(IamTestCase):
             with self.subTest(report_type=report_type):
                 report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
                 self.assertTrue(report_type_map.get("count_units_key"))
-                capacity_dataclass = report_type_map.get("capacity_dataclass")
-                self.assertTrue(capacity_dataclass)
+                capacity_aggregate = report_type_map.get("capacity_aggregate")
+                self.assertTrue(capacity_aggregate)
                 # Confirm node structure exists in the provider map
-                self.assertTrue(capacity_dataclass.get("node"))
-                self.assertIn("capacity_count", capacity_dataclass["node"])
-                self.assertIn("capacity", capacity_dataclass["node"])
+                self.assertTrue(capacity_aggregate.get("node"))
+                self.assertIn("capacity_count", capacity_aggregate["node"])
+                self.assertIn("capacity", capacity_aggregate["node"])
 
     def test_capacity_aggregations(self):
         """Test the volume capacities of a daily volume report with various group bys matches expected"""

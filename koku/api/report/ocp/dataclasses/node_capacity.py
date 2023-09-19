@@ -36,12 +36,12 @@ class NodeCapacity:
     count_total: Decimal = Decimal(0)
 
     @property
-    def capacity_dataclass(self):
-        return self.report_type_map.get("capacity_dataclass", {})
+    def capacity_aggregate(self):
+        return self.report_type_map.get("capacity_aggregate", {})
 
     @property
     def capacity_annotations(self):
-        return self.capacity_dataclass.get("node", {})
+        return self.capacity_aggregate.get("node", {})
 
     @property
     def count_units(self):

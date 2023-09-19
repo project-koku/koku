@@ -259,7 +259,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 query_filter = handler.query_filter
                 # intentionly looking for exact keys since structure
                 # is required for node capacity to function:
-                _cap = handler._mapper.report_type_map["capacity_dataclass"]["node"]["capacity"]
+                _cap = handler._mapper.report_type_map["capacity_aggregate"]["node"]["capacity"]
                 with tenant_context(self.tenant):
                     expected = handler._mapper.query_table.objects.filter(query_filter)
                     query_results = expected.values(*["usage_start", "node"]).annotate(**{"capacity": _cap})
@@ -291,7 +291,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 query_filter = handler.query_filter
                 # intentionly looking for exact keys since structure
                 # is required for node capacity to function:
-                _cap = handler._mapper.report_type_map["capacity_dataclass"]["node"]["capacity"]
+                _cap = handler._mapper.report_type_map["capacity_aggregate"]["node"]["capacity"]
                 with tenant_context(self.tenant):
                     expected = handler._mapper.query_table.objects.filter(query_filter)
                     query_results = expected.values(*["usage_start", "node"]).annotate(**{"capacity": _cap})
@@ -329,7 +329,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 query_filter = handler.query_filter
                 # intentionly looking for exact keys since structure
                 # is required for node capacity to function:
-                _cap = handler._mapper.report_type_map["capacity_dataclass"]["node"]["capacity"]
+                _cap = handler._mapper.report_type_map["capacity_aggregate"]["node"]["capacity"]
                 with tenant_context(self.tenant):
                     expected = handler._mapper.query_table.objects.filter(query_filter)
                     query_results = expected.values(*["usage_start", "node"]).annotate(**{"capacity": _cap})
