@@ -7,6 +7,7 @@ import logging
 
 from celery import chord
 from celery import group
+from django.conf import settings
 
 from api.common import log_json
 from api.models import Provider
@@ -15,8 +16,6 @@ from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
 from masu.external.account_label import AccountLabel
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
@@ -38,6 +37,7 @@ from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
 LOG = logging.getLogger(__name__)
+DH = DateHelper()
 
 
 class Orchestrator:
@@ -52,7 +52,6 @@ class Orchestrator:
 
     def __init__(
         self,
-        billing_source=None,
         provider_uuid=None,
         provider_type=None,
         scheduled=False,
@@ -60,15 +59,7 @@ class Orchestrator:
         queue_name=None,
         **kwargs,
     ):
-        """
-        Orchestrator for processing.
-
-        Args:
-            billing_source (String): Individual account to retrieve.
-
-        """
         self.worker_cache = WorkerCache()
-        self.billing_source = billing_source
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.provider_type = provider_type
@@ -76,65 +67,32 @@ class Orchestrator:
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._accounts, self._polling_accounts = self.get_accounts(
-            self.billing_source,
-            self.provider_uuid,
-            self.provider_type,
-            self.scheduled,
-        )
+        self._polling_accounts = Provider.polling_objects.get_accounts()
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
-    @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None, scheduled=False):
-        """
-        Prepare a list of accounts for the orchestrator to get CUR from.
-
-        If billing_source is not provided all accounts will be returned, otherwise
-        only the account for the provided billing_source will be returned.
-
-        Still a work in progress, but works for now.
-
-        Args:
-            billing_source (String): Individual account to retrieve.
-            provider_uuid  (String): Individual provider UUID.
-            provider_type  (String): Specific provider type.
-
-        Returns:
-            [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
-
-        """
-        all_accounts = []
-        polling_accounts = []
-        try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type, scheduled)
-        except AccountsAccessorError as error:
-            LOG.error("Unable to get accounts. Error: %s", str(error))
-
-        if billing_source:
-            for account in all_accounts:
-                if billing_source == account.get("billing_source"):
-                    all_accounts = [account]
-
-        for account in all_accounts:
+    def get_polling_batch(self):
+        batch = []
+        providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE)
+        for provider in providers:
+            provider.polling_timestamp = DH.now_utc
+            provider.save(update_fields=["polling_timestamp"])
+            account = provider.account
             schema_name = account.get("schema_name")
-            if is_cloud_source_processing_disabled(schema_name) and not provider_uuid:
-                LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
+            if is_cloud_source_processing_disabled(schema_name):
+                LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
                 continue
-            if is_source_disabled(provider_uuid):
+            if is_source_disabled(provider.uuid):
                 LOG.info(
                     log_json(
-                        "get_accounts",
+                        "get_polling_batch",
                         msg="processing disabled for source",
                         schema=schema_name,
-                        provider_uuid=provider_uuid,
+                        provider_uuid=provider.uuid,
                     )
                 )
                 continue
-
-            if AccountsAccessor().is_polling_account(account):
-                polling_accounts.append(account)
-
-        return all_accounts, polling_accounts
+            batch.append(account)
+        return batch
 
     def get_reports(self, provider_uuid):
         """
@@ -321,7 +279,7 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        for account in self._polling_accounts:
+        for account in self.get_polling_batch():
             provider_uuid = account.get("provider_uuid")
             provider_type = account.get("provider_type")
 
@@ -460,7 +418,7 @@ class Orchestrator:
 
         """
         async_results = []
-        for account in self._accounts:
+        for account in Provider.objects.get_accounts():
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
                 schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate

@@ -25,12 +25,9 @@ from django_tenants.utils import schema_context
 
 import koku.trino_database as trino_db
 from api.common import log_json
-from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external import LISTEN_INGEST
-from masu.external import POLL_INGEST
 from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -64,24 +61,6 @@ def stringify_json_data(data):
         return str(data)
 
     return data
-
-
-def ingest_method_for_provider(provider):
-    """Return the ingest method for provider."""
-    ingest_map = {
-        Provider.PROVIDER_AWS: POLL_INGEST,
-        Provider.PROVIDER_AWS_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_AZURE: POLL_INGEST,
-        Provider.PROVIDER_AZURE_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_GCP: POLL_INGEST,
-        Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_IBM: POLL_INGEST,
-        Provider.PROVIDER_IBM_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_OCI: POLL_INGEST,
-        Provider.PROVIDER_OCI_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_OCP: LISTEN_INGEST,
-    }
-    return ingest_map.get(provider)
 
 
 def month_date_range_tuple(for_date_time):
