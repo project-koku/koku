@@ -757,12 +757,12 @@ def update_summary_tables_by_provider(start_date, provider_type, end_date=None):
         all_accounts = AccountsAccessor().get_accounts(provider_type=provider_type)
         for account in all_accounts:
             msg = "summarize by provider type"
-            cxt = {
+            ctx = {
                 "schema_name": account.get("schema_name"),
                 "provider_type": account.get("provider_type"),
                 "provider_uuid": account.get("provider_uuid"),
             }
-            LOG.info(log_json("update_summary_tables_by_provider", msg=msg, context=cxt))
+            LOG.info(log_json("update_summary_tables_by_provider", msg=msg, context=ctx))
             schema_name = account.get("schema_name")
             provider_uuid = account.get("provider_uuid")
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
