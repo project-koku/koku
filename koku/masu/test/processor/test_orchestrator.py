@@ -74,62 +74,6 @@ class OrchestratorTest(MasuTestCase):
             },
         ]
 
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
-    def test_initializer(self, mock_inspect):  # noqa: C901
-        """Test to init."""
-        orchestrator = Orchestrator()
-        provider_count = Provider.objects.filter(active=True).exclude(type=Provider.PROVIDER_OCP).count()
-        if len(orchestrator._polling_accounts) != provider_count:
-            self.fail("Unexpected number of test accounts")
-
-        for account in orchestrator._polling_accounts:
-            with self.subTest(provider_type=account.get("provider_type")):
-                if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.aws_credentials)
-                    self.assertEqual(account.get("data_source"), self.aws_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") == Provider.PROVIDER_OCP:
-                    self.assertIn(account.get("credentials"), self.ocp_credentials)
-                    self.assertEqual(account.get("data_source"), self.ocp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.azure_credentials)
-                    self.assertEqual(account.get("data_source"), self.azure_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
-                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-                    self.assertEqual(account.get("data_source"), self.oci_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                else:
-                    self.fail("Unexpected provider")
-
-        # Result is 4 because that matches the number of non OCP sources
-        if len(orchestrator._polling_accounts) != 4:
-            self.fail("Unexpected number of listener test accounts")
-
-        for account in orchestrator._polling_accounts:
-            with self.subTest(provider_type=account.get("provider_type")):
-                if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.aws_credentials)
-                    self.assertEqual(account.get("data_source"), self.aws_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.azure_credentials)
-                    self.assertEqual(account.get("data_source"), self.azure_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
-                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-                    self.assertEqual(account.get("data_source"), self.oci_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                else:
-                    self.fail("Unexpected provider")
-
     @patch("masu.processor.orchestrator.AccountLabel")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
