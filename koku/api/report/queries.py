@@ -45,15 +45,18 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
-from masu.processor import feature_cost_3083_all_labels
+from masu.processor import is_feature_cost_3083_all_labels_enabled
 
 LOG = logging.getLogger(__name__)
 
 
-def tag_column_unleash_check(tag_column, account):
+def check_unleash_for_tag_column_cost_3038(tag_column, account):
     if tag_column != "all_labels":
         return tag_column
-    return feature_cost_3083_all_labels(account)
+    if is_feature_cost_3083_all_labels_enabled(account):
+        return tag_column
+    # rewrite tag column to pod_labels if feature is not enabled
+    return "pod_labels"
 
 
 def strip_prefix(key, prefix):
@@ -125,7 +128,9 @@ class ReportQueryHandler(QueryHandler):
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
-        self._tag_column = tag_column_unleash_check(self._mapper.tag_column, parameters.tenant.schema_name)
+        self._tag_column = check_unleash_for_tag_column_cost_3038(
+            self._mapper.tag_column, parameters.tenant.schema_name
+        )
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
