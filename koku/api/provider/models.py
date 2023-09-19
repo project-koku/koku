@@ -77,14 +77,16 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         excludes = {} if settings.DEBUG else {"type": Provider.PROVIDER_OCP}
         return super().get_queryset().filter(active=True, paused=False).exclude(**excludes)
 
-    def get_polling_batch(self, limit=-1, offset=0):
+    def get_polling_batch(self, limit=-1, offset=0, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
         polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
+        if not filters:
+            filters = {}
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
-            return self.exclude(polling_timestamp__gt=polling_delta)
-        return self.exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
+            return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)
+        return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
 
 
 class Provider(models.Model):
