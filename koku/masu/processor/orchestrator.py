@@ -290,8 +290,9 @@ class Orchestrator:
         """
         accounts = self.get_polling_batch()
         if not accounts:
-            LOG.info("no accounts to be polled")
+            LOG.info(log_json(msg="no accounts to be polled"))
 
+        LOG.info(log_json(msg="polling accounts", count=len(accounts)))
         for account in accounts:
             provider_uuid = account.get("provider_uuid")
             provider_type = account.get("provider_type")
