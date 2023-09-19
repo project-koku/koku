@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Settings."""
+from datetime import datetime
+
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
@@ -22,6 +24,9 @@ class SettingsView(APIView):
     """
 
     permission_classes = [SettingsAccessPermission]
+    deprecation_datetime = datetime(2023, 9, 22)
+    sunset_datetime = datetime(2023, 1, 10)
+    link = "https://github.com/project-koku/koku/pull/4670"
 
     @method_decorator(never_cache)
     def get(self, request):

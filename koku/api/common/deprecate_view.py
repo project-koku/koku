@@ -1,53 +1,78 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Logic to deprecate a view."""
+import logging
+import typing as t
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import datetime
 from functools import wraps
 
+LOG = logging.getLogger(__name__)
+HTTP_DATE_FORMAT = "%a, %d %b %Y %H:%M:%S"
 
-def add_deprecation_header(response):
-    # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
-    response.headers["Deprecation"] = True
+# Developer Note:
+# In order to deprecate an endpoint you will need to add the
+# deprecation_datetime & sunset_datetime to the view you are
+# deprecating.
+
+# Example:
+# class SettingsView(APIView):
+#     """
+#     View to interact with settings for a customer.
+#     """
+#     deprecation_datetime = datetime(2023, 9, 22)
+#     sunset_datetime = datetime(2023, 1, 10)
+#     link = "https://github.com/project-koku/koku/pull/4670"
+
+# Then import deprecate_view wrapper and it to the view in the
+# urls.py
+
+# Example:
+# path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
 
 
-def deprecate_view(viewfunc, deprecation_kwargs):
+@dataclass
+class DeprecateEndpoint:
+    viewclass: t.Callable
+    deprecation_datetime: datetime = field(init=False)
+    sunset_datetime: datetime = field(init=False)
+    link: str = field(init=False)
+
+    def _extract_data_from_class(self):
+        """Checks that the view class has the correct attributes and format."""
+        try:
+            sunset_datetime = getattr(self.viewclass, "sunset_datetime")
+            deprecation_datetime = getattr(self.viewclass, "deprecation_datetime")
+            self.deprecation_datetime = deprecation_datetime.strftime(HTTP_DATE_FORMAT)
+            self.sunset_datetime = sunset_datetime.strftime(HTTP_DATE_FORMAT)
+            if hasattr(self.viewclass, "link"):
+                self.link = getattr(self.viewclass, "link")
+        except AttributeError:
+            LOG.warning("Missing required attributes to deprecate endpoint.")
+
+    def __post_init__(self):
+        self._extract_data_from_class()
+
+    def add_deprecation_header(self, response):
+        """Adds deprecation to the response header."""
+        # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
+        if self.deprecation_datetime:
+            response["Deprecation"] = self.deprecation_datetime
+        if self.sunset_datetime:
+            response["Sunset"] = self.sunset_datetime
+        if self.link:
+            response["Link"] = self.link
+
+
+def deprecate_view(viewfunc):
     @wraps(viewfunc)
     def _wrapped_view_func(request, *args, **kw):
+        dataclass = DeprecateEndpoint(viewfunc.view_class)
         response = viewfunc(request, *args, **kw)
-        add_deprecation_header(response)
+        dataclass.add_deprecation_header(response)
         return response
 
     return _wrapped_view_func
-
-
-# def never_cache(view_func):
-#     """
-#     Decorator that adds headers to a response so that it will never be cached.
-#     """
-#     @wraps(view_func)
-#     def _wrapped_view_func(request, *args, **kwargs):
-#         response = view_func(request, *args, **kwargs)
-#         add_never_cache_headers(response)
-#         return response
-#     return _wrapped_view_func
-
-# def add_never_cache_headers(response):
-#     """
-#     Add headers to a response to indicate that a page should never be cached.
-#     """
-#     patch_response_headers(response, cache_timeout=-1)
-#     patch_cache_control(response, no_cache=True, no_store=True, must_revalidate=True, private=True)
-
-# def patch_response_headers(response, cache_timeout=None):
-#     """
-#     Add HTTP caching headers to the given HttpResponse: Expires and
-#     Cache-Control.
-
-#     Each header is only added if it isn't already set.
-
-#     cache_timeout is in seconds. The CACHE_MIDDLEWARE_SECONDS setting is used
-#     by default.
-#     """
-#     if cache_timeout is None:
-#         cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
-#     if cache_timeout < 0:
-#         cache_timeout = 0  # Can't have max-age negative
-#     if not response.has_header('Expires'):
-#         response.headers['Expires'] = http_date(time.time() + cache_timeout)
-#     patch_cache_control(response, max_age=cache_timeout)
