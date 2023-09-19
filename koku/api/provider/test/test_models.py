@@ -11,6 +11,7 @@ from uuid import UUID
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.test.utils import override_settings
 from django_tenants.utils import tenant_context
 from faker import Faker
 
@@ -144,6 +145,13 @@ class ProviderModelTest(MasuTestCase):
         self.assertEqual(pollable.count(), non_ocp_providers_count)
         for p in pollable:
             self.assertNotEqual(p.type, Provider.PROVIDER_OCP)
+
+    @override_settings(DEBUG=True)
+    def test_get_pollable_providers_debug(self):
+        """Test that the pollable manager returns non-OCP providers only."""
+        all_providers_count = Provider.objects.count()
+        pollable = Provider.polling_objects.get_polling_batch(0)
+        self.assertEqual(pollable.count(), all_providers_count)
 
     def test_get_pollable_providers_with_timestamps(self):
         """Test that the pollable manager returns non-OCP providers only."""
