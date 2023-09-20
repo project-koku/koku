@@ -43,7 +43,7 @@ class SubsIDMap(models.Model):
     """A model for storing IDs and what provider they belong to."""
 
     class Meta:
-        """Meta for subs last processed"""
+        """Meta for subs id map"""
 
         db_table = "reporting_subs_id_map"
 
