@@ -317,7 +317,7 @@ class Orchestrator:
                 subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
                     queue=SUBS_EXTRACTION_QUEUE
                 )
-                async_id = chord(report_tasks, chain(ocp_on_cloud_parquet, group(summary_task, hcs_task, subs_task)))()                
+                async_id = chord(report_tasks, chain(ocp_on_cloud_parquet, group(summary_task, hcs_task, subs_task)))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))
