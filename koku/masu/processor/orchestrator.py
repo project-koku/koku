@@ -54,7 +54,6 @@ class Orchestrator:
         self,
         provider_uuid=None,
         provider_type=None,
-        scheduled=True,
         bill_date=None,
         queue_name=None,
         **kwargs,
@@ -63,14 +62,13 @@ class Orchestrator:
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.provider_type = provider_type
-        self.scheduled = scheduled
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     def get_polling_batch(self):
-        if not self.scheduled and self.provider_uuid:
+        if self.provider_uuid:
             providers = Provider.objects.filter(uuid=self.provider_uuid)
         else:
             filters = {}
