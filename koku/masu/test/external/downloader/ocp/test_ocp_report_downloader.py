@@ -8,6 +8,7 @@ import os.path
 import shutil
 import tempfile
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
@@ -30,6 +31,9 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
+
+FILE_PATH_ONE = Path("path/to/file_one")
+FILE_PATH_TWO = Path("path/to/file_two")
 
 
 class OCPReportDownloaderTest(MasuTestCase):
@@ -92,7 +96,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             report_context = {
-                "date": test_report_date.date(),
+                "date": test_report_date,
                 "manifest_id": 1,
                 "comporession": "GZIP",
                 "current_file": self.test_file_path,
@@ -169,7 +173,7 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         with tempfile.TemporaryDirectory() as td:
             filename = "storage_data.csv"
-            file_path = f"{td}/{filename}"
+            file_path = Path(td, filename)
             with patch("masu.external.downloader.ocp.ocp_report_downloader.pd") as mock_pd:
                 with patch(
                     "masu.external.downloader.ocp.ocp_report_downloader.utils.detect_type",
@@ -191,7 +195,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                     ]
                     expected_dates = [datetime.strptime(date[:10], "%Y-%m-%d") for date in dates]
                     expected = [
-                        {"filename": gen_file, "filepath": f"{td}/{gen_file}", "date": expected_dates[i]}
+                        {"filepath": Path(td, gen_file), "date": expected_dates[i], "num_hours": 1}
                         for i, gen_file in enumerate(gen_files)
                     ]
                     for expected_item in expected:
@@ -311,20 +315,17 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         start_date = DateHelper().this_month_start
         daily_files = [
-            {"filename": "file_one", "filepath": "path/to/file_one", "date": datetime.fromisoformat("2020-01-01")},
-            {"filename": "file_two", "filepath": "path/to/file_two", "date": datetime.fromisoformat("2020-01-01")},
+            {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
+            {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
         ]
-        expected_filenames = ["path/to/file_one", "path/to/file_two"]
+        expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
 
         mock_divide.return_value = daily_files
 
-        file_name = "file"
-        file_path = "path"
-        result = create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, file_name, file_path, self.ocp_manifest_id, start_date
-        )
+        file_path = Path("path")
+        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date)
 
-        self.assertEqual(result, expected_filenames)
+        self.assertCountEqual(result.keys(), expected_filenames)
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
@@ -332,14 +333,14 @@ class OCPReportDownloaderTest(MasuTestCase):
         """Test that this method returns a file list."""
         start_date = DateHelper().this_month_start
 
-        file_path = "path"
+        file_path = Path("path")
 
         context = {"version": "1"}
         expected = [file_path]
         result = create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, "file", "path", self.ocp_manifest_id, start_date, context=context
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, context=context
         )
-        self.assertEqual(result, expected)
+        self.assertCountEqual(result.keys(), expected)
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
@@ -351,17 +352,14 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         start_date = DateHelper().this_month_start
         daily_files = [
-            {"filename": "file_one", "filepath": "path/to/file_one", "date": datetime.fromisoformat("2020-01-01")},
-            {"filename": "file_two", "filepath": "path/to/file_two", "date": datetime.fromisoformat("2020-01-01")},
+            {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 23},
+            {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-02"), "num_hours": 24},
         ]
-        expected_filenames = ["path/to/file_one", "path/to/file_two"]
+        expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
 
         mock_divide.return_value = daily_files
 
-        file_name = "file"
-        file_path = "path"
-        result = create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, file_name, file_path, self.ocp_manifest_id, start_date
-        )
+        file_path = Path("path")
+        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date)
 
-        self.assertEqual(result, expected_filenames)
+        self.assertCountEqual(result.keys(), expected_filenames)

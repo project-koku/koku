@@ -193,6 +193,10 @@ class DateHelper:
         elif isinstance(in_date, str):
             return parser.parse(in_date).date().replace(day=1)
 
+    def month_start_utc(self, in_date):
+        """Datetime of midnight on the 1st of in_date month with a UTC timezone included."""
+        return self.month_start(in_date).replace(tzinfo=settings.UTC)
+
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""
         if isinstance(in_date, str):

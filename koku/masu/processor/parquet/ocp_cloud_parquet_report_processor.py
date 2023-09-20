@@ -137,9 +137,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             if data_frame.first_valid_index() is not None:
                 parquet_base_filename = f"{data_frame['invoice_month'].values[0]}_{parquet_base_filename}"
-        file_name = f"{parquet_base_filename}{PARQUET_EXT}"
-        file_path = f"{self.local_path}/{file_name}"
-        self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
+        file_name_suffix = PARQUET_EXT
+        file_path = f"{self.local_path}/{parquet_base_filename}{file_name_suffix}"
+        self._write_parquet_to_file(
+            file_path, parquet_base_filename, file_name_suffix, data_frame, file_type=self.report_type
+        )
         self.create_parquet_table(file_path, daily=True, partition_map=self.partition_map)
 
     def get_matched_tags(self, ocp_provider_uuids):
