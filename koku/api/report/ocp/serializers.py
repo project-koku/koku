@@ -39,6 +39,8 @@ class OCPOrderBySerializer(OrderSerializer):
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    persistentvolumeclaim = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    storage_class = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):

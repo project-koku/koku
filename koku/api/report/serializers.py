@@ -350,6 +350,7 @@ class ParamSerializer(BaseSerializer):
         "limit",
         "capacity",
         "cost_total_distributed",
+        "storage_class",
     )
 
     def validate(self, data):
