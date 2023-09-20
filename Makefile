@@ -173,7 +173,7 @@ delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/{*,.minio*}
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/{*,.minio*}/**
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -214,7 +214,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data/*
+	$(PREFIX) rm -rf $(TOPDIR)/pg_data/data
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -406,7 +406,7 @@ docker-host-dir-setup:
 	$(DOCKER_COMPOSE) build --no-cache koku-minio
 	mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
 	chown -R $(USER_ID) $(CONTAINER_DIRS)
-	chmod 0755 $(CONTAINER_DIRS)
+	chmod -R 0755 $(CONTAINER_DIRS)
 
 docker-trino-setup: delete-trino docker-host-dir-setup
 
@@ -428,7 +428,6 @@ docker-trino-down-all: docker-trino-down docker-down
 docker-up-min-trino: docker-up-min docker-trino-up
 
 docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
-
 
 ### Source targets ###
 ocp-source-from-yaml:
