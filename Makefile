@@ -429,6 +429,7 @@ docker-up-min-trino: docker-up-min docker-trino-up
 
 docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
 
+
 ### Source targets ###
 ocp-source-from-yaml:
 #parameter validation
