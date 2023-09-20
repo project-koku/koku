@@ -28,14 +28,12 @@ def download_report(request):
     provider_uuid = params.get("provider_uuid")
     provider_type = params.get("provider_type")
     bill_date = params.get("bill_date")
-    scheduled = params.get("scheduled", "false").lower()
-    scheduled = True if scheduled == "true" else False
     summarize_reports = params.get("summarize_reports", "true").lower()
     summarize_reports = True if summarize_reports == "true" else False
     async_download_result = check_report_updates.delay(
         provider_uuid=provider_uuid,
         provider_type=provider_type,
-        scheduled=scheduled,
+        scheduled=False,
         bill_date=bill_date,
         summarize_reports=summarize_reports,
     )
