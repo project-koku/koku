@@ -214,7 +214,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data/data
+	$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
