@@ -33,7 +33,6 @@ def download_report(request):
     async_download_result = check_report_updates.delay(
         provider_uuid=provider_uuid,
         provider_type=provider_type,
-        scheduled=False,
         bill_date=bill_date,
         summarize_reports=summarize_reports,
     )
