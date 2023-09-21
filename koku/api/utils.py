@@ -179,6 +179,12 @@ class DateHelper:
         month_end = self.days_in_month(self.next_month_start)
         return self.next_month_start.replace(day=month_end)
 
+    def create_end_of_life_date(self, year: int, month: int, day: int) -> datetime:
+        """Creates a deprecation or sunset date for endpoints."""
+        date = datetime.datetime(year, month, day, tzinfo=settings.UTC)
+        date_at_midnight = date.replace(microsecond=0, second=0, minute=0, hour=0)
+        return date_at_midnight
+
     def month_start(self, in_date):
         """Datetime of midnight on the 1st of in_date month."""
         if isinstance(in_date, datetime.datetime):
