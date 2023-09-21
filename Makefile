@@ -173,7 +173,7 @@ delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/{*,.minio*}/**
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/koku-bucket/*
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
