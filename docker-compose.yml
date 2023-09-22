@@ -590,20 +590,20 @@ services:
     volumes:
       - ./.trino/parquet_data:/data
 
-  koku-create-parquet-bucket:
+  create-parquet-bucket:
     image: minio/mc:latest
     depends_on:
       - minio
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
+      /usr/bin/mc config host add --quiet --api s3v4 local $S3_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
-      /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc anonymous set public local/koku-bucket;
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
-      /usr/bin/mc policy set public local/metastore;
+      /usr/bin/mc anonymous set public local/metastore;
       "
 
   hive-metastore:
@@ -625,7 +625,7 @@ services:
       - DATABASE_USER=${DATABASE_USER-hive}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
     depends_on:
-      - koku-create-parquet-bucket
+      - create-parquet-bucket
 
   trino:
     container_name: trino
