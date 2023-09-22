@@ -7,4 +7,3 @@ COPY 99_postgresql_conf.sh docker-entrypoint-initdb.d/
 
 RUN groupmod -g ${GROUP_ID} postgres
 RUN usermod -u ${USER_ID} -g ${GROUP_ID} postgres
-
