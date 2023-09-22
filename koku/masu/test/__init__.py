@@ -11,13 +11,13 @@ class MasuTestCase(IamTestCase):
     def setUpClass(cls):
         """Create test case setup."""
         super().setUpClass()
-
         cls.schema = "org1234567"
         cls.acct = "10001"
         cls.org_id = "1234567"
 
     def setUp(self):
         """Set up each test case."""
+        super().setUp()
         self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema)
         self.start_date = self.dh.today
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()

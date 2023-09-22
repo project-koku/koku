@@ -55,7 +55,7 @@ class OCPAllTagQueryHandler(TagQueryHandler):
 
         """
         self._parameters = parameters
-        self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPAllProviderMap(**parameters.provider_map_kwargs)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 

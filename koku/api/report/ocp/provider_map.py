@@ -135,8 +135,9 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
+        self.schema_name = schema_name
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCP,

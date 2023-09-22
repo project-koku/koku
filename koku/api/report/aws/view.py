@@ -19,6 +19,7 @@ class AWSView(ReportView):
     serializer = AWSQueryParamSerializer
     query_handler = AWSReportQueryHandler
     tag_providers = [Provider.PROVIDER_AWS]
+    set_cost_type_provider_map_kwarg = True
 
 
 class AWSCostView(AWSView):

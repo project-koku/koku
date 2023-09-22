@@ -41,7 +41,7 @@ class OCITagQueryHandler(TagQueryHandler):
         """
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
-            self._mapper = OCIProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = OCIProviderMap(**parameters.provider_map_kwargs)
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set

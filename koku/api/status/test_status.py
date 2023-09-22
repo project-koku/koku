@@ -27,6 +27,7 @@ class StatusModelTest(TestCase):
     @classmethod
     def setUpClass(cls):
         """Test Class setup."""
+        super().setUpClass()
         # remove filters on logging
         logging.disable(logging.NOTSET)
         cls.status_info = Status()
@@ -35,6 +36,7 @@ class StatusModelTest(TestCase):
     def tearDownClass(cls):
         """Test Class teardown."""
         # restore filters on logging
+        super().tearDownClass()
         logging.disable(logging.CRITICAL)
 
     def setUp(self):

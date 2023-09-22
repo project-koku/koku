@@ -81,6 +81,8 @@ class Forecast:
         self.dh = DateHelper()
         self.params = query_params
         self.currency = query_params.currency
+        self.provider_map_kwargs = query_params.provider_map_kwargs
+        query_params.provider_map_kwargs["report_type"] = self.REPORT_TYPE
 
         if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
             if query_params.get("cost_type"):
@@ -122,9 +124,7 @@ class Forecast:
     @property
     def provider_map(self):
         """Return the provider map instance."""
-        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
-            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
-        return self.provider_map_class(self.provider, self.REPORT_TYPE)
+        return self.provider_map_class(**self.provider_map_kwargs)
 
     @property
     def cost_units(self):

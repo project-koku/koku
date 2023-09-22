@@ -123,15 +123,11 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
 
         """
-        kwargs = {
-            "provider": self.provider,
-            "report_type": parameters.report_type,
-            "cost_type": parameters.cost_type,
-        }
-        if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
-            kwargs["markup_cost"] = markup_cost
 
-        self._mapper = OCPAWSProviderMap(**kwargs)
+        if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
+            parameters.provider_map_kwargs["markup_cost"] = markup_cost
+
+        self._mapper = OCPAWSProviderMap(**parameters.provider_map_kwargs)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 

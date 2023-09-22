@@ -18,3 +18,4 @@ class AWSTagView(TagView):
     query_handler = AWSTagQueryHandler
     tag_providers = [Provider.PROVIDER_AWS]
     permission_classes = [AwsAccessPermission]
+    set_cost_type_provider_map_kwarg = True

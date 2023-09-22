@@ -120,7 +120,7 @@ class Tenant(TenantMixin):
 
     def _verify_template(self, verbosity=1):
         LOG.info(f'Verify that template schema "{self._TEMPLATE_SCHEMA}" exists')
-        # This is using the teanant table data as the source of truth which can be dangerous.
+        # This is using the tenant table data as the source of truth which can be dangerous.
         # If this becomes unreliable, then the database itself should be the source of truth
         # and extra code must be written to handle the sync of the table data to the state of
         # the database.

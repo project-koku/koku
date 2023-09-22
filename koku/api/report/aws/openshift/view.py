@@ -19,6 +19,7 @@ class OCPAWSView(ReportView):
     serializer = OCPAWSQueryParamSerializer
     query_handler = OCPAWSReportQueryHandler
     tag_providers = [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]
+    set_cost_type_provider_map_kwarg = True
 
 
 class OCPAWSCostView(OCPAWSView):

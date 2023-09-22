@@ -19,3 +19,4 @@ class OCPAWSTagView(TagView):
     query_handler = OCPAWSTagQueryHandler
     tag_providers = [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]
     permission_classes = [AwsAccessPermission & OpenShiftAccessPermission]
+    set_cost_type_provider_map_kwarg = True

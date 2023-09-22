@@ -221,6 +221,8 @@ class ReportQueryHandlerTest(IamTestCase):
         self.mock_tag_key = FAKE.word()
         tag_mock = Mock()
         tag_mock.objects.values_list.return_value.distinct.return_value = [self.mock_tag_key]
+        mock_handler = Mock()
+        mock_handler.provider = "AWS"
 
         self.mock_view = Mock(
             spec=ReportView,
@@ -228,7 +230,7 @@ class ReportQueryHandlerTest(IamTestCase):
             permission_classes=[Mock],
             provider="mock",
             serializer=Mock,
-            query_handler=Mock,
+            query_handler=mock_handler,
             tag_providers=["fake"],
         )
 

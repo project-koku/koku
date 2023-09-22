@@ -79,6 +79,7 @@ class AWSCostForecastView(ForecastView):
     query_handler = AWSForecast
     serializer = AWSCostForecastParamSerializer
     tag_providers = [Provider.PROVIDER_AWS]
+    set_cost_type_provider_map_kwarg = True
 
 
 class AzureCostForecastView(ForecastView):
@@ -106,6 +107,7 @@ class OCPAWSCostForecastView(ForecastView):
     query_handler = OCPAWSForecast
     serializer = OCPAWSCostForecastParamSerializer
     tag_providers = [Provider.PROVIDER_AWS]
+    set_cost_type_provider_map_kwarg = True
 
 
 class OCPAzureCostForecastView(ForecastView):
