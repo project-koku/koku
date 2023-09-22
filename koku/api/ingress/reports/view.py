@@ -86,6 +86,7 @@ class IngressReportsView(APIView):
             "reports_list": request.data.get("reports_list"),
             "bill_year": request.data.get("bill_year"),
             "bill_month": request.data.get("bill_month"),
+            "customer": request.user.customer_id,
         }
         serializer = IngressReportsSerializer(data=data)
         if serializer.is_valid(raise_exception=True):

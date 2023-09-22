@@ -10,6 +10,7 @@ from api.utils import DateHelper
 from masu.processor import is_ingress_rate_limiting_disabled
 from providers.provider_access import ProviderAccessor
 from reporting.ingress.models import IngressReports
+from api.provider.models import Provider
 
 PROVIDER_LIST = ["aws", "aws-local", "azure", "azure-local", "gcp", "gcp-local"]
 
@@ -37,6 +38,7 @@ class IngressReportsSerializer(serializers.ModelSerializer):
             "sources_id",
             "bill_year",
             "bill_month",
+            "customer",
             "status",
         ]
 
@@ -44,42 +46,50 @@ class IngressReportsSerializer(serializers.ModelSerializer):
         """
         Check for supported sources.
         """
-        source_type = data.get("source").type
+        customer_id = data.get("customer").id
+        source = data.get("source")
         bill_year = data.get("bill_year")
         bill_month = data.get("bill_month")
-        if source_type.lower() in PROVIDER_LIST:
-            dh = DateHelper()
-            month_range = [dh.bill_month_from_date(dh.last_month_start), dh.bill_month_from_date(dh.this_month_start)]
-            year_range = [
-                dh.bill_year_from_date(dh.last_month_start),
-            ]
-            year_message = year_range[0]
-            if dh.bill_year_from_date(dh.this_month_start) not in year_range:
-                year_range.append(dh.bill_year_from_date(dh.last_month_start))
-                year_message = f"{year_range[0]} or {year_range[1]}"
-            if bill_month in month_range and bill_year in year_range:
-                interface = ProviderAccessor(source_type)
-                interface.check_file_access(data.get("source"), data.get("reports_list"))
-                ingress_reports = IngressReports.objects.filter(
-                    source=data.get("source"),
-                    bill_year=bill_year,
-                    bill_month=bill_month,
-                    status="pending",
-                    created_timestamp__gte=DateHelper().today,
-                )
-                if ingress_reports and not is_ingress_rate_limiting_disabled():
-                    key = "Processing"
-                    message = (
-                        f"Reports for billing month {bill_month} are currently already being processed. "
-                        "New reports cannot be processed until the current reports are completed."
-                    )
-                    raise serializers.ValidationError(error_obj(key, message))
-                return data
-            key = "bill_period"
-            message = (
-                f"Invalid bill, year must be {year_message} and month must be {month_range[0]} or {month_range[1]}"
-            )
+        if source.type.lower() not in PROVIDER_LIST:
+            key = "source_type"
+            message = f"Invalid source_type, {source.type}, provided."
             raise serializers.ValidationError(error_obj(key, message))
-        key = "source_type"
-        message = f"Invalid source_type, {source_type}, provided."
+        
+        # Make sure source/provider is in the customer schema!!
+        if not Provider.objects.filter(uuid=source.uuid, customer=customer_id):
+            key = "source_id"
+            message = f"Invalid source uuid or id provided."
+            raise serializers.ValidationError(error_obj(key, message))
+
+        dh = DateHelper()
+        month_range = [dh.bill_month_from_date(dh.last_month_start), dh.bill_month_from_date(dh.this_month_start)]
+        year_range = [
+            dh.bill_year_from_date(dh.last_month_start),
+        ]
+        year_message = year_range[0]
+        if dh.bill_year_from_date(dh.this_month_start) not in year_range:
+            year_range.append(dh.bill_year_from_date(dh.last_month_start))
+            year_message = f"{year_range[0]} or {year_range[1]}"
+        if bill_month in month_range and bill_year in year_range:
+            interface = ProviderAccessor(source.type)
+            interface.check_file_access(data.get("source"), data.get("reports_list"))
+            ingress_reports = IngressReports.objects.filter(
+                source=data.get("source"),
+                bill_year=bill_year,
+                bill_month=bill_month,
+                status="pending",
+                created_timestamp__gte=DateHelper().today,
+            )
+            if ingress_reports and not is_ingress_rate_limiting_disabled():
+                key = "Processing"
+                message = (
+                    f"Reports for billing month {bill_month} are currently already being processed. "
+                    "New reports cannot be processed until the current reports are completed."
+                )
+                raise serializers.ValidationError(error_obj(key, message))
+            return data
+        key = "bill_period"
+        message = (
+            f"Invalid bill, year must be {year_message} and month must be {month_range[0]} or {month_range[1]}"
+        )
         raise serializers.ValidationError(error_obj(key, message))

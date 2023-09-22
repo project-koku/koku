@@ -22,6 +22,7 @@ class IngressReports(models.Model):
     bill_year = models.CharField(max_length=4, blank=False)
     bill_month = models.CharField(max_length=2, blank=False)
     status = models.TextField(default="pending")
+    customer = models.ForeignKey("api.Customer", on_delete=models.CASCADE)
 
     def __str__(self):
         """Get the string representation."""
