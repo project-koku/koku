@@ -579,16 +579,16 @@ services:
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
-      MINIO_USER: kminio
-      MINIO_GROUP: kminio
-      MINIO_USER_ID: ${USER_ID:?}
-      MINIO_GROUP_ID: ${GROUP_ID:?}
+      MINIO_USERNAME: kminio
+      MINIO_GROUPNAME: kminio
+      MINIO_UID: ${USER_ID:?}
+      MINIO_GID: ${GROUP_ID:?}
     ports:
       - 9000:9000
       - 9090:9090
-    command: server /data --console-address ":9090"
+    command: server /home/kminio/data --console-address ":9090"
     volumes:
-      - ./.trino/parquet_data:/data
+      - ./.trino/parquet_data:/home/kminio/data
 
   create-parquet-bucket:
     image: minio/mc:latest
