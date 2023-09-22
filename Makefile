@@ -20,6 +20,7 @@ scale = 1
 
 export DOCKER_BUILDKIT = 1
 export USER_ID ?= $(shell id -u)
+export GROUP_ID ?= $(shell id -g)
 
 # Prefer Docker Compose v2
 DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
@@ -167,7 +168,7 @@ lint:
 	pre-commit run --all-files
 
 delete-testing:
-	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
+	@$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
@@ -214,7 +215,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
+	@$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -403,10 +404,9 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testin
 
 CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
 docker-host-dir-setup:
-	$(DOCKER_COMPOSE) build --no-cache koku-minio
-	mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
-	chown -R $(USER_ID) $(CONTAINER_DIRS)
-	chmod -R 0755 $(CONTAINER_DIRS)
+	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
+	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)
+	@chmod 0755 $(CONTAINER_DIRS)
 
 docker-trino-setup: delete-trino docker-host-dir-setup
 
