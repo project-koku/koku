@@ -8,7 +8,7 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
-        USER_ID: ${USER_ID-1000}
+        USER_ID: ${USER_ID:?}
     command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
@@ -442,18 +442,22 @@ services:
 ### Utilities
 
   db:
-    container_name: koku_db
-    image: postgres:13
+    container_name: koku-db
+    image: koku-db:13
+    build:
+      context: dev/containers/postgresql
+      args:
+        USER_ID: ${USER_ID:?}
+        GROUP_ID: ${GROUP_ID:?}
     environment:
-    - POSTGRES_DB=${DATABASE_NAME-postgres}
-    - POSTGRES_USER=${DATABASE_USER-postgres}
-    - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
-    - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
+      - POSTGRES_DB=${DATABASE_NAME-postgres}
+      - POSTGRES_USER=${DATABASE_USER-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
     ports:
-      - 15432:5432
+      - ${POSTGRES_SQL_SERVICE_PORT-15432}:5432
     volumes:
       - ./pg_data/data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
-      - ./pg_init:/docker-entrypoint-initdb.d
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -569,17 +573,16 @@ services:
     depends_on:
       - db
 
-  koku-minio:
-    image: local-minio:latest
-    build:
-        context: .
-        dockerfile: Dockerfile.minio
-        args:
-          USER_ID: ${USER_ID-1000}
-    container_name: kokuminio
+  minio:
+    container_name: koku-minio
+    image: minio/minio:RELEASE.2022-05-26T05-48-41Z.hotfix.15f13935a
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
+      MINIO_USER: kminio
+      MINIO_GROUP: kminio
+      MINIO_USER_ID: ${USER_ID:?}
+      MINIO_GROUP_ID: ${GROUP_ID:?}
     ports:
       - 9000:9000
       - 9090:9090
@@ -590,7 +593,7 @@ services:
   koku-create-parquet-bucket:
     image: minio/mc:latest
     depends_on:
-      - koku-minio
+      - minio
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;

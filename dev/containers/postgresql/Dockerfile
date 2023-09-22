@@ -1,0 +1,8 @@
+from postgres:13
+
+ARG USER_ID=999
+
+COPY 99_postgresql_conf.sh docker-entrypoint-initdb.d/
+
+RUN usermod -u ${USER_ID} postgres
+
