@@ -61,6 +61,13 @@ def check_report_updates(*args, **kwargs):
     orchestrator.prepare()
 
 
+def check_report_updates_single_source(*args, **kwargs):
+    """Scheduled task to initiate scanning process on a regular interval."""
+    orchestrator = Orchestrator(*args, **kwargs)
+    LOG.info(log_json(msg="checking for report updates", args=args, kwargs=kwargs))
+    orchestrator.prepare_single_source()
+
+
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""

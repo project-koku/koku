@@ -18,7 +18,7 @@ from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
 from api.ingress.reports.serializers import IngressReportsSerializer
-from masu.celery.tasks import check_report_updates
+from masu.celery.tasks import check_report_updates_single_source
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import QUEUE_LIST
 from reporting.ingress.models import IngressReports
@@ -54,7 +54,7 @@ def ingress_reports(request):
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             with schema_context(schema_name):
                 ingress_report = IngressReports.objects.filter(uuid=ingress_uuid).first()
-                async_result = check_report_updates.delay(
+                async_result = check_report_updates_single_source.delay(
                     provider_uuid=ingress_report.source_id,
                     bill_date=f"{ingress_report.bill_year}{ingress_report.bill_month}",
                     ingress_reports=ingress_report.reports_list,

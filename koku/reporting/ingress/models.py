@@ -40,12 +40,12 @@ class IngressReports(models.Model):
     def ingest(data):
         if settings.AUTO_DATA_INGEST:
             # Local import of task function to avoid potential import cycle.
-            from masu.celery.tasks import check_report_updates
+            from masu.celery.tasks import check_report_updates_single_source
 
             LOG.info(f"Starting data ingest task for Provider {data.get('source')}")
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(
-                lambda: check_report_updates.s(
+                lambda: check_report_updates_single_source.s(
                     provider_uuid=data.get("source"),
                     bill_date=f"{data.get('bill_year')}{data.get('bill_month')}",
                     ingress_reports=data.get("reports_list"),

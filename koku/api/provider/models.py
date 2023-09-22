@@ -244,7 +244,7 @@ class Provider(models.Model):
                 # OCP Providers are not pollable, so shouldn't go thru check_report_updates
                 return
             # Local import of task function to avoid potential import cycle.
-            from masu.celery.tasks import check_report_updates
+            from masu.celery.tasks import check_report_updates_single_source
 
             QUEUE = None
             if self.customer.schema_name == settings.QE_SCHEMA:
@@ -254,7 +254,7 @@ class Provider(models.Model):
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(
-                lambda: check_report_updates.s(provider_uuid=self.uuid, queue_name=QUEUE)
+                lambda: check_report_updates_single_source.s(provider_uuid=self.uuid, queue_name=QUEUE)
                 .set(queue="priority")
                 .apply_async()
             )

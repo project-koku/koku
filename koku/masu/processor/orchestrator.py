@@ -68,13 +68,10 @@ class Orchestrator:
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     def get_polling_batch(self):
-        if self.provider_uuid:
-            providers = Provider.objects.filter(uuid=self.provider_uuid)
-        else:
-            filters = {}
-            if self.provider_type:
-                filters["type"] = self.provider_type
-            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
+        filters = {}
+        if self.provider_type:
+            filters["type"] = self.provider_type
+        providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
 
         batch = []
         for provider in providers:
@@ -303,6 +300,33 @@ class Orchestrator:
                 self.prepare_continuous_report_sources(account, provider_uuid)
             else:
                 self.prepare_monthly_report_sources(account, provider_uuid)
+
+    def prepare_single_source(self):
+        """
+        Select the correct prepare function based on source type for processing each account.
+
+        """
+        provider = Provider.objects.filter(uuid=self.provider_uuid).first()
+        if not provider:
+            LOG.info(log_json(msg="no account to be polled"))
+            return
+
+        LOG.info(log_json(msg="polling account"))
+        account = provider.account
+        provider_uuid = account.get("provider_uuid")
+        provider_type = account.get("provider_type")
+
+        LOG.info(log_json(msg="polling for account", provider_uuid=provider_uuid))
+
+        if provider_type in [
+            Provider.PROVIDER_OCI,
+            Provider.PROVIDER_OCI_LOCAL,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_GCP_LOCAL,
+        ]:
+            self.prepare_continuous_report_sources(account, provider_uuid)
+        else:
+            self.prepare_monthly_report_sources(account, provider_uuid)
 
     def prepare_monthly_report_sources(self, account, provider_uuid):
         """
