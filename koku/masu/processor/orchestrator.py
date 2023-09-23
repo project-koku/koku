@@ -5,6 +5,7 @@
 """Report Processing Orchestrator."""
 import logging
 
+from celery import chain
 from celery import chord
 from celery import group
 from django.conf import settings
@@ -25,6 +26,7 @@ from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
+from masu.processor.tasks import populate_ocp_on_cloud_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
@@ -261,6 +263,12 @@ class Orchestrator:
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
         if report_tasks:
+            ocp_on_cloud_parquet = populate_ocp_on_cloud_parquet.s(
+                provider_type=provider_type,
+                schema_name=schema_name,
+                provider_uuid=provider_uuid,
+                tracing_id=tracing_id,
+            )
             if self._summarize_reports:
                 reports_tasks_queued = True
                 hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
@@ -271,7 +279,7 @@ class Orchestrator:
                 subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
                     queue=SUBS_EXTRACTION_QUEUE
                 )
-                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
+                async_id = chord(report_tasks, chain(ocp_on_cloud_parquet, group(summary_task, hcs_task, subs_task)))()
             else:
                 async_id = group(report_tasks)()
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))

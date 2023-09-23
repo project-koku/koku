@@ -58,6 +58,7 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
+from masu.processor.tasks import populate_ocp_on_cloud_parquet
 from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
@@ -656,6 +657,17 @@ class TestProcessorTasks(MasuTestCase):
         mock_s3_delete.assert_called()
         mock_process.assert_called()
 
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_trino")
+    def test_process_populate_ocp_on_cloud_parquet(self, mock_process):
+        """Test the process_daily_openshift_on_cloud task."""
+        tracing_id = uuid4()
+        report_meta = [{"start": self.start_date, "end": self.start_date}]
+        result = populate_ocp_on_cloud_parquet(
+            report_meta, self.gcp_provider.type, self.schema, self.gcp_provider_uuid, tracing_id
+        )
+        self.assertEqual(report_meta, result)
+        mock_process.assert_called()
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -1165,7 +1177,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         update_openshift_on_cloud(
             self.schema,
-            self.ocp_on_aws_ocp_provider.uuid,
+            self.ocpaws_provider_uuid,
             self.aws_provider_uuid,
             Provider.PROVIDER_AWS,
             start_date,
@@ -1177,7 +1189,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             update_openshift_on_cloud(
                 self.schema,
-                self.ocp_on_aws_ocp_provider.uuid,
+                self.ocpaws_provider_uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
                 start_date,
@@ -1198,7 +1210,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_openshift_on_cloud(
                 self.schema,
-                self.ocp_on_aws_ocp_provider.uuid,
+                self.ocpaws_provider_uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
                 start_date,
