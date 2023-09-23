@@ -96,6 +96,11 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
+      - S3_BUCKET_NAME_OCP_INGRESS=${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
@@ -598,6 +603,9 @@ services:
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc rb --force local/ocp-ingress/;
+      /usr/bin/mc mb --quiet local/ocp-ingress/;
+      /usr/bin/mc policy set public local/ocp-ingress;
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
       /usr/bin/mc policy set public local/metastore;
