@@ -11,6 +11,10 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django_tenants.utils import schema_context
+from requests.adapters import HTTPAdapter
+from requests.exceptions import HTTPError
+from requests.exceptions import RetryError
+from urllib3.util.retry import Retry
 
 from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
@@ -330,13 +334,27 @@ def get_daily_currency_rates():
     rate_metrics = {}
 
     url = settings.CURRENCY_URL
+    retries = Retry(
+        total=5,
+        allowed_methods={"GET"},
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+
     # Retrieve conversion rates from URL
     try:
-        data = requests.get(url).json()
-    except Exception as e:
+        response = session.get(url)
+        response.raise_for_status()
+    except (HTTPError, RetryError) as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+
         return rate_metrics
+
+    data = response.json()
+
     rates = data["rates"]
     # Update conversion rates in database
     for curr_type in rates.keys():
