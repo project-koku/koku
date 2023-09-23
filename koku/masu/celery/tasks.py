@@ -61,6 +61,7 @@ def check_report_updates(*args, **kwargs):
     orchestrator.prepare()
 
 
+@celery_app.task(name="masu.celery.tasks.check_report_updates_single_source", queue=DEFAULT)
 def check_report_updates_single_source(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
