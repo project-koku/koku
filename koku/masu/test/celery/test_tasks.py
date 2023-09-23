@@ -153,10 +153,17 @@ class TestCeleryTasks(MasuTestCase):
     # Check to see if Error is raised on wrong URL
     @patch("masu.celery.tasks.requests")
     def test_error_get_currency_conversion_rates(self, mock_requests):
-        mock_requests.get.side_effect = HTTPError("error")
-        with self.assertRaises(HTTPError) as e:
-            tasks.get_daily_currency_rates()
-            self.assertIn("Couldn't pull latest conversion rates", str(e.exception))
+        mock_session = Mock()
+        mock_session.get.side_effect = HTTPError("Raised intentionally")
+
+        mock_requests.Session.return_value = mock_session
+
+        with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
+            result = tasks.get_daily_currency_rates()
+
+        self.assertEqual({}, result)
+        self.assertIn("Couldn't pull latest conversion rates", captured_logs.output[0])
+        self.assertIn("Raised intentionally", captured_logs.output[1])
 
     @patch("masu.celery.tasks.requests")
     def test_get_currency_conversion_rates_successful(self, mock_requests):
