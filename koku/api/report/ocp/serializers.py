@@ -160,6 +160,14 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
         ):
             error["order_by"] = _("Cannot order by distributed_cost without grouping by project.")
             raise serializers.ValidationError(error)
+        if "storage_class" in data.get("order_by", {}) and "persistentvolumeclaim" not in data.get("group_by", {}):
+            error["order_by"] = _("Cannot order by storage_class without grouping by persistentvolumeclaim.")
+            raise serializers.ValidationError(error)
+        if "persistentvolumeclaim" in data.get("order_by", {}) and "persistentvolumeclaim" not in data.get(
+            "group_by", {}
+        ):
+            error["order_by"] = _("Cannot order by persistentvolumeclaim without grouping by persistentvolumeclaim.")
+            raise serializers.ValidationError(error)
         if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
             "group_by", {}
         ):
