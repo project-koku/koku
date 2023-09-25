@@ -54,7 +54,6 @@ class Orchestrator:
         self,
         provider_uuid=None,
         provider_type=None,
-        scheduled=False,
         bill_date=None,
         queue_name=None,
         **kwargs,
@@ -63,16 +62,21 @@ class Orchestrator:
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.provider_type = provider_type
-        self.scheduled = scheduled
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._polling_accounts = Provider.polling_objects.get_accounts()
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
     def get_polling_batch(self):
+        if self.provider_uuid:
+            providers = Provider.objects.filter(uuid=self.provider_uuid)
+        else:
+            filters = {}
+            if self.provider_type:
+                filters["type"] = self.provider_type
+            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
+
         batch = []
-        providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE)
         for provider in providers:
             provider.polling_timestamp = DH.now_utc
             provider.save(update_fields=["polling_timestamp"])
@@ -279,9 +283,16 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        for account in self.get_polling_batch():
+        accounts = self.get_polling_batch()
+        if not accounts:
+            LOG.info(log_json(msg="no accounts to be polled"))
+
+        LOG.info(log_json(msg="polling accounts", count=len(accounts)))
+        for account in accounts:
             provider_uuid = account.get("provider_uuid")
             provider_type = account.get("provider_type")
+
+            LOG.info(log_json(msg="polling for account", provider_uuid=provider_uuid))
 
             if provider_type in [
                 Provider.PROVIDER_OCI,
