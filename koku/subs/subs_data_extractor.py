@@ -103,9 +103,10 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         """Determines the start time for subs processing"""
         base_time = self.determine_latest_processed_time_for_provider(year, month) or month_start
         created = Provider.objects.get(uuid=self.provider_uuid).created_timestamp
-        if base_time < created:
+        creation_processing_time = created.replace(microsecond=0, second=0, minute=0, hour=0) - timedelta(days=1)
+        if base_time < creation_processing_time:
             # this will set the default to start collecting from the midnight hour the day prior to source creation
-            return created.replace(microsecond=0, second=0, minute=0, hour=0) - timedelta(days=1)
+            return creation_processing_time
         return base_time
 
     def determine_line_item_count(self, where_clause, sql_params):
