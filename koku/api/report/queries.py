@@ -45,18 +45,8 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
-from masu.processor import is_feature_cost_3083_all_labels_enabled
 
 LOG = logging.getLogger(__name__)
-
-
-def check_unleash_for_tag_column_cost_3038(tag_column, account):
-    if tag_column != "all_labels":
-        return tag_column
-    if is_feature_cost_3083_all_labels_enabled(account):
-        return tag_column
-    # rewrite tag column to pod_labels if feature is not enabled
-    return "pod_labels"
 
 
 def strip_prefix(key, prefix):
@@ -128,9 +118,6 @@ class ReportQueryHandler(QueryHandler):
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
-        self._tag_column = check_unleash_for_tag_column_cost_3038(
-            self._mapper.tag_column, parameters.tenant.schema_name
-        )
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
@@ -277,10 +264,12 @@ class ReportQueryHandler(QueryHandler):
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
         filter_collection = self._set_prefix_based_filters(
-            filter_collection, self._tag_column, tag_filters, TAG_PREFIX
+            filter_collection, self._mapper.tag_column, tag_filters, TAG_PREFIX
         )
         tag_exclude_filters = self.get_tag_filter_keys("exclude")
-        tag_exclusion_composed = self._set_prefix_based_exclusions(self._tag_column, tag_exclude_filters, TAG_PREFIX)
+        tag_exclusion_composed = self._set_prefix_based_exclusions(
+            self._mapper.tag_column, tag_exclude_filters, TAG_PREFIX
+        )
         # aws_category prefixed filters
         aws_category_exclusion_composed = None
         if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
@@ -680,7 +669,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            tag_db_name = self._tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
+            tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
             tag = str.encode(tag)
             tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(tag)
@@ -800,7 +789,7 @@ class ReportQueryHandler(QueryHandler):
     def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
         """build grouping prefix"""
         check_pack_prefix = None
-        prefix_mapping = {TAG_PREFIX: self._tag_column}
+        prefix_mapping = {TAG_PREFIX: self._mapper.tag_column}
         if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
             prefix_mapping[AWS_CATEGORY_PREFIX] = aws_category_column
         for prefix, db_column in prefix_mapping.items():
@@ -1015,7 +1004,7 @@ class ReportQueryHandler(QueryHandler):
             "cost_total",
             "cost_total_distributed",
         ]
-        db_tag_prefix = self._tag_column + "__"
+        db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
@@ -1085,7 +1074,7 @@ class ReportQueryHandler(QueryHandler):
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
         gb = group_by_value if group_by_value else ["date"]
-        tag_column = self._tag_column
+        tag_column = self._mapper.tag_column
         rank_orders = []
 
         rank_annotations = {}

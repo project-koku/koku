@@ -24,10 +24,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveIndex(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_labels_idx",
-        ),
         migrations.AddField(
             model_name="ocpusagelineitemdailysummary",
             name="all_labels",
@@ -35,7 +31,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="ocpusagelineitemdailysummary",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["all_labels"], name="pod_labels_idx"),
+            index=django.contrib.postgres.indexes.GinIndex(fields=["all_labels"], name="all_labels_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpusagelineitemdailysummary",
+            index=django.contrib.postgres.indexes.GinIndex(fields=["volume_labels"], name="volume_labels_idx"),
         ),
         migrations.RunPython(copy_field),
     ]
