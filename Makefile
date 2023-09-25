@@ -173,7 +173,7 @@ delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/{*,.minio*}
+	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/koku-bucket/*
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -214,7 +214,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data/*
+	$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -401,12 +401,12 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-CONTAINER_DIRS = $(TOPDIR)/pg_data $(TOPDIR)/.trino/{parquet_data,trino}
+CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
 docker-host-dir-setup:
 	$(DOCKER_COMPOSE) build --no-cache koku-minio
 	mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
 	chown -R $(USER_ID) $(CONTAINER_DIRS)
-	chmod 0755 $(CONTAINER_DIRS)
+	chmod -R 0755 $(CONTAINER_DIRS)
 
 docker-trino-setup: delete-trino docker-host-dir-setup
 
