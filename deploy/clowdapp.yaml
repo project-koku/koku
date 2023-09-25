@@ -305,6 +305,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: REQUESTED_ROS_BUCKET
           value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -4377,6 +4379,9 @@ parameters:
 - displayName: Enable Tags Limit
   name: TAG_ENABLED_LIMIT
   value: "200"
+- displayName: ROS URL Expiration
+  name: ROS_URL_EXPIRATION
+  value: "172800"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"

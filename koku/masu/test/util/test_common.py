@@ -24,8 +24,6 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external import LISTEN_INGEST
-from masu.external import POLL_INGEST
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
@@ -86,20 +84,6 @@ class CommonUtilTests(MasuTestCase):
         self.assertIsInstance(result["int"], str)
         self.assertIsInstance(result["str"], str)
         self.assertIsInstance(result["Decimal"], str)
-
-    def test_ingest_method_type(self):
-        """Test that the correct ingest method is returned for provider type."""
-        test_matrix = [
-            {"provider_type": Provider.PROVIDER_AWS, "expected_ingest": POLL_INGEST},
-            {"provider_type": Provider.PROVIDER_AWS_LOCAL, "expected_ingest": POLL_INGEST},
-            {"provider_type": Provider.PROVIDER_OCP, "expected_ingest": LISTEN_INGEST},
-            {"provider_type": Provider.PROVIDER_AZURE_LOCAL, "expected_ingest": POLL_INGEST},
-            {"provider_type": "NEW_TYPE", "expected_ingest": None},
-        ]
-
-        for test in test_matrix:
-            ingest_method = common_utils.ingest_method_for_provider(test.get("provider_type"))
-            self.assertEqual(ingest_method, test.get("expected_ingest"))
 
     def test_month_date_range_tuple(self):
         """Test month_date_range_tuple returns first of the month and first of next month."""
