@@ -240,6 +240,9 @@ class Provider(models.Model):
         super().save(*args, **kwargs)
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
+            if self.type == Provider.PROVIDER_OCP and not settings.DEBUG:
+                # OCP Providers are not pollable, so shouldn't go thru check_report_updates
+                return
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
