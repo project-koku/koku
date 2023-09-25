@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from django.db.models.query import QuerySet
 
-from api.report.ocp.utils import calculate_unused
+from api.report.ocp.dataclasses.cluster_capacity import calculate_unused
 
 
 @dataclass
