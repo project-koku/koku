@@ -12,8 +12,8 @@ from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
+from api.report.aws.query_handler import add_cost_type_markup_kwarg
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.constants import AWS_MARKUP_COST
 from api.report.queries import is_grouped_by_project
 
 
@@ -124,9 +124,7 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
 
         """
 
-        if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
-            parameters.provider_map_kwargs["markup_cost"] = markup_cost
-
+        add_cost_type_markup_kwarg(parameters)
         self._mapper = OCPAWSProviderMap(**parameters.provider_map_kwargs)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")

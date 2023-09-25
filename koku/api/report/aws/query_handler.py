@@ -28,6 +28,12 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 LOG = logging.getLogger(__name__)
 
 
+def add_cost_type_markup_kwarg(parameters):
+    """Adds the markup cost kwarg for cost type."""
+    if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
+        parameters.provider_map_kwargs["markup_cost"] = markup_cost
+
+
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
@@ -53,8 +59,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         try:
             getattr(self, "_mapper")
         except AttributeError:
-            if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
-                parameters.provider_map_kwargs["markup_cost"] = markup_cost
+            add_cost_type_markup_kwarg(parameters)
             self._mapper = AWSProviderMap(**parameters.provider_map_kwargs)
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")

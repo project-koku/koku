@@ -73,6 +73,7 @@ class QueryParametersTests(TestCase):
 
     def setUp(self):
         """Test setup."""
+        super().setUp()
         self.fake_uri = (
             f"filter[resolution]={self.FAKE.word()}&"
             f"filter[time_scope_value]={random.randint(0, 9999)}&"
@@ -110,6 +111,7 @@ class QueryParametersTests(TestCase):
     def test_constructor_invalid_uri(self):
         """Test that ValidationError is raised with an invalid uri."""
         fake_request = Mock(spec=HttpRequest, GET=Mock(urlencode=Mock(return_value=self.FAKE.paragraph())))
+        fake_request.user = User.objects.create(username="fake", email="fake@gmail.com")
         fake_view = Mock(
             spec=ReportView,
             provider=self.FAKE.word(),
@@ -132,6 +134,7 @@ class QueryParametersTests(TestCase):
                 super().__init__(*args, spec=ParamSerializer, is_valid=lambda: False, **kwargs)
 
         fake_request = Mock(spec=HttpRequest, GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
+        fake_request.user = User.objects.create(username="fake", email="fake@gmail.com")
         fake_view = Mock(
             spec=ReportView,
             provider=self.FAKE.word(),

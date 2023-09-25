@@ -18,6 +18,7 @@ class OCPAllView(ReportView):
     serializer = OCPAllQueryParamSerializer
     query_handler = OCPAllReportQueryHandler
     tag_providers = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP, Provider.PROVIDER_OCP]
+    conditional_report_type_by_project = True  # adds "_by_project" if grouped by project
 
 
 class OCPAllCostView(OCPAllView):

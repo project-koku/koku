@@ -26,8 +26,10 @@ from api.report.constants import AND_TAG_PREFIX
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import OR_AWS_CATEGORY_PREFIX
 from api.report.constants import OR_TAG_PREFIX
+from api.report.constants import PROJECT_KEYS
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from api.report.queries import _is_grouped_by_key
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -83,13 +85,13 @@ class QueryParameters:
 
         self.kwargs = kwargs
         self.request = request
+        self.schema_name = get_schema_name(request.user)
         self.caller = caller
         self.report_type = caller.report
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
         self.tag_providers = caller.tag_providers
         self.aws_category_keys = set()
-        self.report_type = caller.report
 
         try:
             query_params = parser.parse(self.url_data)
@@ -111,9 +113,23 @@ class QueryParameters:
         if self.access:
             self._configure_access_params(caller)
 
+        # Note, the report type needs to be after we set the parameters
+        # so that we can check the group by for our conditional report
+        # types in the views
+        self.report_type = self.check_conditional_report_types(caller)
+
         self.provider_map_kwargs = self.build_provider_map_kwargs(caller)
         self._set_time_scope_defaults()
         LOG.debug("Query Parameters: %s", self)
+
+    def check_conditional_report_types(self, caller):
+        """Checks the request to see if the report_type needs modified."""
+        if hasattr(caller, "conditional_report_type_by_project"):
+            if caller.conditional_report_type_by_project:
+                group_by = self.parameters.get("group_by", {})
+                if _is_grouped_by_key(group_by, PROJECT_KEYS):
+                    return caller.report + "_by_project"
+        return caller.report
 
     def __repr__(self):
         """Unambiguous representation."""
@@ -132,7 +148,11 @@ class QueryParameters:
 
     def build_provider_map_kwargs(self, caller):
         """Builds the provider map kwargs."""
-        kwargs = {"provider": caller.query_handler.provider, "report_type": self.report_type, "schema_name": None}
+        kwargs = {
+            "provider": caller.query_handler.provider,
+            "report_type": self.report_type,
+            "schema_name": self.schema_name,
+        }
         if hasattr(caller, "set_cost_type_provider_map_kwarg"):
             if caller.set_cost_type_provider_map_kwarg:
                 kwargs["cost_type"] = self.cost_type
@@ -630,3 +650,14 @@ def get_tenant(user):
     if tenant:
         return tenant
     raise ValidationError({"details": _("Invalid user definition")})
+
+
+def get_schema_name(user):
+    """Get the schema name for the given user."""
+    if user:
+        try:
+            customer = user.customer
+            if customer:
+                return customer.schema_name
+        except User.DoesNotExist:
+            pass

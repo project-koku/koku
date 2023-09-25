@@ -113,10 +113,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         mapper_class = OCPProviderMap
         self._limit = parameters.get_filter("limit")
         self._report_type = parameters.report_type
-        # Update which field is used to calculate cost by group by param.
-        if is_grouped_by_project(parameters) and parameters.report_type == "costs":
-            self._report_type = parameters.report_type + "_by_project"
-            parameters.provider_map_kwargs["report_type"] = self._report_type
         self._mapper = mapper_class(**parameters.provider_map_kwargs)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
 

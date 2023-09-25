@@ -38,6 +38,7 @@ class OCPCostView(OCPView):
 
     report = "costs"
     serializer = OCPCostQueryParamSerializer
+    conditional_report_type_by_project = True  # adds "_by_project" in QueryParameters
 
 
 class OCPVolumeView(OCPView):

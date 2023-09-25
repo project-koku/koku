@@ -23,3 +23,4 @@ AWS_COST_TYPE_CHOICES = (
     # Use calculated_amortized_cost for the correct amortized cost value.
     ("savingsplan_effective_cost", "savingsplan_effective_cost"),
 )
+PROJECT_KEYS = ["project", "and:project", "or:project"]
