@@ -138,7 +138,7 @@ def get_selected_currency_or_setup(schema):
     """
     with schema_context(schema):
         if not UserSettings.objects.exists():
-            set_currency(schema)
+            deprecated_set_currency(schema)
         currency = UserSettings.objects.all().first().settings["currency"]
         return currency
 
@@ -159,7 +159,7 @@ def get_currency_options():
     ]
 
 
-def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
+def deprecated_set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
     """
     set currency
 
@@ -222,7 +222,7 @@ def get_cost_type_options():
     ]
 
 
-def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
+def deprecated_set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
     """
     set cost_type
 

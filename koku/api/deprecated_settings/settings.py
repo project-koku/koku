@@ -16,13 +16,13 @@ from api.deprecated_settings.utils import create_plain_text
 from api.deprecated_settings.utils import create_plain_text_with_doc
 from api.deprecated_settings.utils import create_select
 from api.deprecated_settings.utils import create_subform
+from api.deprecated_settings.utils import deprecated_set_cost_type
+from api.deprecated_settings.utils import deprecated_set_currency
 from api.deprecated_settings.utils import generate_doc_link
 from api.deprecated_settings.utils import get_cost_type_options
 from api.deprecated_settings.utils import get_currency_options
 from api.deprecated_settings.utils import get_selected_cost_type_or_setup
 from api.deprecated_settings.utils import get_selected_currency_or_setup
-from api.deprecated_settings.utils import set_cost_type
-from api.deprecated_settings.utils import set_currency
 from api.deprecated_settings.utils import SETTINGS_PREFIX
 from api.provider.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
@@ -31,7 +31,7 @@ from reporting.models import AWSEnabledCategoryKeys
 from reporting.models import EnabledTagKeys
 
 
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
+def deprecated_update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
     ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
     LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
     changed = False
@@ -337,11 +337,13 @@ class Settings:
 
                 if enabled_keys_no_abbr != enabled:
                     if key_type == "tag":
-                        updated[ix] = update_enabled_keys(
+                        updated[ix] = deprecated_update_enabled_keys(
                             self.schema, enabled_keys_class, enabled_keys_no_abbr, params[provider_name]["provider"]
                         )
                     else:
-                        updated[ix] = update_enabled_keys(self.schema, enabled_keys_class, enabled_keys_no_abbr)
+                        updated[ix] = deprecated_update_enabled_keys(
+                            self.schema, enabled_keys_class, enabled_keys_no_abbr
+                        )
 
                 if updated[ix]:
                     invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
@@ -365,7 +367,7 @@ class Settings:
 
         try:
             LOG.info(f"Updating currency to: " + settings)
-            set_currency(self.schema, settings)
+            deprecated_set_currency(self.schema, settings)
         except Exception as exp:
             LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
             return False
@@ -390,7 +392,7 @@ class Settings:
 
         try:
             LOG.info(f"Updating cost_type to: " + settings)
-            set_cost_type(self.schema, settings)
+            deprecated_set_cost_type(self.schema, settings)
         except Exception as exp:
             LOG.warning(f"Failed to store new cost_type settings for schema {self.schema}. Reason: {exp}")
             return False
