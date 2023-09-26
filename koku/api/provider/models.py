@@ -77,14 +77,16 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         excludes = {} if settings.DEBUG else {"type": Provider.PROVIDER_OCP}
         return super().get_queryset().filter(active=True, paused=False).exclude(**excludes)
 
-    def get_polling_batch(self, limit=-1, offset=0):
+    def get_polling_batch(self, limit=-1, offset=0, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
         polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
+        if not filters:
+            filters = {}
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
-            return self.exclude(polling_timestamp__gt=polling_delta)
-        return self.exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
+            return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)
+        return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
 
 
 class Provider(models.Model):
@@ -238,6 +240,9 @@ class Provider(models.Model):
         super().save(*args, **kwargs)
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
+            if self.type == Provider.PROVIDER_OCP and not settings.DEBUG:
+                # OCP Providers are not pollable, so shouldn't go thru check_report_updates
+                return
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
@@ -441,6 +446,7 @@ delete
 ;
 """
         with transaction.get_connection().cursor() as cur:
+            LOG.info(f"Attempting to delete records from {qual_table_name}")
             cur.execute(_sql, (target_values,))
             LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
 
