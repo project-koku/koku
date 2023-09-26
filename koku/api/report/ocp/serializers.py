@@ -17,6 +17,13 @@ from api.report.serializers import StringOrListField
 DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 
 
+def order_by_field_requires_group_by(data, order_name, group_by_key):
+    error = {}
+    if order_name in data.get("order_by", {}) and group_by_key not in data.get("group_by", {}):
+        error["order_by"] = _(f"Cannot order by field {order_name} without grouping by {group_by_key}.")
+        raise serializers.ValidationError(error)
+
+
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
@@ -155,19 +162,9 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
         if "delta" in data.get("order_by", {}) and "delta" not in data:
             error["order_by"] = _("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
-        if DISTRIBUTED_COST_INTERNAL["distributed_cost"] in data.get("order_by", {}) and "project" not in data.get(
-            "group_by", {}
-        ):
-            error["order_by"] = _("Cannot order by distributed_cost without grouping by project.")
-            raise serializers.ValidationError(error)
-        if "storage_class" in data.get("order_by", {}) and "persistentvolumeclaim" not in data.get("group_by", {}):
-            error["order_by"] = _("Cannot order by storage_class without grouping by persistentvolumeclaim.")
-            raise serializers.ValidationError(error)
-        if "persistentvolumeclaim" in data.get("order_by", {}) and "persistentvolumeclaim" not in data.get(
-            "group_by", {}
-        ):
-            error["order_by"] = _("Cannot order by persistentvolumeclaim without grouping by persistentvolumeclaim.")
-            raise serializers.ValidationError(error)
+        order_by_field_requires_group_by(data, DISTRIBUTED_COST_INTERNAL["distributed_cost"], "project")
+        order_by_field_requires_group_by(data, "storage_class", "persistentvolumeclaim")
+        order_by_field_requires_group_by(data, "persistentvolumeclaim", "persistentvolumeclaim")
         if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
             "group_by", {}
         ):
