@@ -19,6 +19,7 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from masu.processor import is_feature_cost_3083_all_labels_enabled
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
@@ -29,17 +30,15 @@ from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 
-# from masu.processor import is_feature_cost_3083_all_labels_enabled
-
 
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
 
-    # @cached_property
-    # def check_unleash_for_tag_column_cost_3038(self):
-    #     if is_feature_cost_3083_all_labels_enabled(self.schema):
-    #         return "all_labels"
-    #     return "pod_labels"
+    @cached_property
+    def check_unleash_for_tag_column_cost_3038(self):
+        if is_feature_cost_3083_all_labels_enabled(self._schema_name):
+            return "all_labels"
+        return "pod_labels"
 
     def __cost_model_cost(self, cost_model_rate_type=None):
         """Return ORM term for cost model cost"""
@@ -145,6 +144,7 @@ class OCPProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""
+        self._schema_name = schema_name
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCP,
