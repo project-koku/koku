@@ -38,7 +38,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
     def test_costs_provider_map_has_required_mappings(self):
         """Test that the volume map has the required mappings."""
         for report_type in ["costs", "costs_by_project"]:
-            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
+            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type, self.schema_name)._report_type_map
             self.assertEqual(report_type_map.get("capacity_aggregate"), {})
 
     def test_capacity_aggregate_values_in_provider_map(self):
@@ -47,7 +47,7 @@ class ClusterCapacityDataclassTest(IamTestCase):
         # provider map.
         for report_type in ["cpu", "memory", "volume"]:
             with self.subTest(report_type=report_type):
-                report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
+                report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type, self.schema_name)._report_type_map
                 self.assertTrue(report_type_map.get("count_units_key"))
                 capacity_aggregate = report_type_map.get("capacity_aggregate")
                 self.assertTrue(capacity_aggregate)
@@ -213,7 +213,7 @@ class NodeCapacityDataclassTest(IamTestCase):
     def test_costs_provider_map_has_required_mappings(self):
         """Test that the volume map has the required mappings."""
         for report_type in ["costs", "costs_by_project"]:
-            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
+            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type, self.schema_name)._report_type_map
             self.assertEqual(report_type_map.get("capacity_aggregate"), {})
 
     def test_capacity_aggregate_values_in_provider_map(self):
@@ -222,7 +222,7 @@ class NodeCapacityDataclassTest(IamTestCase):
         # provider map.
         for report_type in ["cpu", "memory", "volume"]:
             with self.subTest(report_type=report_type):
-                report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type)._report_type_map
+                report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, report_type, self.schema_name)._report_type_map
                 self.assertTrue(report_type_map.get("count_units_key"))
                 capacity_aggregate = report_type_map.get("capacity_aggregate")
                 self.assertTrue(capacity_aggregate)
