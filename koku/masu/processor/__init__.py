@@ -73,17 +73,6 @@ def is_gcp_resource_matching_disabled(account):  # pragma: no cover
     return res
 
 
-def is_summarize_ocp_on_gcp_by_node_enabled(account):  # pragma: no cover
-    """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
-    account = convert_account(account)
-    context = {"schema": account}
-    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context)
-    if res:
-        LOG.info(log_json(msg="OCP on GCP summarize by node is enabled", context=context))
-
-    return res
-
-
 def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
