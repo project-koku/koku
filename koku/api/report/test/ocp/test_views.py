@@ -59,7 +59,7 @@ class OCPReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs")
+        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs", cls.schema_name)
         cls.cost_term = (
             cls.provider_map.cloud_infrastructure_cost
             + cls.provider_map.markup_cost

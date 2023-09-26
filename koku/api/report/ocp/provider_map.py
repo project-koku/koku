@@ -143,7 +143,7 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._mapping = [
             {
@@ -661,7 +661,7 @@ class OCPProviderMap(ProviderMap):
                 ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(provider, report_type, schema_name)
 
     @cached_property
     def cost_model_supplementary_cost(self):
