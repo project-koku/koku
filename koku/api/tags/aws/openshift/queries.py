@@ -60,6 +60,7 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         self._mapper = OCPAWSProviderMap(
             provider=self.provider,
             report_type=parameters.report_type,
+            schema_name=parameters.tenant.schema_name,
             cost_type=parameters.cost_type,
         )
         if parameters.get_filter("enabled") is None:
