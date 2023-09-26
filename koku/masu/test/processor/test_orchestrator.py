@@ -445,16 +445,13 @@ class OrchestratorTest(MasuTestCase):
     def test_orchestrator_args_polling_batch(self, *args):
         """Test that args to Orchestrator change the polling-batch result"""
         # providing a UUID overrides the polling timestamp
-        o = Orchestrator(
-            provider_uuid=self.aws_provider_uuid,
-            scheduled=False,
-        )
+        o = Orchestrator(provider_uuid=self.aws_provider_uuid)
         p = o.get_polling_batch()
         self.assertEqual(len(p), 1)
 
         # provider provider-type does NOT override polling timestamp
         # so this query will provide zero pollable providers
-        o = Orchestrator(scheduled=False, provider_type="AWS-local")
+        o = Orchestrator(provider_type="AWS-local")
         p = o.get_polling_batch()
         self.assertEqual(len(p), 0)
 
@@ -465,7 +462,7 @@ class OrchestratorTest(MasuTestCase):
         p.polling_timestamp = None
         p.save()
 
-        o = Orchestrator(scheduled=False, provider_type="AWS-local")
+        o = Orchestrator(provider_type="AWS-local")
         p = o.get_polling_batch()
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())
