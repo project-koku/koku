@@ -136,6 +136,14 @@ class SourcesErrorMessageTest(TestCase):
                 "internal_message": "'(RBACAccessDenied) The client does not have authorization to perform action.",
                 "expected_message": ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE,
             },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": (
+                    "(AuthorizationFailed) The client 'xxxxx' with object id 'xxxxx' "
+                    "does not have authorization to perform action.",
+                ),
+                "expected_message": ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE,
+            },
         ]
         for test in test_matrix:
             with self.subTest(test=test):
