@@ -444,19 +444,7 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.WorkerCache")
     def test_orchestrator_args_polling_batch(self, *args):
         """Test that args to Orchestrator change the polling-batch result"""
-        # providing a UUID overrides the polling timestamp
-        o = Orchestrator(provider_uuid=self.aws_provider_uuid)
-        p = o.get_polling_batch()
-        self.assertEqual(len(p), 1)
-
-        # provider provider-type does NOT override polling timestamp
-        # so this query will provide zero pollable providers
-        o = Orchestrator(provider_type="AWS-local")
-        p = o.get_polling_batch()
-        self.assertEqual(len(p), 0)
-
-        # here we demonstrate the filtering only returns AWS-local
-        # and returns based on the polling timestamp
+        # fetch the aws-local a first time to set the polling timestamp
         expected_providers = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL)
         p = expected_providers[0]
         p.polling_timestamp = None
@@ -466,3 +454,8 @@ class OrchestratorTest(MasuTestCase):
         p = o.get_polling_batch()
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())
+
+        # re-fetch aws-local, respecting polling timestamp
+        o = Orchestrator(provider_type="AWS-local")
+        p = o.get_polling_batch()
+        self.assertEqual(len(p), 0)

@@ -67,6 +67,27 @@ class Orchestrator:
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
+    def update_polling_timestamp_and_filter_provider(self, provider: Provider):
+        """Set the polling_timestamp to now, and return the Provider if not disabled by Unleash."""
+        provider.polling_timestamp = DH.now_utc
+        provider.save(update_fields=["polling_timestamp"])
+        account = provider.account
+        schema_name = account.get("schema_name")
+        if is_cloud_source_processing_disabled(schema_name):
+            LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
+            return
+        if is_source_disabled(provider.uuid):
+            LOG.info(
+                log_json(
+                    "get_polling_batch",
+                    msg="processing disabled for source",
+                    schema=schema_name,
+                    provider_uuid=provider.uuid,
+                )
+            )
+            return
+        return provider
+
     def get_polling_batch(self):
         filters = {}
         if self.provider_type:
@@ -75,24 +96,8 @@ class Orchestrator:
 
         batch = []
         for provider in providers:
-            provider.polling_timestamp = DH.now_utc
-            provider.save(update_fields=["polling_timestamp"])
-            account = provider.account
-            schema_name = account.get("schema_name")
-            if is_cloud_source_processing_disabled(schema_name):
-                LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
-                continue
-            if is_source_disabled(provider.uuid):
-                LOG.info(
-                    log_json(
-                        "get_polling_batch",
-                        msg="processing disabled for source",
-                        schema=schema_name,
-                        provider_uuid=provider.uuid,
-                    )
-                )
-                continue
-            batch.append(account)
+            if p := self.update_polling_timestamp_and_filter_provider(provider):
+                batch.append(p)
         return batch
 
     def get_reports(self, provider_uuid):
@@ -306,7 +311,9 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        provider = Provider.objects.filter(uuid=self.provider_uuid).first()
+        provider = self.update_polling_timestamp_and_filter_provider(
+            Provider.objects.filter(uuid=self.provider_uuid).first()
+        )
         if not provider:
             LOG.info(log_json(msg="no account to be polled"))
             return

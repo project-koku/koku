@@ -27,7 +27,11 @@ class DownloadAPIViewTest(TestCase):
         "masu.celery.tasks.check_report_updates.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_download(self, file_list, _):
+    @patch(
+        "masu.celery.tasks.check_report_updates_single_source.delay",
+        return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
+    )
+    def test_download(self, *_):
         """Test the download endpoint."""
         url = reverse("report_download")
         response = self.client.get(url)
