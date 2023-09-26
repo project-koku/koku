@@ -123,8 +123,10 @@ class Forecast:
     def provider_map(self):
         """Return the provider map instance."""
         if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
-            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
-        return self.provider_map_class(self.provider, self.REPORT_TYPE)
+            return self.provider_map_class(
+                self.provider, self.REPORT_TYPE, self.params.tenant.schema_name, self.cost_type
+            )
+        return self.provider_map_class(self.provider, self.REPORT_TYPE, self.params.tenant.schema_name)
 
     @property
     def cost_units(self):
