@@ -443,7 +443,7 @@ services:
 
   db:
     container_name: koku_db
-    image: postgres:13
+    image: postgres:14
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}
