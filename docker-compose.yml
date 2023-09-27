@@ -625,6 +625,8 @@ services:
       - DATABASE_USER=${DATABASE_USER-hive}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
     depends_on:
+      - db
+      - minio
       - create-parquet-bucket
 
   trino:
