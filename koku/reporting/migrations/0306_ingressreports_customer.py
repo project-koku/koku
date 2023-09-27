@@ -14,7 +14,9 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="ingressreports",
-            name="customer",
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to="api.customer"),
+            name="schema_name",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.PROTECT, to="api.customer", to_field="schema_name"
+            ),
         ),
     ]

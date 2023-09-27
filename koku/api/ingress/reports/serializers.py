@@ -6,7 +6,6 @@
 from rest_framework import serializers
 
 from api.common import error_obj
-from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.processor import is_ingress_rate_limiting_disabled
 from providers.provider_access import ProviderAccessor
@@ -38,7 +37,7 @@ class IngressReportsSerializer(serializers.ModelSerializer):
             "sources_id",
             "bill_year",
             "bill_month",
-            "customer",
+            "schema_name",
             "status",
         ]
 
@@ -46,19 +45,12 @@ class IngressReportsSerializer(serializers.ModelSerializer):
         """
         Check for supported sources.
         """
-        customer_id = data.get("customer").id
         source = data.get("source")
         bill_year = data.get("bill_year")
         bill_month = data.get("bill_month")
         if source.type.lower() not in PROVIDER_LIST:
             key = "source_type"
             message = f"Invalid source_type, {source.type}, provided."
-            raise serializers.ValidationError(error_obj(key, message))
-
-        # Make sure source/provider is in the customer schema!!
-        if not Provider.objects.filter(uuid=source.uuid, customer=customer_id):
-            key = "source_id"
-            message = "Invalid source uuid or id provided."
             raise serializers.ValidationError(error_obj(key, message))
 
         dh = DateHelper()
