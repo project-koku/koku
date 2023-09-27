@@ -68,7 +68,7 @@ class MockMessage:
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def download_ocp_report(request):
+def ingest_ocp_payload(request):
     """Return download file async task ID."""
     request_id = uuid4().hex
     params = request.query_params

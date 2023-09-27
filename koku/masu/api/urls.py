@@ -17,7 +17,6 @@ from masu.api.views import clear_celery_queues
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
-from masu.api.views import download_ocp_report
 from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
@@ -25,6 +24,7 @@ from masu.api.views import explain_query
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
+from masu.api.views import ingest_ocp_payload
 from masu.api.views import ingress_reports
 from masu.api.views import lockinfo
 from masu.api.views import notification
@@ -48,7 +48,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
-    path("download_ocp_report/", download_ocp_report, name="local ocp ingress"),
+    path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
