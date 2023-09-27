@@ -613,7 +613,7 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - S3_HOST=kokuminio
+      - S3_HOST=koku-minio
       - S3_PORT=9000
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
