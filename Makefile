@@ -196,7 +196,7 @@ delete-test-customer-data: delete-test-sources delete-cost-models
 test_source=all
 load-test-customer-data:
 	$(SCRIPTDIR)/load_test_customer_data.sh $(test_source) $(start) $(end)
-	make load-aws-org-unit-tree
+	$(MAKE) load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
@@ -292,8 +292,8 @@ endif
 
 docker-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	$(PREFIX) make delete-testing
-	$(PREFIX) make delete-trino-data
+	$(PREFIX) $(MAKE) delete-testing
+	$(PREFIX) $(MAKE) delete-trino-data
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
@@ -320,17 +320,17 @@ docker-shell:
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          $(DOCKER_COMPOSE) restart koku-server masu-server koku-worker koku-beat koku-listener ; \
-         make _koku-wait ; \
+         $(MAKE) _koku-wait ; \
          echo " koku is available" ; \
      else \
-         make docker-up-koku ; \
+         $(MAKE) docker-up-koku ; \
      fi
 
 docker-up-koku:
 	@if [ -z "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          echo "Starting koku_server ..." ; \
          $(DOCKER_COMPOSE) up $(build) -d koku-server ; \
-         make _koku-wait ; \
+         $(MAKE) _koku-wait ; \
      fi
 	@echo " koku is available!"
 
@@ -421,7 +421,7 @@ docker-trino-ps:
 
 docker-trino-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	make delete-trino
+	$(MAKE) delete-trino
 
 docker-trino-down-all: docker-trino-down docker-down
 
@@ -509,10 +509,10 @@ create-large-ocp-source-testing-files:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
 endif
-	make purge-large-testing-ocp-files
+	$(MAKE) purge-large-testing-ocp-files
 	@for FILE in $(foreach f, $(wildcard $(nise_config_dir)/*.yml), $(f)) ; \
     do \
-        make ocp-source-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
+        $(MAKE) ocp-source-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
 	done
 
 import-large-ocp-source-testing-costmodel:
@@ -530,9 +530,9 @@ large-ocp-source-testing:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
 endif
-	make create-large-ocp-source-testing-files nise_config_dir="$(nise_config_dir)"
-	make import-large-ocp-source-testing-costmodel
-	make import-large-ocp-source-testing-data
+	$(MAKE) create-large-ocp-source-testing-files nise_config_dir="$(nise_config_dir)"
+	$(MAKE) import-large-ocp-source-testing-costmodel
+	$(MAKE) import-large-ocp-source-testing-data
 
 # Delete the testing large ocp source local files
 purge-large-testing-ocp-files:
