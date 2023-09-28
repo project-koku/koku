@@ -330,67 +330,22 @@ class GCPReportDBAccessorTest(MasuTestCase):
             ocp_provider.save()
             with self.subTest(distribution=distribution):
                 expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
-                with patch(
-                    "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
-                    Mock(return_value={"table_id": "resource"}),
-                ):
-                    with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-                        self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
-                            start_date,
-                            end_date,
-                            self.ocp_provider_uuid,
-                            self.ocp_cluster_id,
-                            self.gcp_provider_uuid,
-                            self.ocp_cluster_id,
-                            current_bill_id,
-                            markup_value,
-                            distribution,
-                        )
-                        mock_trino.assert_called()
-                        mock_delete.assert_called()
-                        mock_month_delete.assert_called()
-                        self.assertIn(expected_log, logger.output)
-
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
-        self,
-        mock_trino,
-        mock_month_delete,
-        mock_delete,
-    ):
-        """Test that we construst our SQL and query using Trino."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
-        with schema_context(self.schema):
-            current_bill_id = bills.first().id if bills else None
-
-        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = float(markup.get("value", 0)) / 100
-
-        for distribution in ["cpu", "memory"]:
-            with self.subTest(distribution=distribution):
-                self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino_by_node(
-                    start_date,
-                    end_date,
-                    self.ocp_provider_uuid,
-                    self.ocp_cluster_id,
-                    self.gcp_provider_uuid,
-                    self.ocp_cluster_id,
-                    current_bill_id,
-                    markup_value,
-                    distribution,
-                    "node",
-                    12,
-                )
-                mock_trino.assert_called()
-                mock_delete.assert_called()
-                mock_month_delete.assert_called()
+                with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+                    self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
+                        start_date,
+                        end_date,
+                        self.ocp_provider_uuid,
+                        self.ocp_cluster_id,
+                        self.gcp_provider_uuid,
+                        self.ocp_cluster_id,
+                        current_bill_id,
+                        markup_value,
+                        distribution,
+                    )
+                    mock_trino.assert_called()
+                    mock_delete.assert_called()
+                    mock_month_delete.assert_called()
+                    self.assertIn(expected_log, logger.output)
 
     def test_get_openshift_on_cloud_matched_tags(self):
         """Test that matched tags are returned."""
