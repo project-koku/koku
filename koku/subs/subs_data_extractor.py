@@ -18,6 +18,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.aws.common import get_s3_resource
+from reporting.models import SubsIDMap
 from reporting.models import SubsLastProcessed
 from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_TABLE
 
@@ -59,7 +60,38 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             return last_time.latest_processed_time + timedelta(seconds=1)
         return None
 
+    def determine_ids_for_provider(self, year, month):
+        """Determine the relevant IDs to process data for this provider."""
+        with schema_context(self.schema):
+            # get a list of IDs to exclude from this source processing
+            excluded_ids = list(
+                SubsIDMap.objects.exclude(source_uuid=self.provider_uuid).values_list("usage_id", flat=True)
+            )
+            sql = (
+                "SELECT DISTINCT lineitem_usageaccountid FROM aws_line_items WHERE"
+                " source={{provider_uuid}} AND year={{year}} AND month={{month}}"
+            )
+            if excluded_ids:
+                sql += "AND lineitem_usageaccountid NOT IN {{excluded_ids | inclause}}"
+            sql_params = {
+                "provider_uuid": self.provider_uuid,
+                "year": year,
+                "month": month,
+                "excluded_ids": excluded_ids,
+            }
+            ids = self._execute_trino_raw_sql_query(
+                sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_ids_for_provider"
+            )
+            id_list = []
+            bulk_maps = []
+            for id in ids:
+                id_list.append(id[0])
+                bulk_maps.append(SubsIDMap(source_uuid_id=self.provider_uuid, usage_id=id[0]))
+            SubsIDMap.objects.bulk_create(bulk_maps, ignore_conflicts=True)
+        return id_list
+
     def determine_end_time(self, year, month):
+        """Determine the end time for subs processing."""
         sql = (
             f" SELECT MAX(lineitem_usagestartdate) FROM aws_line_items"
             f" WHERE source='{self.provider_uuid}' AND year='{year}' AND month='{month}'"
@@ -71,26 +103,40 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         """Determines the start time for subs processing"""
         base_time = self.determine_latest_processed_time_for_provider(year, month) or month_start
         created = Provider.objects.get(uuid=self.provider_uuid).created_timestamp
-        if base_time < created:
+        creation_processing_time = created.replace(microsecond=0, second=0, minute=0, hour=0) - timedelta(days=1)
+        if base_time < creation_processing_time:
             # this will set the default to start collecting from the midnight hour the day prior to source creation
-            return created.replace(microsecond=0, second=0, minute=0, hour=0) - timedelta(days=1)
+            return creation_processing_time
         return base_time
 
-    def determine_line_item_count(self, where_clause):
+    def determine_line_item_count(self, where_clause, sql_params):
         """Determine the number of records in the table that have not been processed and match the criteria"""
         table_count_sql = f"SELECT count(*) FROM {self.schema}.{self.table} {where_clause}"
-        count = self._execute_trino_raw_sql_query(table_count_sql, log_ref="determine_subs_processing_count")
+        count = self._execute_trino_raw_sql_query(
+            table_count_sql, sql_params=sql_params, log_ref="determine_subs_processing_count"
+        )
         return count[0][0]
 
-    def determine_where_clause(self, latest_processed_time, end_time, year, month):
+    def determine_where_clause_and_params(self, latest_processed_time, end_time, year, month, ids):
         """Determine the where clause to use when processing subs data"""
-        return (
-            f"WHERE source='{self.provider_uuid}' AND year='{year}' AND month='{month}' AND"
+        where_clause = (
+            "WHERE source={{provider_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu IS NOT NULL AND strpos(resourcetags, 'com_redhat_rhel') > 0 AND"
-            f" lineitem_usagestartdate > TIMESTAMP '{latest_processed_time}' AND"
-            f" lineitem_usagestartdate <= TIMESTAMP '{end_time}'"
+            " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
+            " lineitem_usagestartdate > {{latest_processed_time}} AND"
+            " lineitem_usagestartdate <= {{end_time}}"
         )
+        if ids:
+            where_clause += " AND lineitem_usageaccountid IN {{ids | inclause}}"
+        sql_params = {
+            "provider_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+            "latest_processed_time": latest_processed_time,
+            "end_time": end_time,
+            "ids": ids,
+        }
+        return where_clause, sql_params
 
     def update_latest_processed_time(self, year, month, end_time):
         """Update the latest processing time for a provider"""
@@ -108,8 +154,15 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         year = month_start.strftime("%Y")
         start_time = self.determine_start_time(year, month, month_start)
         end_time = self.determine_end_time(year, month)
-        where_clause = self.determine_where_clause(start_time, end_time, year, month)
-        total_count = self.determine_line_item_count(where_clause)
+        ids = self.determine_ids_for_provider(year, month)
+        if not ids:
+            LOG.info(
+                log_json(self.tracing_id, msg="no valid IDs to process for current source.", context=self.context)
+            )
+            self.update_latest_processed_time(year, month, end_time)
+            return []
+        where_clause, sql_params = self.determine_where_clause_and_params(start_time, end_time, year, month, ids)
+        total_count = self.determine_line_item_count(where_clause, sql_params)
         LOG.debug(
             log_json(
                 self.tracing_id,
@@ -132,6 +185,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 "end_time": end_time,
                 "offset": offset,
                 "limit": settings.PARQUET_PROCESSING_BATCH_SIZE,
+                "ids": ids,
             }
             results, description = self._execute_trino_raw_sql_query_with_description(
                 query_sql, sql_params=sql_params, log_ref=f"{self.provider_type.lower()}_subs_summary.sql"
@@ -154,6 +208,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return upload_keys
 
     def copy_data_to_subs_s3_bucket(self, data, cols, filename):
+        """Copy subs data to the right S3 bucket."""
         my_df = pd.DataFrame(data)
         my_df.to_csv(filename, header=cols, index=False)
         with open(filename, "rb") as fin:
