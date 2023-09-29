@@ -36,7 +36,7 @@ CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
 class AWSProviderMap(ProviderMap):
     """AWS Provider Map."""
 
-    def __init__(self, provider, report_type, cost_type, markup_cost="markup_cost"):
+    def __init__(self, provider, report_type, schema_name, cost_type, markup_cost="markup_cost"):
         """Constructor."""
         self.cost_type = cost_type
         self.markup_cost = markup_cost
@@ -465,4 +465,4 @@ class AWSProviderMap(ProviderMap):
                 ("account",): AWSNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(provider, report_type, schema_name)
