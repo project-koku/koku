@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import ProhibitNullCharactersValidator
 from django.db.models import QuerySet
 from django_filters import MultipleChoiceFilter
 from django_filters.fields import MultipleChoiceField
@@ -27,8 +28,16 @@ from reporting.user_settings.models import UserSettings
 
 
 class NonValidatingMultipleChoiceField(MultipleChoiceField):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validators.append(ProhibitNullCharactersValidator())
+
     def validate(self, value):
-        pass
+        if isinstance(value, str):
+            self.run_validators(value)
+        else:
+            for val in value:
+                self.run_validators(val)
 
 
 class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
