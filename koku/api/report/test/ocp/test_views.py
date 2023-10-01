@@ -25,9 +25,9 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.provider.models import Provider
 from api.query_handler import TruncDayString
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.test.util.constants import OCP_NAMESPACES
@@ -59,7 +59,8 @@ class OCPReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs", cls.schema_name)
+        query_params = cls.mocked_query_params(cls, "?", OCPCostView)
+        cls.provider_map = OCPProviderMap(query_params)
         cls.cost_term = (
             cls.provider_map.cloud_infrastructure_cost
             + cls.provider_map.markup_cost
