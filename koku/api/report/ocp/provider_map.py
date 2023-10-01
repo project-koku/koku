@@ -19,6 +19,8 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from api.report.queries import _is_grouped_by_key
+from api.report.queries import is_grouped_by_project
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
@@ -28,6 +30,13 @@ from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
+
+
+def determine_report_type(parameters):
+    """Redirect cost to costs_by_project"""
+    if is_grouped_by_project(parameters) and parameters.report_type == "costs":
+        return parameters.report_type + "_by_project"
+    return parameters.report_type
 
 
 class OCPProviderMap(ProviderMap):
@@ -135,11 +144,17 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __init__(self, provider, report_type):
-        """Constructor."""
+    def __init__(self, parameters):
+        """Constructor.
+
+        Parameters: QueryParameters Instance
+        """
+        self.provider = Provider.PROVIDER_OCP
+        self.parameters = parameters
+
         self._mapping = [
             {
-                "provider": Provider.PROVIDER_OCP,
+                "provider": self.provider,
                 "annotations": {"cluster": "cluster_id"},
                 "end_date": "usage_start",
                 "filters": {
@@ -155,7 +170,7 @@ class OCPProviderMap(ProviderMap):
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
-                        "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
+                        "custom": ProviderAccessor(self.provider).infrastructure_key_list,
                     },
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
@@ -510,7 +525,7 @@ class OCPProviderMap(ProviderMap):
                                 "storageclass", filter=Q(storageclass__isnull=False), distinct=True
                             ),
                         },
-                        "default_ordering": {"usage": "desc"},
+                        "default_ordering": self.volume_default_ordering,
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity_count": Sum(
@@ -649,7 +664,7 @@ class OCPProviderMap(ProviderMap):
                 ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, determine_report_type(parameters), parameters.tenant.schema_name)
 
     @cached_property
     def cost_model_supplementary_cost(self):
@@ -757,3 +772,10 @@ class OCPProviderMap(ProviderMap):
     def cost_model_distributed_cost_by_project(self):
         """Return cost model distributed cost."""
         return self.__cost_model_distributed_cost()
+
+    @cached_property
+    def volume_default_ordering(self):
+        if _is_grouped_by_key(self.parameters.parameters.get("group_by", {}), ["persistentvolumeclaim"]):
+            # The OCP project details page would like to order pvcs by highest cost to lowest.
+            return {"cost": "asc"}
+        return {"usage": "desc"}

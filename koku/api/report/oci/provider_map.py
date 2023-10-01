@@ -32,11 +32,12 @@ from reporting.provider.oci.models import OCIStorageSummaryP
 class OCIProviderMap(ProviderMap):
     """OCI Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, parameters):
         """Constructor."""
+        self.provider = Provider.PROVIDER_OCI
         self._mapping = [
             {
-                "provider": Provider.PROVIDER_OCI,
+                "provider": self.provider,
                 "annotations": {},
                 "end_date": "usage_start",
                 "filters": {
@@ -390,4 +391,4 @@ class OCIProviderMap(ProviderMap):
                 ("payer_tenant_id",): OCINetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)

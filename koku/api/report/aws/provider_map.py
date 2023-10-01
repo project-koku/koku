@@ -16,6 +16,7 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions.comparison import NullIf
 
 from api.models import Provider
+from api.report.constants import AWS_MARKUP_COST
 from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
 from reporting.provider.aws.models import AWSComputeSummaryP
@@ -33,16 +34,25 @@ from reporting.provider.aws.models import AWSStorageSummaryP
 CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
 
 
+def determine_markup_cost(parameters):
+    """Determines the markup cost."""
+    _markup_cost = "markup_cost"
+    if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):
+        _markup_cost = markup_cost
+    return _markup_cost
+
+
 class AWSProviderMap(ProviderMap):
     """AWS Provider Map."""
 
-    def __init__(self, provider, report_type, cost_type, markup_cost="markup_cost"):
+    def __init__(self, parameters):
         """Constructor."""
-        self.cost_type = cost_type
-        self.markup_cost = markup_cost
+        self.provider = Provider.PROVIDER_AWS
+        self.cost_type = parameters.cost_type
+        self.markup_cost = determine_markup_cost(parameters)
         self._mapping = [
             {
-                "provider": Provider.PROVIDER_AWS,
+                "provider": self.provider,
                 "alias": "account_alias__account_alias",
                 "annotations": {
                     "account": "usage_account_id",
@@ -465,4 +475,4 @@ class AWSProviderMap(ProviderMap):
                 ("account",): AWSNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)

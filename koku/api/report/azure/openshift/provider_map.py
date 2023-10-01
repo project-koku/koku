@@ -30,11 +30,12 @@ from reporting.models import OCPAzureStorageSummaryP
 class OCPAzureProviderMap(ProviderMap):
     """OCP on Azure Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, parameters):
         """Constructor."""
+        self.provider = Provider.OCP_AZURE
         self._mapping = [
             {
-                "provider": Provider.OCP_AZURE,
+                "provider": self.provider,
                 "alias": "subscription_guid",
                 "annotations": {"cluster": "cluster_id"},
                 "end_date": "costentrybill__billing_period_start",
@@ -419,4 +420,4 @@ class OCPAzureProviderMap(ProviderMap):
                 ("subscription_guid",): OCPAzureNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)

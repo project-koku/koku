@@ -36,12 +36,13 @@ from reporting.provider.gcp.models import GCPStorageSummaryP
 class GCPProviderMap(ProviderMap):
     """GCP Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, parameters):
         """Constructor."""
+        self.provider = Provider.PROVIDER_GCP
         # group_by_annotations, filters, group_by_options, self.views
         self._mapping = [
             {
-                "provider": Provider.PROVIDER_GCP,
+                "provider": self.provider,
                 "annotations": {},  # Annotations that should always happen
                 "group_by_annotations": {
                     "account": {"account": "account_id"},
@@ -497,4 +498,4 @@ class GCPProviderMap(ProviderMap):
         # way we could filter off of invoice month instead of usage dates for
         # monthly time scope values.
         self.gcp_filters = True
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)

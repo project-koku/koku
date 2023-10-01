@@ -14,6 +14,7 @@ from django.db.models import Value
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.aws.provider_map import determine_markup_cost
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
@@ -29,13 +30,14 @@ from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 class OCPAWSProviderMap(ProviderMap):
     """OCP on AWS Provider Map."""
 
-    def __init__(self, provider, report_type, cost_type, markup_cost="markup_cost"):
+    def __init__(self, parameters):
         """Constructor."""
-        self.cost_type = cost_type
-        self.markup_cost = markup_cost
+        self.provider = Provider.OCP_AWS
+        self.cost_type = parameters.cost_type
+        self.markup_cost = determine_markup_cost(parameters)
         self._mapping = [
             {
-                "provider": Provider.OCP_AWS,
+                "provider": self.provider,
                 "alias": "account_alias__account_alias",
                 "annotations": {
                     "cluster": "cluster_id",
@@ -402,4 +404,4 @@ class OCPAWSProviderMap(ProviderMap):
                 ("account",): OCPAWSNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)

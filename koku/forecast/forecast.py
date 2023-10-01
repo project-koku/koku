@@ -79,14 +79,15 @@ class Forecast:
             - query_range (tuple)
         """
         self.dh = DateHelper()
+        # overwrite the parameters report_type
+        # because we only forecast the cost
+        query_params.report_type = self.REPORT_TYPE
+        # set a default cost_type for aws.
+        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS) and not query_params.cost_type:
+            query_params.cost_type = get_cost_type(self.request)
+
         self.params = query_params
         self.currency = query_params.currency
-
-        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
-            if query_params.get("cost_type"):
-                self.cost_type = query_params.get("cost_type")
-            else:
-                self.cost_type = get_cost_type(self.request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -122,9 +123,7 @@ class Forecast:
     @property
     def provider_map(self):
         """Return the provider map instance."""
-        if self.provider in (Provider.PROVIDER_AWS, Provider.OCP_AWS):
-            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
-        return self.provider_map_class(self.provider, self.REPORT_TYPE)
+        return self.provider_map_class(self.params)
 
     @property
     def cost_units(self):

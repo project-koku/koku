@@ -479,6 +479,10 @@ class QueryParameters:
         """Get cost type param."""
         return self.get("cost_type", settings.KOKU_DEFAULT_COST_TYPE)
 
+    @cost_type.setter
+    def cost_type(self, value):
+        self._cost_type = value
+
     @property
     def delta(self):
         """Return delta property."""

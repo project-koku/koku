@@ -31,11 +31,12 @@ from reporting.models import OCPGCPStorageSummaryP
 class OCPGCPProviderMap(ProviderMap):
     """OCP on GCP Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, parameters):
         """Constructor."""
+        self.provider = Provider.OCP_GCP
         self._mapping = [
             {
-                "provider": Provider.OCP_GCP,
+                "provider": self.provider,
                 "alias": "account_alias__account_alias",
                 "annotations": {},  # Annotations that should always happen
                 "group_by_annotations": {
@@ -497,4 +498,4 @@ class OCPGCPProviderMap(ProviderMap):
                 ("cluster",): OCPGCPNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)

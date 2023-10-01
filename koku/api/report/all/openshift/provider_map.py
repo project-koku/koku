@@ -15,6 +15,7 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from api.report.queries import is_grouped_by_project
 from reporting.models import OCPAllComputeSummaryPT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
@@ -27,14 +28,22 @@ from reporting.models import OCPAllNetworkSummaryPT
 from reporting.models import OCPAllStorageSummaryPT
 
 
+def determine_report_type(parameters):
+    """Redirect report type to {report_type}_by_project"""
+    if is_grouped_by_project(parameters):
+        return parameters.report_type + "_by_project"
+    return parameters.report_type
+
+
 class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, parameters):
         """Constructor."""
+        self.provider = Provider.OCP_ALL
         self._mapping = [
             {
-                "provider": Provider.OCP_ALL,
+                "provider": self.provider,
                 "alias": "account_alias__account_alias",
                 "annotations": {
                     "cluster": "cluster_id",
@@ -777,4 +786,4 @@ class OCPAllProviderMap(ProviderMap):
                 ("account", "service"): OCPAllNetworkSummaryPT,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(self.provider, determine_report_type(parameters), parameters.tenant.schema_name)

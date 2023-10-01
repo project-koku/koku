@@ -30,7 +30,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPGCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPGCPProviderMap(parameters)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
