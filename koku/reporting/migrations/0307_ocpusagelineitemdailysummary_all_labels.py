@@ -20,7 +20,7 @@ def copy_field(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0305_pvc"),
+        ("reporting", "0306_subsidmap"),
     ]
 
     operations = [
