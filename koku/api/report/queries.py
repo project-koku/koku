@@ -1003,8 +1003,8 @@ class ReportQueryHandler(QueryHandler):
             "infra_total",
             "cost_total",
             "cost_total_distributed",
+            "storage_class",
         ]
-        array_ordering = ["storage_class"]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
         for field in reversed(order_fields):
@@ -1013,7 +1013,7 @@ class ReportQueryHandler(QueryHandler):
             if field.startswith("-"):
                 reverse = True
                 field = field[1:]
-            if field in numeric_ordering or field in array_ordering:
+            if field in numeric_ordering:
                 sorted_data = sorted(
                     sorted_data, key=lambda entry: (entry[field] is None, entry[field]), reverse=reverse
                 )
