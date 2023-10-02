@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("api", "0060_provider_polling_timestamp"),
-        ("reporting", "0305_pvc"),
+        ("reporting", "0306_subsidmap"),
     ]
 
     operations = [
