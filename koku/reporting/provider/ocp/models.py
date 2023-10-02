@@ -107,7 +107,9 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
             models.Index(fields=["cost_model_rate_type"], name="cost_model_rate_type_idx"),
+            GinIndex(fields=["all_labels"], name="all_labels_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
+            GinIndex(fields=["volume_labels"], name="volume_labels_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True)
@@ -144,6 +146,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     persistentvolume = models.CharField(max_length=253, null=True)
     storageclass = models.CharField(max_length=253, null=True)
     volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
     persistentvolumeclaim_capacity_gigabyte = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
