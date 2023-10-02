@@ -158,6 +158,7 @@ class OCPProviderMap(ProviderMap):
         """
         self.provider = Provider.PROVIDER_OCP
         self.parameters = parameters
+        self._schema_name = parameters.tenant.schema_name
 
         self._mapping = [
             {
@@ -675,7 +676,7 @@ class OCPProviderMap(ProviderMap):
                 ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
-        super().__init__(self.provider, determine_report_type(parameters), parameters.tenant.schema_name)
+        super().__init__(self.provider, determine_report_type(parameters), self._schema_name)
 
     @cached_property
     def cost_model_supplementary_cost(self):
