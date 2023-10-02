@@ -6,9 +6,11 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import faker
+import requests_mock
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
+from django.conf import settings
 from django.test import override_settings
 from requests.exceptions import HTTPError
 
@@ -152,55 +154,43 @@ class TestCeleryTasks(MasuTestCase):
 
         self.assertIn("Creating the exchange rate" or "Updating currency", str(captured_logs))
 
-    # Check to see if Error is raised on wrong URL
-    @patch("masu.celery.tasks.requests")
-    def test_error_get_currency_conversion_rates(self, mock_requests):
-        mock_session = Mock()
-        mock_session.get.side_effect = HTTPError("Raised intentionally")
-
-        mock_requests.Session.return_value = mock_session
-
+    def test_error_get_currency_conversion_rates(self):
         with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
-            result = tasks.get_daily_currency_rates()
+            with requests_mock.Mocker() as reqmock:
+                reqmock.register_uri("GET", settings.CURRENCY_URL, exc=HTTPError("Raised intentionally"))
+                result = tasks.get_daily_currency_rates()
 
         self.assertEqual({}, result)
         self.assertIn("Couldn't pull latest conversion rates", captured_logs.output[0])
         self.assertIn("Raised intentionally", captured_logs.output[1])
 
-    @patch("masu.celery.tasks.requests")
-    def test_get_currency_conversion_rates_successful(self, mock_requests):
+    def test_get_currency_conversion_rates_successful(self):
         beforeRows = ExchangeRates.objects.count()
         self.assertEqual(beforeRows, 2)
 
-        mock_response = Mock(status_code=201)
-        mock_response.json.return_value = {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}}
+        result = {
+            "result": "success",
+            "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928},
+        }
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, status_code=201, json=result)
+            tasks.get_daily_currency_rates()
 
-        mock_session = Mock()
-        mock_session.get.return_value = mock_response
-
-        mock_requests.Session.return_value = mock_session
-
-        tasks.get_daily_currency_rates()
         afterRows = ExchangeRates.objects.count()
         self.assertEqual(afterRows, 5)
 
-    @patch("masu.celery.tasks.requests")
-    def test_get_currency_conversion_rates_unsupported_currency(self, mock_requests):
+    def test_get_currency_conversion_rates_unsupported_currency(self):
         beforeRows = ExchangeRates.objects.count()
         self.assertEqual(beforeRows, 2)
 
-        mock_response = Mock(status_code=201)
-        mock_response.json.return_value = {
+        result = {
             "result": "success",
             "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928, "FOO": 12.34},
         }
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, status_code=201, json=result)
+            tasks.get_daily_currency_rates()
 
-        mock_session = Mock()
-        mock_session.get.return_value = mock_response
-
-        mock_requests.Session.return_value = mock_session
-
-        tasks.get_daily_currency_rates()
         afterRows = ExchangeRates.objects.count()
         self.assertEqual(afterRows, 5)
 
