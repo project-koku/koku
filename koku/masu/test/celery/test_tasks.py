@@ -173,12 +173,7 @@ class TestCeleryTasks(MasuTestCase):
         self.assertEqual(beforeRows, 2)
 
         mock_response = Mock(status_code=201)
-        # fmt: off
-        mock_response.json.return_value = {
-            "result": "success",
-            "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}
-        }
-        # fmt: on
+        mock_response.json.return_value = {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}}
 
         mock_session = Mock()
         mock_session.get.return_value = mock_response
