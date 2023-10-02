@@ -21,6 +21,7 @@ from api.models import Provider
 from api.report.provider_map import ProviderMap
 from api.report.queries import _is_grouped_by_key
 from api.report.queries import is_grouped_by_project
+from masu.processor import is_feature_cost_3083_all_labels_enabled
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
@@ -41,6 +42,12 @@ def determine_report_type(parameters):
 
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
+
+    @cached_property
+    def check_unleash_for_tag_column_cost_3038(self):
+        if is_feature_cost_3083_all_labels_enabled(self._schema_name):
+            return "all_labels"
+        return "pod_labels"
 
     def __cost_model_cost(self, cost_model_rate_type=None):
         """Return ORM term for cost model cost"""
@@ -174,9 +181,10 @@ class OCPProviderMap(ProviderMap):
                     },
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
-                "tag_column": "pod_labels",
+                "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -226,6 +234,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -297,6 +306,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "cpu": {
+                        "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_cpu_supplementary_cost,
@@ -388,6 +398,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
+                        "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_memory_supplementary_cost,
