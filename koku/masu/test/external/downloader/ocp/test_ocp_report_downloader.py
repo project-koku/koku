@@ -356,6 +356,10 @@ class OCPReportDownloaderTest(MasuTestCase):
             {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-02"), "num_hours": 24},
         ]
         expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
+        expected_result = {
+            FILE_PATH_ONE: {"meta_reportdatestart": "2020-01-01", "meta_reportnumhours": "23"},
+            FILE_PATH_TWO: {"meta_reportdatestart": "2020-01-02", "meta_reportnumhours": "24"},
+        }
 
         mock_divide.return_value = daily_files
 
@@ -363,3 +367,26 @@ class OCPReportDownloaderTest(MasuTestCase):
         result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date)
 
         self.assertCountEqual(result.keys(), expected_filenames)
+        self.assertDictEqual(result, expected_result)
+
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")
+    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        self.ocp_manifest.operator_daily_reports = True
+        self.ocp_manifest.save()
+
+        start_date = DateHelper().this_month_start
+
+        # simulate empty report file
+        mock_divide.return_value = None
+
+        file_path = Path("path")
+        expected_result = {
+            file_path: {"meta_reportdatestart": str(start_date.date()), "meta_reportnumhours": "0"},
+        }
+        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date)
+
+        self.assertCountEqual(result.keys(), [file_path])
+        self.assertDictEqual(result, expected_result)

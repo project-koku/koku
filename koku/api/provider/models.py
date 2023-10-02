@@ -446,6 +446,7 @@ delete
 ;
 """
         with transaction.get_connection().cursor() as cur:
+            LOG.info(f"Attempting to delete records from {qual_table_name}")
             cur.execute(_sql, (target_values,))
             LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
 
