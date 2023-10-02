@@ -131,7 +131,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_storage_class_order_bys(self):
         """Test that we can order by the pvc values."""
-        url = "?group_by[cluster]=*&group_by[persistentvolumeclaim]=*&order_by[storage_class]=desc"
+        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[storage_class]=desc"
         query_params = self.mocked_query_params(url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -140,7 +140,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_data["total"].get("storage_class"))
         first_date = query_data["data"][0]
         tested = False
-        for cluster in first_date.get("clusters", []):
+        for cluster in first_date.get("projects", []):
             pvc_list = cluster.get("persistentvolumeclaims")
             storage_class_order_result = []
             expected = None
@@ -156,7 +156,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_persistentvolumeclaim_order_by(self):
         """Test that we can order by the pvc values."""
-        url = "?group_by[cluster]=*&group_by[persistentvolumeclaim]=*&order_by[persistentvolumeclaim]=desc"
+        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[persistentvolumeclaim]=desc"
         query_params = self.mocked_query_params(url, OCPVolumeView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -165,7 +165,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_data["total"].get("persistent_volume_claim"))
         first_date = query_data["data"][0]
         tested = False
-        for cluster in first_date.get("clusters", []):
+        for cluster in first_date.get("projects", []):
             pvc_list = cluster.get("persistentvolumeclaims")
             pvc_order_result = []
             expected = None

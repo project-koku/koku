@@ -170,7 +170,11 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
         ):
             error["delta"] = _("Cannot use distributed_cost delta without grouping by project.")
             raise serializers.ValidationError(error)
-
+        # multiple group bys involving pvc only allow for project as the secondary key.
+        if "persistentvolumeclaim" in data.get("group_by", {}):
+            if len(data.get("group_by", {})) > 1 and "project" not in data.get("group_by", {}):
+                error["group_by"] = _("Multiple group bys with persistenvolumeclaim must contain project.")
+                raise serializers.ValidationError(error)
         return data
 
     def validate_delta(self, value):

@@ -289,6 +289,22 @@ class OCPQueryParamSerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_query_params_invalid_multiple_group_bys_with_pvc(self):
+        """Test parse of query params for invalid fields."""
+        query_params = {
+            "group_by": {"persistentvollumeclaim": ["*"], "node": ["*"]},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/volume/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
     def test_query_params_invalid_nested_fields(self):
         """Test parse of query params for invalid nested_fields."""
         query_params = {
