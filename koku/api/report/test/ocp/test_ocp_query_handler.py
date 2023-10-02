@@ -820,7 +820,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ["tag:" + group_by_key])
 
-    def test__build_prefix_filters(self):
+    def test_build_prefix_filters(self):
         """Test that tag filters are created properly."""
         filter_collection = QueryFilterCollection()
 
