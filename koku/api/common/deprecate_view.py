@@ -58,7 +58,7 @@ class DeprecateEndpoint:
         try:
             sunset_datetime = getattr(self.viewclass, "sunset_datetime")
             deprecation_datetime = getattr(self.viewclass, "deprecation_datetime")
-            if deprecation_datetime < DateHelper(True).now:
+            if sunset_datetime < DateHelper(True).now:
                 self.sunset_endpoint = True
             self.deprecation_datetime = deprecation_datetime.strftime(HTTP_DATE_FORMAT)
             self.sunset_datetime = sunset_datetime.strftime(HTTP_DATE_FORMAT)
