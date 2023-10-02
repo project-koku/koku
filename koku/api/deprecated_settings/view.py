@@ -24,7 +24,7 @@ class SettingsView(APIView):
 
     permission_classes = [SettingsAccessPermission]
     deprecation_datetime = DateHelper().create_end_of_life_date(2023, 9, 29)
-    sunset_datetime = DateHelper().create_end_of_life_date(2023, 1, 10)
+    sunset_datetime = DateHelper().create_end_of_life_date(2024, 1, 31)
     link = "https://github.com/project-koku/koku/pull/4670"
 
     @method_decorator(never_cache)
