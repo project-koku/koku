@@ -30,7 +30,7 @@ from reporting.models import AzureStorageSummaryP
 class AzureProviderMap(ProviderMap):
     """Azure Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._mapping = [
             {
@@ -387,4 +387,4 @@ class AzureProviderMap(ProviderMap):
                 ("subscription_guid",): AzureNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(provider, report_type, schema_name)

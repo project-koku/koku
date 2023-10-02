@@ -79,24 +79,37 @@ class TestSUBSDataExtractor(SUBSTestCase):
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
     def test_determine_line_item_count(self, mock_trino):
         """Test determining the line item count for the subs query calls trino"""
-        self.extractor.determine_line_item_count("fake where clause")
+        self.extractor.determine_line_item_count("fake where clause", {"fake": "params"})
         mock_trino.assert_called_once()
 
-    def test_determine_where_clause(self):
-        """Test resulting where clause matches expected values"""
+    def test_determine_where_clause_and_params(self):
+        """Test resulting where clause and params matches expected values"""
         year = "2023"
         month = "07"
         latest_processed_time = self.today
         end_time = self.today + timedelta(days=2)
-        expected = (
-            f"WHERE source='{self.aws_provider.uuid}' AND year='{year}' AND month='{month}' AND"
+        ids = ["12345"]
+        expected_sql_params = {
+            "provider_uuid": self.aws_provider.uuid,
+            "year": year,
+            "month": month,
+            "latest_processed_time": latest_processed_time,
+            "end_time": end_time,
+            "ids": ids,
+        }
+        expected_clause = (
+            "WHERE source={{provider_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu IS NOT NULL AND strpos(resourcetags, 'com_redhat_rhel') > 0 AND"
-            f" lineitem_usagestartdate > TIMESTAMP '{latest_processed_time}' AND"
-            f" lineitem_usagestartdate <= TIMESTAMP '{end_time}'"
+            " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
+            " lineitem_usagestartdate > {{latest_processed_time}} AND"
+            " lineitem_usagestartdate <= {{end_time}}"
+            " AND lineitem_usageaccountid IN {{ids | inclause}}"
         )
-        actual = self.extractor.determine_where_clause(latest_processed_time, end_time, year, month)
-        self.assertEqual(expected, actual)
+        actual_clause, actual_params = self.extractor.determine_where_clause_and_params(
+            latest_processed_time, end_time, year, month, ids
+        )
+        self.assertEqual(expected_clause, actual_clause)
+        self.assertEqual(expected_sql_params, actual_params)
 
     def test_update_latest_processed_time(self):
         """Test updating the processed time calls trino"""
@@ -119,18 +132,29 @@ class TestSUBSDataExtractor(SUBSTestCase):
     @patch("subs.subs_data_extractor.SUBSDataExtractor.copy_data_to_subs_s3_bucket")
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_line_item_count")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause_and_params")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_start_time")
     def test_extract_data_to_s3(
-        self, mock_latest_time, mock_where_clause, mock_li_count, mock_trino, mock_copy, mock_update, mock_end_time
+        self,
+        mock_start_time,
+        mock_ids,
+        mock_where_clause,
+        mock_li_count,
+        mock_trino,
+        mock_copy,
+        mock_update,
+        mock_end_time,
     ):
         """Test the flow of extracting data to S3 calls the right functions"""
         mock_li_count.return_value = 10
         expected_key = "fake_key"
+        mock_ids.return_value = ["12345"]
         mock_copy.return_value = expected_key
         mock_trino.return_value = (MagicMock(), MagicMock())
+        mock_where_clause.return_value = (MagicMock(), MagicMock())
         upload_keys = self.extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
-        mock_latest_time.assert_called_once()
+        mock_start_time.assert_called_once()
         mock_end_time.assert_called_once()
         mock_where_clause.assert_called_once()
         mock_li_count.assert_called_once()
@@ -138,6 +162,42 @@ class TestSUBSDataExtractor(SUBSTestCase):
         mock_copy.assert_called_once()
         mock_update.assert_called_once()
         self.assertEqual([expected_key], upload_keys)
+
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_end_time")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.update_latest_processed_time")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.copy_data_to_subs_s3_bucket")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_line_item_count")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause_and_params")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_start_time")
+    def test_extract_data_to_s3_no_ids_found(
+        self,
+        mock_start_time,
+        mock_ids,
+        mock_where_clause,
+        mock_li_count,
+        mock_trino,
+        mock_copy,
+        mock_update,
+        mock_end_time,
+    ):
+        """Test the flow of extracting data to S3 calls the right functions when no IDs are found"""
+        mock_li_count.return_value = 10
+        expected_key = "fake_key"
+        mock_ids.return_value = []
+        mock_copy.return_value = expected_key
+        mock_trino.return_value = (MagicMock(), MagicMock())
+        mock_where_clause.return_value = (MagicMock(), MagicMock())
+        upload_keys = self.extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
+        mock_start_time.assert_called_once()
+        mock_end_time.assert_called_once()
+        mock_where_clause.assert_not_called()
+        mock_li_count.assert_not_called()
+        mock_trino.assert_not_called()
+        mock_copy.assert_not_called()
+        mock_update.assert_called_once()
+        self.assertEqual([], upload_keys)
 
     def test_copy_data_to_subs_s3_bucket(self):
         """Test copy_data_to_subs_s3_bucket."""
@@ -149,6 +209,16 @@ class TestSUBSDataExtractor(SUBSTestCase):
         self.extractor.s3_resource.Object.side_effect = EndpointConnectionError(endpoint_url="fakeurl")
         actual_key = self.extractor.copy_data_to_subs_s3_bucket(["data"], ["column"], "filename")
         self.assertIsNone(actual_key)
+
+    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
+    def test_determine_ids_for_provider(self, mock_trino):
+        """Test that proper IDs are returned for a given provider."""
+        mock_trino.return_value = [["12345"]]
+        year = "2023"
+        month = "08"
+        expected_ids = ["12345"]
+        actual_ids = self.extractor.determine_ids_for_provider(year, month)
+        self.assertEqual(expected_ids, actual_ids)
 
     def test_determine_start_time(self):
         """Test that determing the start time for different scenarios evaluates correctly."""
