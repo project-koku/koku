@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for OCP on All Reports."""
-from functools import wraps
-
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import DecimalField
@@ -29,27 +27,19 @@ from reporting.models import OCPAllNetworkSummaryPT
 from reporting.models import OCPAllStorageSummaryPT
 
 
-def report_type_by_project(func):
-    """We have seperate logic on the report endpoint when grouping by project."""
-
-    @wraps(func)
-    def report_type_wrapper(*args, **kwargs):
-        parameters = args[0]
-        if hasattr(parameters, "parameters"):
-            if is_grouped_by_project(parameters):
-                modified_report_type = parameters.report_type + "_by_project"
-                parameters.report_type = modified_report_type
-            return func(*args, **kwargs)
-
-    return report_type_wrapper
+def determine_report_type(parameters):
+    """Modify the report_type parameter for grouping by project"""
+    if parameters and is_grouped_by_project(parameters):
+        modified_report_type = parameters.report_type + "_by_project"
+        parameters.report_type = modified_report_type
 
 
-@report_type_by_project
 class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
     def __init__(self, parameters):
         """Constructor."""
+        determine_report_type(parameters)
         self.provider = parameters.provider
         self._mapping = [
             {

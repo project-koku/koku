@@ -4,7 +4,6 @@
 #
 """Provider Mapper for OCP Reports."""
 from functools import cached_property
-from functools import wraps
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
@@ -32,20 +31,12 @@ from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 
-def costs_by_project(func):
-    @wraps(func)
-    def report_type_wrapper(*args, **kwargs):
-        parameters = args[0]
-        if hasattr(parameters, "parameters"):
-            if is_grouped_by_project(parameters) and parameters.report_type == "costs":
-                modified_report_type = parameters.report_type + "_by_project"
-                parameters.report_type = modified_report_type
-            return func(*args, **kwargs)
-
-    return report_type_wrapper
+def determine_report_type(parameters):
+    if is_grouped_by_project(parameters) and parameters.report_type == "costs":
+        modified_report_type = parameters.report_type + "_by_project"
+        parameters.report_type = modified_report_type
 
 
-@costs_by_project
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
 
@@ -162,6 +153,7 @@ class OCPProviderMap(ProviderMap):
 
         Parameters: QueryParameters Instance
         """
+        determine_report_type(parameters)
         self.provider = parameters.provider
         self.parameters = parameters
         self._schema_name = parameters.tenant.schema_name
