@@ -15,7 +15,6 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.db.models.functions.comparison import NullIf
 
-from api.models import Provider
 from api.report.constants import AWS_MARKUP_COST
 from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
@@ -47,7 +46,7 @@ class AWSProviderMap(ProviderMap):
 
     def __init__(self, parameters):
         """Constructor."""
-        self.provider = Provider.PROVIDER_AWS
+        self.provider = parameters.provider
         self.cost_type = parameters.cost_type
         self.markup_cost = determine_markup_cost(parameters)
         self._mapping = [
@@ -475,4 +474,4 @@ class AWSProviderMap(ProviderMap):
                 ("account",): AWSNetworkSummaryP,
             },
         }
-        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)
+        super().__init__(parameters)

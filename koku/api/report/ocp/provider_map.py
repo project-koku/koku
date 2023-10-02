@@ -4,6 +4,7 @@
 #
 """Provider Mapper for OCP Reports."""
 from functools import cached_property
+from functools import wraps
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
@@ -17,9 +18,7 @@ from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
 
-from api.models import Provider
 from api.report.provider_map import ProviderMap
-from api.report.queries import _is_grouped_by_key
 from api.report.queries import is_grouped_by_project
 from masu.processor import is_feature_cost_3083_all_labels_enabled
 from providers.provider_access import ProviderAccessor
@@ -33,13 +32,20 @@ from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 
-def determine_report_type(parameters):
-    """Redirect cost to costs_by_project"""
-    if is_grouped_by_project(parameters) and parameters.report_type == "costs":
-        return parameters.report_type + "_by_project"
-    return parameters.report_type
+def costs_by_project(func):
+    @wraps(func)
+    def report_type_wrapper(*args, **kwargs):
+        parameters = args[0]
+        if hasattr(parameters, "parameters"):
+            if is_grouped_by_project(parameters) and parameters.report_type == "costs":
+                modified_report_type = parameters.report_type + "_by_project"
+                parameters.report_type = modified_report_type
+            return func(*args, **kwargs)
+
+    return report_type_wrapper
 
 
+@costs_by_project
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
 
@@ -156,7 +162,7 @@ class OCPProviderMap(ProviderMap):
 
         Parameters: QueryParameters Instance
         """
-        self.provider = Provider.PROVIDER_OCP
+        self.provider = parameters.provider
         self.parameters = parameters
         self._schema_name = parameters.tenant.schema_name
 
@@ -537,7 +543,7 @@ class OCPProviderMap(ProviderMap):
                                 "storageclass", filter=Q(storageclass__isnull=False), distinct=True
                             ),
                         },
-                        "default_ordering": self.volume_default_ordering,
+                        "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity_count": Sum(
@@ -676,7 +682,7 @@ class OCPProviderMap(ProviderMap):
                 ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
-        super().__init__(self.provider, determine_report_type(parameters), self._schema_name)
+        super().__init__(parameters)
 
     @cached_property
     def cost_model_supplementary_cost(self):
@@ -784,10 +790,3 @@ class OCPProviderMap(ProviderMap):
     def cost_model_distributed_cost_by_project(self):
         """Return cost model distributed cost."""
         return self.__cost_model_distributed_cost()
-
-    @cached_property
-    def volume_default_ordering(self):
-        if _is_grouped_by_key(self.parameters.parameters.get("group_by", {}), ["persistentvolumeclaim"]):
-            # The OCP project details page would like to order pvcs by highest cost to lowest.
-            return {"cost": "asc"}
-        return {"usage": "desc"}

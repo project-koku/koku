@@ -14,7 +14,6 @@ from django.db.models import Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
-from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
 from reporting.provider.gcp.models import GCPComputeSummaryP
@@ -38,7 +37,7 @@ class GCPProviderMap(ProviderMap):
 
     def __init__(self, parameters):
         """Constructor."""
-        self.provider = Provider.PROVIDER_GCP
+        self.provider = parameters.provider
         # group_by_annotations, filters, group_by_options, self.views
         self._mapping = [
             {
@@ -498,4 +497,4 @@ class GCPProviderMap(ProviderMap):
         # way we could filter off of invoice month instead of usage dates for
         # monthly time scope values.
         self.gcp_filters = True
-        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)
+        super().__init__(parameters)

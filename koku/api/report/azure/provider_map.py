@@ -14,7 +14,6 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 
-from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import AzureComputeSummaryP
 from reporting.models import AzureCostEntryLineItemDailySummary
@@ -32,11 +31,11 @@ class AzureProviderMap(ProviderMap):
 
     def __init__(self, parameters):
         """Constructor."""
-        self.provider = Provider.PROVIDER_AZURE
+        self.provider = parameters.provider
 
         self._mapping = [
             {
-                "provider": Provider.PROVIDER_AZURE,
+                "provider": self.provider,
                 "alias": "subscription_name",
                 "annotations": {},
                 "end_date": "costentrybill__billing_period_start",
@@ -389,4 +388,4 @@ class AzureProviderMap(ProviderMap):
                 ("subscription_guid",): AzureNetworkSummaryP,
             },
         }
-        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)
+        super().__init__(parameters)

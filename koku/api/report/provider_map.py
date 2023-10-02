@@ -54,13 +54,13 @@ class ProviderMap:
         prov = self.provider_data(provider)
         return prov.get("report_type").get(report_type)
 
-    def __init__(self, provider, report_type, schema_name):
+    def __init__(self, parameters):
         """Constructor."""
-        self._provider = provider
-        self._report_type = report_type
-        self._schema_name = schema_name
-        self._provider_map = self.provider_data(provider)
-        self._report_type_map = self.report_type_data(report_type, provider)
+        self._provider = parameters.provider
+        self._report_type = parameters.report_type
+        self._schema_name = parameters.tenant.schema_name
+        self._provider_map = self.provider_data(parameters.provider)
+        self._report_type_map = self.report_type_data(self._report_type, parameters.provider)
 
         # main mapping data structure
         # this data should be considered static and read-only.

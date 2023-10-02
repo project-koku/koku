@@ -36,9 +36,7 @@ class AWSOrgQueryHandler(OrgQueryHandler):
 
         """
         if not hasattr(self, "_mapper"):
-            self._mapper = AWSOrgProviderMap(
-                provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
-            )
+            self._mapper = AWSOrgProviderMap(parameters)
 
         # super() needs to be called after _mapper is set
         super().__init__(parameters)

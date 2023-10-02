@@ -14,7 +14,6 @@ from django.db.models import Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
-from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPGCPComputeSummaryP
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
@@ -33,7 +32,7 @@ class OCPGCPProviderMap(ProviderMap):
 
     def __init__(self, parameters):
         """Constructor."""
-        self.provider = Provider.OCP_GCP
+        self.provider = parameters.provider
         self._mapping = [
             {
                 "provider": self.provider,
@@ -498,4 +497,4 @@ class OCPGCPProviderMap(ProviderMap):
                 ("cluster",): OCPGCPNetworkSummaryP,
             },
         }
-        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)
+        super().__init__(parameters)

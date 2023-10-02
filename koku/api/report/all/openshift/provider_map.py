@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for OCP on All Reports."""
+from functools import wraps
+
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import DecimalField
@@ -13,7 +15,6 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 
-from api.models import Provider
 from api.report.provider_map import ProviderMap
 from api.report.queries import is_grouped_by_project
 from reporting.models import OCPAllComputeSummaryPT
@@ -28,19 +29,28 @@ from reporting.models import OCPAllNetworkSummaryPT
 from reporting.models import OCPAllStorageSummaryPT
 
 
-def determine_report_type(parameters):
-    """Redirect report type to {report_type}_by_project"""
-    if is_grouped_by_project(parameters):
-        return parameters.report_type + "_by_project"
-    return parameters.report_type
+def report_type_by_project(func):
+    """We have seperate logic on the report endpoint when grouping by project."""
+
+    @wraps(func)
+    def report_type_wrapper(*args, **kwargs):
+        parameters = args[0]
+        if hasattr(parameters, "parameters"):
+            if is_grouped_by_project(parameters):
+                modified_report_type = parameters.report_type + "_by_project"
+                parameters.report_type = modified_report_type
+            return func(*args, **kwargs)
+
+    return report_type_wrapper
 
 
+@report_type_by_project
 class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
     def __init__(self, parameters):
         """Constructor."""
-        self.provider = Provider.OCP_ALL
+        self.provider = parameters.provider
         self._mapping = [
             {
                 "provider": self.provider,
@@ -786,4 +796,4 @@ class OCPAllProviderMap(ProviderMap):
                 ("account", "service"): OCPAllNetworkSummaryPT,
             },
         }
-        super().__init__(self.provider, determine_report_type(parameters), parameters.tenant.schema_name)
+        super().__init__(parameters)

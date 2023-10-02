@@ -11,7 +11,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 class AWSOrgProviderMap(ProviderMap):
     """AWS Provider Map."""
 
-    def __init__(self, provider, report_type, schema_name):
+    def __init__(self, parameters):
         """Constructor."""
         self._mapping = [
             {
@@ -20,4 +20,4 @@ class AWSOrgProviderMap(ProviderMap):
             }
         ]
         self.views = {"organizations": {"default": AWSOrganizationalUnit}}
-        super().__init__(provider, report_type, schema_name)
+        super().__init__(parameters)

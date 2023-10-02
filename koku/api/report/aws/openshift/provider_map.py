@@ -13,7 +13,6 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 
-from api.models import Provider
 from api.report.aws.provider_map import determine_markup_cost
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
@@ -32,7 +31,7 @@ class OCPAWSProviderMap(ProviderMap):
 
     def __init__(self, parameters):
         """Constructor."""
-        self.provider = Provider.OCP_AWS
+        self.provider = parameters.provider
         self.cost_type = parameters.cost_type
         self.markup_cost = determine_markup_cost(parameters)
         self._mapping = [
@@ -404,4 +403,4 @@ class OCPAWSProviderMap(ProviderMap):
                 ("account",): OCPAWSNetworkSummaryP,
             },
         }
-        super().__init__(self.provider, parameters.report_type, parameters.tenant.schema_name)
+        super().__init__(parameters)

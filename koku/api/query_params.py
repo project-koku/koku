@@ -88,6 +88,7 @@ class QueryParameters:
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
         self.tag_providers = caller.tag_providers
+        self.provider = caller.provider
         self.aws_category_keys = set()
 
         try:
