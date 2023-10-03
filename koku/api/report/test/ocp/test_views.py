@@ -1114,8 +1114,10 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_costs_query_with_tag_filter(self):
+    @patch("api.report.ocp.provider_map.is_feature_cost_3083_all_labels_enabled", return_value=True)
+    def test_execute_costs_query_with_tag_filter(self, _):
         """Test that data is filtered by tag key."""
+        tag_column = "all_labels"
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1123,18 +1125,14 @@ class OCPReportViewTest(IamTestCase):
         tag_keys.sort(reverse=True)
         filter_key = tag_keys[0]
         with tenant_context(self.tenant):
-            labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
-                .filter(pod_labels__has_key=filter_key)
-                .values(*["pod_labels"])
-                .all()
-            )
+            tag_filter = {f"{tag_column}__has_key": filter_key, "usage_start__gte": self.ten_days_ago.date()}
+            labels = OCPUsageLineItemDailySummary.objects.filter().filter(**tag_filter).values(*[tag_column]).all()
             label_of_interest = labels[0]
-            filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
+            filter_value = label_of_interest.get("all_labels", {}).get(filter_key)
+            tag_filter = {f"{tag_column}__{filter_key}": filter_value, "usage_start__gte": self.ten_days_ago.date()}
 
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
-                .filter(**{f"pod_labels__{filter_key}": filter_value})
+                OCPUsageLineItemDailySummary.objects.filter(**tag_filter)
                 .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
                 .aggregate(cost=self.cost_term)
             )

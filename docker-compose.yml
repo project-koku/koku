@@ -1,4 +1,5 @@
 version: '3'
+name: koku
 
 services:
   koku-base:
@@ -8,7 +9,7 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
-        USER_ID: ${USER_ID-1000}
+        USER_ID: ${USER_ID:?}
     command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
@@ -442,18 +443,22 @@ services:
 ### Utilities
 
   db:
-    container_name: koku_db
-    image: postgres:14
+    container_name: koku-db
+    image: koku-db:14
+    build:
+      context: dev/containers/postgresql
+      args:
+        USER_ID: ${USER_ID:?}
+        GROUP_ID: ${GROUP_ID:?}
     environment:
-    - POSTGRES_DB=${DATABASE_NAME-postgres}
-    - POSTGRES_USER=${DATABASE_USER-postgres}
-    - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
-    - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
+      - POSTGRES_DB=${DATABASE_NAME-postgres}
+      - POSTGRES_USER=${DATABASE_USER-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
     ports:
-      - 15432:5432
+      - ${POSTGRES_SQL_SERVICE_PORT-15432}:5432
     volumes:
       - ./pg_data/data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
-      - ./pg_init:/docker-entrypoint-initdb.d
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -569,38 +574,37 @@ services:
     depends_on:
       - db
 
-  koku-minio:
-    image: local-minio:latest
-    build:
-        context: .
-        dockerfile: Dockerfile.minio
-        args:
-          USER_ID: ${USER_ID-1000}
-    container_name: kokuminio
+  minio:
+    container_name: koku-minio
+    image: minio/minio:RELEASE.2023-09-20T22-49-55Z
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
+      MINIO_USERNAME: kminio
+      MINIO_GROUPNAME: kminio
+      MINIO_UID: ${USER_ID:?}
+      MINIO_GID: ${GROUP_ID:?}
     ports:
       - 9000:9000
       - 9090:9090
-    command: server /data --console-address ":9090"
+    command: server /home/kminio/data --console-address ":9090"
     volumes:
-      - ./.trino/parquet_data:/data
+      - ./.trino/parquet_data:/home/kminio/data
 
-  koku-create-parquet-bucket:
+  create-parquet-bucket:
     image: minio/mc:latest
     depends_on:
-      - koku-minio
+      - minio
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
+      /usr/bin/mc config host add --quiet --api s3v4 local $S3_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
-      /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc anonymous set public local/koku-bucket;
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
-      /usr/bin/mc policy set public local/metastore;
+      /usr/bin/mc anonymous set public local/metastore;
       "
 
   hive-metastore:
@@ -610,7 +614,7 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - S3_HOST=kokuminio
+      - S3_HOST=koku-minio
       - S3_PORT=9000
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
@@ -622,7 +626,9 @@ services:
       - DATABASE_USER=${DATABASE_USER-hive}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
     depends_on:
-      - koku-create-parquet-bucket
+      - db
+      - minio
+      - create-parquet-bucket
 
   trino:
     container_name: trino
@@ -637,7 +643,7 @@ services:
       - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
       - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
       - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://kokuminio:9000}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-minio:9000}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}

@@ -4,6 +4,7 @@
 #
 """Test the Report Queries."""
 from collections import defaultdict
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
@@ -127,6 +128,56 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(query_data.get("total"))
                 total = query_data.get("total")
                 self.assertIsNotNone(total.get(order_by))
+
+    def test_storage_class_order_bys(self):
+        """Test that we can order by the pvc values."""
+        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[storage_class]=desc"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        self.assertIsNotNone(query_data.get("data"))
+        self.assertIsNotNone(query_data.get("total"))
+        self.assertIsNotNone(query_data["total"].get("storage_class"))
+        first_date = query_data["data"][0]
+        tested = False
+        for cluster in first_date.get("projects", []):
+            pvc_list = cluster.get("persistentvolumeclaims")
+            storage_class_order_result = []
+            expected = None
+            for pvc in pvc_list:
+                for pvc_value in pvc.get("values", []):
+                    storage_class_order_result.append(pvc_value.get("storage_class"))
+            if not expected:
+                expected = deepcopy(storage_class_order_result)
+                expected.sort(reverse=True)
+            self.assertEqual(storage_class_order_result, expected)
+            tested = True
+        self.assertTrue(tested)
+
+    def test_persistentvolumeclaim_order_by(self):
+        """Test that we can order by the pvc values."""
+        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[persistentvolumeclaim]=desc"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        self.assertIsNotNone(query_data.get("data"))
+        self.assertIsNotNone(query_data.get("total"))
+        self.assertIsNotNone(query_data["total"].get("persistent_volume_claim"))
+        first_date = query_data["data"][0]
+        tested = False
+        for cluster in first_date.get("projects", []):
+            pvc_list = cluster.get("persistentvolumeclaims")
+            pvc_order_result = []
+            expected = None
+            for pvc in pvc_list:
+                pvc_name = pvc.get("persistentvolumeclaim")
+                pvc_order_result.append(pvc_name)
+            if not expected:
+                expected = deepcopy(pvc_order_result)
+                expected.sort(reverse=True)
+            self.assertEqual(pvc_order_result, expected)
+            tested = True
+        self.assertTrue(tested)
 
     def test_execute_sum_query_costs(self):
         """Test that the sum query runs properly for the costs endpoint."""
@@ -769,7 +820,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ["tag:" + group_by_key])
 
-    def test__build_prefix_filters(self):
+    def test_build_prefix_filters(self):
         """Test that tag filters are created properly."""
         filter_collection = QueryFilterCollection()
 
