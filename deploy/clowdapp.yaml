@@ -1166,6 +1166,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1347,6 +1353,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1534,6 +1546,12 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: CELERY_LOG_LEVEL
@@ -1713,6 +1731,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1898,6 +1922,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -2083,6 +2113,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -2268,6 +2304,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -2644,6 +2686,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -2829,6 +2877,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -3012,6 +3066,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -3195,6 +3255,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -3378,6 +3444,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -3561,6 +3633,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -3742,6 +3820,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -3887,6 +3971,12 @@ objects:
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
