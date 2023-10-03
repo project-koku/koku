@@ -38,7 +38,15 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-cost-model-xl.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-download.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-download-xl.yaml
   target:
     version: v1
     kind: Template
@@ -46,7 +54,15 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-ocp-xl.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-priority.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-priority-xl.yaml
   target:
     version: v1
     kind: Template
@@ -54,11 +70,27 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-refresh-xl.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-summary.yaml
   target:
     version: v1
     kind: Template
+- path: patches/worker-summary-xl.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-hcs.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-subs-extraction.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-subs-transmission.yaml
   target:
     version: v1
     kind: Template

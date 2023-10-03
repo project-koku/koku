@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ProviderDBAccessor utility object."""
+from unittest.mock import patch
+
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
-from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -85,13 +86,9 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_get_customer_uuid(self):
         """Test provider billing_source getter."""
-        expected_uuid = None
-        with CustomerDBAccessor(self.customer.id) as customer_accessor:
-            expected_uuid = customer_accessor.get_uuid()
-
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(expected_uuid, accessor.get_customer_uuid())
+            self.assertEqual(str(self.customer.uuid), accessor.get_customer_uuid())
 
     def test_get_customer_name(self):
         """Test provider customer getter."""
@@ -152,6 +149,40 @@ class ProviderDBAccessorTest(MasuTestCase):
         mapping_on_provider = Provider.objects.filter(infrastructure=mapping).first()
         self.assertEqual(mapping.id, mapping_on_provider.infrastructure.id)
 
+    def test_delete_ocp_infrastructure(self):
+        """Test deleting an OCP infra type from the ProviderInfrastructureMap."""
+        infrastructure_type = Provider.PROVIDER_OCP
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
+
+        mapping = ProviderInfrastructureMap.objects.filter(
+            infrastructure_provider_id=self.aws_provider_uuid, infrastructure_type=infrastructure_type
+        ).first()
+
+        mapping_on_provider = Provider.objects.filter(infrastructure=mapping).first()
+        self.assertEqual(mapping.id, mapping_on_provider.infrastructure.id)
+
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.delete_ocp_infra(self.aws_provider_uuid)
+
+        infra_count = ProviderInfrastructureMap.objects.filter(
+            infrastructure_provider_id=self.aws_provider_uuid, infrastructure_type=infrastructure_type
+        ).count()
+        self.assertEqual(infra_count, 0)
+
+    @patch("api.provider.models.ProviderInfrastructureMap.delete")
+    def test_delete_ocp_infrastructure_no_ocp_infras(self, mock_delete):
+        """Test deleting an OCP infra type from the ProviderInfrastructureMap."""
+        infrastructure_type = Provider.PROVIDER_OCP
+
+        infra_count = ProviderInfrastructureMap.objects.filter(infrastructure_type=infrastructure_type).count()
+        self.assertEqual(infra_count, 0)
+
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.delete_ocp_infra(self.aws_provider_uuid)
+
+        mock_delete.assert_not_called()
+
     def test_get_associated_openshift_providers(self):
         """Test that infrastructure provider UUID is returned."""
         infrastructure_type = Provider.PROVIDER_AWS_LOCAL
@@ -169,6 +200,18 @@ class ProviderDBAccessorTest(MasuTestCase):
         now = DateAccessor().today_with_timezone("UTC")
         ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
         self.assertGreater(ProviderDBAccessor(self.aws_provider_uuid).provider.data_updated_timestamp, now)
+
+    def test_get_updated_timestamp(self):
+        """Test that the data updated timestamp is updated."""
+        now = DateAccessor().today_with_timezone("UTC")
+        ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
+        get_timestamp = ProviderDBAccessor(self.aws_provider_uuid).get_data_updated_timestamp()
+        self.assertGreater(get_timestamp, now)
+
+    def test_get_updated_timestamp_no_provider(self):
+        """Test that the data updated timestamp is updated."""
+        get_timestamp = ProviderDBAccessor().get_data_updated_timestamp()
+        self.assertEqual(get_timestamp, None)
 
     def test_set_additional_context(self):
         """Test that the additional context is updated."""

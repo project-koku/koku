@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Downloader."""
+import copy
 import datetime
 import json
 import logging
@@ -11,19 +12,21 @@ import shutil
 import struct
 import uuid
 
+import pandas as pd
 from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util import common as com_utils
 from masu.util.aws import common as utils
-from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -35,6 +38,116 @@ class AWSReportDownloaderError(Exception):
 
 class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
+
+
+def get_processing_date(
+    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+):
+    """
+    Fetch initial dataframe from CSV plus processing date and time_inteval.
+
+    Args:
+        local_file (str): The full path name of the file
+        s3_csv_path (str): The path prefix for csvs
+        manifest_id (str): The manifest ID
+        provider_uuid (str): The uuid of a provider
+        start_date (Datetime): The start datetime for incoming report
+        end_date (Datetime): The end datetime for incoming report
+        context (Dict): Logging context dictionary
+        tracing_id (str): The tracing id
+    """
+    invoice_bill = "bill/InvoiceId"
+    time_interval = "identity/TimeInterval"
+    try:
+        data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
+        optional_cols = ["resourcetags", "costcategory"]
+        base_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
+    except ValueError:
+        invoice_bill = "bill_invoice_id"
+        time_interval = "identity_time_interval"
+        optional_cols = ["resource_tags", "cost_category"]
+        base_cols = copy.deepcopy(utils.RECOMMENDED_ALT_COLUMNS) | copy.deepcopy(utils.OPTIONAL_ALT_COLS)
+        data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
+    use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
+    if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
+        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+        process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
+    else:
+        process_date = utils.get_or_clear_daily_s3_by_date(
+            s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
+        )
+    return use_cols, time_interval, process_date
+
+
+def create_daily_archives(
+    tracing_id,
+    account,
+    provider_uuid,
+    local_file,
+    s3_filename,
+    manifest_id,
+    start_date,
+    context,
+):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        tracing_id (str): The tracing id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        local_file (str): The full path name of the file
+        s3_filename (str): The original downloaded file name
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    base_name = s3_filename.split(".")[0]
+    end_date = DateHelper().now.replace(tzinfo=None)
+    daily_file_names = []
+    dates = set()
+    s3_csv_path = com_utils.get_path_prefix(
+        account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
+    )
+    use_cols, time_interval, process_date = get_processing_date(
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+    )
+    LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
+    with pd.read_csv(
+        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, usecols=lambda x: x in use_cols
+    ) as reader:
+        for i, data_frame in enumerate(reader):
+            if data_frame.empty:
+                continue
+            intervals = data_frame[time_interval].unique()
+            for interval in intervals:
+                date = interval.split("T")[0]
+                csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+                # Adding end here so we dont bother to process future incomplete days (saving plan data)
+                if csv_date >= process_date and csv_date <= end_date:
+                    dates.add(date)
+            if not dates:
+                continue
+            directory = os.path.dirname(local_file)
+            for date in dates:
+                daily_data = data_frame[data_frame[time_interval].str.match(date)]
+                if daily_data.empty:
+                    continue
+                day_file = f"{date}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
+                day_filepath = f"{directory}/{day_file}"
+                daily_data.to_csv(day_filepath, index=False, header=True)
+                utils.copy_local_report_file_to_s3_bucket(
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
+                )
+                daily_file_names.append(day_filepath)
+    if not dates:
+        return [], {}
+    date_range = {
+        "start": min(dates),
+        "end": max(dates),
+        "invoice_month": None,
+    }
+    return daily_file_names, date_range
 
 
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -61,61 +174,30 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        arn = credentials.get("role_arn")
-        bucket = data_source.get("bucket")
-        self.bucket = bucket
-        self.storage_only = data_source.get("storage_only")
-        self.ingress_reports = ingress_reports
-        # Existing schema will start with acct and we strip that prefix new customers
-        # include the org prefix in case an org-id and an account number might overlap
-        if customer_name.startswith("acct"):
-            demo_check = customer_name[4:]
-        else:
-            demo_check = customer_name
-        if demo_check in settings.DEMO_ACCOUNTS:
-            demo_account = settings.DEMO_ACCOUNTS.get(demo_check)
-            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
-            if arn in demo_account:
-                demo_info = demo_account.get(arn)
-                self.customer_name = customer_name.replace(" ", "_")
-                self._provider_uuid = kwargs.get("provider_uuid")
-                self.report_name = demo_info.get("report_name")
-                self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
-                session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
-                self.s3_client = session.client("s3")
-                return
-
         self.customer_name = customer_name.replace(" ", "_")
+        self.credentials = credentials
+        self.data_source = data_source
+        self.report = None
+        self.report_name = report_name
+        self.ingress_reports = ingress_reports
+
+        self.bucket = data_source.get("bucket")
+        self.region_name = data_source.get("bucket_region")
+        self.storage_only = data_source.get("storage_only")
+
         self._provider_uuid = kwargs.get("provider_uuid")
+        self._region_kwargs = {"region_name": self.region_name} if self.region_name else {}
+
+        if self._demo_check():
+            return
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(credentials), "MasuDownloaderSession")
+        self._session = utils.get_assume_role_session(
+            utils.AwsArn(credentials), "MasuDownloaderSession", **self._region_kwargs
+        )
+        self.s3_client = self._session.client("s3", **self._region_kwargs)
 
-        # Checking for storage only source
-        if self.storage_only:
-            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
-            report = [""]
-        else:
-            # fetch details about the report from the cloud provider
-            defs = utils.get_cur_report_definitions(session.client("cur"))
-            if not report_name:
-                report_names = []
-                for report in defs.get("ReportDefinitions", []):
-                    if bucket == report.get("S3Bucket"):
-                        report_names.append(report["ReportName"])
-
-                # FIXME: Get the first report in the bucket until Koku can specify
-                # which report the user wants
-                if report_names:
-                    report_name = report_names[0]
-            self.report_name = report_name
-            report_defs = defs.get("ReportDefinitions", [])
-            report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
-            if not report:
-                raise MasuProviderError("Cost and Usage Report definition not found.")
-
-        self.report = report.pop()
-        self.s3_client = session.client("s3")
+        self._set_report()
 
     @property
     def manifest_date_format(self):
@@ -170,6 +252,59 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.debug("%s is %s bytes uncompressed; Download path has %s free", s3key, isize, free_space)
 
         return size_ok
+
+    def _demo_check(self) -> bool:
+        # Existing schema will start with acct and we strip that prefix new customers
+        # include the org prefix in case an org-id and an account number might overlap
+        if self.customer_name.startswith("acct"):
+            demo_check = self.customer_name[4:]
+        else:
+            demo_check = self.customer_name
+
+        if demo_account := settings.DEMO_ACCOUNTS.get(demo_check):
+            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
+            if demo_info := demo_account.get(self.credentials.get("role_arn")):
+                self.report_name = demo_info.get("report_name")
+                self.report = {
+                    "S3Bucket": self.bucket,
+                    "S3Prefix": demo_info.get("report_prefix"),
+                    "Compression": "GZIP",
+                }
+                session = utils.get_assume_role_session(
+                    utils.AwsArn(self.credentials), "MasuDownloaderSession", **self._region_kwargs
+                )
+                self.s3_client = session.client("s3", **self._region_kwargs)
+
+                return True
+
+        return False
+
+    def _set_report(self):
+        # Checking for storage only source
+        if self.storage_only:
+            LOG.info("Skipping ingest as source is storage_only and requires ingress reports")
+            self.report = ""
+            return
+
+        # fetch details about the report from the cloud provider
+        defs = utils.get_cur_report_definitions(self._session.client("cur", region_name="us-east-1"))
+        if not self.report_name:
+            report_names = []
+            for report in defs.get("ReportDefinitions", []):
+                if self.bucket == report.get("S3Bucket"):
+                    report_names.append(report["ReportName"])
+
+            # FIXME: Get the first report in the bucket until Koku can specify
+            # which report the user wants
+            if report_names:
+                self.report_name = report_names[0]
+
+        report_defs = defs.get("ReportDefinitions", [])
+        report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
+        if not report:
+            raise MasuProviderError("Cost and Usage Report definition not found.")
+
+        self.report = report.pop()
 
     def _get_manifest(self, date_time):
         """
@@ -251,6 +386,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         os.makedirs(directory_path, exist_ok=True)
         s3_etag = None
         file_creation_date = None
+        file_names = []
+        date_range = {}
         try:
             s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
             s3_etag = s3_file.get("ETag")
@@ -277,23 +414,23 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"Downloading key: {key} to file path: {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
             self.s3_client.download_file(self.bucket, key, full_file_path)
-            # Push to S3
-            s3_csv_path = get_path_prefix(
-                self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
-            )
-            utils.copy_local_report_file_to_s3_bucket(
-                self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
-            )
 
-            manifest_accessor = ReportManifestDBAccessor()
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            if not key.endswith(".json"):
+                file_names, date_range = create_daily_archives(
+                    self.tracing_id,
+                    self.account,
+                    self._provider_uuid,
+                    full_file_path,
+                    s3_filename,
+                    manifest_id,
+                    start_date,
+                    self.context,
+                )
 
-            if not manifest_accessor.get_s3_csv_cleared(manifest):
-                utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
-                manifest_accessor.mark_s3_csv_cleared(manifest)
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        return full_file_path, s3_etag, file_creation_date, [], {}
+
+        return full_file_path, s3_etag, file_creation_date, file_names, date_range
 
     def get_manifest_context_for_date(self, date):
         """

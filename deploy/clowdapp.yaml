@@ -9,7 +9,7 @@ objects:
     name: koku
   spec:
     database:
-      dbResourceSize: medium
+      dbResourceSize: small
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
     dependencies:
@@ -50,6 +50,8 @@ objects:
           value: ${API_PATH_PREFIX}
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
+        - name: MAX_GROUP_BY_OVERRIDE
+          value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: GUNICORN_LOG_LEVEL
@@ -136,6 +138,8 @@ objects:
           value: ${RBAC_CACHE_TIMEOUT}
         - name: CACHE_TIMEOUT
           value: ${CACHE_TIMEOUT}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -301,6 +305,8 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: REQUESTED_ROS_BUCKET
           value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -412,7 +418,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-masu
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently it supports only internal administrative api
+      name: clowder-masu
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -504,6 +514,12 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
@@ -599,7 +615,15 @@ objects:
           enabled: true
         public:
           enabled: false
-    - name: clowder-scheduler
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently scheduling is a singleton
+          ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery
+            beat which does not easily support liveness checks
+          ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery
+            beat which does not easily support readiness checks
+      name: clowder-scheduler
       podSpec:
         command:
         - /bin/bash
@@ -659,14 +683,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE_GCP
-          value: ${REPORT_DOWNLOAD_SCHEDULE_GCP}
-        - name: REPORT_DOWNLOAD_SCHEDULE_AWS
-          value: ${REPORT_DOWNLOAD_SCHEDULE_AWS}
-        - name: REPORT_DOWNLOAD_SCHEDULE_AZURE
-          value: ${REPORT_DOWNLOAD_SCHEDULE_AZURE}
-        - name: REPORT_DOWNLOAD_SCHEDULE_OCI
-          value: ${REPORT_DOWNLOAD_SCHEDULE_OCI}
+        - name: REPORT_DOWNLOAD_SCHEDULE
+          value: ${REPORT_DOWNLOAD_SCHEDULE}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES
@@ -687,6 +705,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -768,7 +790,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-sources-client
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-sources-client
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -885,6 +911,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -932,7 +962,12 @@ objects:
           enabled: true
         public:
           enabled: false
-    - name: clowder-sources-listener
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod as currently sources integration requires in order message handling,
+            which can fail with multiple consumers due to race conditions
+      name: clowder-sources-listener
       podSpec:
         command:
         - /bin/bash
@@ -1103,7 +1138,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-celery
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-celery
       podSpec:
         command:
         - /bin/bash
@@ -1173,6 +1212,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1221,6 +1264,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1272,7 +1319,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-cost-model
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-cost-model
       podSpec:
         command:
         - /bin/bash
@@ -1342,6 +1393,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1392,6 +1447,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1443,7 +1502,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-download
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-cost-model-xl
       podSpec:
         command:
         - /bin/bash
@@ -1502,6 +1565,191 @@ objects:
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
+          value: ${WORKER_COST_MODEL_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_COST_MODEL_XL_CPU_LIMIT}
+            memory: ${WORKER_COST_MODEL_XL_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_COST_MODEL_XL_CPU_REQUEST}
+            memory: ${WORKER_COST_MODEL_XL_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
+      replicas: ${{WORKER_COST_MODEL_XL_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-download
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COLUMN_BATCH_SIZE
+          value: ${PANDAS_COLUMN_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
@@ -1513,6 +1761,12 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1561,6 +1815,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1612,7 +1870,196 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-ocp
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-download-xl
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COLUMN_BATCH_SIZE
+          value: ${PANDAS_COLUMN_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_DOWNLOAD_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_DOWNLOAD_XL_CPU_LIMIT}
+            memory: ${WORKER_DOWNLOAD_XL_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_DOWNLOAD_XL_CPU_REQUEST}
+            memory: ${WORKER_DOWNLOAD_XL_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
+      replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-ocp
       podSpec:
         command:
         - /bin/bash
@@ -1682,6 +2129,12 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1732,6 +2185,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1783,7 +2240,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-priority
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-ocp-xl
       podSpec:
         command:
         - /bin/bash
@@ -1842,6 +2303,193 @@ objects:
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
+          value: ${WORKER_OCP_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_OCP_XL_CPU_LIMIT}
+            memory: ${WORKER_OCP_XL_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_OCP_XL_CPU_REQUEST}
+            memory: ${WORKER_OCP_XL_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
+      replicas: ${{WORKER_OCP_XL_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-priority
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COLUMN_BATCH_SIZE
+          value: ${PANDAS_COLUMN_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
@@ -1853,6 +2501,12 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -1901,6 +2555,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -1952,7 +2610,196 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-refresh
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-priority-xl
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COLUMN_BATCH_SIZE
+          value: ${PANDAS_COLUMN_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_PRIORITY_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_PRIORITY_XL_CPU_LIMIT}
+            memory: ${WORKER_PRIORITY_XL_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_PRIORITY_XL_CPU_REQUEST}
+            memory: ${WORKER_PRIORITY_XL_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
+      replicas: ${{WORKER_PRIORITY_XL_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-refresh
       podSpec:
         command:
         - /bin/bash
@@ -2022,6 +2869,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2072,6 +2923,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2123,7 +2978,194 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-summary
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-refresh-xl
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_REFRESH_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_REFRESH_XL_CPU_LIMIT}
+            memory: ${WORKER_REFRESH_XL_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_REFRESH_XL_CPU_REQUEST}
+            memory: ${WORKER_REFRESH_XL_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
+      replicas: ${{WORKER_REFRESH_XL_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-summary
       podSpec:
         command:
         - /bin/bash
@@ -2193,6 +3235,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2243,6 +3289,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2294,7 +3344,194 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-hcs
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-summary-xl
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_SUMMARY_XL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_SUMMARY_XL_CPU_LIMIT}
+            memory: ${WORKER_SUMMARY_XL_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_SUMMARY_XL_CPU_REQUEST}
+            memory: ${WORKER_SUMMARY_XL_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
+      replicas: ${{WORKER_SUMMARY_XL_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-hcs
       podSpec:
         command:
         - /bin/bash
@@ -2366,6 +3603,10 @@ objects:
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -2416,6 +3657,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2467,6 +3712,296 @@ objects:
           enabled: false
         public:
           enabled: false
+    - name: clowder-worker-subs-extraction
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_SUBS_BUCKET
+          value: ${S3_SUBS_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_SUBS_EXTRACTION_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_SUBS_EXTRACTION_CPU_LIMIT}
+            memory: ${WORKER_SUBS_EXTRACTION_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_SUBS_EXTRACTION_CPU_REQUEST}
+            memory: ${WORKER_SUBS_EXTRACTION_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+      replicas: ${{WORKER_SUBS_EXTRACTION_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
+    - name: clowder-worker-subs-transmission
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_SUBS_BUCKET
+          value: ${S3_SUBS_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_SUBS_TRANSMISSION_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        - name: ENABLE_SUBS_DEBUG
+          value: ${ENABLE_SUBS_DEBUG}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_SUBS_TRANSMISSION_CPU_LIMIT}
+            memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_SUBS_TRANSMISSION_CPU_REQUEST}
+            memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+      replicas: ${{WORKER_SUBS_TRANSMISSION_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: false
     envName: ${ENV_NAME}
     featureFlags: true
     inMemoryDb: true
@@ -2492,6 +4027,10 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
@@ -2507,9 +4046,11 @@ objects:
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
+    - topicName: platform.rhsm-subscriptions.service-instance-ingress
     objectStore:
     - ${S3_BUCKET_NAME}
     - ${S3_ROS_BUCKET_NAME}
+    - ${S3_SUBS_BUCKET_NAME}
     optionalDependencies: []
     testing:
       iqePlugin: cost-management
@@ -2640,6 +4181,8 @@ parameters:
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
+- name: S3_SUBS_BUCKET_NAME
+  value: subs-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -2678,6 +4221,12 @@ parameters:
   name: KOKU_MIGRATIONS_CPU_LIMIT
   required: true
   value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: true
+  value: "2"
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
@@ -2685,6 +4234,9 @@ parameters:
   name: API_PATH_PREFIX
   required: true
   value: /api/cost-management
+- displayName: Max support group by
+  name: MAX_GROUP_BY_OVERRIDE
+  value: "3"
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
@@ -2742,6 +4294,11 @@ parameters:
   name: PARQUET_PROCESSING_BATCH_SIZE
   required: true
   value: "200000"
+- description: How many pandas columns to read from file
+  displayName: Pandas column batch size
+  name: PANDAS_COLUMN_BATCH_SIZE
+  required: true
+  value: "250"
 - description: Processing batch size
   displayName: Processing batch size
   name: REPORT_PROCESSING_BATCH_SIZE
@@ -2778,22 +4335,10 @@ parameters:
   value: "True"
 - name: QE_SCHEMA
   value: ""
-- description: Report download schedule GCP
-  displayName: Report download schedule GCP
-  name: REPORT_DOWNLOAD_SCHEDULE_GCP
-  value: 0 4,16 * * *
-- description: Report download schedule AWS
-  displayName: Report download schedule AWS
-  name: REPORT_DOWNLOAD_SCHEDULE_AWS
-  value: 0 4,16 * * *
-- description: Report download schedule AZURE
-  displayName: Report download schedule AZURE
-  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
-  value: 0 4,16 * * *
-- description: Report download schedule OCI
-  displayName: Report download schedule OCI
-  name: REPORT_DOWNLOAD_SCHEDULE_OCI
-  value: 0 4,16 * * *
+- description: Report download schedule
+  displayName: Report download schedule
+  name: REPORT_DOWNLOAD_SCHEDULE
+  value: 0 * * * *
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -2825,6 +4370,18 @@ parameters:
 - displayName: Initial ingest override
   name: INITIAL_INGEST_OVERRIDE
   value: "False"
+- displayName: Timer between provider polling
+  name: POLLING_TIMER
+  value: "86400"
+- displayName: Provider count for batch polling
+  name: POLLING_BATCH_SIZE
+  value: "100"
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
+- displayName: ROS URL Expiration
+  name: ROS_URL_EXPIRATION
+  value: "172800"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
@@ -2904,6 +4461,10 @@ parameters:
 - displayName: Middleware Timeout
   name: CACHE_TIMEOUT
   value: "3600"
+- description: Enabale Subscription Watch Debug
+  displayName: Enable SUBS Debug
+  name: ENABLE_SUBS_DEBUG
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_REPLICAS
   required: true
@@ -2919,11 +4480,11 @@ parameters:
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 300m
+  value: 250m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 600m
+  value: 500m
 - displayName: Log Level for koku-api
   name: KOKU_KOKU_LOG_LEVEL
   required: true
@@ -2935,19 +4496,19 @@ parameters:
 - displayName: Memory Request
   name: NGINX_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 100Mi
 - displayName: Memory Limit
   name: NGINX_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 200Mi
 - displayName: CPU Request
   name: NGINX_CPU_REQUEST
   required: true
-  value: 300m
+  value: 100m
 - displayName: CPU Limit
   name: NGINX_CPU_LIMIT
   required: true
-  value: 600m
+  value: 200m
 - displayName: ROS OCP API Name
   name: ROS_OCP_API
   required: true
@@ -2959,11 +4520,11 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 300Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 750Mi
+  value: 600Mi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
@@ -2983,7 +4544,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 350Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
@@ -3023,7 +4584,7 @@ parameters:
 - displayName: Worker Queue
   name: SCHEDULER_WORKER_QUEUE
   required: true
-  value: cost_model,download,hcs,ocp,priority,refresh,summary
+  value: cost_model,cost_model_xl,download,download_xl,hcs,ocp,ocp_xl,priority,priority_xl,refresh,refresh_xl,summary,summary_xl
 - displayName: Scheduler report checks
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
@@ -3127,6 +4688,30 @@ parameters:
   required: true
   value: cost_model
 - displayName: Minimum replicas
+  name: WORKER_COST_MODEL_XL_REPLICAS
+  required: true
+  value: "2"
+- displayName: Memory Request
+  name: WORKER_COST_MODEL_XL_MEMORY_REQUEST
+  required: true
+  value: 256Mi
+- displayName: Memory Limit
+  name: WORKER_COST_MODEL_XL_MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- displayName: CPU Request
+  name: WORKER_COST_MODEL_XL_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_COST_MODEL_XL_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_COST_MODEL_XL_WORKER_QUEUE
+  required: true
+  value: cost_model_xl
+- displayName: Minimum replicas
   name: WORKER_DOWNLOAD_REPLICAS
   required: true
   value: "2"
@@ -3150,6 +4735,30 @@ parameters:
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
   value: download
+- displayName: Minimum replicas
+  name: WORKER_DOWNLOAD_XL_REPLICAS
+  required: true
+  value: "2"
+- displayName: Memory Request
+  name: WORKER_DOWNLOAD_XL_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- displayName: Memory Limit
+  name: WORKER_DOWNLOAD_XL_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- displayName: CPU Request
+  name: WORKER_DOWNLOAD_XL_CPU_REQUEST
+  required: true
+  value: 200m
+- displayName: CPU Limit
+  name: WORKER_DOWNLOAD_XL_CPU_LIMIT
+  required: true
+  value: 400m
+- displayName: Worker Queue
+  name: WORKER_DOWNLOAD_XL_WORKER_QUEUE
+  required: true
+  value: download_xl
 - displayName: Minimum replicas
   name: WORKER_OCP_REPLICAS
   required: true
@@ -3175,6 +4784,30 @@ parameters:
   required: true
   value: ocp
 - displayName: Minimum replicas
+  name: WORKER_OCP_XL_REPLICAS
+  required: true
+  value: "2"
+- displayName: Memory Request
+  name: WORKER_OCP_XL_MEMORY_REQUEST
+  required: true
+  value: 256Mi
+- displayName: Memory Limit
+  name: WORKER_OCP_XL_MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- displayName: CPU Request
+  name: WORKER_OCP_XL_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_OCP_XL_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_OCP_XL_WORKER_QUEUE
+  required: true
+  value: ocp_xl
+- displayName: Minimum replicas
   name: WORKER_PRIORITY_REPLICAS
   required: true
   value: "2"
@@ -3189,15 +4822,39 @@ parameters:
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 150m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 300m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
   value: priority
+- displayName: Minimum replicas
+  name: WORKER_PRIORITY_XL_REPLICAS
+  required: true
+  value: "2"
+- displayName: Memory Request
+  name: WORKER_PRIORITY_XL_MEMORY_REQUEST
+  required: true
+  value: 400Mi
+- displayName: Memory Limit
+  name: WORKER_PRIORITY_XL_MEMORY_LIMIT
+  required: true
+  value: 750Mi
+- displayName: CPU Request
+  name: WORKER_PRIORITY_XL_CPU_REQUEST
+  required: true
+  value: 150m
+- displayName: CPU Limit
+  name: WORKER_PRIORITY_XL_CPU_LIMIT
+  required: true
+  value: 300m
+- displayName: Worker Queue
+  name: WORKER_PRIORITY_XL_WORKER_QUEUE
+  required: true
+  value: priority_xl
 - displayName: Minimum replicas
   name: WORKER_REFRESH_REPLICAS
   required: true
@@ -3223,6 +4880,30 @@ parameters:
   required: true
   value: refresh
 - displayName: Minimum replicas
+  name: WORKER_REFRESH_XL_REPLICAS
+  required: true
+  value: "2"
+- displayName: Memory Request
+  name: WORKER_REFRESH_XL_MEMORY_REQUEST
+  required: true
+  value: 256Mi
+- displayName: Memory Limit
+  name: WORKER_REFRESH_XL_MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- displayName: CPU Request
+  name: WORKER_REFRESH_XL_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_REFRESH_XL_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_REFRESH_XL_WORKER_QUEUE
+  required: true
+  value: refresh_xl
+- displayName: Minimum replicas
   name: WORKER_SUMMARY_REPLICAS
   required: true
   value: "2"
@@ -3247,17 +4928,41 @@ parameters:
   required: true
   value: summary
 - displayName: Minimum replicas
+  name: WORKER_SUMMARY_XL_REPLICAS
+  required: true
+  value: "2"
+- displayName: Memory Request
+  name: WORKER_SUMMARY_XL_MEMORY_REQUEST
+  required: true
+  value: 500Mi
+- displayName: Memory Limit
+  name: WORKER_SUMMARY_XL_MEMORY_LIMIT
+  required: true
+  value: 750Mi
+- displayName: CPU Request
+  name: WORKER_SUMMARY_XL_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_SUMMARY_XL_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_SUMMARY_XL_WORKER_QUEUE
+  required: true
+  value: summary_xl
+- displayName: Minimum replicas
   name: WORKER_HCS_REPLICAS
   required: true
   value: "1"
 - displayName: Memory Request
   name: WORKER_HCS_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: 300Mi
 - displayName: Memory Limit
   name: WORKER_HCS_MEMORY_LIMIT
   required: true
-  value: 700Mi
+  value: 500Mi
 - displayName: CPU Request
   name: WORKER_HCS_CPU_REQUEST
   required: true
@@ -3273,3 +4978,51 @@ parameters:
 - displayName: HCS debug
   name: ENABLE_HCS_DEBUG
   value: "False"
+- displayName: Minimum replicas
+  name: WORKER_SUBS_EXTRACTION_REPLICAS
+  required: true
+  value: "0"
+- displayName: Memory Request
+  name: WORKER_SUBS_EXTRACTION_MEMORY_REQUEST
+  required: true
+  value: 300Mi
+- displayName: Memory Limit
+  name: WORKER_SUBS_EXTRACTION_MEMORY_LIMIT
+  required: true
+  value: 500Mi
+- displayName: CPU Request
+  name: WORKER_SUBS_EXTRACTION_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_SUBS_EXTRACTION_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_SUBS_EXTRACTION_WORKER_QUEUE
+  required: true
+  value: subs_extraction
+- displayName: Minimum replicas
+  name: WORKER_SUBS_TRANSMISSION_REPLICAS
+  required: true
+  value: "0"
+- displayName: Memory Request
+  name: WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST
+  required: true
+  value: 300Mi
+- displayName: Memory Limit
+  name: WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT
+  required: true
+  value: 500Mi
+- displayName: CPU Request
+  name: WORKER_SUBS_TRANSMISSION_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_SUBS_TRANSMISSION_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_SUBS_TRANSMISSION_WORKER_QUEUE
+  required: true
+  value: subs_transmission

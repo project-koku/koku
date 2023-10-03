@@ -13,7 +13,9 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import update_cost_model_costs
 
 
@@ -86,6 +88,9 @@ class CostModelManager:
             else:
                 if provider.active:
                     schema_name = provider.customer.schema_name
+                    fallback_queue = PRIORITY_QUEUE
+                    if is_customer_large(schema_name):
+                        fallback_queue = PRIORITY_QUEUE_XL
                     # Because this is triggered from the UI, we use the priority queue
                     LOG.info(
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
@@ -98,8 +103,8 @@ class CostModelManager:
                         start_date,
                         end_date,
                         tracing_id=tracing_id,
-                        queue_name=PRIORITY_QUEUE,
-                    ).set(queue=PRIORITY_QUEUE).apply_async()
+                        queue_name=fallback_queue,
+                    ).set(queue=fallback_queue).apply_async()
 
     def update(self, **data):
         """Update the cost model object."""
@@ -117,5 +122,8 @@ class CostModelManager:
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
-        provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name} for provider in providers_qs_list]
+        provider_names_uuids = [
+            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+            for provider in providers_qs_list
+        ]
         return provider_names_uuids

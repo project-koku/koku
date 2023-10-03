@@ -14,9 +14,8 @@ from api.tags.gcp.queries import GCPTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPGCPTagsSummary
-from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.gcp.openshift.models import OCPGCPTagsValues
-from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
@@ -27,12 +26,20 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
         {
             "db_table": OCPGCPTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"enabled": Exists(GCPEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+            "annotations": {
+                "enabled": Exists(
+                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).filter(key=OuterRef("key"))
+                )
+            },
         },
         {
             "db_table": OCPGCPTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"enabled": Exists(OCPEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+            "annotations": {
+                "enabled": Exists(
+                    EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key=OuterRef("key"))
+                )
+            },
         },
     ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPGCPTagsValues, "fields": ["key"]}]
@@ -46,7 +53,9 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
 
         """
         self._parameters = parameters
-        self._mapper = OCPGCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPGCPProviderMap(
+            provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
+        )
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set

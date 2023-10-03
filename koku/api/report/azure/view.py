@@ -8,7 +8,6 @@ from api.models import Provider
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.azure.serializers import AzureQueryParamSerializer
 from api.report.view import ReportView
-from reporting.provider.azure.models import AzureEnabledTagKeys
 
 
 class AzureView(ReportView):
@@ -18,7 +17,7 @@ class AzureView(ReportView):
     provider = Provider.PROVIDER_AZURE
     serializer = AzureQueryParamSerializer
     query_handler = AzureReportQueryHandler
-    tag_handler = [AzureEnabledTagKeys]
+    tag_providers = [Provider.PROVIDER_AZURE]
 
 
 class AzureCostView(AzureView):

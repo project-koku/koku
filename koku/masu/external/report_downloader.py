@@ -146,10 +146,11 @@ class ReportDownloader:
         Otherwise returns False.
 
         """
-        report_record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id, report_name=report_name)
-        if report_record:
-            return report_record.filter(last_completed_datetime__isnull=False).exists()
-        return False
+        return CostUsageReportStatus.objects.filter(
+            manifest_id=manifest_id,
+            report_name=report_name,
+            last_completed_datetime__isnull=False,
+        ).exists()
 
     def download_manifest(self, date):
         """
@@ -157,6 +158,8 @@ class ReportDownloader:
 
         """
         manifest = self._downloader.get_manifest_context_for_date(date)
+        if not manifest:
+            return []
         if not isinstance(manifest, list):
             manifest = [manifest]
         return manifest
@@ -198,7 +201,7 @@ class ReportDownloader:
 
         # The create_table flag is used by the ParquetReportProcessor
         # to create a Hive/Trino table.
-        return {
+        report = {
             "file": file_name,
             "split_files": split_files,
             "compression": report_context.get("compression"),
@@ -211,3 +214,7 @@ class ReportDownloader:
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
         }
+        if self.provider_type == Provider.PROVIDER_OCP:
+            report["split_files"] = list(split_files)
+            report["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
+        return report

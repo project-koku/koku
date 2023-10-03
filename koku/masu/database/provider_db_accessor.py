@@ -7,6 +7,7 @@ import logging
 
 from django.db import transaction
 
+from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
@@ -283,6 +284,20 @@ class ProviderDBAccessor(KokuDBAccess):
         self.provider.save()
         invalidate_view_cache_for_tenant_and_cache_key(self.schema)
 
+    @transaction.atomic()
+    def delete_ocp_infra(self, infrastructure_provider_uuid):
+        """OCP is not a valid infra type, so remove it and reset the provider.infrastructure."""
+        mapping = ProviderInfrastructureMap.objects.filter(
+            infrastructure_provider_id=infrastructure_provider_uuid, infrastructure_type=Provider.PROVIDER_OCP
+        ).first()
+        if not mapping:
+            return
+
+        mapping.delete()
+        self.provider.infrastructure = None
+        self.provider.save()
+        invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+
     def get_associated_openshift_providers(self):
         """Return a list of OpenShift clusters associated with the cloud provider."""
         associated_openshift_providers = []
@@ -298,11 +313,21 @@ class ProviderDBAccessor(KokuDBAccess):
         """Set the data updated timestamp to the current time."""
         if self.provider:
             updated_datetime = self.date_accessor.today_with_timezone("UTC")
-            msg = f"Marking provider {self.provider.uuid} data_updated_timestamp: {updated_datetime}."
-            LOG.info(msg)
+            LOG.info(
+                log_json(
+                    msg="marking provider updated",
+                    provider_uuid=self.provider.uuid,
+                    data_updated_timestamp=updated_datetime,
+                )
+            )
             self.provider.data_updated_timestamp = updated_datetime
             self.provider.save()
             invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+
+    def get_data_updated_timestamp(self):
+        """get the data updated timestamp."""
+        if self.provider:
+            return self.provider.data_updated_timestamp
 
     def set_additional_context(self, new_value):
         """Sets the additional context value."""

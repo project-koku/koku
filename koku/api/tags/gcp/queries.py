@@ -12,7 +12,7 @@ from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import GCPTagsSummary
-from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.gcp.models import GCPTagsValues
 
 
@@ -20,7 +20,11 @@ class GCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for GCP."""
 
     provider = Provider.PROVIDER_GCP
-    enabled = GCPEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = (
+        EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP)
+        .filter(key=OuterRef("key"))
+        .filter(enabled=True)
+    )
     data_sources = [
         {
             "db_table": GCPTagsSummary,
@@ -41,7 +45,9 @@ class GCPTagQueryHandler(TagQueryHandler):
         """
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
-            self._mapper = GCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = GCPProviderMap(
+                provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
+            )
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set

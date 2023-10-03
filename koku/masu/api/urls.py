@@ -25,6 +25,7 @@ from masu.api.views import explain_query
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
+from masu.api.views import ingress_reports
 from masu.api.views import lockinfo
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
@@ -46,6 +47,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
+    path("ingress_reports/", ingress_reports, name="ingress_reports"),
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),

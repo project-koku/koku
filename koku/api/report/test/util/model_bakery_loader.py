@@ -85,24 +85,32 @@ class ModelBakeryDataLoader(DataLoader):
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
 
-        for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys", "AzureEnabledTagKeys"):
+        for provider_type in (
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_OCI,
+            Provider.PROVIDER_AZURE,
+        ):
             for dikt in self.tags:
                 for key in dikt.keys():
                     with schema_context(self.schema):
-                        baker.make(table_name, key=key, enabled=True)
+                        baker.make("EnabledTagKeys", key=key, enabled=True, provider_type=provider_type)
         with schema_context(self.schema):
             for key in self.ocp_tag_keys:
-                baker.make("OCPEnabledTagKeys", key=key, enabled=True)
-            baker.make("OCPEnabledTagKeys", key="disabled", enabled=False)
+                baker.make("EnabledTagKeys", key=key, enabled=True, provider_type=Provider.PROVIDER_OCP)
+            baker.make("EnabledTagKeys", key="disabled", enabled=False, provider_type=Provider.PROVIDER_OCP)
 
     def _populate_enabled_aws_category_key_table(self):
         """Insert records for aws category keys."""
+        deduplicate_keys = []
         for item in AWS_COST_CATEGORIES:
             if isinstance(item, dict):
                 keys = item.keys()
                 for key in keys:
-                    with schema_context(self.schema):
-                        baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                    if key not in deduplicate_keys:
+                        with schema_context(self.schema):
+                            baker.make("AWSEnabledCategoryKeys", key=key, enabled=True)
+                        deduplicate_keys.append(key)
 
     def _populate_exchange_rates(self):
         rates = [
@@ -149,13 +157,14 @@ class ModelBakeryDataLoader(DataLoader):
                 linked_openshift_provider.save()
             return provider
 
-    def create_manifest(self, provider, bill_date, num_files=1):
+    def create_manifest(self, provider, bill_date, *, num_files=1, cluster_id=None):
         """Create a manifest for the provider."""
         manifest = baker.make(
             "CostUsageReportManifest",
             provider=provider,
             billing_period_start_datetime=bill_date,
             num_total_files=num_files,
+            cluster_id=cluster_id,
             _fill_optional=True,
         )
         baker.make("CostUsageReportStatus", manifest=manifest, _fill_optional=True)
@@ -269,6 +278,7 @@ class ModelBakeryDataLoader(DataLoader):
             linked_openshift_provider=linked_openshift_provider,
         )
         sub_guid = self.faker.uuid4()
+        sub_name = f"{self.faker.company()} subscription"
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load azure data for start: {start_date}, end: {end_date}")
             self.create_manifest(provider, bill_date)
@@ -286,6 +296,7 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
+                        subscription_name=sub_name,
                     )
         bill_ids = [bill.id for bill in bills]
         with AzureReportDBAccessor(self.schema) as accessor:
@@ -298,7 +309,7 @@ class ModelBakeryDataLoader(DataLoader):
         bills = []
         provider_type = Provider.PROVIDER_GCP_LOCAL
         credentials = {"project_id": "test_project_id"}
-        billing_source = {"table_id": "test_table_id", "dataset": "test_dataset"}
+        billing_source = {"table_id": "resource", "dataset": "test_dataset"}
         account_id = "123456789"
         provider = self.create_provider(
             provider_type, credentials, billing_source, "test-gcp", linked_openshift_provider=linked_openshift_provider
@@ -344,7 +355,7 @@ class ModelBakeryDataLoader(DataLoader):
 
         for start_date, end_date, bill_date in self.dates:
             LOG.info(f"load ocp data for start: {start_date}, end: {end_date}")
-            self.create_manifest(provider, bill_date)
+            self.create_manifest(provider, bill_date, cluster_id=cluster_id)
             report_period = self.create_bill(
                 provider_type, provider, bill_date, cluster_id=cluster_id, cluster_alias=cluster_id
             )

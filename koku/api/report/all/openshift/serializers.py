@@ -9,6 +9,7 @@ import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
+from masu.processor import get_customer_group_by_limit
 
 
 class OCPAllGroupBySerializer(awsser.AWSGroupBySerializer, ocpser.OCPGroupBySerializer):
@@ -38,7 +39,18 @@ class OCPAllOrderBySerializer(awsser.AWSOrderBySerializer, ocpser.OCPOrderBySeri
 class OCPAllFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("source_type",)
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "cluster",
+        "node",
+        "source_type",
+    )
 
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
@@ -46,7 +58,18 @@ class OCPAllFilterSerializer(awsser.AWSFilterSerializer, ocpser.OCPFilterSeriali
 class OCPAllExcludeSerializer(awsser.AWSExcludeSerializer, ocpser.OCPExcludeSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("source_type",)
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "cluster",
+        "node",
+        "source_type",
+    )
 
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
@@ -70,5 +93,9 @@ class OCPAllQueryParamSerializer(awsser.AWSQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
+        max_value = get_customer_group_by_limit(self.schema)
+        if len(value) > max_value:
+            error = {"group_by": (f"Cost Management supports a max of {max_value} group_by options.")}
+            raise serializers.ValidationError(error)
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value

@@ -71,6 +71,8 @@ class GCPReportDownloaderTest(MasuTestCase):
                     provider_uuid=self.gcp_provider_uuid,
                     credentials=self.credentials,
                 )
+        self.gcp_manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid).first()
+        self.gcp_manifest_id = self.gcp_manifest.id
 
     def tearDown(self):
         """Remove files and directories created during the test run."""
@@ -111,7 +113,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
                 return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_path, _, date, _, __ = downloader.download_file(key)
+                full_path, _, date, __, ___ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(date, self.today)
                 self.assertEqual(full_path, key)
@@ -130,7 +132,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
                 return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_path, _, date, _, __ = downloader.download_file(key)
+                full_path, _, date, __, ___ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(date, self.today)
                 self.assertEqual(full_path, key)
@@ -211,7 +213,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         ]
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
         )
         expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
         self.assertEqual(date_range, expected_date_range)
@@ -232,9 +234,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             err_msg = "bad_open"
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
-                create_daily_archives(
-                    "request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None
-                )
+                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
@@ -399,7 +399,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
             return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
         ):
-            full_path, _, date, _, __ = self.gcp_ingress_report_downloader.download_file(key)
+            full_path, _, date, __, ___ = self.gcp_ingress_report_downloader.download_file(key)
             mock_makedirs.assert_called()
             self.assertEqual(date, self.today)
             self.assertEqual(full_path, key)
@@ -411,3 +411,38 @@ class GCPReportDownloaderTest(MasuTestCase):
         key = "ingress_report.csv"
         with self.assertRaises(GCPReportDownloaderError):
             self.gcp_ingress_report_downloader.download_file(key)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_ingress_reports(self, mock_s3):
+        """Test that we load daily files to S3."""
+        file_name = "2022-08-01_5.csv"
+        partition = "2022-08-01"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/202208_{partition}_manifestid-{self.gcp_manifest_id}_0.csv",
+        ]
+        context = {"account": self.schema_name, "provider_type": "GCP"}
+        start_date = DateHelper().this_month_start
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.clear_s3_files"):
+            daily_file_names, date_range = create_daily_archives(
+                "request_id",
+                "account",
+                self.gcp_provider_uuid,
+                [temp_path],
+                self.gcp_manifest_id,
+                start_date,
+                context,
+                "ingress_reports",
+            )
+            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            mock_s3.assert_called()
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)

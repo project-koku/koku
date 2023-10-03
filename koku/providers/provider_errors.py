@@ -16,6 +16,7 @@ class ProviderErrors:
     INVALID_SOURCE_TYPE = "source_type"
     DUPLICATE_AUTH = "source.duplicate"
     BILLING_SOURCE = "billing_source"
+    PROVIDER_NOT_FOUND = "source.provider"
 
     AWS_NO_REPORT_FOUND = "authentication.role_arn.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
@@ -40,6 +41,7 @@ class ProviderErrors:
 
     OCI_NO_REPORT_FOUND = "billing_source.bucket.noreportfound"
     OCI_REGION_NOT_SUPPORTED = "billing_source.bucket_region.notsupported"
+    OCI_INVALID_VALUES = "billing_source"
     OCI_BUCKET_MISSING = "billing_source.bucket.missing"
     OCI_BUCKET_NAMESPACE_MISSING = "billing_source.bucket_namespace.missing"
     OCI_BUCKET_REGION_MISSING = "billing_source.bucket_region.missing"
@@ -122,6 +124,10 @@ class ProviderErrors:
     AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE = (
         "The subscription ID was entered incorrectly for this source. "
         "Edit your Azure source and verify the subscription ID."
+    )
+    AZURE_UNAUTHORIZED_MESSAGE = (
+        "Azure reported an authorization error. "
+        "In Azure, check the resource group, storage account, cost export scope, and service principal."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
     OCI_BUCKET_MISSING_MESSAGE = (

@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-hcs
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{WORKER_HCS_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
@@ -81,6 +87,10 @@
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
           value: ${INITIAL_INGEST_OVERRIDE}
+        - name: POLLING_TIMER
+          value: ${POLLING_TIMER}
+        - name: POLLING_BATCH_SIZE
+          value: ${POLLING_BATCH_SIZE}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -189,14 +199,14 @@
     displayName: Memory Request
     name: WORKER_HCS_MEMORY_REQUEST
     required: true
-    value: 500Mi
+    value: 300Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_HCS_MEMORY_LIMIT
     required: true
-    value: 700Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:

@@ -11,9 +11,9 @@ from django.db.models import OuterRef
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
-from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 
 
@@ -21,7 +21,11 @@ class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
-    enabled = OCPEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
+    enabled = (
+        EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP)
+        .filter(key=OuterRef("key"))
+        .filter(enabled=True)
+    )
     data_sources = [
         {
             "db_table": OCPUsagePodLabelSummary,
@@ -64,7 +68,9 @@ class OCPTagQueryHandler(TagQueryHandler):
         """
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
-            self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = OCPProviderMap(
+                provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
+            )
 
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})

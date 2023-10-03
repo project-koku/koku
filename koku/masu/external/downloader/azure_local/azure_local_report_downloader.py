@@ -10,17 +10,13 @@ import os
 import shutil
 
 from api.common import log_json
-from api.provider.models import Provider
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
-from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.external.downloader.azure.azure_report_downloader import create_daily_archives
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
-from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -119,21 +115,19 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             shutil.copy2(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
-            # Push to S3
-            s3_csv_path = get_path_prefix(
-                self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
-            )
-            copy_local_report_file_to_s3_bucket(
-                self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
-            )
 
-            manifest_accessor = ReportManifestDBAccessor()
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        file_names, date_range = create_daily_archives(
+            self.tracing_id,
+            self.account,
+            self._provider_uuid,
+            full_file_path,
+            local_filename,
+            manifest_id,
+            start_date,
+            self.context,
+        )
 
-            if not manifest_accessor.get_s3_csv_cleared(manifest):
-                remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
-                manifest_accessor.mark_s3_csv_cleared(manifest)
+        msg = f"Download complete for {key}"
+        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
-        msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
-        LOG.info(log_json(self.request_id, msg=msg, context=self.context))
-        return full_file_path, etag, file_creation_date, [], {}
+        return full_file_path, stored_etag, file_creation_date, file_names, date_range

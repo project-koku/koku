@@ -13,6 +13,7 @@ from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
@@ -30,7 +31,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
@@ -46,7 +46,6 @@ from reporting.models import TRINO_MANAGED_TABLES
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
-_DB_FETCH_BATCH_SIZE = 2000
 
 PROVIDER_REPORT_TYPE_MAP = {
     Provider.PROVIDER_OCP: OCP_REPORT_TYPES,
@@ -59,6 +58,7 @@ PROVIDER_REPORT_TYPE_MAP = {
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
+    LOG.info(log_json(msg="checking for report updates", args=args, kwargs=kwargs))
     orchestrator.prepare()
 
 
@@ -149,7 +149,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         s3_bucket_name (str): The s3 bucket name
         prefix (str): The prefix for deletion
     """
-    s3_resource = get_s3_resource()
+    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     s3_bucket = s3_resource.Bucket(s3_bucket_name)
     object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
     LOG.info(f"Starting objects: {len(object_keys)}")
@@ -360,13 +360,14 @@ def get_daily_currency_rates():
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
     if provider_uuid:
-        _, polling_accounts = Orchestrator.get_accounts(provider_uuid=provider_uuid)
+        polling_accounts = Provider.objects.filter(uuid=provider_uuid)
     else:
-        _, polling_accounts = Orchestrator.get_accounts()
-    LOG.info("Account hierarchy crawler found %s accounts to scan" % len(polling_accounts))
+        polling_accounts = Provider.polling_objects.all()
+    LOG.info(f"Account hierarchy crawler found {len(polling_accounts)} accounts to scan")
     processed = 0
     skipped = 0
-    for account in polling_accounts:
+    for provider in polling_accounts:
+        account = provider.account
         crawler = None
 
         # Look for a known crawler class to handle this provider
@@ -396,20 +397,20 @@ def check_cost_model_status(provider_uuid=None):
     """Scheduled task to initiate source check and notification fire."""
     providers = []
     if provider_uuid:
-        provider = Provider.objects.filter(uuid=provider_uuid).values("uuid", "type")
-        if provider[0].get("type") == Provider.PROVIDER_OCP:
-            providers = provider
+        provider = Provider.objects.filter(uuid=provider_uuid).first()
+        if provider and provider.type == Provider.PROVIDER_OCP:
+            providers = [provider]
         else:
             LOG.info(f"Source {provider_uuid} is not an openshift source.")
+            return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
     LOG.info("Cost model status check found %s providers to scan" % len(providers))
     processed = 0
     skipped = 0
     for provider in providers:
-        uuid = provider_uuid if provider_uuid else provider.uuid
-        account = AccountsAccessor().get_accounts(uuid)[0]
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), uuid)
+        account = provider.account
+        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider.uuid)
         if cost_model_map.cost_model:
             skipped += 1
         else:
@@ -435,8 +436,8 @@ def check_for_stale_ocp_source(provider_uuid=None):
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                accounts = AccountsAccessor().get_accounts(data.get("provider_id"))
-                NotificationService().ocp_stale_source_notification(accounts[0])
+                account = Provider.objects.get(uuid=data.get("provider_id")).account
+                NotificationService().ocp_stale_source_notification(account)
                 processed += 1
             else:
                 skipped += 1
@@ -491,7 +492,7 @@ def delete_source_helper(source):
     if source.koku_uuid:
         # if there is a koku-uuid, a Provider also exists.
         # Go thru delete_source to remove the Provider and the Source
-        delete_source(source.source_id, source.auth_header, source.koku_uuid)
+        delete_source(source.source_id, source.auth_header, source.koku_uuid, source.account_id, source.org_id)
     else:
         # here, no Provider exists, so just delete the Source
         source.delete()

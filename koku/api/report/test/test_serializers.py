@@ -17,6 +17,7 @@ from api.report.aws.serializers import AWSFilterSerializer
 from api.report.aws.serializers import AWSGroupBySerializer
 from api.report.aws.serializers import AWSOrderBySerializer
 from api.report.aws.serializers import AWSQueryParamSerializer
+from api.report.azure.serializers import AzureOrderBySerializer
 from api.report.serializers import ParamSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.utils import DateHelper
@@ -442,6 +443,18 @@ class OrderBySerializerTest(TestCase):
         serializer = AWSOrderBySerializer(data=order_params)
         self.assertTrue(serializer.is_valid())
 
+    def test_parse_order_by_params_account_success(self):
+        """Test parse of a order_by param account successfully."""
+        order_params = {"account": "asc"}
+        serializer = AWSOrderBySerializer(data=order_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_azure_order_by_params_success(self):
+        """Test parse of a order_by param successfully."""
+        order_params = {"subscription_name": "asc"}
+        serializer = AzureOrderBySerializer(data=order_params)
+        self.assertTrue(serializer.is_valid())
+
     def test_order_by_params_invalid_fields(self):
         """Test parse of order_by params for invalid fields."""
         order_params = {"cost": "asc", "invalid": "param"}
@@ -560,6 +573,17 @@ class QueryParamSerializerTest(IamTestCase):
         }
         serializer = AWSQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_fail_with_max_group_by(self):
+        """Test fail if more than 2 group bys given."""
+        query_params = {
+            "group_by": {"account": ["account1"], "service": ["ser"], "region": ["reg"]},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+        with self.assertRaises(serializers.ValidationError):
+            serializer = AWSQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertFalse(serializer.is_valid())
             serializer.is_valid(raise_exception=True)
 
     def test_multiple_group_by_with_matching_sort_or(self):

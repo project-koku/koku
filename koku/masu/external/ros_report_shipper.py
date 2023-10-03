@@ -39,7 +39,9 @@ def get_ros_s3_client():  # pragma: no cover
 def generate_s3_object_url(client, upload_key):  # pragma: no cover
     """Generate an accessible URL for an S3 object with an expiration time of 48 hours"""
     return client.generate_presigned_url(
-        ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=172800
+        ClientMethod="get_object",
+        Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key},
+        ExpiresIn=masu_config.ROS_URL_EXPIRATION,
     )
 
 
@@ -55,13 +57,15 @@ class ROSReportShipper:
         self.b64_identity = b64_identity
         self.manifest_id = report_meta["manifest_id"]
         self.context = context | {"manifest_id": self.manifest_id}
+        self.source_id = str(report_meta["source_id"])
         self.provider_uuid = str(report_meta["provider_uuid"])
         self.request_id = report_meta["request_id"]
         self.schema_name = report_meta["schema_name"]
         self.metadata = {
             "account": context["account"],
             "org_id": context["org_id"],
-            "source_id": self.provider_uuid,
+            "source_id": self.source_id,
+            "provider_uuid": self.provider_uuid,
             "cluster_uuid": report_meta["cluster_id"],
         }
         self.s3_client = get_ros_s3_client()

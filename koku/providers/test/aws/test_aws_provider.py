@@ -6,6 +6,7 @@
 import logging
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import uuid4
 
 from botocore.exceptions import ClientError
 from django.test import TestCase
@@ -69,7 +70,36 @@ class AWSProviderTestCase(TestCase):
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         credentials = {"role_arn": iam_arn}
         aws_credentials = _get_sts_access(credentials)
-        sts_client.assume_role.assert_called()
+        sts_client.assume_role.assert_called_with(RoleArn=iam_arn, RoleSessionName="AccountCreationSession")
+        self.assertEqual(aws_credentials.get("aws_access_key_id"), expected_access_key)
+        self.assertEqual(aws_credentials.get("aws_secret_access_key"), expected_secret_access_key)
+        self.assertEqual(aws_credentials.get("aws_session_token"), expected_session_token)
+
+    @patch("providers.aws.provider.boto3.client")
+    def test_get_sts_access_with_external_id(self, mock_boto3_client):
+        """Test _get_sts_access success."""
+        expected_access_key = FAKE.md5()
+        expected_secret_access_key = FAKE.md5()
+        expected_session_token = FAKE.md5()
+
+        assume_role = {
+            "Credentials": {
+                "AccessKeyId": expected_access_key,
+                "SecretAccessKey": expected_secret_access_key,
+                "SessionToken": expected_session_token,
+            }
+        }
+        sts_client = Mock()
+        sts_client.assume_role.return_value = assume_role
+        mock_boto3_client.return_value = sts_client
+
+        iam_arn = "arn:aws:s3:::my_s3_bucket"
+        external_id = str(uuid4())
+        credentials = {"role_arn": iam_arn, "external_id": external_id}
+        aws_credentials = _get_sts_access(credentials)
+        sts_client.assume_role.assert_called_with(
+            RoleArn=iam_arn, RoleSessionName="AccountCreationSession", ExternalId=external_id
+        )
         self.assertEqual(aws_credentials.get("aws_access_key_id"), expected_access_key)
         self.assertEqual(aws_credentials.get("aws_secret_access_key"), expected_secret_access_key)
         self.assertEqual(aws_credentials.get("aws_session_token"), expected_session_token)
@@ -101,43 +131,43 @@ class AWSProviderTestCase(TestCase):
             self.assertIsNone(aws_credentials.get("aws_secret_access_key"))
             self.assertIsNone(aws_credentials.get("aws_session_token"))
 
-    @patch("providers.aws.provider.boto3.resource")
-    def test_check_s3_access(self, mock_boto3_resource):
+    @patch("providers.aws.provider.boto3.client")
+    def test_check_s3_access(self, mock_boto3_client):
         """Test _check_s3_access success."""
-        s3_resource = Mock()
-        s3_resource.meta.client.head_bucket.return_value = True
-        mock_boto3_resource.return_value = s3_resource
+        s3_client = Mock()
+        s3_client.head_bucket.return_value = True
+        mock_boto3_client.return_value = s3_client
         s3_exists = _check_s3_access("bucket", {})
         self.assertTrue(s3_exists)
 
-    @patch("providers.aws.provider.boto3.resource")
-    def test_check_s3_access_fail(self, mock_boto3_resource):
+    @patch("providers.aws.provider.boto3.client")
+    def test_check_s3_access_fail(self, mock_boto3_client):
         """Test _check_s3_access fail."""
-        s3_resource = Mock()
-        s3_resource.meta.client.head_bucket.side_effect = _mock_boto3_kwargs_exception
-        mock_boto3_resource.return_value = s3_resource
+        s3_client = Mock()
+        s3_client.head_bucket.side_effect = _mock_boto3_kwargs_exception
+        mock_boto3_client.return_value = s3_client
         s3_exists = _check_s3_access("bucket", {})
         self.assertFalse(s3_exists)
 
-    @patch("providers.aws.provider.boto3.resource", side_effect=AttributeError("Raised intentionally"))
-    def test_check_s3_access_default_region(self, mock_boto3_resource):
+    @patch("providers.aws.provider.boto3.client", side_effect=AttributeError("Raised intentionally"))
+    def test_check_s3_access_default_region(self, mock_boto3_client):
         """Test that the default region value is used"""
         expected_region_name = "us-east-1"
         with self.assertRaisesRegex(AttributeError, "Raised intentionally"):
             _check_s3_access("bucket", {})
 
-        self.assertIn("region_name", mock_boto3_resource.call_args.kwargs)
-        self.assertEqual(expected_region_name, mock_boto3_resource.call_args.kwargs.get("region_name"))
+        self.assertIn("region_name", mock_boto3_client.call_args.kwargs)
+        self.assertEqual(expected_region_name, mock_boto3_client.call_args.kwargs.get("region_name"))
 
-    @patch("providers.aws.provider.boto3.resource", side_effect=AttributeError("Raised intentionally"))
-    def test_check_s3_access_with_region(self, mock_boto3_resource):
+    @patch("providers.aws.provider.boto3.client", side_effect=AttributeError("Raised intentionally"))
+    def test_check_s3_access_with_region(self, mock_boto3_client):
         """Test that the provided region value is used"""
         expected_region_name = "eu-south-2"
         with self.assertRaisesRegex(AttributeError, "Raised intentionally"):
             _check_s3_access("bucket", {}, region_name=expected_region_name)
 
-        self.assertIn("region_name", mock_boto3_resource.call_args.kwargs)
-        self.assertEqual(expected_region_name, mock_boto3_resource.call_args.kwargs.get("region_name"))
+        self.assertIn("region_name", mock_boto3_client.call_args.kwargs)
+        self.assertEqual(expected_region_name, mock_boto3_client.call_args.kwargs.get("region_name"))
 
     @patch("providers.aws.provider.boto3.client")
     def test_check_cost_report_access(self, mock_boto3_client):
@@ -298,7 +328,7 @@ class AWSProviderTestCase(TestCase):
         provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
         self.assertIn("region_name", mock_check_s3_access.call_args.kwargs)
-        self.assertIn("region_name", mock_check_cost_report_access.call_args.kwargs)
+        self.assertIn("region_name", mock_get_sts_access.call_args.kwargs)
 
     @patch(
         "providers.aws.provider._get_sts_access",

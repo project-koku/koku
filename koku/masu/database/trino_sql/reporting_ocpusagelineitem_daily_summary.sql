@@ -572,6 +572,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolume,
     storageclass,
     volume_labels,
+    all_labels,
     persistentvolumeclaim_capacity_gigabyte,
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
@@ -609,6 +610,10 @@ SELECT uuid(),
     persistentvolume,
     storageclass,
     json_parse(volume_labels),
+    json_parse(json_format(cast(map_concat(
+        cast(json_parse(coalesce(pod_labels, '{}')) as map(varchar, varchar)),
+        cast(json_parse(coalesce(volume_labels, '{}')) as map(varchar, varchar))
+    )as json))) as all_labels,
     persistentvolumeclaim_capacity_gigabyte,
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,

@@ -17,7 +17,6 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
 
@@ -260,7 +259,11 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
-        _, polling_accounts = Orchestrator.get_accounts()
+        polling_accounts = Provider.polling_objects.all()
+        providers = Provider.objects.all()
+        for provider in providers:
+            provider.polling_timestamp = None
+            provider.save()
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()

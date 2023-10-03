@@ -1,4 +1,5 @@
 version: '3'
+name: koku
 
 services:
   koku-base:
@@ -8,7 +9,7 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
-        USER_ID: ${USER_ID-1000}
+        USER_ID: ${USER_ID:?}
     command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
@@ -43,6 +44,7 @@ services:
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
+      - MAX_GROUP_BY_OVERRIDE=${MAX_GROUP_BY_OVERRIDE-3}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - DEMO_ACCOUNTS
       - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
@@ -53,6 +55,7 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
@@ -63,6 +66,7 @@ services:
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - QE_SCHEMA=${QE_SCHEMA}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
+      - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
     ports:
       - 8000:8000
       - 8001:9000
@@ -116,6 +120,7 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
@@ -128,6 +133,7 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
+      - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
     ports:
       - 5042:8000
       - 5001:9000
@@ -145,7 +151,7 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -167,6 +173,7 @@ services:
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
       - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
       - ENABLE_HCS_DEBUG=${ENABLE_HCS_DEBUG-False}
+      - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
       - S3_ENDPOINT
@@ -180,6 +187,9 @@ services:
       - DEMO_ACCOUNTS
       - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - POLLING_TIMER=${POLLING_TIMER-60}
+      - POLLING_BATCH_SIZE=${POLLING_BATCH_SIZE-100}
+      - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
       - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
       - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
       - TRINO_HOST=${TRINO_HOST-trino}
@@ -192,6 +202,7 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - OCI_CLI_USER=${OCI_CLI_USER}
@@ -264,11 +275,65 @@ services:
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 7001-7020:9000
+    volumes:
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
+    depends_on:
+      - koku-base
+
+  subs-worker:
+    container_name: subs_worker
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'subs_extraction,subs_transmission']
+    environment:
+      - DJANGO_READ_DOT_ENV_FILE=True
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
+      - KOKU_API_PORT=${KOKU_API_PORT-8000}
+      - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+      - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
+      - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - RUN_GUNICORN=${RUN_GUNICORN-}
+      - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS-3}
+      - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
+    ports:
+      - 7021:9000
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
@@ -317,6 +382,7 @@ services:
       - GUNICORN_WORKERS=${GUNICORN_WORKERS-3}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - OCI_CLI_USER=${OCI_CLI_USER}
@@ -362,6 +428,7 @@ services:
       - SOURCE_STATUS_FREQUENCY_MINUTES
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
@@ -376,18 +443,22 @@ services:
 ### Utilities
 
   db:
-    container_name: koku_db
-    image: postgres:13
+    container_name: koku-db
+    image: koku-db:13
+    build:
+      context: dev/containers/postgresql
+      args:
+        USER_ID: ${USER_ID:?}
+        GROUP_ID: ${GROUP_ID:?}
     environment:
-    - POSTGRES_DB=${DATABASE_NAME-postgres}
-    - POSTGRES_USER=${DATABASE_USER-postgres}
-    - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
-    - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
+      - POSTGRES_DB=${DATABASE_NAME-postgres}
+      - POSTGRES_USER=${DATABASE_USER-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
     ports:
-      - 15432:5432
+      - ${POSTGRES_SQL_SERVICE_PORT-15432}:5432
     volumes:
-      - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
-      - ./pg_init:/docker-entrypoint-initdb.d
+      - ./pg_data/data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -503,36 +574,37 @@ services:
     depends_on:
       - db
 
-  koku-minio:
-    image: local-minio:latest
-    build:
-        context: .
-        dockerfile: Dockerfile.minio
-    container_name: kokuminio
+  minio:
+    container_name: koku-minio
+    image: minio/minio:RELEASE.2023-09-20T22-49-55Z
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
+      MINIO_USERNAME: kminio
+      MINIO_GROUPNAME: kminio
+      MINIO_UID: ${USER_ID:?}
+      MINIO_GID: ${GROUP_ID:?}
     ports:
       - 9000:9000
       - 9090:9090
-    command: server /data --console-address ":9090"
+    command: server /home/kminio/data --console-address ":9090"
     volumes:
-      - ./.trino/parquet_data:/data
+      - ./.trino/parquet_data:/home/kminio/data
 
-  koku-create-parquet-bucket:
+  create-parquet-bucket:
     image: minio/mc:latest
     depends_on:
-      - koku-minio
+      - minio
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
+      /usr/bin/mc config host add --quiet --api s3v4 local $S3_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
-      /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc anonymous set public local/koku-bucket;
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
-      /usr/bin/mc policy set public local/metastore;
+      /usr/bin/mc anonymous set public local/metastore;
       "
 
   hive-metastore:
@@ -542,7 +614,7 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - S3_HOST=kokuminio
+      - S3_HOST=koku-minio
       - S3_PORT=9000
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
@@ -554,7 +626,9 @@ services:
       - DATABASE_USER=${DATABASE_USER-hive}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
     depends_on:
-      - koku-create-parquet-bucket
+      - db
+      - minio
+      - create-parquet-bucket
 
   trino:
     container_name: trino
@@ -569,7 +643,7 @@ services:
       - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
       - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
       - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://kokuminio:9000}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-minio:9000}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}

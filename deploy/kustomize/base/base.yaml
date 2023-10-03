@@ -17,7 +17,7 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
-      dbResourceSize: medium
+      dbResourceSize: small
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
 
@@ -35,10 +35,12 @@ objects:
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
+    - topicName: platform.rhsm-subscriptions.service-instance-ingress
 
     objectStore:
     - ${S3_BUCKET_NAME}
     - ${S3_ROS_BUCKET_NAME}
+    - ${S3_SUBS_BUCKET_NAME}
 
     dependencies:
     - ingress
@@ -84,6 +86,10 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+        - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+          value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
+        - name: TENANT_MULTIPROCESSING_CHUNKS
+          value: ${TENANT_MULTIPROCESSING_CHUNKS}
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -226,6 +232,8 @@ parameters:
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
+- name: S3_SUBS_BUCKET_NAME
+  value: subs-eph-s3
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
@@ -265,6 +273,12 @@ parameters:
   name: KOKU_MIGRATIONS_CPU_LIMIT
   required: true
   value: "3"
+- name: TENANT_MULTIPROCESSING_MAX_PROCESSES
+  required: true
+  value: "2"
+- name: TENANT_MULTIPROCESSING_CHUNKS
+  required: True
+  value: "2"
 
 - displayName: App domain
   name: APP_DOMAIN
@@ -273,6 +287,9 @@ parameters:
   name: API_PATH_PREFIX
   required: true
   value: /api/cost-management
+- displayName: Max support group by
+  name: MAX_GROUP_BY_OVERRIDE
+  value: "3"
 - displayName: Development
   name: DEVELOPMENT
   value: "False"
@@ -331,6 +348,11 @@ parameters:
   name: PARQUET_PROCESSING_BATCH_SIZE
   required: true
   value: "200000"
+- description: How many pandas columns to read from file
+  displayName: Pandas column batch size
+  name: PANDAS_COLUMN_BATCH_SIZE
+  required: true
+  value: "250"
 - description: Processing batch size
   displayName: Processing batch size
   name: REPORT_PROCESSING_BATCH_SIZE
@@ -371,22 +393,10 @@ parameters:
 - name: QE_SCHEMA
   value: ""
 
-- description: Report download schedule GCP
-  displayName: Report download schedule GCP
-  name: REPORT_DOWNLOAD_SCHEDULE_GCP
-  value: "0 4,16 * * *"
-- description: Report download schedule AWS
-  displayName: Report download schedule AWS
-  name: REPORT_DOWNLOAD_SCHEDULE_AWS
-  value: "0 4,16 * * *"
-- description: Report download schedule AZURE
-  displayName: Report download schedule AZURE
-  name: REPORT_DOWNLOAD_SCHEDULE_AZURE
-  value: "0 4,16 * * *"
-- description: Report download schedule OCI
-  displayName: Report download schedule OCI
-  name: REPORT_DOWNLOAD_SCHEDULE_OCI
-  value: "0 4,16 * * *"
+- description: Report download schedule
+  displayName: Report download schedule
+  name: REPORT_DOWNLOAD_SCHEDULE
+  value: "0 * * * *"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -418,6 +428,18 @@ parameters:
 - displayName: Initial ingest override
   name: INITIAL_INGEST_OVERRIDE
   value: "False"
+- displayName: Timer between provider polling
+  name: POLLING_TIMER
+  value: "86400"
+- displayName: Provider count for batch polling
+  name: POLLING_BATCH_SIZE
+  value: "100"
+- displayName: Enable Tags Limit
+  name: TAG_ENABLED_LIMIT
+  value: "200"
+- displayName: ROS URL Expiration
+  name: ROS_URL_EXPIRATION
+  value: "172800"
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
@@ -504,3 +526,7 @@ parameters:
 - name: CACHE_TIMEOUT
   displayName: Middleware Timeout
   value: "3600"
+- description: Enabale Subscription Watch Debug
+  displayName: Enable SUBS Debug
+  name: ENABLE_SUBS_DEBUG
+  value: "False"

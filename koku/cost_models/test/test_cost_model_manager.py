@@ -16,6 +16,7 @@ from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor.tasks import PRIORITY_QUEUE_XL
 
 
 class MockResponse:
@@ -95,7 +96,7 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
             self.assertEqual(
                 CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
-                [{"uuid": str(provider_uuid), "name": "sample_provider"}],
+                [{"uuid": str(provider_uuid), "name": "sample_provider", "last_processed": None}],
             )
 
     def test_create_second_cost_model_same_provider(self):
@@ -106,7 +107,9 @@ class CostModelManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name}]
+        provider_names_uuids = [
+            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+        ]
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
@@ -185,6 +188,41 @@ class CostModelManagerTest(IamTestCase):
             CostModel.objects.get(uuid=cost_model_obj.uuid).delete()
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
+
+    def test_update_provider_uuids_with_XL_queue(self):
+        """Test creating a cost model with XL queue."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
+        data = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+        }
+        cost_model_obj = None
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
+                cost_model_obj = manager.create(**data)
+                mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
+
+            cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
+            self.assertEqual(len(cost_model_map), 0)
+
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Add provider to existing cost model
+        with tenant_context(self.tenant):
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
+                with patch("cost_models.cost_model_manager.is_customer_large", return_value=True):
+                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                    mock_update.s.return_value.set.assert_called_with(queue=PRIORITY_QUEUE_XL)
 
     def test_update_provider_uuids(self):
         """Test creating a cost model then update with a provider uuid."""

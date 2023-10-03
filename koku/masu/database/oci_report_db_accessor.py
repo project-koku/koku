@@ -10,13 +10,11 @@ import uuid
 from dateutil.parser import parse
 from django.db.models import F
 from django_tenants.utils import schema_context
-from jinjasql import JinjaSql
 
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.external.date_accessor import DateAccessor
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
@@ -35,8 +33,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.OCI_DATETIME_STR_FORMAT
-        self.date_accessor = DateAccessor()
-        self.jinja_sql = JinjaSql()
         self._table_map = OCI_CUR_TABLE_MAP
 
     @property
@@ -64,32 +60,23 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = OCICostEntryBill
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
+            filters = {"billing_period_start__lte": date}
             if provider_uuid:
-                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
-            else:
-                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
-            return cost_entry_bill_query
+                filters["provider_id"] = provider_uuid
+            return base_query.filter(**filters)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            summary_sql = pkgutil.get_data("masu.database", f"sql/oci/{table_name}.sql")
-            summary_sql = summary_sql.decode("utf-8")
-            summary_sql_params = {
+            sql = pkgutil.get_data("masu.database", f"sql/oci/{table_name}.sql")
+            sql = sql.decode("utf-8")
+            sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
                 "schema": self.schema,
                 "source_uuid": source_uuid,
             }
-            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-            self._execute_raw_sql_query(
-                table_name,
-                summary_sql,
-                start_date,
-                end_date,
-                bind_params=list(summary_sql_params),
-                operation="DELETE/INSERT",
-            )
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
     def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
@@ -102,10 +89,10 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocicostentrylineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocicostentrylineitem_daily_summary.sql")
+        sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
-        summary_sql_params = {
+        sql_params = {
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
@@ -118,7 +105,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         self._execute_trino_raw_sql_query(
-            summary_sql, sql_params=summary_sql_params, log_ref="reporting_ocicostentrylineitem_daily_summary.sql"
+            sql, sql_params=sql_params, log_ref="reporting_ocicostentrylineitem_daily_summary.sql"
         )
 
     def mark_bill_as_finalized(self, bill_id):
@@ -135,19 +122,17 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocitags_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+        sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocitags_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
+            date_filters = {}
             if bill_ids and start_date and end_date:
                 date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
-            else:
-                date_filters = {}
 
             for bill_id in bill_ids:
                 OCICostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
@@ -165,19 +150,16 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = self._table_map["enabled_tag_keys"]
-        summary_sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocienabledtagkeys.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
+        table_name = "reporting_enabledtagkeys"
+        sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocienabledtagkeys.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
             "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        )
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
@@ -191,17 +173,14 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
         """
         table_name = self._table_map["line_item_daily_summary"]
-        summary_sql = pkgutil.get_data(
+        sql = pkgutil.get_data(
             "masu.database", "sql/oci/reporting_ocicostentryline_item_daily_summary_update_enabled_tags.sql"
         )
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
+        sql = sql.decode("utf-8")
+        sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
             "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        )
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)

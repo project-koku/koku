@@ -22,6 +22,8 @@ DEFAULT_KAFKA_CONNECT = True
 DEFAULT_RETRY_SECONDS = 10
 DEFAULT_DEL_RECORD_LIMIT = 5000
 DEFAULT_MAX_ITERATIONS = 3
+DEFAULT_ENABLED_TAG_LIMIT = 200
+DEFAULT_ROS_URL_EXPIRATION = 172800
 
 
 class Config:
@@ -74,6 +76,12 @@ class Config:
     # Override the initial ingest requirement to allow INITIAL_INGEST_NUM_MONTHS
     INGEST_OVERRIDE = ENVIRONMENT.bool("INITIAL_INGEST_OVERRIDE", default=DEFAULT_INGEST_OVERRIDE)
 
+    # Limit the number of enabled tags:
+    ENABLED_TAG_LIMIT = ENVIRONMENT.int("TAG_ENABLED_LIMIT", default=DEFAULT_ENABLED_TAG_LIMIT)
+
+    # Set ROS presigned URL expiration:
+    ROS_URL_EXPIRATION = ENVIRONMENT.int("ROS_URL_EXPIRATION", default=DEFAULT_ROS_URL_EXPIRATION)
+
     # Insights Kafka
     INSIGHTS_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
     INSIGHTS_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
@@ -86,6 +94,7 @@ class Config:
     VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
     NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")
     ROS_TOPIC = CONFIGURATOR.get_kafka_topic("hccm.ros.events")
+    SUBS_TOPIC = CONFIGURATOR.get_kafka_topic("platform.rhsm-subscriptions.service-instance-ingress")
 
     # Flag to signal whether or not to connect to upload service
     KAFKA_CONNECT = ENVIRONMENT.bool("KAFKA_CONNECT", default=DEFAULT_KAFKA_CONNECT)

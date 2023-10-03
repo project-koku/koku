@@ -188,6 +188,10 @@ class DateHelper:
         elif isinstance(in_date, str):
             return parser.parse(in_date).date().replace(day=1)
 
+    def month_start_utc(self, in_date):
+        """Datetime of midnight on the 1st of in_date month with a UTC timezone included."""
+        return self.month_start(in_date).replace(tzinfo=settings.UTC)
+
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""
         if isinstance(in_date, str):
@@ -483,7 +487,7 @@ def get_months_in_date_range(
                 )
         else:
             LOG.info("generating start and end dates for manifest")
-            dt_start = dh.today - datetime.timedelta(days=2)
+            dt_start = dh.today - datetime.timedelta(days=2) if dh.today.date().day > 2 else dh.today.replace(day=1)
             dt_end = dh.today
 
     elif dt_invoice_month:

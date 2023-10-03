@@ -27,13 +27,10 @@ from api.settings.utils import SETTINGS_PREFIX
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.processor import is_aws_category_settings_enabled
+from masu.processor import is_ddf_tag_form_disabled
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledCategoryKeys
-from reporting.models import AWSEnabledTagKeys
-from reporting.models import AzureEnabledTagKeys
-from reporting.models import GCPEnabledTagKeys
-from reporting.models import OCIEnabledTagKeys
-from reporting.models import OCPEnabledTagKeys
+from reporting.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -53,35 +50,35 @@ obtainTagKeysProvidersParams = {
         "title": "OpenShift labels",
         "leftLabel": "Available labels",
         "rightLabel": "Labels for reporting",
-        "enabled_model": OCPEnabledTagKeys,
+        "enabled_model": EnabledTagKeys,
     },
     "aws": {
         "provider": Provider.PROVIDER_AWS,
         "title": "Amazon Web Services tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "enabled_model": AWSEnabledTagKeys,
+        "enabled_model": EnabledTagKeys,
     },
     "azure": {
         "provider": Provider.PROVIDER_AZURE,
         "title": "Azure tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "enabled_model": AzureEnabledTagKeys,
+        "enabled_model": EnabledTagKeys,
     },
     "gcp": {
         "provider": Provider.PROVIDER_GCP,
         "title": "Google Cloud Platform tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "enabled_model": GCPEnabledTagKeys,
+        "enabled_model": EnabledTagKeys,
     },
     "oci": {
         "provider": Provider.PROVIDER_OCI,
         "title": "Oracle Cloud Infrastructure tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
-        "enabled_model": OCIEnabledTagKeys,
+        "enabled_model": EnabledTagKeys,
     },
 }
 
@@ -124,7 +121,26 @@ class Settings:
     def _get_tag_management_prefix(self, providerName):
         return f"{SETTINGS_PREFIX}.tag-management.{providerName}"
 
-    def _obtain_enabled_keys(self, keys_class):
+    def _build_disabled_tag_form(self, sub_form_fields):
+        title = "Enable tag keys and labels (DISABLED)"
+        key_text_name = f"{SETTINGS_PREFIX}.disabled_management.form-text"
+        enabled_key_title = create_plain_text(key_text_name, title, "h2")
+        key_text_content = "This feature is currently disabled for schedule maintaince."
+        key_text = create_plain_text(key_text_name, key_text_content, "p")
+        dual_list_options = {
+            "isTree": "true",
+            "options": [],
+            "leftTitle": "",
+            "rightTitle": "",
+            "initialValue": [],
+            "clearedValue": [],
+        }
+        dual_list_name = f"api.settings.disabled-management.enabled"
+        keys_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
+        sub_form_fields.extend([enabled_key_title, key_text, keys_and_labels])
+        return sub_form_fields
+
+    def _obtain_enabled_keys(self, keys_class, provider_type=None):
         """
         Collect the available tag keys for the customer.
 
@@ -135,7 +151,11 @@ class Settings:
         enabled = set()
         all_keys_set = set()
         with schema_context(self.schema):
-            for key in keys_class.objects.all():
+            if provider_type:
+                key_objects = keys_class.objects.filter(provider_type=provider_type)
+            else:
+                key_objects = keys_class.objects.all()
+            for key in key_objects:
                 all_keys_set.add(key.key)
                 if key.enabled:
                     enabled.add(key.key)
@@ -157,7 +177,12 @@ class Settings:
         enabled_objs = []
         for providerName in provider_params:
             enabled_key_model = provider_params[providerName]["enabled_model"]
-            available, enabled = self._obtain_enabled_keys(enabled_key_model)
+            if key_type == "tag":
+                available, enabled = self._obtain_enabled_keys(
+                    enabled_key_model, provider_params[providerName]["provider"]
+                )
+            else:
+                available, enabled = self._obtain_enabled_keys(enabled_key_model)
             avail_objs.append(
                 {
                     "label": provider_params[providerName]["title"],
@@ -202,7 +227,10 @@ class Settings:
         }
         currency = create_select(currency_select_name, **currency_options)
         sub_form_fields = [currency_title, currency_select_text, currency]
-        sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
+        if is_ddf_tag_form_disabled():
+            sub_form_fields = self._build_disabled_tag_form(sub_form_fields)
+        else:
+            sub_form_fields = self._build_enable_key_form(sub_form_fields, "tag")
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
         has_aws_providers = customer_specific_providers.filter(type__icontains=Provider.PROVIDER_AWS).exists()
@@ -239,7 +267,12 @@ class Settings:
                 enabled_keys_no_abbr = set()
                 enabled_keys_class = params[provider_name]["enabled_model"]
                 provider = params[provider_name]["provider"]
-                available, enabled = self._obtain_enabled_keys(enabled_keys_class)
+                if key_type == "tag":
+                    available, enabled = self._obtain_enabled_keys(
+                        enabled_keys_class, params[provider_name]["provider"]
+                    )
+                else:
+                    available, enabled = self._obtain_enabled_keys(enabled_keys_class)
 
                 # build a list of enabled tags for a given provider, removing the provider name prefix
                 for enabled_tag in settings.get("enabled", []):
@@ -254,7 +287,12 @@ class Settings:
                     raise ValidationError(error_obj(key, message))
 
                 if enabled_keys_no_abbr != enabled:
-                    updated[ix] = update_enabled_keys(self.schema, enabled_keys_class, enabled_keys_no_abbr)
+                    if key_type == "tag":
+                        updated[ix] = update_enabled_keys(
+                            self.schema, enabled_keys_class, enabled_keys_no_abbr, params[provider_name]["provider"]
+                        )
+                    else:
+                        updated[ix] = update_enabled_keys(self.schema, enabled_keys_class, enabled_keys_no_abbr)
 
                 if updated[ix]:
                     invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
@@ -337,9 +375,9 @@ class Settings:
 
         cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
         results.append(self._cost_type_handler(cost_type_settings))
-
-        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
+        if not is_ddf_tag_form_disabled():
+            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+            results.append(self._enable_key_handler(tg_mgmt_settings, obtainTagKeysProvidersParams, "tag"))
 
         category_settings = settings.get("api", {}).get("settings", {}).get("aws-category-management", {})
         results.append(self._enable_key_handler(category_settings, obtainCategoryKeysParams, "AWS category"))

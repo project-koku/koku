@@ -56,9 +56,21 @@ DOWNLOAD_BACKLOG = Gauge(
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+DOWNLOAD_XL_BACKLOG = Gauge(
+    "download_xl_backlog",
+    "Number of celery tasks in the download_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 SUMMARY_BACKLOG = Gauge(
     "summary_backlog",
     "Number of celery tasks in the summary queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+SUMMARY_XL_BACKLOG = Gauge(
+    "summary_xl_backlog",
+    "Number of celery tasks in the summary_xl queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
@@ -68,15 +80,33 @@ PRIORITY_BACKLOG = Gauge(
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+PRIORITY_XL_BACKLOG = Gauge(
+    "priority_xl_backlog",
+    "Number of celery tasks in the priority_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 REFRESH_BACKLOG = Gauge(
     "refresh_backlog",
     "Number of celery tasks in the refresh queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+REFRESH_XL_BACKLOG = Gauge(
+    "refresh_xl_backlog",
+    "Number of celery tasks in the refresh_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 COST_MODEL_BACKLOG = Gauge(
     "cost_model_backlog",
-    "Number of celery tasks in the cost model queue",
+    "Number of celery tasks in the cost_model queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+COST_MODEL_XL_BACKLOG = Gauge(
+    "cost_model_xl_backlog",
+    "Number of celery tasks in the cost_model_xl queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
@@ -89,20 +119,48 @@ DEFAULT_BACKLOG = Gauge(
 OCP_BACKLOG = Gauge(
     "ocp_backlog", "Number of celery tasks in the OCP queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
 )
+OCP_XL_BACKLOG = Gauge(
+    "ocp_xl_backlog",
+    "Number of celery tasks in the OCP_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 
 HCS_BACKLOG = Gauge(
     "hcs_backlog", "Number of celery tasks in the HCS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
 )
 
+SUBS_EXTRACTION_BACKLOG = Gauge(
+    "subs_extraction_backlog",
+    "Number of celery tasks in the SUBS Data Extraction queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+
+SUBS_TRANSMISSION_BACKLOG = Gauge(
+    "subs_transmission_backlog",
+    "Number of celery tasks in the SUBS Data Transmission queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,
+    "download_xl": DOWNLOAD_XL_BACKLOG,
     "summary": SUMMARY_BACKLOG,
+    "summary_xl": SUMMARY_XL_BACKLOG,
     "priority": PRIORITY_BACKLOG,
+    "priority_xl": PRIORITY_XL_BACKLOG,
     "refresh": REFRESH_BACKLOG,
+    "refresh_xl": REFRESH_XL_BACKLOG,
     "cost_model": COST_MODEL_BACKLOG,
+    "cost_model_xl": COST_MODEL_XL_BACKLOG,
     "celery": DEFAULT_BACKLOG,
     "ocp": OCP_BACKLOG,
+    "ocp_xl": OCP_XL_BACKLOG,
     "hcs": HCS_BACKLOG,
+    "subs_extraction": SUBS_EXTRACTION_BACKLOG,
+    "subs_transmission": SUBS_TRANSMISSION_BACKLOG,
 }
 
 SOURCES_KAFKA_LOOP_RETRY = Counter(

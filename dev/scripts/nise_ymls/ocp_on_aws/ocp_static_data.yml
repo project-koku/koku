@@ -11,6 +11,19 @@ generators:
           memory_gig: 16
           resource_id: 55555555
           namespaces:
+            storage-only:
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_only
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:pvc_only
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pvc_only_data
+                    # pod_name: pod_name1
+                    labels: label_environment:pvc_only
+                    capacity_gig: 20
             install-test:
               pods:
                 - pod:
@@ -169,7 +182,7 @@ generators:
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
-                  mem_limit_gig: 4
+                  mem_limit_gig: 2
                   pod_seconds: 3600
                   labels: label_environment:dev|label_app:master|label_version:master
             openshift-kube-apiserver:
@@ -179,5 +192,5 @@ generators:
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
-                  mem_limit_gig: 4
+                  mem_limit_gig: 2
                   pod_seconds: 3600

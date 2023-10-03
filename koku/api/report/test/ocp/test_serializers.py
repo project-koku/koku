@@ -289,6 +289,37 @@ class OCPQueryParamSerializerTest(IamTestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_query_params_invalid_multiple_group_bys_with_pvc(self):
+        """Test parse of query params for invalid fields."""
+        query_params = {
+            "group_by": {"persistentvolumeclaim": ["*"], "node": ["*"]},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/volume/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_query_params_valid_multiple_group_bys_with_pvc(self):
+        """Test parse of query params for invalid fields."""
+        query_params = {
+            "group_by": {"persistentvolumeclaim": ["*"], "project": ["*"]},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/volume/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
     def test_query_params_invalid_nested_fields(self):
         """Test parse of query params for invalid nested_fields."""
         query_params = {
@@ -322,6 +353,17 @@ class OCPQueryParamSerializerTest(IamTestCase):
         self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
         serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.ctx_w_path)
         with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_fail_with_max_group_by(self):
+        """Test fail if more than 2 group bys given."""
+        query_params = {
+            "group_by": {"cluster": ["cluster"], "node": ["node"], "project": ["project"]},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+        with self.assertRaises(serializers.ValidationError):
+            serializer = OCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertFalse(serializer.is_valid())
             serializer.is_valid(raise_exception=True)
 
 
@@ -381,6 +423,42 @@ class OCPInventoryQueryParamSerializerTest(IamTestCase):
             "/api/cost-management/v1/reports/openshift/costs/?group_by[project]=*&order_by[distributed_cost=asc"
         )
         params = {"order_by": {"distributed_cost": "asc"}, "group_by": {"project": ["*"]}}
+        serializer = OCPQueryParamSerializer(data=params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_storage_class_without_group_by(self):
+        """Test the group by project requirement."""
+        self.request_path = (
+            "/api/cost-management/v1/reports/openshift/volume/?group_by[project]=*&order_by[distributed_cost=asc"
+        )
+        params = {"order_by": {"storage_class": "asc"}, "group_by": {}}
+        serializer = OCPQueryParamSerializer(data=params, context=self.ctx_w_path)
+        self.assertFalse(serializer.is_valid())
+
+    def test_persistentvolumeclaim_without_group_by(self):
+        """Test the group by project requirement."""
+        self.request_path = (
+            "/api/cost-management/v1/reports/openshift/volume/?group_by[project]=*&order_by[distributed_cost=asc"
+        )
+        params = {"order_by": {"persistentvolumeclaim": "asc"}, "group_by": {}}
+        serializer = OCPQueryParamSerializer(data=params, context=self.ctx_w_path)
+        self.assertFalse(serializer.is_valid())
+
+    def test_persistentvolumeclaim_with_group_by_persistentvolumeclaim(self):
+        """Test the group by project requirement."""
+        self.request_path = (
+            "/api/cost-management/v1/reports/openshift/volume/?group_by[project]=*&order_by[distributed_cost=asc"
+        )
+        params = {"order_by": {"persistentvolumeclaim": "asc"}, "group_by": {"persistentvolumeclaim": ["pvc1"]}}
+        serializer = OCPQueryParamSerializer(data=params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_storage_class_with_group_by_persistentvolumeclaim(self):
+        """Test the group by project requirement."""
+        self.request_path = (
+            "/api/cost-management/v1/reports/openshift/volume/?group_by[project]=*&order_by[distributed_cost=asc"
+        )
+        params = {"order_by": {"persistentvolumeclaim": "asc"}, "group_by": {"persistentvolumeclaim": ["pvc1"]}}
         serializer = OCPQueryParamSerializer(data=params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
 

@@ -6,6 +6,7 @@
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from api.report.constants import AWS_COST_TYPE_CHOICES
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -14,6 +15,7 @@ from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import get_cost_type
+from masu.processor import get_customer_group_by_limit
 
 
 class AWSGroupBySerializer(GroupSerializer):
@@ -47,12 +49,13 @@ class AWSGroupBySerializer(GroupSerializer):
 class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("usage", "account_alias", "region", "service", "product_family", "date")
+    _opfields = ("usage", "account", "account_alias", "region", "service", "product_family", "date")
     _aws_category = True
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     # ordering by alias is supported, but ordering by account is not due to the
     # probability that a human-recognizable alias is more useful than account number.
+    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -98,14 +101,10 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
 
     # Tuples are (key, display_name)
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
-    COST_TYPE_CHOICE = (
-        ("blended_cost", "blended_cost"),
-        ("unblended_cost", "unblended_cost"),
-        ("savingsplan_effective_cost", "savingsplan_effective_cost"),
-    )
+    COST_TYPE_CHOICES = AWS_COST_TYPE_CHOICES
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICES, required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -138,6 +137,10 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
+        max_value = get_customer_group_by_limit(self.schema)
+        if len(value) > max_value:
+            error = {"group_by": (f"Cost Management supports a max of {max_value} group_by options.")}
+            raise serializers.ValidationError(error)
         validate_field(
             self,
             "group_by",

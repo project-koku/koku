@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-sources-client
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{SOURCES_CLIENT_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: true
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       env:
         - name: CLOWDER_ENABLED
