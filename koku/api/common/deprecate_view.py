@@ -47,32 +47,28 @@ HTTP_DATE_FORMAT = "%a, %d %b %Y %H:%M:%S"
 @dataclass
 class DeprecateEndpoint:
     viewclass: t.Callable
-    deprecation_datetime: datetime = field(init=False)
-    sunset_datetime: datetime = field(init=False)
-    link: str = field(init=False)
-    sunset_endpoint: bool = field(init=False)
+    deprecation_datetime: datetime = field(init=False, default=None)
+    sunset_datetime: datetime = field(init=False, default=None)
+    link: str = field(init=False, default=None)
+    sunset_endpoint: bool = field(init=False, default=False)
 
-    def _extract_data_from_class(self):
+    def _extract_data_from_view(self):
         """Checks that the view class has the correct attributes and format."""
-        self.sunset_endpoint = False
-        try:
+        if hasattr(self.viewclass, "sunset_datetime"):
             sunset_datetime = getattr(self.viewclass, "sunset_datetime")
-            deprecation_datetime = getattr(self.viewclass, "deprecation_datetime")
+            self.sunset_datetime = sunset_datetime.strftime(HTTP_DATE_FORMAT)
             if sunset_datetime < DateHelper(True).now:
                 self.sunset_endpoint = True
+        if hasattr(self.viewclass, "deprecation_datetime"):
+            deprecation_datetime = getattr(self.viewclass, "deprecation_datetime")
             self.deprecation_datetime = deprecation_datetime.strftime(HTTP_DATE_FORMAT)
-            self.sunset_datetime = sunset_datetime.strftime(HTTP_DATE_FORMAT)
-            if hasattr(self.viewclass, "link"):
-                self.link = getattr(self.viewclass, "link")
-        except AttributeError:
-            LOG.warning("Missing required attributes to deprecate endpoint.")
-
-    def __post_init__(self):
-        self._extract_data_from_class()
+        if hasattr(self.viewclass, "link"):
+            self.link = getattr(self.viewclass, "link")
 
     def add_deprecation_header(self, response):
         """Adds deprecation to the response header."""
         # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
+        self._extract_data_from_view()
         if self.deprecation_datetime:
             response["Deprecation"] = self.deprecation_datetime
         if self.sunset_datetime:
@@ -91,11 +87,11 @@ def SunsetView(request, *args, **kwargs):
 def deprecate_view(viewfunc):
     @wraps(viewfunc)
     def _wrapped_view_func(request, *args, **kw):
-        dataclass = DeprecateEndpoint(viewfunc.view_class)
-        if dataclass.sunset_endpoint:
-            return SunsetView(request, *args, **kw)
+        deprecate = DeprecateEndpoint(viewfunc.view_class)
         response = viewfunc(request, *args, **kw)
-        dataclass.add_deprecation_header(response)
+        deprecate.add_deprecation_header(response)
+        if deprecate.sunset_endpoint:
+            return SunsetView(request, *args, **kw)
         return response
 
     return _wrapped_view_func
