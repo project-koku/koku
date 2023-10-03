@@ -4,8 +4,8 @@
 #
 from django_tenants.utils import schema_context
 
-from api.user_settings.utils import set_cost_type
-from api.user_settings.utils import set_currency
+from api.settings.utils import set_cost_type
+from api.settings.utils import set_currency
 from masu.test import MasuTestCase
 from reporting.user_settings.models import UserSettings
 

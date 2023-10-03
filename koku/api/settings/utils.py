@@ -17,8 +17,8 @@ from rest_framework.exceptions import ValidationError
 
 from api.currency.currencies import VALID_CURRENCIES
 from api.report.constants import URL_ENCODED_SAFE
-from api.user_settings.settings import COST_TYPES
-from api.user_settings.settings import DEFAULT_USER_SETTINGS
+from api.settings.settings import COST_TYPES
+from api.settings.settings import DEFAULT_USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings

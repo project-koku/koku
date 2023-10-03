@@ -14,10 +14,10 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.user_settings.tags.serializers import SettingsTagIDSerializer
-from api.user_settings.tags.serializers import SettingsTagSerializer
-from api.user_settings.utils import NonValidatedMultipleChoiceFilter
-from api.user_settings.utils import SettingsFilter
+from api.settings.tags.serializers import SettingsTagIDSerializer
+from api.settings.tags.serializers import SettingsTagSerializer
+from api.settings.utils import NonValidatedMultipleChoiceFilter
+from api.settings.utils import SettingsFilter
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
 

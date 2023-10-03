@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import RbacPermissions
-from api.user_settings.test.aws_category_keys.utils import TestAwsCategoryClass
+from api.settings.test.aws_category_keys.utils import TestAwsCategoryClass
 
 FAKE = Faker()
 

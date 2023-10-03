@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
-from api.user_settings.tags.view import SettingsTagFilter
+from api.settings.tags.view import SettingsTagFilter
 
 
 class TestSettingsTagFilter(TestCase):

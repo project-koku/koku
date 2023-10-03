@@ -9,10 +9,27 @@ from django_tenants.utils import schema_context
 from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
 from api.deprecated_settings.default_settings import DEFAULT_USER_SETTINGS
-from api.user_settings.settings import COST_TYPES
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
+
+DEPRECATED_COST_TYPES = [
+    {
+        "code": "unblended_cost",
+        "name": "Unblended",
+        "description": "Usage cost on the day you are charged",
+    },
+    {
+        "code": "calculated_amortized_cost",
+        "name": "Amortized",
+        "description": "Recurring and/or upfront costs are distributed evenly across the month",
+    },
+    {
+        "code": "blended_cost",
+        "name": "Blended",
+        "description": "Using a blended rate to calculate cost usage",
+    },
+]
 
 """Utilities for Settings."""
 SETTINGS_PREFIX = "api.deprecated_settings"
@@ -218,7 +235,7 @@ def get_cost_type_options():
             label=f"{cost_type.get('name')}",
             description=f"{cost_type.get('description')}",
         )
-        for cost_type in COST_TYPES
+        for cost_type in DEPRECATED_COST_TYPES
     ]
 
 
@@ -235,7 +252,7 @@ def deprecated_set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
     """
     with schema_context(schema):
         account_current_setting = UserSettings.objects.all().first()
-        supported_cost_type_codes = [code.get("code") for code in COST_TYPES]
+        supported_cost_type_codes = [code.get("code") for code in DEPRECATED_COST_TYPES]
 
         if cost_type_code not in supported_cost_type_codes:
             raise ValueError(cost_type_code + " is not a supported cost_type")

@@ -16,7 +16,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
-from api.user_settings.settings import USER_SETTINGS
+from api.settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.config import Config
