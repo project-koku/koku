@@ -7,7 +7,6 @@ import logging
 import typing as t
 from dataclasses import dataclass
 from dataclasses import field
-from datetime import datetime
 from functools import wraps
 
 from rest_framework import status
@@ -47,34 +46,21 @@ HTTP_DATE_FORMAT = "%a, %d %b %Y %H:%M:%S"
 @dataclass
 class DeprecateEndpoint:
     viewclass: t.Callable
-    deprecation_datetime: datetime = field(init=False, default=None)
-    sunset_datetime: datetime = field(init=False, default=None)
-    link: str = field(init=False, default=None)
     sunset_endpoint: bool = field(init=False, default=False)
 
-    def _extract_data_from_view(self):
-        """Checks that the view class has the correct attributes and format."""
+    def extract_data_from_view(self, response):
+        """Checks that the view class has the correct attributes and adds headers."""
+        # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
         if hasattr(self.viewclass, "sunset_datetime"):
             sunset_datetime = getattr(self.viewclass, "sunset_datetime")
-            self.sunset_datetime = sunset_datetime.strftime(HTTP_DATE_FORMAT)
+            response["Sunset"] = sunset_datetime.strftime(HTTP_DATE_FORMAT)
             if sunset_datetime < DateHelper(True).now:
                 self.sunset_endpoint = True
         if hasattr(self.viewclass, "deprecation_datetime"):
             deprecation_datetime = getattr(self.viewclass, "deprecation_datetime")
-            self.deprecation_datetime = deprecation_datetime.strftime(HTTP_DATE_FORMAT)
+            response["Deprecation"] = deprecation_datetime.strftime(HTTP_DATE_FORMAT)
         if hasattr(self.viewclass, "link"):
-            self.link = getattr(self.viewclass, "link")
-
-    def add_deprecation_header(self, response):
-        """Adds deprecation to the response header."""
-        # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
-        self._extract_data_from_view()
-        if self.deprecation_datetime:
-            response["Deprecation"] = self.deprecation_datetime
-        if self.sunset_datetime:
-            response["Sunset"] = self.sunset_datetime
-        if self.link:
-            response["Link"] = self.link
+            response["Link"] = getattr(self.viewclass, "link")
 
 
 @api_view(("GET",))
@@ -89,7 +75,7 @@ def deprecate_view(viewfunc):
     def _wrapped_view_func(request, *args, **kw):
         deprecate = DeprecateEndpoint(viewfunc.view_class)
         response = viewfunc(request, *args, **kw)
-        deprecate.add_deprecation_header(response)
+        deprecate.extract_data_from_view(response)
         if deprecate.sunset_endpoint:
             return SunsetView(request, *args, **kw)
         return response
