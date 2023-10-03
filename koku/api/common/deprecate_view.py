@@ -48,19 +48,17 @@ class DeprecateEndpoint:
     viewclass: t.Callable
     sunset_endpoint: bool = field(init=False, default=False)
 
-    def extract_data_from_view(self, response):
-        """Checks that the view class has the correct attributes and adds headers."""
+    def update_response_headers(self, response):
+        """Add sunset, deprecation, and link headers to the response if set on self.viewclass"""
         # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
-        if hasattr(self.viewclass, "sunset_datetime"):
-            sunset_datetime = getattr(self.viewclass, "sunset_datetime")
+        if sunset_datetime := getattr(self.viewclass, "sunset_datetime", None):
             response["Sunset"] = sunset_datetime.strftime(HTTP_DATE_FORMAT)
             if sunset_datetime < DateHelper(True).now:
                 self.sunset_endpoint = True
-        if hasattr(self.viewclass, "deprecation_datetime"):
-            deprecation_datetime = getattr(self.viewclass, "deprecation_datetime")
+        if deprecation_datetime := getattr(self.viewclass, "deprecation_datetime", None):
             response["Deprecation"] = deprecation_datetime.strftime(HTTP_DATE_FORMAT)
-        if hasattr(self.viewclass, "link"):
-            response["Link"] = getattr(self.viewclass, "link")
+        if link := getattr(self.viewclass, "link", None):
+            response["Link"] = link
 
 
 @api_view(("GET",))
