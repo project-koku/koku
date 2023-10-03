@@ -43,6 +43,12 @@
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: CELERY_LOG_LEVEL
