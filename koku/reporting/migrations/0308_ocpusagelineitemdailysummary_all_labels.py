@@ -9,12 +9,7 @@ from django.db.models.expressions import F
 
 
 def copy_field(apps, schema_editor):
-    OCPUsageLineItemDailySummary = apps.get_model("reporting", "OCPUsageLineItemDailySummary")
-    db_alias = schema_editor.connection.alias
-
-    OCPUsageLineItemDailySummary.objects.using(db_alias).all().update(
-        all_labels=CombinedExpression(F("pod_labels"), "||", F("volume_labels"), JSONField())
-    )
+    pass
 
 
 class Migration(migrations.Migration):
