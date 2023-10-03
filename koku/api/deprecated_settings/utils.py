@@ -182,7 +182,7 @@ def deprecated_set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
 
     Args:
         (schema) - user settings schema.
-        (currency_code) - currency code based on supported currencies(api.user_settings.settings.currencies)
+        (currency_code) - currency code based on supported currencies(api.settings.settings.currencies)
 
     Returns:
         (schema) - user settings.

@@ -19,7 +19,7 @@ class TestSettingsTagFilter(TestCase):
 
     def test_no_request(self):
         with patch(
-            "api.user_settings.utils.FilterSet.filter_queryset",
+            "api.settings.utils.FilterSet.filter_queryset",
             side_effect=AttributeError("Raised intentionally"),
         ):
             with self.assertRaisesRegex(AttributeError, "Raised intentionally"):

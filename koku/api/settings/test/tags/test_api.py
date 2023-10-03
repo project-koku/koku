@@ -254,7 +254,7 @@ class TagsSettings(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("select a valid choice", error_detail)
 
-    @patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
+    @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=1)
     def test_enable_tags_over_limit(self, mock_enabled_limit):
         """Given more tags enabled than are allowed by the limit,
         ensure no more tags are enabled and an error is returned.
@@ -285,7 +285,7 @@ class TagsSettings(IamTestCase):
         uuids = [obj.uuid for obj in self.disabled_objs]
 
         # Set the limit slightly more than the current number of enabled tags
-        with patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=len(self.enabled_objs) + 4):
+        with patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=len(self.enabled_objs) + 4):
             with schema_context(self.schema_name):
                 client = rest_framework.test.APIClient()
                 enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
@@ -317,7 +317,7 @@ class TagsSettings(IamTestCase):
         uuids = [obj.uuid for obj in self.disabled_objs[:count_to_limit]]
 
         # Set the limit slightly more than the current number of enabled tags
-        with patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
+        with patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
             with schema_context(self.schema_name):
                 client = rest_framework.test.APIClient()
                 enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
@@ -338,7 +338,7 @@ class TagsSettings(IamTestCase):
         uuids = [obj.uuid for obj in self.disabled_objs[: count_to_limit + 1]]
 
         # Set the limit slightly more than the current number of enabled tags
-        with patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
+        with patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=new_limit):
             with schema_context(self.schema_name):
                 client = rest_framework.test.APIClient()
                 enable_response = client.put(tags_enable_url, {"ids": uuids}, format="json", **self.headers)
@@ -354,7 +354,7 @@ class TagsSettings(IamTestCase):
         self.assertIn("maximum number of enabled tags", error)
         self.assertEqual(expected_keys, enable_response.data.keys())
 
-    @patch("api.user_settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
+    @patch("api.settings.tags.view.Config", ENABLED_TAG_LIMIT=-1)
     def test_enable_tags_limit_disabled(self, mock_enabled_limit):
         """Test that enabling tags is not limited if the limit is disabled."""
 
