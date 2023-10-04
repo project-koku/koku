@@ -1114,8 +1114,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    @patch("api.report.ocp.provider_map.is_feature_cost_3083_all_labels_enabled", return_value=True)
-    def test_execute_costs_query_with_tag_filter(self, _):
+    def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
         tag_column = "all_labels"
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
