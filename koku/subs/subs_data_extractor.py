@@ -182,7 +182,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
         )
         upload_keys = []
-        filename = f"subs_{self.tracing_id}_{rid}"
+        filename = f"subs_{self.tracing_id}_{rid}_"
         sql_file = f"trino_sql/{self.provider_type.lower()}_subs_summary.sql"
         query_sql = pkgutil.get_data("subs", sql_file)
         query_sql = query_sql.decode("utf-8")
