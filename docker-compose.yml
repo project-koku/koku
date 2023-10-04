@@ -609,7 +609,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:3.1.2-metastore-008
+    image: quay.io/cloudservices/ubi-hive:latest
     ports:
       - 9083:8000
     environment:
@@ -632,7 +632,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/cloudservices/ubi-trino:411-002
+    image: quay.io/cloudservices/ubi-trino:latest
     user: root
     ports:
       - 8080:8080
