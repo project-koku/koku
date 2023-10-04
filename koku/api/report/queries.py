@@ -1003,6 +1003,7 @@ class ReportQueryHandler(QueryHandler):
             "infra_total",
             "cost_total",
             "cost_total_distributed",
+            "storage_class",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data

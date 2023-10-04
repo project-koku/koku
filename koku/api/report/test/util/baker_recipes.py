@@ -90,6 +90,7 @@ ocp_usage_pod = Recipe(  # Pod data_source
     cluster_capacity_cpu_core_hours=cycle(decimal_yielder()),
     cluster_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
     pod_labels=cycle(OCP_CONSTANTS["pod_labels"]),
+    all_labels=cycle(OCP_CONSTANTS["pod_labels"]),
     _fill_optional=False,
     _quantity=OCP_CONSTANTS.length,
 )
@@ -114,6 +115,7 @@ ocp_usage_storage = Recipe(  # Storage data_source
     cluster_capacity_cpu_core_hours=cycle(decimal_yielder()),
     cluster_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
     volume_labels=cycle(OCP_CONSTANTS["pvc_labels"]),
+    all_labels=cycle(OCP_CONSTANTS["pvc_labels"]),
     _fill_optional=False,
     _quantity=OCP_CONSTANTS.length,
 )
