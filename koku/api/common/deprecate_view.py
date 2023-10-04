@@ -4,7 +4,6 @@
 #
 """Logic to deprecate a view."""
 import logging
-import typing as t
 from dataclasses import dataclass
 from dataclasses import field
 from functools import wraps
@@ -16,6 +15,7 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
 
 from api.utils import DateHelper
 
@@ -43,7 +43,7 @@ class DeprecateEndpoint:
         path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     """
 
-    viewclass: APIView # from rest_framework.view import APIView
+    viewclass: APIView
     sunset_endpoint: bool = field(init=False, default=False)
 
     def update_response_headers(self, response):
