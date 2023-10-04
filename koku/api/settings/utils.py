@@ -157,9 +157,12 @@ class SettingsFilter(FilterSet):
             # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
                 try:
+                    self.filters[name].field.validate(value)
                     self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
                 except DjangoValidationError as vexc:
-                    raise ValidationError(vexc.message % vexc.params)
+                    message = vexc.error_list[0].message
+                    params = vexc.error_list[0].params
+                    raise ValidationError(message % params)
 
             order_by = self._get_order_by(self._translate_fields(query_params.get("order_by")))
 
