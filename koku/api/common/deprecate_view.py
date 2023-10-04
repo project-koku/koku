@@ -43,7 +43,7 @@ class DeprecateEndpoint:
         path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     """
 
-    viewclass: t.Callable
+    viewclass: APIView # from rest_framework.view import APIView
     sunset_endpoint: bool = field(init=False, default=False)
 
     def update_response_headers(self, response):
