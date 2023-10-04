@@ -784,7 +784,8 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         cluster_alias = "cluster_alias"
         new_cluster_alias = "new_cluster_alias"
-        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+
         with schema_context(self.schema):
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, cluster_alias)
@@ -807,6 +808,12 @@ select * from eek where val1 in {{report_period_id}} ;
             self.assertEqual(len(clusters), 1)
             cluster = clusters.first()
             self.assertEqual(cluster.cluster_alias, new_cluster_alias)
+
+    def test_populate_cluster_table_no_cluster_id(self):
+        """Test creating an entry in the OCP cluster table with no cluster id fails."""
+
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, None, None)
+        self.assertIsNone(cluster)
 
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""
