@@ -90,16 +90,6 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             SubsIDMap.objects.bulk_create(bulk_maps, ignore_conflicts=True)
         return id_list
 
-    def determine_end_time_for_resource(self, rid, year, month):
-        """Determine the end time for subs processing."""
-        sql = (
-            f" SELECT MAX(lineitem_usagestartdate) FROM aws_line_items"
-            f" WHERE source='{self.provider_uuid}' AND year='{year}' AND month='{month}"
-            f" AND lineitem_resourceid = '{rid}'"
-        )
-        latest = self._execute_trino_raw_sql_query(sql, log_ref="insert_subs_last_processed_time")
-        return latest[0][0]
-
     def determine_start_time_for_resource(self, rid, year, month, month_start):
         """Determines the start time for subs processing"""
         base_time = self.determine_latest_processed_time_for_provider(rid, year, month) or month_start
@@ -137,16 +127,8 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         }
         return where_clause, sql_params
 
-    def update_latest_processed_time(self, year, month, end_time):
-        """Update the latest processing time for a provider"""
-        with schema_context(self.schema):
-            subs_obj, _ = SubsLastProcessed.objects.get_or_create(
-                source_uuid_id=self.provider_uuid, year=year, month=month
-            )
-            subs_obj.latest_processed_time = end_time
-            subs_obj.save()
-
     def get_resource_ids_for_usage_account(self, usage_account, year, month):
+        """Determine the relevant resource ids and end time to process to for each resource id."""
         with schema_context(self.schema):
             # get a list of IDs to exclude from this source processing
             excluded_ids = list(
@@ -156,6 +138,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 "SELECT lineitem_resourceid, max(lineitem_usagestartdate) FROM aws_line_items WHERE"
                 " source={{provider_uuid}} AND year={{year}} AND month={{month}}"
                 " AND lineitem_productcode = 'AmazonEC2' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
+                " AND lineitem_usageaccountid = {{usage_account}}"
             )
             if excluded_ids:
                 sql += "AND lineitem_resourceid NOT IN {{excluded_ids | inclause}}"
@@ -165,6 +148,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 "year": year,
                 "month": month,
                 "excluded_ids": excluded_ids,
+                "usage_account": usage_account,
             }
             ids = self._execute_trino_raw_sql_query(
                 sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
@@ -172,6 +156,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return ids
 
     def gather_and_upload_for_resource(self, rid, year, month, start_time, end_time):
+        """Gather the data and upload it to S3 for a specific resource id"""
         where_clause, sql_params = self.determine_where_clause_and_params(start_time, end_time, year, month, rid)
         total_count = self.determine_line_item_count(where_clause, sql_params)
         LOG.debug(
@@ -211,6 +196,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
+        """Bulk update the latest processed time for resources."""
         with schema_context(self.schema):
             bulk_resources = []
             for resource, latest_timestamp in resources:
@@ -249,7 +235,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 continue
             for rid, end_time in resource_ids:
                 start_time = self.determine_start_time_for_resource(rid, year, month, month_start)
-                upload_keys.append(self.gather_and_upload_for_resource(rid, year, month, start_time, end_time))
+                upload_keys.extend(self.gather_and_upload_for_resource(rid, year, month, start_time, end_time))
             self.bulk_update_latest_processed_time(resource_ids, year, month)
         LOG.info(
             log_json(
