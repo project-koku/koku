@@ -670,9 +670,9 @@ def update_openshift_on_cloud(  # noqa: C901
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if is_customer_large(schema_name):
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
