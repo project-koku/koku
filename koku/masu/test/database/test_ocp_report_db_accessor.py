@@ -812,8 +812,12 @@ select * from eek where val1 in {{report_period_id}} ;
     def test_populate_cluster_table_no_cluster_id(self):
         """Test creating an entry in the OCP cluster table with no cluster id fails."""
 
-        cluster = self.accessor.populate_cluster_table(self.aws_provider, None, None)
-        self.assertIsNone(cluster)
+        expected_log_msg = "No cluster id provided, skipping creation of new entry in reporting_ocp_clusters"
+
+        with self.assertRaises(ValueError) as context:
+            self.accessor.populate_cluster_table(self.aws_provider, None, None)
+
+        self.assertIn(expected_log_msg, str(context.exception))
 
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""

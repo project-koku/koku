@@ -969,13 +969,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     msg = f"created entry in reporting_ocp_clusters: {created}"
                 else:
                     # skip creating new cluster if no cluster_id
-                    LOG.warning(
+                    msg = "No cluster id provided, skipping creation of new entry in reporting_ocp_clusters"
+                    LOG.error(
                         log_json(
-                            msg="No cluster id provided, skipping creation of new entry in reporting_ocp_clusters",
+                            msg=msg,
                             provider_uuid=provider.uuid,
                         )
                     )
-                    return None
+                    raise ValueError(msg)
 
             # if the cluster entry already exists and cluster alias does not match, update the cluster alias
             elif cluster.cluster_alias != cluster_alias:
