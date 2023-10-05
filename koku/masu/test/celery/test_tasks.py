@@ -17,6 +17,7 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
 
@@ -413,3 +414,21 @@ class TestCeleryTasks(MasuTestCase):
             expected_msg = "Schema acct0000 not enabled in unleash."
             self.assertEqual(returned_msg, expected_msg)
             mock_accessor.assert_not_called()
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_get_celery_queue_items(self, mock_celery_app):
+        """Test that collecting tasks from the queue returns results from the expected queues."""
+        queue_tasks = tasks.get_celery_queue_items()
+        for queue in QUEUES:
+            self.assertIn(queue, queue_tasks)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_get_celery_queue_items_single_queue(self, mock_celery_app):
+        """Test that collecting tasks from a specific queue returns results from only that queue."""
+        expected_queue = "summary"
+        queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue)
+        for queue in QUEUES:
+            if queue == expected_queue:
+                self.assertIn(queue, queue_tasks)
+            else:
+                self.assertNotIn(queue, queue_tasks)

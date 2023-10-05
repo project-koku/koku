@@ -511,7 +511,7 @@ def collect_queue_metrics(self):
     return queue_len
 
 
-@celery_app.task(name="masu.celery.tasks.task_list", bind=True, queue=DEFAULT)
+@celery_app.task(name="masu.celery.tasks.get_celery_queue_items", bind=True, queue=DEFAULT)
 def get_celery_queue_items(self, queue_name=None, task_name=None):
     """
     Collect info on tasks in the celery queues.
@@ -538,7 +538,12 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
             t_name = t_header.get("task", "")
             if task_name and t_name != task_name:
                 continue
-            t_info = {"name": t_name, "args": t_header.get("argsrepr", ""), "kwargs": t_header.get("kwargsrepr", "")}
+            t_info = {
+                "name": t_name,
+                "id": t_header.get("id", ""),
+                "args": t_header.get("argsrepr", ""),
+                "kwargs": t_header.get("kwargsrepr", ""),
+            }
             task_list.append(t_info)
         decoded_tasks[queue] = task_list
 
