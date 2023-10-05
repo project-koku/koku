@@ -208,24 +208,6 @@
             "createdAt": "2022-10-31T18:49:38.445Z"
         },
         {
-            "name": "cost-management.backend.summarize-ocp-on-gcp-by-node",
-            "description": "Update the gcp summary tables by node.",
-            "type": "permission",
-            "project": "default",
-            "enabled": true,
-            "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-09-08T09:48:54.492Z"
-        {
             "name": "cost-management.backend.feature-cost-3083-all-labels",
             "description": "Enable the all labels column for OCP cost endpoint.",
             "type": "permission",
