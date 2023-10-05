@@ -21,9 +21,9 @@ from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
-from api.report.ocp.dataclasses.cluster_capacity import calculate_unused
-from api.report.ocp.dataclasses.cluster_capacity import ClusterCapacity
-from api.report.ocp.dataclasses.node_capacity import NodeCapacity
+from api.report.ocp.capacity.cluster_capacity import calculate_unused
+from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
+from api.report.ocp.capacity.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
