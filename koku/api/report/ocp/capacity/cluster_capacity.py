@@ -27,14 +27,17 @@ def calculate_unused(row, finalized_mapping={}):
     request = row.get("request") if row.get("request") else Decimal(0)
     effective_usage = max(usage, request)
     unused_capacity = max(capacity - effective_usage, 0)
-    capacity_unused_percent = (unused_capacity / max(capacity, Decimal(1))) * 100
+    if capacity <= 0:
+        # Check to see if we are about to divide by zero or a negative.
+        capacity = max(capacity, Decimal(1))
+    capacity_unused_percent = (unused_capacity / capacity) * 100
     row["capacity_unused"] = unused_capacity
     row["capacity_unused_percent"] = capacity_unused_percent
     unused_request = max(request - usage, 0)
     row["request_unused"] = unused_request
     if request <= 0:
         request = 1
-    row["request_unused_percent"] = (unused_request / max(capacity, Decimal(1))) * 100
+    row["request_unused_percent"] = (unused_request / capacity) * 100
 
 
 @dataclass

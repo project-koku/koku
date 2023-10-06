@@ -10,8 +10,8 @@ from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
-from api.report.ocp.dataclasses.cluster_capacity import ClusterCapacity
-from api.report.ocp.dataclasses.node_capacity import NodeCapacity
+from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
+from api.report.ocp.capacity.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCostView
