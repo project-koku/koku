@@ -92,7 +92,7 @@ class OCIPostProcessor:
         resource_tags_dict = tag_df.apply(
             lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
         )
-        resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
+        resource_tags_dict = resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}])
 
         data_frame["tags"] = resource_tags_dict.apply(json.dumps)
         # Make sure we have entries for our required columns
