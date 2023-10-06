@@ -6,7 +6,6 @@
 from datetime import datetime
 from unittest.mock import patch
 
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
@@ -21,8 +20,6 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up shared variables."""
         super().setUp()
-        self.ocp_accessor = OCPReportDBAccessor(schema=self.schema)
-
         manifest_id = 1
         with ReportManifestDBAccessor() as manifest_accessor:
             self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
