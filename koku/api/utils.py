@@ -16,7 +16,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
-from api.user_settings.settings import USER_SETTINGS
+from api.settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.config import Config
@@ -178,6 +178,12 @@ class DateHelper:
         """Datetime of midnight on the last day of next month."""
         month_end = self.days_in_month(self.next_month_start)
         return self.next_month_start.replace(day=month_end)
+
+    def create_end_of_life_date(self, year: int, month: int, day: int) -> datetime:
+        """Creates a deprecation or sunset date for endpoints."""
+        date = datetime.datetime(year, month, day, tzinfo=settings.UTC)
+        date_at_midnight = date.replace(microsecond=0, second=0, minute=0, hour=0)
+        return date_at_midnight
 
     def month_start(self, in_date):
         """Datetime of midnight on the 1st of in_date month."""
