@@ -28,7 +28,7 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
             self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self.updater = OCPReportParquetSummaryUpdater(self.schema_name, self.ocp_provider, self.manifest)
 
-    def test_valid_initialization(self):
+    def test_initialization_with_valid_params(self):
         """Test the valid initialization of OCPReportParquetSummaryUpdater."""
 
         cluster_id = get_cluster_id_from_provider(self.ocp_provider_uuid)
@@ -45,7 +45,7 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(updater._manifest, manifest)
 
     @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.get_cluster_id_from_provider")
-    def test_missing_cluster_id_raises_error(self, mock_get_cluster_id):
+    def test_initialization_missing_cluster_id_raises_error(self, mock_get_cluster_id):
         """Test the initialization of OCPReportParquetSummaryUpdater with no cluster_id."""
 
         mock_get_cluster_id.return_value = None
