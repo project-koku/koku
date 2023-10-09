@@ -68,17 +68,25 @@ def clear_celery_queues(request):
     if request.method == "GET":
         params = request.query_params
         clear_all = params.get("clear_all")
-        LOG.info(f"Clearing all queues parameter: {clear_all}")
+        queue = params.get("queue")
 
         # clear default_celery queue
         purged_tasks = app.control.purge()
 
         # clear all queues
         if clear_all:
+            LOG.info(f"Clearing all queues parameter: {clear_all}")
             queue_lengths = list(collect_queue_metrics().values())
             purged_tasks += sum(queue_lengths)
             r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
             r.flushall()
+
+        if queue:
+            LOG.info(f"Clearing tasks from {queue} queue")
+            r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+            queue_lengths = collect_queue_metrics().get(queue)
+            purged_tasks += queue_lengths
+            r.delete(queue)
 
         LOG.info(f"Celery purged tasks: {purged_tasks}")
         return Response({"purged_tasks": purged_tasks})

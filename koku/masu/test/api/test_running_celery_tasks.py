@@ -85,3 +85,25 @@ class RunningCeleryTasksTests(TestCase):
         mock_celery.control.purge.assert_called_once()
         mock_collect.assert_called_once()
         mock_redis.flushall.assert_called_once()
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.app")
+    @patch("masu.api.running_celery_tasks.collect_queue_metrics")
+    @patch("masu.api.running_celery_tasks.redis")
+    def test_clear_queue(self, mock_redis, mock_collect, mock_celery, _):
+        """Test the GET of clear_celery_queues endpoint with specific queue."""
+        expected_key = "purged_tasks"
+        mock_celery.control.purge.return_value = 0
+        mock_collect.values.return_value = []
+        mock_redis = mock_redis.Redis.return_value
+        mock_redis.flushall.return_value = "true"
+        params = {"queue": "priority"}
+        query_string = urlencode(params)
+        url = reverse("clear_celery_queues") + "?" + query_string
+        response = self.client.get(url)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_celery.control.purge.assert_called_once()
+        mock_collect.assert_called_once()
+        mock_redis.delete.assert_called_once()
