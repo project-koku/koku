@@ -8,6 +8,7 @@ from django.urls import path
 from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
+from api.common.deprecate_view import deprecate_view
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -345,7 +346,7 @@ urlpatterns = [
     ),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
-    path("settings/", SettingsView.as_view(), name="settings"),
+    path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
     path(
         "settings/aws_category_keys/enable/",

@@ -36,7 +36,7 @@ def handle_user_defined_json_columns(data_frame, columns, column_prefix):
         lambda row: {scrub_resource_col_name(column, column_prefix): value for column, value in row.items() if value},
         axis=1,
     )
-    column_dict.where(column_dict.notna(), lambda _: [{}], inplace=True)
+    column_dict = column_dict.where(column_dict.notna(), lambda _: [{}])
 
     return column_dict.apply(json.dumps), unique_keys
 
