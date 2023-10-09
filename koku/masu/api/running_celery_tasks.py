@@ -73,11 +73,10 @@ def clear_celery_queues(request):
         clear_all = params.get("clear_all")
         queue = params.get("queue")
 
-        # clear default_celery queue
-        purged_tasks = app.control.purge()
-
         # clear all queues
         if clear_all:
+            # clear default_celery queue
+            purged_tasks = app.control.purge()
             LOG.info(f"Clearing all queues parameter: {clear_all}")
             queue_lengths = list(collect_queue_metrics().values())
             purged_tasks += sum(queue_lengths)
