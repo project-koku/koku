@@ -1813,6 +1813,12 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
@@ -2004,6 +2010,12 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
@@ -2585,6 +2597,12 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
@@ -2776,6 +2794,12 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
