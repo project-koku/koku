@@ -158,6 +158,7 @@ class OCPProviderMap(ProviderMap):
                         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
                     ],
                     "persistentvolumeclaim": {"field": "persistentvolumeclaim", "operation": "icontains"},
+                    "storageclass": {"field": "storageclass", "operation": "icontains"},
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
                     "infrastructures": {

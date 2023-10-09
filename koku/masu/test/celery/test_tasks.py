@@ -17,6 +17,7 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
 
@@ -318,7 +319,7 @@ class TestCeleryTasks(MasuTestCase):
         """Test that the collect queue len function runs correctly."""
         mock_celery_app.pool.acquire(block=True).default_channel.client.llen.return_value = 2
         with self.assertLogs("masu.celery.tasks", "DEBUG") as captured_logs:
-            tasks.collect_queue_metrics()
+            print(f"\n\n{tasks.collect_queue_metrics()}\n\n")
             expected_log_msg = "Celery queue backlog info: "
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
@@ -413,3 +414,52 @@ class TestCeleryTasks(MasuTestCase):
             expected_msg = "Schema acct0000 not enabled in unleash."
             self.assertEqual(returned_msg, expected_msg)
             mock_accessor.assert_not_called()
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_get_celery_queue_items(self, mock_celery_app):
+        """Test that collecting tasks from the queue returns results from the expected queues."""
+        queue_tasks = tasks.get_celery_queue_items()
+        for queue in QUEUES:
+            self.assertIn(queue, queue_tasks)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_get_celery_queue_items_single_queue(self, mock_celery_app):
+        """Test that collecting tasks from a specific queue returns results from only that queue."""
+        expected_queue = "summary"
+        queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue)
+        for queue in QUEUES:
+            if queue == expected_queue:
+                self.assertIn(queue, queue_tasks)
+            else:
+                self.assertNotIn(queue, queue_tasks)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_get_celery_queue_items_returned(self, mock_celery_app):
+        """Test that the right information is returned from a specific queue."""
+        mock_celery_app.pool.acquire().__enter__().default_channel.client.lrange.return_value = [
+            b'{"body": "W1sib3JnMTIzNDU2NyIsICJBV1MtbG9jYWwiLCAiNjQzZjExYWYtYmIwYy00Yjg1LWIyOTEtMjNkMDQ1NGM5MTIyIiwgIjIwMjMtMDktMjkiLCAiMjAyMy0wOS0zMCJdLCB7Imludm9pY2VfbW9udGgiOiBudWxsLCAicXVldWVfbmFtZSI6ICJzdW1tYXJ5IiwgIm9jcF9vbl9jbG91ZCI6IHRydWV9LCB7ImNhbGxiYWNrcyI6IG51bGwsICJlcnJiYWNrcyI6IG51bGwsICJjaGFpbiI6IG51bGwsICJjaG9yZCI6IG51bGx9XQ==", "content-encoding": "utf-8", "content-type": "application/json", "headers": {"lang": "py", "task": "masu.processor.tasks.update_summary_tables", "id": "6cad815a-29cb-42cd-a453-f7c73467fb6c","shadow": null, "eta": null, "expires": null, "group": null, "group_index": null, "retries": 0, "timelimit": [null, null], "root_id": "6cad815a-29cb-42cd-a453-f7c73467fb6c", "parent_id": null,"argsrepr": "(\'org1234567\', \'AWS-local\', \'643f11af-bb0c-4b85-b291-23d0454c9122\', \'2023-09-29\', \'2023-09-30\')", "kwargsrepr": "{\'invoice_month\': None, \'queue_name\': \'summary\', \'ocp_on_cloud\': True}", "origin": "gen35@827332896fa1", "ignore_result": false}, "properties": {"correlation_id": "6cad815a-29cb-42cd-a453-f7c73467fb6c", "reply_to": "4c8e3925-1db1-3850-88e3-9bf2db8dd3ca", "delivery_mode": 2, "delivery_info": {"exchange": "", "routing_key": "summary"}, "priority": 0, "body_encoding": "base64", "delivery_tag": "bff35e29-d998-43cd-b0fc-109a84bdefc2"}}'  # noqa: E501
+        ]
+        expected_output = {
+            "summary": [
+                {
+                    "name": "masu.processor.tasks.update_summary_tables",
+                    "id": "6cad815a-29cb-42cd-a453-f7c73467fb6c",
+                    "args": "('org1234567', 'AWS-local', '643f11af-bb0c-4b85-b291-23d0454c9122', '2023-09-29', '2023-09-30')",  # noqa: E501
+                    "kwargs": "{'invoice_month': None, 'queue_name': 'summary', 'ocp_on_cloud': True}",
+                }
+            ]
+        }
+        expected_queue = "summary"
+        queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue)
+        self.assertEqual(queue_tasks, expected_output)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_get_celery_queue_no_items_returned_task_name(self, mock_celery_app):
+        """Test that no items are returned when specifying a task name that is not queued."""
+        mock_celery_app.pool.acquire().__enter__().default_channel.client.lrange.return_value = [
+            b'{"body": "W1sib3JnMTIzNDU2NyIsICJBV1MtbG9jYWwiLCAiNjQzZjExYWYtYmIwYy00Yjg1LWIyOTEtMjNkMDQ1NGM5MTIyIiwgIjIwMjMtMDktMjkiLCAiMjAyMy0wOS0zMCJdLCB7Imludm9pY2VfbW9udGgiOiBudWxsLCAicXVldWVfbmFtZSI6ICJzdW1tYXJ5IiwgIm9jcF9vbl9jbG91ZCI6IHRydWV9LCB7ImNhbGxiYWNrcyI6IG51bGwsICJlcnJiYWNrcyI6IG51bGwsICJjaGFpbiI6IG51bGwsICJjaG9yZCI6IG51bGx9XQ==", "content-encoding": "utf-8", "content-type": "application/json", "headers": {"lang": "py", "task": "masu.processor.tasks.update_summary_tables", "id": "6cad815a-29cb-42cd-a453-f7c73467fb6c","shadow": null, "eta": null, "expires": null, "group": null, "group_index": null, "retries": 0, "timelimit": [null, null], "root_id": "6cad815a-29cb-42cd-a453-f7c73467fb6c", "parent_id": null,"argsrepr": "(\'org1234567\', \'AWS-local\', \'643f11af-bb0c-4b85-b291-23d0454c9122\', \'2023-09-29\', \'2023-09-30\')", "kwargsrepr": "{\'invoice_month\': None, \'queue_name\': \'summary\', \'ocp_on_cloud\': True}", "origin": "gen35@827332896fa1", "ignore_result": false}, "properties": {"correlation_id": "6cad815a-29cb-42cd-a453-f7c73467fb6c", "reply_to": "4c8e3925-1db1-3850-88e3-9bf2db8dd3ca", "delivery_mode": 2, "delivery_info": {"exchange": "", "routing_key": "summary"}, "priority": 0, "body_encoding": "base64", "delivery_tag": "bff35e29-d998-43cd-b0fc-109a84bdefc2"}}'  # noqa: E501
+        ]
+        expected_output = {"summary": []}
+        expected_queue = "summary"
+        queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue, task_name="not_found")
+        self.assertEqual(queue_tasks, expected_output)
