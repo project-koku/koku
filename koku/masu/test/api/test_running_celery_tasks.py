@@ -94,12 +94,10 @@ class RunningCeleryTasksTests(TestCase):
         """Test the GET of clear_celery_queues endpoint with specific queue."""
         expected_key = "purged_tasks"
         mock_celery.control.purge.return_value = 0
-        mock_collect.values.return_value = []
+        expected_queue_lengths = {"priority": 2}
+        mock_collect.return_value = expected_queue_lengths
         mock_redis = mock_redis.Redis.return_value
-        mock_redis.flushall.return_value = "true"
-        params = {"queue": "priority"}
-        query_string = urlencode(params)
-        url = reverse("clear_celery_queues") + "?" + query_string
+        url = reverse("clear_celery_queues") + "?queue=priority"
         response = self.client.get(url)
         body = response.json()
         self.assertEqual(response.status_code, 200)
