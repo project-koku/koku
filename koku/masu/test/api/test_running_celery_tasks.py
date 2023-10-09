@@ -105,3 +105,33 @@ class RunningCeleryTasksTests(TestCase):
         mock_celery.control.purge.assert_called_once()
         mock_collect.assert_called_once()
         mock_redis.delete.assert_called_once()
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.get_celery_queue_items")
+    def test_celery_queue_tasks(self, mock_queue, _):
+        """Test GET request returns a 200."""
+        mock_queue.return_value = {}
+        response = self.client.get(reverse("celery_queue_tasks"))
+        self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.get_celery_queue_items")
+    def test_celery_queue_tasks_invalid_queue(self, mock_queue, _):
+        """Test GET request with invalid queue name returns a 400."""
+        mock_queue.return_value = {}
+        params = {"queue": "taco"}
+        query_string = urlencode(params)
+        url = reverse("celery_queue_tasks") + "?" + query_string
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.get_celery_queue_items")
+    def test_celery_queue_tasks_valid_queue(self, mock_queue, _):
+        """Test GET request with a valid queue name returns a 200."""
+        mock_queue.return_value = {}
+        params = {"queue": "summary"}
+        query_string = urlencode(params)
+        url = reverse("celery_queue_tasks") + "?" + query_string
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
