@@ -31,6 +31,7 @@ from api.utils import get_cost_type
 from api.utils import get_currency
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
 class SettingsInvalidFilterException(APIException):
@@ -113,3 +114,43 @@ class UserCostTypeSettings(APIView):
     def get(self, request):
         """Gets a list for all supported cost_typs currently available."""
         return ListPaginator(COST_TYPES, request).paginated_response
+
+
+class PlatformCategoriesView(APIView):
+    """View to manage platform categories"""
+
+    permission_classes = (SettingsAccessPermission,)
+    # TODO: Move this to a constant for broader use
+    _default_platform_projects = ("kube-%", "openshift-%", "Platform unallocated")
+
+    @property
+    def _platform_record(self):
+        return OpenshiftCostCategory.objects.get(name="Platform")
+
+    def get(self, request):
+        return Response(
+            {
+                "platform_namespaces": self._platform_record.namespace,
+            }
+        )
+
+    def put(self, request):
+        # FIXME: Need a serializer or some sort of sanity checking here
+        platform_record = self._platform_record
+        platform_record.namespace = list(set(platform_record.namespace).union(request.data))
+        platform_record.save()
+
+        return Response(platform_record.namespace)
+
+    def delete(self, request):
+        platform_record = self._platform_record
+        request_without_defaults = set(request.data).difference(self._default_platform_projects)
+        platform_record.namespace = list(set(platform_record.namespace).difference(request_without_defaults))
+        platform_record.save()
+
+        # TODO: Formulate this response to be more in line with other responses
+        return Response(
+            {
+                "platform_namespaces": self._platform_record.namespace,
+            }
+        )

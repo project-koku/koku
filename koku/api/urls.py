@@ -84,6 +84,7 @@ from api.views import OCPProjectsView
 from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
+from api.views import PlatformCategoriesView
 from api.views import ResourceTypeView
 from api.views import SettingsAWSCategoryKeyView
 from api.views import SettingsDisableAWSCategoryKeyView
@@ -348,6 +349,7 @@ urlpatterns = [
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
     path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
+    path("settings/platform/", PlatformCategoriesView.as_view(), name="settings-platform"),
     path(
         "settings/aws_category_keys/enable/",
         SettingsEnableAWSCategoryKeyView.as_view(),
