@@ -12,6 +12,7 @@ from masu.api.trino import trino_ui
 from masu.api.views import additional_context
 from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
+from masu.api.views import celery_queue_tasks
 from masu.api.views import cleanup
 from masu.api.views import clear_celery_queues
 from masu.api.views import crawl_account_hierarchy
@@ -66,6 +67,7 @@ urlpatterns = [
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("additional_context/", additional_context, name="additional_context"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
+    path("celery_queue_tasks/", celery_queue_tasks, name="celery_queue_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("manifests/", ManifestView.as_view({"get": "get_all_manifests"}), name="all_manifests"),

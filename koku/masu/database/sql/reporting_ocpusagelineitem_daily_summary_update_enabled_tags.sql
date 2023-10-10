@@ -9,10 +9,14 @@ update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     set pod_labels = case
         when pod_labels = '"{}"' then '{}'::jsonb
         else pod_labels - ek.keys
-    end ,
+    end,
     volume_labels = case
         when volume_labels = '"{}"' then '{}'::jsonb
         else volume_labels - ek.keys
+    end,
+    all_labels = case
+        when all_labels = '"{}"' then '{}'::jsonb
+        else all_labels - ek.keys
     end
 
 from cte_enabled_keys as ek

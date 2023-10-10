@@ -28,6 +28,7 @@ from masu.api.process_openshift_on_cloud import process_openshift_on_cloud
 from masu.api.purge_trino_files import purge_trino_files
 from masu.api.report_data import report_data
 from masu.api.running_celery_tasks import celery_queue_lengths
+from masu.api.running_celery_tasks import celery_queue_tasks
 from masu.api.running_celery_tasks import clear_celery_queues
 from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.source_cleanup import cleanup

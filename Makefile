@@ -20,6 +20,7 @@ scale = 1
 
 export DOCKER_BUILDKIT = 1
 export USER_ID ?= $(shell id -u)
+export GROUP_ID ?= $(shell id -g)
 
 # Prefer Docker Compose v2
 DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
@@ -167,7 +168,7 @@ lint:
 	pre-commit run --all-files
 
 delete-testing:
-	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
+	@$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
@@ -195,7 +196,7 @@ delete-test-customer-data: delete-test-sources delete-cost-models
 test_source=all
 load-test-customer-data:
 	$(SCRIPTDIR)/load_test_customer_data.sh $(test_source) $(start) $(end)
-	make load-aws-org-unit-tree
+	$(MAKE) load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
@@ -214,7 +215,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 delete-db:
-	$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
+	@$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -291,8 +292,8 @@ endif
 
 docker-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	$(PREFIX) make delete-testing
-	$(PREFIX) make delete-trino-data
+	$(PREFIX) $(MAKE) delete-testing
+	$(PREFIX) $(MAKE) delete-trino-data
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
@@ -319,17 +320,17 @@ docker-shell:
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          $(DOCKER_COMPOSE) restart koku-server masu-server koku-worker koku-beat koku-listener ; \
-         make _koku-wait ; \
+         $(MAKE) _koku-wait ; \
          echo " koku is available" ; \
      else \
-         make docker-up-koku ; \
+         $(MAKE) docker-up-koku ; \
      fi
 
 docker-up-koku:
 	@if [ -z "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          echo "Starting koku_server ..." ; \
          $(DOCKER_COMPOSE) up $(build) -d koku-server ; \
-         make _koku-wait ; \
+         $(MAKE) _koku-wait ; \
      fi
 	@echo " koku is available!"
 
@@ -403,10 +404,9 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testin
 
 CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
 docker-host-dir-setup:
-	$(DOCKER_COMPOSE) build --no-cache koku-minio
-	mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
-	chown -R $(USER_ID) $(CONTAINER_DIRS)
-	chmod -R 0755 $(CONTAINER_DIRS)
+	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
+	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)
+	@chmod 0755 $(CONTAINER_DIRS)
 
 docker-trino-setup: delete-trino docker-host-dir-setup
 
@@ -421,7 +421,7 @@ docker-trino-ps:
 
 docker-trino-down:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	make delete-trino
+	$(MAKE) delete-trino
 
 docker-trino-down-all: docker-trino-down docker-down
 
@@ -509,10 +509,10 @@ create-large-ocp-source-testing-files:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
 endif
-	make purge-large-testing-ocp-files
+	$(MAKE) purge-large-testing-ocp-files
 	@for FILE in $(foreach f, $(wildcard $(nise_config_dir)/*.yml), $(f)) ; \
     do \
-        make ocp-source-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
+        $(MAKE) ocp-source-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
 	done
 
 import-large-ocp-source-testing-costmodel:
@@ -530,9 +530,9 @@ large-ocp-source-testing:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
 endif
-	make create-large-ocp-source-testing-files nise_config_dir="$(nise_config_dir)"
-	make import-large-ocp-source-testing-costmodel
-	make import-large-ocp-source-testing-data
+	$(MAKE) create-large-ocp-source-testing-files nise_config_dir="$(nise_config_dir)"
+	$(MAKE) import-large-ocp-source-testing-costmodel
+	$(MAKE) import-large-ocp-source-testing-data
 
 # Delete the testing large ocp source local files
 purge-large-testing-ocp-files:
