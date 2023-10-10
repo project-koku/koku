@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.deprecated_settings.settings import Settings
-from api.settings.platform.serializers import NonEmptyListSerializer
+from api.settings.serializers import NonEmptyListSerializer
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
 SETTINGS_GENERATORS = {"settings": Settings}
