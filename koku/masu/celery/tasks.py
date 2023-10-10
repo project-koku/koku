@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
+import json
 import logging
 import math
 
@@ -508,3 +509,42 @@ def collect_queue_metrics(self):
             gauge.set(length)
     LOG.debug(f"Celery queue backlog info: {queue_len}")
     return queue_len
+
+
+@celery_app.task(name="masu.celery.tasks.get_celery_queue_items", bind=True, queue=DEFAULT)
+def get_celery_queue_items(self, queue_name=None, task_name=None):
+    """
+    Collect info on tasks in the celery queues.
+
+    Parameters:
+        queue_name (str): A specific queue to check task info for
+        task_name (str): A specific task to get info for
+
+    """
+    queue_tasks = {}
+    with celery_app.pool.acquire(block=True) as conn:
+        if queue_name:
+            queue_tasks[queue_name] = conn.default_channel.client.lrange(queue_name, 0, -1)
+        else:
+            for queue in QUEUES:
+                queue_tasks[queue] = conn.default_channel.client.lrange(queue, 0, -1)
+
+    decoded_tasks = {}
+    for queue, tasks in queue_tasks.items():
+        task_list = []
+        for task in tasks:
+            j = json.loads(task)
+            t_header = j.get("headers", {})
+            t_name = t_header.get("task", "")
+            if task_name and t_name != task_name:
+                continue
+            t_info = {
+                "name": t_name,
+                "id": t_header.get("id", ""),
+                "args": t_header.get("argsrepr", ""),
+                "kwargs": t_header.get("kwargsrepr", ""),
+            }
+            task_list.append(t_info)
+        decoded_tasks[queue] = task_list
+
+    return decoded_tasks

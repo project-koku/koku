@@ -103,20 +103,6 @@ def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
 
 
-def is_aws_category_settings_enabled(account):  # pragma: no cover
-    """Enable aws category settings."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable_aws_category_settings", context, fallback_development_true
-    )
-
-
-def is_ddf_tag_form_disabled():  # pragma: no cover
-    """Disable ingress rate limiting"""
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ddf-tag-form")
-
-
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing
@@ -164,7 +150,4 @@ def is_feature_cost_3083_all_labels_enabled(account):
     unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
     account = convert_account(account)
     context = {"schema": account}
-    # TODO:
-    # Don't want to turn fallback for development to True
-    # until I get a chance to fix the smoke tests.
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context)
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)

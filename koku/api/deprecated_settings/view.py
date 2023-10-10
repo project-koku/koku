@@ -11,7 +11,8 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.settings.settings import Settings
+from api.deprecated_settings.settings import Settings
+from api.utils import DateHelper
 
 SETTINGS_GENERATORS = {"settings": Settings}
 
@@ -22,6 +23,9 @@ class SettingsView(APIView):
     """
 
     permission_classes = [SettingsAccessPermission]
+    deprecation_datetime = DateHelper().create_end_of_life_date(2023, 9, 29)
+    sunset_datetime = DateHelper().create_end_of_life_date(2024, 1, 31)
+    link = "https://github.com/project-koku/koku/pull/4670"
 
     @method_decorator(never_cache)
     def get(self, request):
