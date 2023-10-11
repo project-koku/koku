@@ -2,9 +2,11 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-from rest_framework.response import Response
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from rest_framework.views import APIView
 
+from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.deprecated_settings.settings import Settings
 from api.settings.serializers import NonEmptyListSerializer
@@ -27,12 +29,11 @@ class PlatformCategoriesView(APIView):
     def _platform_record(self):
         return OpenshiftCostCategory.objects.get(name="Platform")
 
+    @method_decorator(never_cache)
     def get(self, request):
-        return Response(
-            {
-                "platform_namespaces": self._platform_record.namespace,
-            }
-        )
+        paginator = ListPaginator(self._platform_record.namespace, request)
+
+        return paginator.paginated_response
 
     def put(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
@@ -43,7 +44,9 @@ class PlatformCategoriesView(APIView):
         platform_record.namespace = list(set(platform_record.namespace).union(projects))
         platform_record.save()
 
-        return Response(platform_record.namespace)
+        paginator = ListPaginator(self._platform_record.namespace, request)
+
+        return paginator.paginated_response
 
     def delete(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
@@ -55,9 +58,6 @@ class PlatformCategoriesView(APIView):
         platform_record.namespace = list(set(platform_record.namespace).difference(request_without_defaults))
         platform_record.save()
 
-        # TODO: Formulate this response to be more in line with other responses
-        return Response(
-            {
-                "platform_namespaces": self._platform_record.namespace,
-            }
-        )
+        paginator = ListPaginator(self._platform_record.namespace, request)
+
+        return paginator.paginated_response
