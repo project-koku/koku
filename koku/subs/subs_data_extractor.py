@@ -69,12 +69,12 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
             sql = (
                 "SELECT DISTINCT lineitem_usageaccountid FROM aws_line_items WHERE"
-                " source={{provider_uuid}} AND year={{year}} AND month={{month}}"
+                " source={{source_uuid}} AND year={{year}} AND month={{month}}"
             )
             if excluded_ids:
                 sql += "AND lineitem_usageaccountid NOT IN {{excluded_ids | inclause}}"
             sql_params = {
-                "provider_uuid": self.provider_uuid,
+                "source_uuid": self.provider_uuid,
                 "year": year,
                 "month": month,
                 "excluded_ids": excluded_ids,
@@ -111,14 +111,14 @@ class SUBSDataExtractor(ReportDBAccessorBase):
     def determine_where_clause_and_params(self, latest_processed_time, end_time, year, month, rid):
         """Determine the where clause to use when processing subs data"""
         where_clause = (
-            "WHERE source={{provider_uuid}} AND year={{year}} AND month={{month}} AND"
+            "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
             " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
             " lineitem_usagestartdate > {{latest_processed_time}} AND"
             " lineitem_usagestartdate <= {{end_time}} AND lineitem_resourceid = {{rid}}"
         )
         sql_params = {
-            "provider_uuid": self.provider_uuid,
+            "source_uuid": self.provider_uuid,
             "year": year,
             "month": month,
             "latest_processed_time": latest_processed_time,
@@ -136,7 +136,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
             sql = (
                 "SELECT lineitem_resourceid, max(lineitem_usagestartdate) FROM aws_line_items WHERE"
-                " source={{provider_uuid}} AND year={{year}} AND month={{month}}"
+                " source={{source_uuid}} AND year={{year}} AND month={{month}}"
                 " AND lineitem_productcode = 'AmazonEC2' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
                 " AND lineitem_usageaccountid = {{usage_account}}"
             )
@@ -144,7 +144,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 sql += "AND lineitem_resourceid NOT IN {{excluded_ids | inclause}}"
             sql += " GROUP BY lineitem_resourceid"
             sql_params = {
-                "provider_uuid": self.provider_uuid,
+                "source_uuid": self.provider_uuid,
                 "year": year,
                 "month": month,
                 "excluded_ids": excluded_ids,

@@ -91,7 +91,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         end_time = self.today + timedelta(days=2)
         rid = "45678"
         expected_sql_params = {
-            "provider_uuid": self.aws_provider.uuid,
+            "source_uuid": self.aws_provider.uuid,
             "year": year,
             "month": month,
             "latest_processed_time": latest_processed_time,
@@ -99,7 +99,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
             "rid": rid,
         }
         expected_clause = (
-            "WHERE source={{provider_uuid}} AND year={{year}} AND month={{month}} AND"
+            "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
             " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
             " lineitem_usagestartdate > {{latest_processed_time}} AND"
