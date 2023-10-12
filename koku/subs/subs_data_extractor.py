@@ -163,7 +163,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             log_json(
                 self.tracing_id,
                 msg=f"identified {total_count} matching records for metered rhel",
-                context=self.context,
+                context=self.context | {"resource_id": rid},
             )
         )
         upload_keys = []
@@ -174,11 +174,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         for i, offset in enumerate(range(0, total_count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
             sql_params = {
                 "schema": self.schema,
-                "provider_uuid": self.provider_uuid,
+                "source_uuid": self.provider_uuid,
                 "year": year,
                 "month": month,
-                "start_time": start_time,
-                "end_time": end_time,
+                "start_date": start_time,
+                "end_date": end_time,
                 "offset": offset,
                 "limit": settings.PARQUET_PROCESSING_BATCH_SIZE,
                 "rid": rid,
@@ -192,7 +192,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
 
-            upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
+            upload_keys.append((self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"), rid))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):

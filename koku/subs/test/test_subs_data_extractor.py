@@ -210,7 +210,8 @@ class TestSUBSDataExtractor(SUBSTestCase):
         mock_li_count.assert_called_once()
         mock_trino.assert_called_once()
         mock_copy.assert_called_once()
-        self.assertEqual([expected_key], upload_keys)
+        expected_result = [(expected_key, rid)]
+        self.assertEqual(expected_result, upload_keys)
 
     def test_copy_data_to_subs_s3_bucket(self):
         """Test copy_data_to_subs_s3_bucket."""

@@ -45,14 +45,14 @@ FROM
     from
       hive.{{schema | sqlsafe}}.aws_line_items
     WHERE
-      source = {{ provider_uuid }}
+      source = {{ source_uuid }}
       AND year = {{ year }}
       AND month = {{ month }}
       AND lineitem_productcode = 'AmazonEC2'
       AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage')
       and product_vcpu IS NOT NULL
-      AND lineitem_usagestartdate >= {{ start_time }}
-      AND lineitem_usagestartdate <= {{ end_time }}
+      AND lineitem_usagestartdate >= {{ start_date }}
+      AND lineitem_usagestartdate <= {{ end_date }}
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
       AND lineitem_resourceid = {{ rid }}
     OFFSET
