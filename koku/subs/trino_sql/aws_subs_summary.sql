@@ -51,14 +51,4 @@ FROM
       AND lineitem_productcode = 'AmazonEC2'
       AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage')
       and product_vcpu IS NOT NULL
-      AND lineitem_usagestartdate >= {{ start_date }}
-      AND lineitem_usagestartdate <= {{ end_date }}
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
-      AND lineitem_resourceid = {{ rid }}
-    OFFSET
-      {{ offset }}
-    LIMIT
-      {{ limit }}
-  )
--- this ensures the required `com_redhat_rhel` tag exists in the set of tags since the above match is not exact
-WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
