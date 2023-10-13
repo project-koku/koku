@@ -4,7 +4,7 @@ import typing as t
 from django.db.models.query import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from django_filters import ModelMultipleChoiceFilter
+from django_filters import AllValuesMultipleFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -21,19 +21,14 @@ from api.settings.utils import SettingsFilter
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
 
-ENABLED_TAG_KEYS_QS = EnabledTagKeys.objects.all()
 LOG = logging.getLogger(__name__)
 
 
 class SettingsTagFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
-    uuid = ModelMultipleChoiceFilter(to_field_name="uuid", queryset=ENABLED_TAG_KEYS_QS)
-    provider_type = ModelMultipleChoiceFilter(to_field_name="provider_type", queryset=ENABLED_TAG_KEYS_QS)
-    source_type = ModelMultipleChoiceFilter(
-        field_name="provider_type",
-        to_field_name="provider_type",
-        queryset=ENABLED_TAG_KEYS_QS,
-    )
+    uuid = AllValuesMultipleFilter()
+    provider_type = AllValuesMultipleFilter()
+    source_type = AllValuesMultipleFilter(field_name="provider_type")
 
     class Meta:
         model = EnabledTagKeys
