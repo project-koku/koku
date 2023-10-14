@@ -164,6 +164,7 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
+      - DEBUG_ATTACH=${DEBUG_ATTACH-False}
       - DEVELOPMENT=${DEVELOPMENT-True}
       - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
       - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
@@ -213,6 +214,7 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 6001-6020:9000
+      - 5678:5678
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
