@@ -1,256 +1,420 @@
 {
-    "version": 1,
+    "version": 4,
     "features": [
         {
             "name": "cost-management.backend.disable-source",
             "description": "Toggle to disable processing for a source",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "source-strategy",
-                    "parameters": {
-                        "source-uuid": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2023-05-03T11:50:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.018Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.cost-trino-processor",
             "description": "Toggle to enable trino processing",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2021-09-14T21:22:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.019Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
-            "name": "cost-management.backend.disable-cloud-source-processing",
-            "description": "Toggle to disable source processing for account.",
-            "type": "permission",
+            "name": "cost-management.backend.celery-warm-shutdown",
+            "description": "",
+            "type": "kill-switch",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-08-20T19:50:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.018Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.disable-gcp-resource-matching",
             "description": "Toggle to disable gcp resource matching defaulting back to tag matching.",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-08-20T19:50:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.022Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
+        },
+        {
+            "name": "cost-management.backend.disable-cloud-source-processing",
+            "description": "Toggle to disable source processing for account.",
+            "type": "permission",
+            "project": "default",
+            "stale": false,
+            "createdAt": "2023-10-15T17:01:03.020Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.disable-ocp-on-cloud-summary",
             "description": "Toggle to disable ocp on cloud summary for account.",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-09-06T11:50:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.023Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.disable-summary-processing",
             "description": "Toggle to disable summary for a particular source.",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-08-29T11:50:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.024Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.enable-ocp-amortized-monthly-cost",
             "description": "",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    }
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-12-09T19:41:51.178Z"
+            "createdAt": "2023-10-15T17:01:03.025Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.enable-ocp-savings-plan-cost",
             "description": "Whether to use AWS savings plan cost for OCP raw cost",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": "org1234567"
-                    }
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-12-02T19:01:40.137Z"
+            "createdAt": "2023-10-15T17:01:03.025Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.enable-purge-turnpike",
             "description": "Toggle to enable purging of trino files.",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-08-12T21:22:00.756Z"
+            "createdAt": "2023-10-15T17:01:03.027Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.hcs-data-processor",
             "description": "any account listed in this strategy will be allowed to generate HCS report data",
             "type": "permission",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-02-22T15:48:54.492Z"
+            "createdAt": "2023-10-15T17:01:03.027Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.large-customer",
             "description": "A list of schemas for customers with higher data volumes.",
             "type": "operational",
             "project": "default",
-            "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    }
-                }
-            ],
-            "variants": [],
-            "createdAt": "2022-10-31T18:49:38.445Z"
+            "createdAt": "2023-10-15T17:01:03.029Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         },
         {
             "name": "cost-management.backend.feature-cost-3083-all-labels",
             "description": "Enable the all labels column for OCP cost endpoint.",
             "type": "permission",
             "project": "default",
-            "enabled": false,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
-            "variants": [],
-            "createdAt": "2023-04-06T09:40:54.492Z"
+            "createdAt": "2023-10-15T17:01:03.029Z",
+            "lastSeenAt": null,
+            "impressionData": false,
+            "archivedAt": null,
+            "archived": false
         }
     ],
-    "strategies": [
+    "strategies": [],
+    "projects": [],
+    "tagTypes": [],
+    "tags": [],
+    "featureTags": [],
+    "featureStrategies": [
         {
-            "name": "schema-strategy",
-            "description": "Enablement based on account/schema number",
-            "parameters": [
-                {
-                    "name": "schema-name",
-                    "type": "list",
-                    "description": "values must begin with `acct` or `org`",
-                    "required": false
-                }
-            ]
+            "id": "657a2463-e24e-4146-9e24-2dbca1cba8cb",
+            "featureName": "cost-management.backend.disable-cloud-source-processing",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.070Z"
         },
         {
-            "name": "source-strategy",
-            "description": "Enablement based on source uuid",
-            "parameters": [
-                {
-                    "name": "source-uuid",
-                    "type": "list",
-                    "description": "UUID of the source.",
-                    "required": false
-                }
-            ]
+            "id": "e5f00310-c579-48ca-9cb7-1a84877f4589",
+            "featureName": "cost-management.backend.disable-summary-processing",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.074Z"
+        },
+        {
+            "id": "6cf804b3-dff2-44bb-bdde-9a8495993935",
+            "featureName": "cost-management.backend.enable-purge-turnpike",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.078Z"
+        },
+        {
+            "id": "5a9845e9-6923-4bc5-ad27-3af52d375a28",
+            "featureName": "cost-management.backend.feature-cost-3083-all-labels",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.081Z"
+        },
+        {
+            "id": "2a741839-c66e-4db4-8794-317d94ba7cd7",
+            "featureName": "cost-management.backend.disable-source",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "source-strategy",
+            "parameters": {
+                "source-uuid": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.070Z"
+        },
+        {
+            "id": "ec23d8f9-7f3f-4e65-bd45-248847e6b4f4",
+            "featureName": "cost-management.backend.disable-gcp-resource-matching",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.072Z"
+        },
+        {
+            "id": "f6548932-ac61-48be-9f23-70f4e40cf4a6",
+            "featureName": "cost-management.backend.enable-ocp-savings-plan-cost",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": "org1234567"
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.076Z"
+        },
+        {
+            "id": "d32b2c0b-e161-4417-8f79-02ea5a92efcf",
+            "featureName": "cost-management.backend.celery-warm-shutdown",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "default",
+            "parameters": {},
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.069Z"
+        },
+        {
+            "id": "addf5287-8915-45dc-b59b-527f8b33bb0c",
+            "featureName": "cost-management.backend.disable-ocp-on-cloud-summary",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.074Z"
+        },
+        {
+            "id": "7a51e7ec-52fa-4e89-aefb-1a410555a42d",
+            "featureName": "cost-management.backend.hcs-data-processor",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.079Z"
+        },
+        {
+            "id": "7bf216f9-9158-4287-abbe-971c39bff605",
+            "featureName": "cost-management.backend.cost-trino-processor",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.070Z"
+        },
+        {
+            "id": "fe99d3f2-549d-4f53-a719-2808ee4d435d",
+            "featureName": "cost-management.backend.enable-ocp-amortized-monthly-cost",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.075Z"
+        },
+        {
+            "id": "354cc964-d927-459e-a915-812cac9af0ee",
+            "featureName": "cost-management.backend.large-customer",
+            "projectId": "default",
+            "environment": "default",
+            "strategyName": "schema-strategy",
+            "parameters": {
+                "schema-name": ""
+            },
+            "constraints": [],
+            "createdAt": "2023-10-15T17:01:03.081Z"
         }
-    ]
+    ],
+    "environments": [
+        {
+            "name": "default",
+            "type": "development",
+            "sortOrder": 1,
+            "enabled": false,
+            "protected": true
+        },
+        {
+            "name": "development",
+            "type": "development",
+            "sortOrder": 100,
+            "enabled": true,
+            "protected": false
+        }
+    ],
+    "featureEnvironments": [
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.celery-warm-shutdown",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.cost-trino-processor",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.disable-cloud-source-processing",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.disable-source",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.disable-gcp-resource-matching",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.disable-ocp-on-cloud-summary",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.disable-summary-processing",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.enable-ocp-amortized-monthly-cost",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.enable-ocp-savings-plan-cost",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.enable-purge-turnpike",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.hcs-data-processor",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": true,
+            "featureName": "cost-management.backend.large-customer",
+            "environment": "default",
+            "variants": []
+        },
+        {
+            "enabled": false,
+            "featureName": "cost-management.backend.feature-cost-3083-all-labels",
+            "environment": "default",
+            "variants": []
+        }
+    ],
+    "segments": [],
+    "featureStrategySegments": []
 }

@@ -21,6 +21,11 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
+def is_celery_in_shutdown():
+    LOG.warning("CALLING IS ENABLED ")
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.celery-warm-shutdown")
+
+
 def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
     account = convert_account(account)

@@ -74,8 +74,10 @@ if settings.UNLEASH_TOKEN:
 UNLEASH_CLIENT = KokuUnleashClient(
     url=settings.UNLEASH_URL,
     app_name="Cost Management",
-    environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
-    instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
+    environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="default"),
+    instance_id=ENVIRONMENT.get_value(
+        "APP_POD_NAME", default=f"unleash-client-python-{ENVIRONMENT.get_value('HOSTNAME', default='localhost')}"
+    ),
     custom_headers=headers,
     custom_strategies=strategies,
     cache_directory=settings.UNLEASH_CACHE_DIR,

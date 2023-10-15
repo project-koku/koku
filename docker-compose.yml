@@ -151,7 +151,8 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission']
+    # entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission']
+    entrypoint: ['celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -564,9 +565,9 @@ services:
       - DATABASE_USERNAME=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - DATABASE_SSL=false
-      - IMPORT_DROP_BEFORE_IMPORT=false
+      - IMPORT_DROP_BEFORE_IMPORT=true
       - IMPORT_FILE=/.unleash/flags.json
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
     ports:
       - 4242:4242
     volumes:

@@ -11,7 +11,6 @@ from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
-from celery.signals import worker_process_shutdown
 from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
@@ -28,6 +27,16 @@ LOG = logging.getLogger(__name__)
 
 class LogErrorsTask(Task):  # pragma: no cover
     """Log Celery task exceptions."""
+
+    def before_start(self, task_id, args, kwargs):
+        LOG.warning("BEFORE TASK START")
+
+        from masu.processor import is_celery_in_shutdown
+
+        LOG.warning("calling celery")
+        if is_celery_in_shutdown():
+            LOG.warning("IT IS INDEED ENABLED")
+            os.system("kill -15 1")
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
@@ -101,7 +110,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 print("celery autodiscover tasks")
 
 # Specify the number of celery tasks to run before recycling the celery worker.
-MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
+MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=1)
 app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 
 # Timeout threshold for a worker process to startup
@@ -242,16 +251,8 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
-    LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
+    LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
-
-
-@worker_process_shutdown.connect
-def shutdown_worker(**kwargs):
-    from koku.feature_flags import UNLEASH_CLIENT
-
-    LOG.debug("Shutting down UNLEASH_CLIENT for celery worker.")
-    UNLEASH_CLIENT.destroy()
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):
