@@ -227,11 +227,17 @@ jobs:
       - name: Check partition tables
         if: needs.changed-files.outputs.run_tests == 'true'
         run: |
-          pipenv run ./koku/manage.py create_partition_check
+          if pipenv run ./koku/manage.py create_partition_check; then
+            echo "Partition check passed."
+            echo "::set-output name=partition_check_result::pass"
+          else
+            echo "Partition check failed."
+            echo "::set-output name=partition_check_result::fail"
+          fi
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
-          DATABASE_NAME: postgres
+          DATABASE_NAME: test_postgres
           DATABASE_USER: postgres
           DATABASE_PASSWORD: postgres
           POSTGRES_SQL_SERVICE_HOST: localhost
