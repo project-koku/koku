@@ -204,9 +204,10 @@ jobs:
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
-      - name: Check migrations
+      - name: Check partition tables
         if: needs.changed-files.outputs.run_tests == 'true'
-        run: bash .github/scripts/check_partition.sh
+        run: |
+          pipenv run ./koku/manage.py create_partition_check
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
