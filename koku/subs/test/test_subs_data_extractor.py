@@ -178,9 +178,10 @@ class TestSUBSDataExtractor(SUBSTestCase):
         rid = "12345"
         year = "2023"
         month = "04"
+        rid_2 = "23456"
         start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.timezone.utc)
         end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.timezone.utc)
-        batch = [(rid, start_time, end_time)]
+        batch = [(rid, start_time, end_time), (rid_2, start_time, end_time)]
         mock_li_count.return_value = 10
         expected_key = "fake_key"
         mock_copy.return_value = expected_key
@@ -191,7 +192,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         mock_li_count.assert_called_once()
         mock_trino.assert_called_once()
         mock_copy.assert_called_once()
-        expected_result = [(expected_key, rid)]
+        expected_result = [expected_key]
         self.assertEqual(expected_result, upload_keys)
 
     def test_copy_data_to_subs_s3_bucket(self):

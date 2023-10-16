@@ -39,8 +39,7 @@ class SUBSDataMessenger:
         """
         Takes a list of tuples (key, resource_id),reads the objects from the S3 bucket and processes a message to kafka.
         """
-        for i, obj_tuple in enumerate(upload_keys):
-            obj_key, rid = obj_tuple
+        for i, obj_key in enumerate(upload_keys):
             csv_path = f"{self.download_path}/subs_{self.tracing_id}_{i}.csv"
             self.s3_resource.Bucket(settings.S3_SUBS_BUCKET_NAME).download_file(obj_key, csv_path)
             with open(csv_path) as csv_file:
@@ -72,7 +71,7 @@ class SUBSDataMessenger:
                 log_json(
                     self.tracing_id,
                     msg=f"sent {msg_count} kafka messages for subs",
-                    context=self.context | {"resource_id": rid},
+                    context=self.context,
                 )
             )
             os.remove(csv_path)

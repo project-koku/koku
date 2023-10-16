@@ -172,7 +172,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             sql_params[f"end_date_{i}"] = end_time
             rid_sql_clause += (
                 "( lineitem_resourceid = {{{{ rid_{0} }}}}"
-                " AND lineitem_usagestartdate <= {{{{ start_date_{0} }}}}"
+                " AND lineitem_usagestartdate >= {{{{ start_date_{0} }}}}"
                 " AND lineitem_usagestartdate <= {{{{ end_date_{0} }}}})"
             ).format(i)
             if i < len(batch) - 1:
@@ -198,7 +198,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             )
         )
         upload_keys = []
-        filename = f"subs_{self.tracing_id}_{batch[0][0]}_"
+        filename = f"subs_{self.tracing_id}_{self.provider_uuid}_"
         sql_params["schema"] = self.schema
         for i, offset in enumerate(range(0, total_count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
             sql_params["offset"] = offset
@@ -212,7 +212,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
 
-            upload_keys.append((self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"), rid))
+            upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
@@ -274,7 +274,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             )
             for rid, end_time in resource_ids:
                 start_time = max(last_processed_dict.get(rid, month_start), self.creation_processing_time)
-                batch.append((rid, end_time, start_time))
+                batch.append((rid, start_time, end_time))
                 if len(batch) >= 500:
                     upload_keys.extend(self.gather_and_upload_for_resource_batch(year, month, batch))
                     batch = []
