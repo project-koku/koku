@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import logging
+import math
 import os
 import pkgutil
 from datetime import timedelta
@@ -51,6 +52,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return f"{self.schema}/{self.provider_type}/source={self.provider_uuid}/date={self.date_helper.today.date()}"
 
     def get_latest_processed_dict_for_provider(self, year, month):
+        """Get a dictionary of resourceid, last processed time for all resources for this source."""
         lpt_dict = {}
         with schema_context(self.schema):
             for rid, latest_time in SubsLastProcessed.objects.filter(
@@ -157,11 +159,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return ids
 
     def gather_and_upload_for_resource_batch(self, year, month, batch):
-        """Gather the data and upload it to S3 for a specific resource id"""
+        """Gather the data and upload it to S3 for a batch of resource ids"""
         where_clause, sql_params = self.determine_where_clause_and_params(year, month)
-        sql_file = f"trino_sql/{self.provider_type.lower()}_subs_summary.sql"
-        query_sql = pkgutil.get_data("subs", sql_file)
-        query_sql = query_sql.decode("utf-8")
+        sql_file = f"trino_sql/{self.provider_type.lower()}_subs_pre_or_clause.sql"
+        summary_sql = pkgutil.get_data("subs", sql_file)
+        summary_sql = summary_sql.decode("utf-8")
         rid_sql_clause = " AND ( "
         for i, e in enumerate(batch):
             rid, start_time, end_time = e
@@ -177,8 +179,8 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 rid_sql_clause += " OR "
         rid_sql_clause += " )"
         where_clause += rid_sql_clause
-        query_sql += rid_sql_clause
-        query_sql += """
+        summary_sql += rid_sql_clause
+        summary_sql += """
 OFFSET
       {{ offset }}
     LIMIT
@@ -202,7 +204,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             sql_params["offset"] = offset
             sql_params["limit"] = settings.PARQUET_PROCESSING_BATCH_SIZE
             results, description = self._execute_trino_raw_sql_query_with_description(
-                query_sql, sql_params=sql_params, log_ref=f"{self.provider_type.lower()}_subs_summary.sql"
+                summary_sql, sql_params=sql_params, log_ref=f"{self.provider_type.lower()}_subs_summary.sql"
             )
 
             # The format for the description is:
@@ -217,6 +219,9 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
         """Bulk update the latest processed time for resources."""
         with schema_context(self.schema):
             bulk_resources = []
+            LOG.info(
+                log_json(self.tracing_id, msg="beginning last processed update for resources.", context=self.context)
+            )
             for resource, latest_timestamp in resources:
                 last_processed_obj = SubsLastProcessed.objects.get_or_create(
                     source_uuid_id=self.provider_uuid, resource_id=resource, year=year, month=month
@@ -227,10 +232,16 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
 
     def extract_data_to_s3(self, month_start):
         """Process new subs related line items from reports to S3."""
-        LOG.info(log_json(self.tracing_id, msg="beginning subs rhel extraction", context=self.context))
         upload_keys = []
         month = month_start.strftime("%m")
         year = month_start.strftime("%Y")
+        LOG.info(
+            log_json(
+                self.tracing_id,
+                msg="beginning subs rhel extraction",
+                context=self.context | {"year": year, "month": month},
+            )
+        )
         usage_accounts = self.determine_ids_for_provider(year, month)
         LOG.debug(f"found {len(usage_accounts)} usage accounts associated with provider {self.provider_uuid}")
         if not usage_accounts:
@@ -240,28 +251,31 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
                 )
             )
             return []
+        last_processed_dict = self.get_latest_processed_dict_for_provider(year, month)
         for usage_account in usage_accounts:
             resource_ids = self.get_resource_ids_for_usage_account(usage_account, year, month)
             if not resource_ids:
                 LOG.debug(
                     log_json(
                         self.tracing_id,
-                        msg=f"no relevant resource ids found for usage account {usage_account}.",
-                        context=self.context,
+                        msg="no relevant resource ids found for usage account.",
+                        context=self.context | {"usage_account": usage_account},
                     )
                 )
                 continue
-            last_processed_dict = self.get_latest_processed_dict_for_provider(year, month)
             batch = []
-            batches = len(resource_ids) / 500
-            counter = 0
+            batches = math.ceil(len(resource_ids) / 500)
+            LOG.info(
+                log_json(
+                    self.tracing_id,
+                    msg="beginning batched subs processing for usage account",
+                    context=self.context | {"usage_account": usage_account, "num_batches": batches},
+                )
+            )
             for rid, end_time in resource_ids:
                 start_time = max(last_processed_dict.get(rid, month_start), self.creation_processing_time)
                 batch.append((rid, end_time, start_time))
-                # start_time = self.determine_start_time_for_resource(rid, year, month, month_start)
                 if len(batch) >= 500:
-                    counter += 1
-                    LOG.warning(f"on batch {counter} / {batches}\t {len(batch)}")
                     upload_keys.extend(self.gather_and_upload_for_resource_batch(year, month, batch))
                     batch = []
             if batch:
