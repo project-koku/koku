@@ -9,4 +9,5 @@ class Migration(migrations.Migration):
         ("reporting", "0300_squash"),
     ]
 
+    # This migration is replaced by 0311
     operations = []
