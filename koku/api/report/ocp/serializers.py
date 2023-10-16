@@ -17,6 +17,13 @@ from api.report.serializers import StringOrListField
 DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 
 
+def order_by_field_requires_group_by(data, order_name, group_by_key):
+    error = {}
+    if order_name in data.get("order_by", {}) and group_by_key not in data.get("group_by", {}):
+        error["order_by"] = _(f"Cannot order by field {order_name} without grouping by {group_by_key}.")
+        raise serializers.ValidationError(error)
+
+
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
@@ -39,6 +46,8 @@ class OCPOrderBySerializer(OrderSerializer):
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    persistentvolumeclaim = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    storage_class = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
@@ -56,7 +65,7 @@ class OCPFilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim", "storageclass")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
@@ -64,6 +73,7 @@ class OCPFilterSerializer(BaseFilterSerializer):
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
     persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
+    storageclass = StringOrListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -153,17 +163,14 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
         if "delta" in data.get("order_by", {}) and "delta" not in data:
             error["order_by"] = _("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
-        if DISTRIBUTED_COST_INTERNAL["distributed_cost"] in data.get("order_by", {}) and "project" not in data.get(
-            "group_by", {}
-        ):
-            error["order_by"] = _("Cannot order by distributed_cost without grouping by project.")
-            raise serializers.ValidationError(error)
+        order_by_field_requires_group_by(data, DISTRIBUTED_COST_INTERNAL["distributed_cost"], "project")
+        order_by_field_requires_group_by(data, "storage_class", "persistentvolumeclaim")
+        order_by_field_requires_group_by(data, "persistentvolumeclaim", "persistentvolumeclaim")
         if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
             "group_by", {}
         ):
             error["delta"] = _("Cannot use distributed_cost delta without grouping by project.")
             raise serializers.ValidationError(error)
-
         return data
 
     def validate_delta(self, value):

@@ -784,7 +784,8 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         cluster_alias = "cluster_alias"
         new_cluster_alias = "new_cluster_alias"
-        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+
         with schema_context(self.schema):
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, cluster_alias)
