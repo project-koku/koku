@@ -204,6 +204,19 @@ jobs:
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
+      - name: Check migrations
+        if: needs.changed-files.outputs.run_tests == 'true'
+        run: bash .github/scripts/check_partition.sh
+        env:
+          DATABASE_SERVICE_NAME: POSTGRES_SQL
+          DATABASE_ENGINE: postgresql
+          DATABASE_NAME: postgres
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          PROMETHEUS_MULTIPROC_DIR: /tmp
+
       - name: Run unit tests
         if: needs.changed-files.outputs.run_tests == 'true'
         id: unit_tests_run
