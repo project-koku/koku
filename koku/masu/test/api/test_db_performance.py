@@ -174,7 +174,12 @@ class TestDBPerformanceClass(IamTestCase):
                 with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
                     res = dbp.explain_sql(bad_sql)
 
-        expected = [{"query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1", "query_text": "select 1"}]
+        expected = [
+            {
+                "query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 1147616880456321454",  # noqa: E501
+                "query_text": "select 1",
+            }
+        ]
 
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.explain_sql("select 1")
