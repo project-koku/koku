@@ -39,5 +39,6 @@ class Command(BaseCommand):
             cursor.execute(check_partition_query, [table_name])
             result = bool(cursor.fetchone())
             # Add debugging output
-            print(f"Table: {table_name}, is_partitioned: {result}")
+            if table_name == "reporting_ocp_pod_summary_by_node_p":
+                print(f"Table: {table_name}, is_partitioned: {result}")
             return result

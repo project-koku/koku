@@ -229,10 +229,10 @@ jobs:
         run: |
           if pipenv run ./koku/manage.py create_partition_check; then
             echo "Partition check passed."
-            echo "::set-output name=partition_check_result::pass"
+            echo "partition_check_result=pass" >> $GITHUB_STATE
           else
             echo "Partition check failed."
-            echo "::set-output name=partition_check_result::fail"
+            echo "partition_check_result=fail" >> $GITHUB_STATE
           fi
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
