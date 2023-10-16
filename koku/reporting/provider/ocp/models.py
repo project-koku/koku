@@ -44,7 +44,7 @@ UI_SUMMARY_TABLES_MARKUP_SUBSET = (
 UI_SUMMARY_TABLES = (
     *UI_SUMMARY_TABLES_MARKUP_SUBSET,
     "reporting_ocp_pod_summary_p",
-    # "reporting_ocp_pod_summary_by_node_p",
+    "reporting_ocp_pod_summary_by_node_p",
     "reporting_ocp_pod_summary_by_project_p",
     "reporting_ocp_volume_summary_p",
     "reporting_ocp_volume_summary_by_project_p",
@@ -581,67 +581,67 @@ class OCPPodSummaryByProjectP(models.Model):
     cost_model_rate_type = models.TextField(null=True)
 
 
-# class OCPPodSummaryByNodeP(models.Model):
-#     """A summarized partitioned table specifically for UI API queries.
+class OCPPodSummaryByNodeP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
 
-#     This table gives a daily breakdown of compute usage.
+    This table gives a daily breakdown of compute usage.
 
-#     """
+    """
 
-#     class PartitionInfo:
-#         partition_type = "RANGE"
-#         partition_cols = ["usage_start"]
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
 
-#     class Meta:
-#         """Meta for OCPPodSummaryP."""
+    class Meta:
+        """Meta for OCPPodSummaryP."""
 
-#         db_table = "reporting_ocp_pod_summary_by_node_p"
-#         indexes = [
-#             models.Index(fields=["usage_start"], name="ocppodsummnode_usage_start"),
-#             models.Index(fields=["node"], name="ocppodsummnode_node"),
-#         ]
+        db_table = "reporting_ocp_pod_summary_by_node_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocppodsummnode_usage_start"),
+            models.Index(fields=["node"], name="ocppodsummnode_node"),
+        ]
 
-#     id = models.UUIDField(primary_key=True)
-#     cluster_id = models.TextField()
-#     cluster_alias = models.TextField(null=True)
-#     node = models.CharField(max_length=253, null=True)
-#     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
-#     resource_count = models.IntegerField(null=True)
-#     data_source = models.CharField(max_length=64, null=True)
-#     usage_start = models.DateField(null=False)
-#     usage_end = models.DateField(null=False)
-#     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     infrastructure_usage_cost = JSONField(null=True)
-#     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     infrastructure_monthly_cost_json = JSONField(null=True)
-#     supplementary_usage_cost = JSONField(null=True)
-#     supplementary_monthly_cost_json = JSONField(null=True)
-#     pod_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     node_capacity_cpu_cores = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     node_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     node_capacity_memory_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     source_uuid = models.ForeignKey(
-#         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-#     )
-#     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
-#     raw_currency = models.TextField(null=True)
-#     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    id = models.UUIDField(primary_key=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    node = models.CharField(max_length=253, null=True)
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+    resource_count = models.IntegerField(null=True)
+    data_source = models.CharField(max_length=64, null=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_usage_cost = JSONField(null=True)
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
+    supplementary_usage_cost = JSONField(null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    raw_currency = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-#     # Simplified Cost Model Cost terms
-#     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-#     cost_model_rate_type = models.TextField(null=True)
+    # Simplified Cost Model Cost terms
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
 
 
 class OCPVolumeSummaryP(models.Model):
