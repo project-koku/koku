@@ -204,20 +204,6 @@ jobs:
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
-      - name: Check partition tables
-        if: needs.changed-files.outputs.run_tests == 'true'
-        run: |
-          pipenv run ./koku/manage.py create_partition_check
-        env:
-          DATABASE_SERVICE_NAME: POSTGRES_SQL
-          DATABASE_ENGINE: postgresql
-          DATABASE_NAME: postgres
-          DATABASE_USER: postgres
-          DATABASE_PASSWORD: postgres
-          POSTGRES_SQL_SERVICE_HOST: localhost
-          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
-          PROMETHEUS_MULTIPROC_DIR: /tmp
-
       - name: Run unit tests
         if: needs.changed-files.outputs.run_tests == 'true'
         id: unit_tests_run
@@ -237,6 +223,20 @@ jobs:
           MIDDLEWARE_TIME_TO_LIVE: 0
           ENHANCED_ORG_ADMIN: True
           ENABLE_S3_ARCHIVING: True
+
+      - name: Check partition tables
+        if: needs.changed-files.outputs.run_tests == 'true'
+        run: |
+          pipenv run ./koku/manage.py create_partition_check
+        env:
+          DATABASE_SERVICE_NAME: POSTGRES_SQL
+          DATABASE_ENGINE: postgresql
+          DATABASE_NAME: postgres
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          PROMETHEUS_MULTIPROC_DIR: /tmp
 
       - name: Show test status
         if: needs.changed-files.outputs.run_tests == 'true'
