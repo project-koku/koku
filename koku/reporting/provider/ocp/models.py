@@ -44,7 +44,7 @@ UI_SUMMARY_TABLES_MARKUP_SUBSET = (
 UI_SUMMARY_TABLES = (
     *UI_SUMMARY_TABLES_MARKUP_SUBSET,
     "reporting_ocp_pod_summary_p",
-    # "reporting_ocp_pod_summary_by_node_p",
+    "reporting_ocp_pod_summary_by_node_p",
     "reporting_ocp_pod_summary_by_project_p",
     "reporting_ocp_volume_summary_p",
     "reporting_ocp_volume_summary_by_project_p",
