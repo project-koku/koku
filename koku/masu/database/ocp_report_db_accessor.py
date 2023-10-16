@@ -966,8 +966,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
                 )
                 msg = f"created entry in reporting_ocp_clusters: {created}"
+
             # if the cluster entry already exists and cluster alias does not match, update the cluster alias
-            elif not cluster.cluster_alias == cluster_alias:
+            elif cluster.cluster_alias != cluster_alias:
                 cluster.cluster_alias = cluster_alias
                 cluster.save()
                 msg = "updated cluster entry with new cluster alias in reporting_ocp_clusters"
