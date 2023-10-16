@@ -119,7 +119,27 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
         ):
             infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
-        return infra_map
+
+        summary_infra_map = {}
+        with OCPReportDBAccessor(self._schema) as accessor:
+            # Only include OCP providers for OCP on Cloud summary if we have a matching report period
+            for ocp_provider_uuid in infra_map:
+                ctx = {
+                    "schema": self._schema,
+                    "ocp_provider_uuid": ocp_provider_uuid,
+                    "provider_uuid": infra_map[ocp_provider_uuid][0],
+                    "provider_type": infra_map[ocp_provider_uuid][1],
+                }
+                if accessor.report_periods_for_provider_uuid(ocp_provider_uuid, start_date):
+                    summary_infra_map[ocp_provider_uuid] = infra_map[ocp_provider_uuid]
+                else:
+                    LOG.info(
+                        log_json(
+                            msg=f"no matching report periods available for cluster - removing from OCP on {infra_map[ocp_provider_uuid][1]} summary list",  # noqa: E501
+                            context=ctx,
+                        )
+                    )
+        return summary_infra_map
 
     def determine_truncates_and_deletes(self, start_date, end_date):
         """Clear out existing data in summary tables."""

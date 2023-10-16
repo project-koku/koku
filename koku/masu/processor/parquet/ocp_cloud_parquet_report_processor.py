@@ -226,7 +226,16 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                             context=ctx,
                         )
                     )
-                    continue
+
+                # Check we have data for the ocp provider/cluster matching the current report period
+                if not accessor.report_periods_for_provider_uuid(ocp_provider_uuid, self.start_date):
+                    LOG.info(
+                        log_json(
+                            msg=f"no matching report periods available for cluster - skipping OCP on {self.provider_type} parquet processing",  # noqa: E501
+                            context=ctx,
+                        )
+                    )
+
                 ocp_provider_uuids.append(ocp_provider_uuid)
         return tuple(ocp_provider_uuids)
 
