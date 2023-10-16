@@ -31,6 +31,13 @@ class Command(BaseCommand):
 
         check_partition_query = "SELECT nmsp_parent.nspname AS parent_schema FROM pg_inherits JOIN pg_class parent ON pg_inherits.inhparent = parent.oid JOIN pg_class child ON pg_inherits.inhrelid = child.oid JOIN pg_namespace nmsp_parent ON nmsp_parent.oid = parent.relnamespace JOIN pg_namespace nmsp_child ON nmsp_child.oid = child.relnamespace WHERE parent.relname= %s"  # noqa: E501
 
+        # with connection.cursor() as cursor:
+        #     cursor.execute(check_partition_query, [table_name])
+        #     return bool(cursor.fetchone())
+
         with connection.cursor() as cursor:
             cursor.execute(check_partition_query, [table_name])
-            return bool(cursor.fetchone())
+            result = bool(cursor.fetchone())
+            # Add debugging output
+            print(f"Table: {table_name}, is_partitioned: {result}")
+            return result
