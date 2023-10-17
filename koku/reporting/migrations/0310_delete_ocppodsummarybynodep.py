@@ -8,5 +8,5 @@ class Migration(migrations.Migration):
         ("reporting", "0309_auto_20231004_1009"),
     ]
 
-    # This migration is replaced by 0311
+    # This migration is replaced by 0312
     operations = []
