@@ -214,9 +214,6 @@ collect-static:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
-check-partitioned:
-	$(DJANGO_MANAGE) create_partition_check
-
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
 
@@ -241,6 +238,7 @@ requirements:
 
 run-migrations:
 	scripts/run_migrations.sh $(applabel) $(migration)
+	$(DJANGO_MANAGE) create_partition_check
 
 serve:
 	$(DJANGO_MANAGE) runserver
