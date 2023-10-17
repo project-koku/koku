@@ -8,8 +8,5 @@ class Migration(migrations.Migration):
         ("reporting", "0309_auto_20231004_1009"),
     ]
 
-    operations = [
-        migrations.DeleteModel(
-            name="OCPPodSummaryByNodeP",
-        ),
-    ]
+    # This migration is replaced by 0311
+    operations = []
