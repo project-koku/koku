@@ -449,19 +449,19 @@ def update_summary_tables(  # noqa: C901
     fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE
     fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE
     fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE
+    timeout = settings.WORKER_CACHE_TIMEOUT
     if is_large_customer:
         fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
         fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE_XL
         fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
         fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE_XL
+        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
     if not synchronous:
         worker_cache = WorkerCache()
-        timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
         if is_large_customer_rate_limited:
             rate_limited = rate_limit_tasks(task_name, schema)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
@@ -670,9 +670,9 @@ def update_openshift_on_cloud(  # noqa: C901
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if is_customer_large(schema_name):
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:

@@ -103,6 +103,9 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
         # or for operators sending daily files
         daily_files = divide_csv_daily(filepath, manifest.id)
 
+    if not daily_files:
+        daily_files = [{"filepath": filepath, "date": start_date, "num_hours": 0}]
+
     for daily_file in daily_files:
         # Push to S3
         s3_csv_path = get_path_prefix(

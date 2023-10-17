@@ -41,6 +41,7 @@ class IngressReportsSerializerTest(IamTestCase):
             "reports_list": ["test-file"],
             "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+            "customer_id": self.customer.account_id,
         }
         with tenant_context(self.tenant):
             serializer = IngressReportsSerializer(data=reports)
@@ -54,6 +55,7 @@ class IngressReportsSerializerTest(IamTestCase):
             "reports_list": ["test-file"],
             "bill_year": "2022",
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+            "customer_id": self.customer.account_id,
         }
         with tenant_context(self.tenant):
             serializer = IngressReportsSerializer(data=reports)
@@ -67,6 +69,7 @@ class IngressReportsSerializerTest(IamTestCase):
             "reports_list": ["test-file"],
             "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
             "bill_month": "22",
+            "customer_id": self.customer.account_id,
         }
         with tenant_context(self.tenant):
             serializer = IngressReportsSerializer(data=reports)
@@ -86,6 +89,7 @@ class IngressReportsSerializerTest(IamTestCase):
             "reports_list": ["test-file"],
             "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+            "customer_id": self.customer.account_id,
         }
         with tenant_context(self.tenant):
             with patch("api.ingress.reports.serializers.IngressReports", return_value="something"):
@@ -106,6 +110,7 @@ class IngressReportsSerializerTest(IamTestCase):
             "reports_list": ["test-file"],
             "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
             "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+            "customer_id": self.customer.account_id,
         }
         with tenant_context(self.tenant):
             instance = None

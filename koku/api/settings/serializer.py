@@ -6,7 +6,7 @@
 from rest_framework import serializers
 
 from api.currency.currencies import CURRENCY_CHOICES
-from api.user_settings.settings import COST_TYPE_CHOICES
+from api.settings.settings import COST_TYPE_CHOICES
 from reporting.user_settings.models import UserSettings
 
 

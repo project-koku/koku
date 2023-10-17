@@ -31,7 +31,7 @@ from reporting.models import OCPGCPStorageSummaryP
 class OCPGCPProviderMap(ProviderMap):
     """OCP on GCP Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._mapping = [
             {
@@ -497,4 +497,4 @@ class OCPGCPProviderMap(ProviderMap):
                 ("cluster",): OCPGCPNetworkSummaryP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(provider, report_type, schema_name)

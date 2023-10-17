@@ -73,17 +73,6 @@ def is_gcp_resource_matching_disabled(account):  # pragma: no cover
     return res
 
 
-def is_summarize_ocp_on_gcp_by_node_enabled(account):  # pragma: no cover
-    """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
-    account = convert_account(account)
-    context = {"schema": account}
-    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context)
-    if res:
-        LOG.info(log_json(msg="OCP on GCP summarize by node is enabled", context=context))
-
-    return res
-
-
 def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
@@ -112,20 +101,6 @@ def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
-
-
-def is_aws_category_settings_enabled(account):  # pragma: no cover
-    """Enable aws category settings."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable_aws_category_settings", context, fallback_development_true
-    )
-
-
-def is_ddf_tag_form_disabled():  # pragma: no cover
-    """Disable ingress rate limiting"""
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ddf-tag-form")
 
 
 def is_source_disabled(source_uuid):  # pragma: no cover
@@ -168,3 +143,11 @@ def check_ingress_columns(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
+
+
+def is_feature_cost_3083_all_labels_enabled(account):
+    """Should all labels column be enabled."""
+    unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
