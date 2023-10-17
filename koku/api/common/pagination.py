@@ -195,7 +195,7 @@ class ForecastListPaginator(ListPaginator):
 
     default_limit = DateHelper().this_month_end.day
 
-    def __init__(self, data_set, request, cost_type):
+    def __init__(self, data_set, request, cost_type=None):
         """Initialize the paginator."""
         self.cost_type = cost_type
         self.data_set = data_set
