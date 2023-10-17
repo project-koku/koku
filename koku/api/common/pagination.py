@@ -195,12 +195,6 @@ class ForecastListPaginator(ListPaginator):
 
     default_limit = DateHelper().this_month_end.day
 
-
-class AWSForecastListPaginator(ListPaginator):
-    """A paginator that applies a default limit based on days in month."""
-
-    default_limit = DateHelper().this_month_end.day
-
     def __init__(self, data_set, request, cost_type):
         """Initialize the paginator."""
         self.cost_type = cost_type

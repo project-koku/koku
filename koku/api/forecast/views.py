@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
-from api.common.pagination import AWSForecastListPaginator
+from api.common.pagination import ForecastListPaginator
 from api.common.permissions import AwsAccessPermission
 from api.common.permissions import AzureAccessPermission
 from api.common.permissions import GcpAccessPermission
@@ -62,7 +62,7 @@ class ForecastView(APIView):
         output = handler.predict()
         LOG.debug(f"DATA: {output}")
         cost_type = params.parameters.get("cost_type")
-        paginator = AWSForecastListPaginator(output, request, cost_type)
+        paginator = ForecastListPaginator(output, request, cost_type)
         paginated_result = paginator.paginate_queryset(output, request)
 
         return paginator.get_paginated_response(paginated_result)
