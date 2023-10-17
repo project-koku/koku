@@ -224,6 +224,26 @@ jobs:
           ENHANCED_ORG_ADMIN: True
           ENABLE_S3_ARCHIVING: True
 
+      - name: Check partition tables
+        if: needs.changed-files.outputs.run_tests == 'true'
+        run: |
+          if pipenv run ./koku/manage.py create_partition_check; then
+            echo "Partition check passed."
+            echo "partition_check_result=pass" >> $GITHUB_STATE
+          else
+            echo "Partition check failed."
+            echo "partition_check_result=fail" >> $GITHUB_STATE
+          fi
+        env:
+          DATABASE_SERVICE_NAME: POSTGRES_SQL
+          DATABASE_ENGINE: postgresql
+          DATABASE_NAME: test_postgres
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          PROMETHEUS_MULTIPROC_DIR: /tmp
+
       - name: Show test status
         if: needs.changed-files.outputs.run_tests == 'true'
         id: show_test_status

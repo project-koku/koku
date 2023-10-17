@@ -163,6 +163,22 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
 # ======================================================
 
 
+class TestParitionCheck(models.Model):
+    """A summarized partitioned table of OCP on All infrastructure cost."""
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Testing."""
+
+        db_table = "test_partition_check"
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+
+
 class OCPAllCostLineItemDailySummaryP(models.Model):
     """A summarized partitioned table of OCP on All infrastructure cost."""
 
