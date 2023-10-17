@@ -11,7 +11,7 @@ from koku.database import unset_pg_extended_mode
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0310_delete_ocppodsummarybynodep"),
+        ("reporting", "0311_actually_delete_ocppodsummarybynodep"),
     ]
 
     operations = [
