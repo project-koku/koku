@@ -64,6 +64,18 @@ class ProviderObjectsManager(models.Manager):
         """Return a list of all accounts."""
         return [p.account for p in self.all()]
 
+    def get_accounts_by_provider_type(self, provider_type):
+        """
+        Return a list of accounts associated with providers of a specific type.
+
+        Args:
+            provider_type (str): The provider type to filter by.
+
+        Returns:
+            List[Account]: A list of accounts associated with providers of the specified type.
+        """
+        return [p.account for p in self.filter(type=provider_type)]
+
 
 class ProviderObjectsPollingManager(ProviderObjectsManager):
     """

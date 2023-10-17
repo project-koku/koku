@@ -750,8 +750,8 @@ def update_summary_tables_by_provider(start_date, provider_type, end_date=None):
         None
 
     """
-    all_accounts = Provider.objects.get_accounts()
-    for account in all_accounts:
+    provider_type_accounts = Provider.objects.get_accounts_by_provider_type(provider_type)
+    for account in provider_type_accounts:
         msg = "summarize by provider type"
         ctx = {
             "schema_name": account.get("schema_name"),
