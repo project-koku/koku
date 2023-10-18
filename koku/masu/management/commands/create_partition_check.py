@@ -1,3 +1,7 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import connections
