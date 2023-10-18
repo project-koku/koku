@@ -238,7 +238,6 @@ requirements:
 
 run-migrations:
 	scripts/run_migrations.sh $(applabel) $(migration)
-	$(DJANGO_MANAGE) create_partition_check
 
 serve:
 	$(DJANGO_MANAGE) runserver
