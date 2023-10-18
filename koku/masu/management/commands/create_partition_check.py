@@ -24,6 +24,18 @@ def is_model_partitioned(instance):
 
 
 class Command(BaseCommand):
+    """
+    To actually partition models you need to use the set_pg_extended_mode
+    funciton in the migration. This requirement can be easily missed in our
+    workflow.
+
+    Example of set_pg_extended_mode:
+    - https://github.com/project-koku/koku/pull/4737
+
+    This command checks that the models with the attribute
+    PartitionInfo are actually partitioned in postgres.
+    """
+
     help = "Check if models with PartitionInfo are actually partitioned in PostgreSQL."
 
     def handle(self, *args, **options):
