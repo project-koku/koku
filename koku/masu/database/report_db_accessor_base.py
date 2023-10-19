@@ -287,23 +287,29 @@ class ReportDBAccessorBase(KokuDBAccess):
         msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
         LOG.info(msg)
 
-        sql = f"""
-            DELETE FROM {self.schema}.{table}
-            WHERE usage_start >= %(start_date)s::date
-                AND usage_start <= %(end_date)s::date
-        """
-        if filters:
-            filter_list = [f"AND {k} = %({k})s" for k in filters]
-            sql += "\n".join(filter_list)
-        else:
-            filters = {}
-        if null_filters:
-            filter_list = [f"AND {column} {null_filter}" for column, null_filter in null_filters.items()]
-            sql += "\n".join(filter_list)
-        filters["start_date"] = start_date
-        filters["end_date"] = end_date
+        filters = filters or {}  # convert None -> dict
+        null_filters = null_filters or {}  # convert None -> dict
 
-        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
+        tmp_sql = """
+DELETE FROM {{schema | sqlsafe}}.{{table | sqlsafe}}
+    WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
+    {% for k, v in filters.items() -%}
+        AND {{ k | sqlsafe }} = {{ v }}
+    {% endfor -%}
+    {% for k, v in null_filters.items() -%}
+        AND {{ k | sqlsafe }} {{ v | sqlsafe }}
+    {% endfor -%}
+        """
+        tmp_sql_params = {
+            "schema": self.schema,
+            "table": table,
+            "start_date": start_date,
+            "end_date": end_date,
+            "filters": filters,
+            "null_filters": null_filters,
+        }
+        self._prepare_and_execute_raw_sql_query(table, tmp_sql, tmp_sql_params, operation="DELETE")
 
     def truncate_partition(self, partition_name):
         """Issue a TRUNCATE command on a specific partition of a table"""
