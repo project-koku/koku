@@ -195,6 +195,30 @@ class TestSUBSDataExtractor(SUBSTestCase):
         expected_result = [expected_key]
         self.assertEqual(expected_result, upload_keys)
 
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.copy_data_to_subs_s3_bucket")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_line_item_count")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause_and_params")
+    def test_gather_and_upload_for_resource_no_result(self, mock_where_clause, mock_li_count, mock_trino, mock_copy):
+        """Test uploading does not attempt with empty values from trino query."""
+        self.dh.month_start(self.yesterday)
+        rid = "12345"
+        year = "2023"
+        month = "04"
+        start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.timezone.utc)
+        end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.timezone.utc)
+        mock_li_count.return_value = 10
+        expected_key = "fake_key"
+        mock_copy.return_value = expected_key
+        mock_trino.return_value = ([], [("fake_col1",), ("fake_col2",)])
+        mock_where_clause.return_value = (MagicMock(), MagicMock())
+        upload_keys = self.extractor.gather_and_upload_for_resource(rid, year, month, start_time, end_time)
+        mock_where_clause.assert_called_once()
+        mock_li_count.assert_called_once()
+        mock_trino.assert_called_once()
+        mock_copy.assert_not_called()
+        self.assertEqual(upload_keys, [])
+
     def test_copy_data_to_subs_s3_bucket(self):
         """Test copy_data_to_subs_s3_bucket."""
         actual_key = self.extractor.copy_data_to_subs_s3_bucket(["data"], ["column"], "filename")

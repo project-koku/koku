@@ -63,6 +63,7 @@ class TagsSettings(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.total_record_length, meta["count"])
+        self.assertTrue({"enabled_tags_count", "enabled_tags_limit"}.issubset(meta))
         self.assertTrue(len(data) > 0)
         self.assertTrue(returned_keys == set(self.keys))
 

@@ -211,8 +211,8 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             # [(name, type_code, display_size, internal_size, precision, scale, null_ok)]
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
-
-            upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
+            if results:
+                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
