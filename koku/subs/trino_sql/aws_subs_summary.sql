@@ -17,8 +17,8 @@ SELECT
     ELSE 'Premium'
   END as subs_sla,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel'))
-    WHEN 'rhel 7 eus' THEN '69-70'
-    WHEN 'rhel 8 eus' THEN '479-70'
+    WHEN 'rhel 7 els' THEN '69-204'
+    WHEN 'rhel 8 els' THEN '479-204'
     ELSE '479'
   END as subs_product_ids
 FROM
@@ -50,7 +50,7 @@ FROM
       AND month = {{ month }}
       AND lineitem_productcode = 'AmazonEC2'
       AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage')
-      and product_vcpu IS NOT NULL
+      AND product_vcpu != ''
       AND lineitem_usagestartdate >= {{ start_time }}
       AND lineitem_usagestartdate <= {{ end_time }}
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
