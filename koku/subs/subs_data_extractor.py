@@ -113,7 +113,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         where_clause = (
             "WHERE source={{provider_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
+            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
             " lineitem_usagestartdate > {{latest_processed_time}} AND"
             " lineitem_usagestartdate <= {{end_time}} AND lineitem_resourceid = {{rid}}"
         )
@@ -191,8 +191,8 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             # [(name, type_code, display_size, internal_size, precision, scale, null_ok)]
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
-
-            upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
+            if results:
+                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
