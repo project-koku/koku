@@ -124,15 +124,15 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with OCPReportDBAccessor(self._schema) as accessor:
             # Only include OCP providers for OCP on Cloud summary if we have a matching report period
             for ocp_provider_uuid in infra_map:
-                ctx = {
-                    "schema": self._schema,
-                    "ocp_provider_uuid": ocp_provider_uuid,
-                    "provider_uuid": infra_map[ocp_provider_uuid][0],
-                    "provider_type": infra_map[ocp_provider_uuid][1],
-                }
                 if accessor.report_periods_for_provider_uuid(ocp_provider_uuid, start_date):
                     summary_infra_map[ocp_provider_uuid] = infra_map[ocp_provider_uuid]
                 else:
+                    ctx = {
+                        "schema": self._schema,
+                        "ocp_provider_uuid": ocp_provider_uuid,
+                        "provider_uuid": infra_map[ocp_provider_uuid][0],
+                        "provider_type": infra_map[ocp_provider_uuid][1],
+                    }
                     LOG.info(
                         log_json(
                             msg=f"no matching report periods available for cluster - removing from OCP on {infra_map[ocp_provider_uuid][1]} summary list",  # noqa: E501
