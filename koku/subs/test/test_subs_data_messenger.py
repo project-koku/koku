@@ -29,7 +29,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
     @patch("subs.subs_data_messenger.SUBSDataMessenger.build_subs_msg")
     def test_process_and_send_subs_message(self, mock_msg_builder, mock_reader, mock_producer, mock_remove):
         """Tests that the proper functions are called when running process_and_send_subs_message"""
-        upload_keys = [("fake_key", "i-55555556")]
+        upload_keys = ["fake_key"]
         mock_reader.return_value = [
             {
                 "subs_start_time": "2023-07-01T01:00:00Z",

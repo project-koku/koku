@@ -37,7 +37,7 @@ class SUBSDataMessenger:
 
     def process_and_send_subs_message(self, upload_keys):
         """
-        Takes a list of object keys,reads the objects from the S3 bucket and processes a message to kafka.
+        Takes a list of object keys, reads the objects from the S3 bucket and processes a message to kafka.
         """
         for i, obj_key in enumerate(upload_keys):
             csv_path = f"{self.download_path}/subs_{self.tracing_id}_{i}.csv"
@@ -78,7 +78,7 @@ class SUBSDataMessenger:
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
     def send_kafka_message(self, msg):
-        """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
+        """Sends a kafka message to the SUBS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
         producer.produce(masu_config.SUBS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
