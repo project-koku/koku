@@ -37,7 +37,7 @@ class SUBSDataMessenger:
 
     def process_and_send_subs_message(self, upload_keys):
         """
-        Takes a list of tuples (key, resource_id),reads the objects from the S3 bucket and processes a message to kafka.
+        Takes a list of object keys,reads the objects from the S3 bucket and processes a message to kafka.
         """
         for i, obj_key in enumerate(upload_keys):
             csv_path = f"{self.download_path}/subs_{self.tracing_id}_{i}.csv"
