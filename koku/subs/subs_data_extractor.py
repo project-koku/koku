@@ -158,7 +158,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
         return ids
 
-    def gather_and_upload_for_resource_batch(self, year, month, batch):
+    def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""
         where_clause, sql_params = self.determine_where_clause_and_params(year, month)
         sql_file = f"trino_sql/{self.provider_type.lower()}_subs_pre_or_clause.sql"
@@ -198,7 +198,6 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             )
         )
         upload_keys = []
-        filename = f"subs_{self.tracing_id}_{self.provider_uuid}_"
         sql_params["schema"] = self.schema
         for i, offset in enumerate(range(0, total_count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
             sql_params["offset"] = offset
@@ -212,7 +211,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
             if results:
-                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{filename}{i}.csv"))
+                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{base_filename}_{i}.csv"))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
@@ -252,6 +251,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             )
             return []
         last_processed_dict = self.get_latest_processed_dict_for_provider(year, month)
+        base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}"
         for usage_account in usage_accounts:
             resource_ids = self.get_resource_ids_for_usage_account(usage_account, year, month)
             if not resource_ids:
@@ -265,6 +265,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
                 continue
             batch = []
             batches = math.ceil(len(resource_ids) / 500)
+            batch_num = 0
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -276,10 +277,15 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
                 start_time = max(last_processed_dict.get(rid, month_start), self.creation_processing_time)
                 batch.append((rid, start_time, end_time))
                 if len(batch) >= 500:
-                    upload_keys.extend(self.gather_and_upload_for_resource_batch(year, month, batch))
+                    upload_keys.extend(
+                        self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
+                    )
+                    batch_num += 1
                     batch = []
             if batch:
-                upload_keys.extend(self.gather_and_upload_for_resource_batch(year, month, batch))
+                upload_keys.extend(
+                    self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
+                )
             self.bulk_update_latest_processed_time(resource_ids, year, month)
         LOG.info(
             log_json(
