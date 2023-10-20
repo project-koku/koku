@@ -95,7 +95,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         expected_clause = (
             "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
+            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
         )
         actual_clause, actual_params = self.extractor.determine_where_clause_and_params(year, month)
         self.assertEqual(expected_clause, actual_clause)

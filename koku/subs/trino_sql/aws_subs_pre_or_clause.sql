@@ -50,5 +50,5 @@ FROM
       AND month = {{ month }}
       AND lineitem_productcode = 'AmazonEC2'
       AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage')
-      and product_vcpu IS NOT NULL
+      and product_vcpu != ''
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0

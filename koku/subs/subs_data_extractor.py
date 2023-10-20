@@ -119,7 +119,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         where_clause = (
             "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
+            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
         )
         sql_params = {
             "source_uuid": self.provider_uuid,
