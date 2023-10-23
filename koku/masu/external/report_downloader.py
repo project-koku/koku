@@ -9,7 +9,6 @@ from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
 from api.provider.models import Provider
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -188,16 +187,18 @@ class ReportDownloader:
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
             return {}
 
-        with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
-            stored_etag = stats_recorder.get_etag()
-            try:
-                file_name, etag, _, split_files, date_range = self._downloader.download_file(
-                    report, stored_etag, manifest_id=manifest_id, start_date=date_time
-                )
-                stats_recorder.update(etag=etag)
-            except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
-                LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
-                return {}
+        stats_recorder, _ = CostUsageReportStatus.objects.get_or_create(
+            report_name=local_file_name, manifest_id=manifest_id
+        )
+        try:
+            file_name, etag, _, split_files, date_range = self._downloader.download_file(
+                report, stats_recorder.etag, manifest_id=manifest_id, start_date=date_time
+            )
+            stats_recorder.etag = etag
+            stats_recorder.save(update_fields=["etag"])
+        except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+            LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
+            return {}
 
         # The create_table flag is used by the ParquetReportProcessor
         # to create a Hive/Trino table.
