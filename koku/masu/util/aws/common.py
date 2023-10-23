@@ -456,15 +456,7 @@ def get_account_names_by_organization(arn, session=None):
 
 
 def update_account_alias(schema, credentials):
-    """
-    Update the account alias.
-
-    Args:
-        None
-    Returns:
-        (String, String) Account ID, Account Alias
-
-    """
+    """Update the account aliases."""
     _arn = AwsArn(credentials)
     account_id, account_alias = get_account_alias_from_role_arn(_arn)
     with contextlib.suppress(IntegrityError), schema_context(schema):
@@ -477,8 +469,6 @@ def update_account_alias(schema, credentials):
         if acct_id and acct_alias:
             with contextlib.suppress(IntegrityError), schema_context(schema):
                 AWSAccountAlias.objects.get_or_create(account_id=acct_id, account_alias=acct_alias)
-
-    return account_id, account_alias
 
 
 def get_bills_from_provider(
