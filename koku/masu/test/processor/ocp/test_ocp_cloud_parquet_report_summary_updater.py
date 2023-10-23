@@ -518,6 +518,18 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
 
+    def test_get_infra_map_for_summary(self):
+        """Test that an infrastructure map is returned for active providers."""
+        updater = OCPCloudParquetReportSummaryUpdater(
+            schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
+        )
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+
+        infra_map = updater.get_infra_map(start_date, end_date)
+        # We shouldnt collect any providers for summary with these given dates.
+        self.assertEqual(len(infra_map.keys()), 0)
+
     def test_partition_handler_str_table(self):
         new_table_sql = f"""
 create table {self.schema}._eek_pt0 (usage_start date not null, id int) partition by range (usage_start);
